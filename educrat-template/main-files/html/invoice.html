@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Required meta tags -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Google fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/base.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Material+Icons+Outlined" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin="" />
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/vendors.css">
+  <link rel="stylesheet" href="css/main.css">
+
+  <title>Cross View College of Theology and Technology</title>
+</head>
+
+<body class="preloader-visible" data-barba="wrapper">
+  <!-- preloader start -->
+  <div class="preloader js-preloader">
+    <div class="preloader__bg"></div>
+  </div>
+  <!-- preloader end -->
+
+
+  <main class="main-content  
+  bg-light-3
+">
+
+
+    <div class="content-wrapper  js-content-wrapper">
+
+      <section class="invoice-wrapper layout-pb-lg">
+        <div class="container">
+          <div class="row justify-center pt-60">
+            <div class="col-xl-10">
+              <div class="d-flex justify-end mb-60">
+                <button class="button -md -purple-1 text-white">Print</button>
+              </div>
+
+              <div class="bg-white rounded-8 shadow-4">
+                <div class="invoice__content">
+                  <div class="row y-gap-20 justify-between">
+                    <div class="col-auto">
+                      <img src="img/general/logo-dark.svg" alt="logo">
+                    </div>
+                    <div class="col-xl-4">
+                      <div class="d-flex y-gap-20 justify-between items-center">
+                        <div class="text-24 lh-12 text-dark-1 fw-500">Invoice #</div>
+                        <div class="text-18 lh-12">0043128641</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row y-gap-20 justify-between pt-50">
+                    <div class="col-auto">
+                      <div class="lh-12">Invoice date:</div>
+                      <div class="lh-12 mt-5 text-dark-1 fw-500">03/10/2021</div>
+                    </div>
+                    <div class="col-xl-4">
+                      <div class="lh-12">Due date:</div>
+                      <div class="lh-12 mt-5 text-dark-1 fw-500">03/10/2021</div>
+                    </div>
+                  </div>
+
+                  <div class="row y-gap-20 justify-between pt-50">
+                    <div class="col-auto">
+                      <div class="text-18 lh-12 text-dark-1 fw-500">Supplier</div>
+                      <div class="lh-12 text-dark-1 fw-500 mt-20">Jobio LLC</div>
+                      <div class="mt-15">2301 Ravenswood Rd Madison,<br>WI 53711</div>
+                    </div>
+
+                    <div class="col-xl-4">
+                      <div class="text-18 lh-12 text-dark-1 fw-500">Customer</div>
+                      <div class="lh-12 text-dark-1 fw-500 mt-20">John Doe</div>
+                      <div class="mt-15">329 Queensberry Street, North Melbourne VIC 3051, Australia.</div>
+                    </div>
+                  </div>
+
+                  <div class="py-25 px-40 bg-purple-3 rounded-8 mt-50">
+                    <div class="row">
+                      <div class="col-xl-6">
+                        <div class="text-16 lh-1 fw-500 text-purple-1">Description</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div class="text-16 lh-1 fw-500 text-purple-1">Price</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div class="text-16 lh-1 fw-500 text-purple-1">VAT (20%)</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div class="text-16 lh-1 fw-500 text-purple-1">Total</div>
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <div class="py-25 px-40 ">
+                    <div class="row">
+                      <div class="col-xl-6">
+                        <div>Standard Plan</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div>$443.00</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div>$921.80</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div>$9243</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="py-25 px-40 border-top-light">
+                    <div class="row">
+                      <div class="col-xl-6">
+                        <div>Extra Plan</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div>$443.00</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div>$921.80</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div>$9243</div>
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <div class="py-25 px-40 border-top-light">
+                    <div class="row justify-between">
+                      <div class="col-xl-6">
+                        <div class="text-18 text-dark-1 fw-500">Total Due</div>
+                      </div>
+                      <div class="col-xl-2">
+                        <div class="text-18 text-dark-1 fw-500">$9,750</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="invoice__footer border-top-light">
+                  <div class="row x-gap-50 justify-center">
+                    <div class="col-auto">
+                      <a href="#">www.jobio.com</a>
+                    </div>
+                    <div class="col-auto">
+                      <a href="#">invoice@jobio.com</a>
+                    </div>
+                    <div class="col-auto">
+                      <a href="#">(123) 123-456</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+    </div>
+  </main>
+
+  <!-- JavaScript -->
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+  <script src="js/vendors.js"></script>
+  <script src="js/main.js"></script>
+</body>
+
+</html>
