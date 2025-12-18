@@ -1,5 +1,7 @@
 # Design Document: Progression Engine
 
+> **🔄 Migration Notice:** This spec is being migrated from PHP/Laravel to Python/Django. All code examples, models, and implementation details are written for Django. The original Laravel implementation exists in the codebase and will be replaced.
+
 ## Overview
 
 The Progression Engine controls student access to curriculum content through sequential locking and prerequisite enforcement. It tracks node completions, calculates progress percentages, and provides unlock status for UI rendering. The engine integrates with the Blueprint Engine (for progression_rules) and Assessment Engine (for quiz-based completion).
@@ -36,161 +38,219 @@ graph TB
 
 ### 1. NodeCompletion Model
 
-```php
-namespace App\Models;
+```python
+from django.db import models
 
-class NodeCompletion extends Model
-{
-    protected $fillable = [
-        'enrollment_id',
-        'node_id',
-        'completed_at',
-        'completion_type',  // 'view', 'quiz_pass', 'upload', 'manual'
-        'metadata',
-    ];
+class NodeCompletion(models.Model):
+    COMPLETION_TYPES = [
+        ('view', 'View'),
+        ('quiz_pass', 'Quiz Pass'),
+        ('upload', 'Upload'),
+        ('manual', 'Manual'),
+    ]
 
-    protected $casts = [
-        'completed_at' => 'datetime',
-        'metadata' => 'array',
-    ];
+    enrollment = models.ForeignKey('Enrollment', on_delete=models.CASCADE, related_name='completions')
+    node = models.ForeignKey('CurriculumNode', on_delete=models.CASCADE, related_name='completions')
+    completed_at = models.DateTimeField()
+    completion_type = models.CharField(max_length=20, choices=COMPLETION_TYPES)
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    public function enrollment(): BelongsTo;
-    public function node(): BelongsTo;
-}
+    class Meta:
+        db_table = 'node_completions'
+        unique_together = ['enrollment', 'node']
+        indexes = [
+            models.Index(fields=['enrollment']),
+            models.Index(fields=['node']),
+        ]
 ```
 
-### 2. ProgressionEngine Service
+### 2. AccessResult DTO
 
-```php
-namespace App\Services;
+```python
+from dataclasses import dataclass
+from typing import Optional, List
 
-class ProgressionEngine
-{
-    public function __construct(
-        private SequentialLockChecker $sequentialChecker,
-        private PrerequisiteLockChecker $prerequisiteChecker,
-        private ProgressCalculator $progressCalculator
-    ) {}
-
-    /**
-     * Check if a student can access a specific node
-     */
-    public function canAccess(Enrollment $enrollment, CurriculumNode $node): AccessResult;
-    
-    /**
-     * Mark a node as completed
-     */
-    public function markComplete(
-        Enrollment $enrollment, 
-        CurriculumNode $node, 
-        string $completionType
-    ): NodeCompletion;
-    
-    /**
-     * Get unlock status for all nodes in a program
-     */
-    public function getUnlockStatus(Enrollment $enrollment): Collection;
-    
-    /**
-     * Calculate progress percentage
-     */
-    public function calculateProgress(Enrollment $enrollment, ?CurriculumNode $subtreeRoot = null): float;
-    
-    /**
-     * Check if enrollment is complete (100%)
-     */
-    public function checkProgramCompletion(Enrollment $enrollment): bool;
-}
+@dataclass
+class AccessResult:
+    can_access: bool
+    status: str  # 'unlocked', 'locked', 'completed'
+    lock_reason: Optional[str] = None  # 'sequential', 'prerequisite'
+    blocking_nodes: Optional[List[int]] = None
 ```
 
-### 3. SequentialLockChecker
+### 3. ProgressionEngine Service
 
-```php
-namespace App\Services\Progression;
+```python
+from django.utils import timezone
+from typing import Optional
 
-class SequentialLockChecker
-{
-    /**
-     * Check if node is unlocked based on sequential rules
-     */
-    public function isUnlocked(
-        Enrollment $enrollment, 
-        CurriculumNode $node, 
-        Collection $completedNodeIds
-    ): LockCheckResult;
-    
-    /**
-     * Get the first uncompleted sibling (the one that should be unlocked)
-     */
-    public function getFirstUncompletedSibling(
-        CurriculumNode $node, 
-        Collection $completedNodeIds
-    ): ?CurriculumNode;
-}
+class ProgressionEngine:
+    def __init__(self, sequential_checker, prerequisite_checker, progress_calculator):
+        self.sequential_checker = sequential_checker
+        self.prerequisite_checker = prerequisite_checker
+        self.progress_calculator = progress_calculator
+
+    def can_access(self, enrollment, node) -> AccessResult:
+        # Check if already completed
+        if NodeCompletion.objects.filter(enrollment=enrollment, node=node).exists():
+            return AccessResult(can_access=True, status='completed')
+        
+        completed_ids = set(NodeCompletion.objects.filter(
+            enrollment=enrollment
+        ).values_list('node_id', flat=True))
+        
+        # Check sequential lock
+        progression_rules = enrollment.program.blueprint.progression_rules or {}
+        if progression_rules.get('sequential', True):
+            seq_result = self.sequential_checker.is_unlocked(enrollment, node, completed_ids)
+            if not seq_result.can_access:
+                return seq_result
+        
+        # Check prerequisites
+        prereq_result = self.prerequisite_checker.are_prerequisites_met(node, completed_ids)
+        if not prereq_result.can_access:
+            return prereq_result
+        
+        return AccessResult(can_access=True, status='unlocked')
+
+    def mark_complete(self, enrollment, node, completion_type: str) -> NodeCompletion:
+        completion, created = NodeCompletion.objects.get_or_create(
+            enrollment=enrollment,
+            node=node,
+            defaults={
+                'completed_at': timezone.now(),
+                'completion_type': completion_type
+            }
+        )
+        
+        # Check for program completion
+        if self.check_program_completion(enrollment):
+            enrollment.status = 'completed'
+            enrollment.save()
+        
+        return completion
+
+    def get_unlock_status(self, enrollment):
+        nodes = enrollment.program.nodes.all()
+        completed_ids = set(NodeCompletion.objects.filter(
+            enrollment=enrollment
+        ).values_list('node_id', flat=True))
+        
+        statuses = []
+        for node in nodes:
+            if node.id in completed_ids:
+                statuses.append({'node_id': node.id, 'status': 'completed'})
+            else:
+                result = self.can_access(enrollment, node)
+                statuses.append({
+                    'node_id': node.id,
+                    'status': result.status,
+                    'lock_reason': result.lock_reason,
+                    'blocking_nodes': result.blocking_nodes
+                })
+        return statuses
+
+    def calculate_progress(self, enrollment, subtree_root=None) -> float:
+        return self.progress_calculator.calculate(enrollment, subtree_root)
+
+    def check_program_completion(self, enrollment) -> bool:
+        return self.calculate_progress(enrollment) >= 100.0
 ```
 
-### 4. PrerequisiteLockChecker
 
-```php
-namespace App\Services\Progression;
+### 4. SequentialLockChecker
 
-class PrerequisiteLockChecker
-{
-    /**
-     * Check if all prerequisites are completed
-     */
-    public function arePrerequisitesMet(
-        CurriculumNode $node, 
-        Collection $completedNodeIds
-    ): LockCheckResult;
-    
-    /**
-     * Get list of incomplete prerequisites
-     */
-    public function getIncompletePrerequisites(
-        CurriculumNode $node, 
-        Collection $completedNodeIds
-    ): Collection;
-}
+```python
+class SequentialLockChecker:
+    def is_unlocked(self, enrollment, node, completed_ids: set) -> AccessResult:
+        # Get siblings ordered by position
+        siblings = CurriculumNode.objects.filter(
+            program=node.program,
+            parent=node.parent
+        ).order_by('position')
+        
+        for sibling in siblings:
+            if sibling.id == node.id:
+                return AccessResult(can_access=True, status='unlocked')
+            if sibling.id not in completed_ids:
+                return AccessResult(
+                    can_access=False,
+                    status='locked',
+                    lock_reason='sequential',
+                    blocking_nodes=[sibling.id]
+                )
+        
+        return AccessResult(can_access=True, status='unlocked')
+
+    def get_first_uncompleted_sibling(self, node, completed_ids: set):
+        siblings = CurriculumNode.objects.filter(
+            program=node.program,
+            parent=node.parent
+        ).order_by('position')
+        
+        for sibling in siblings:
+            if sibling.id not in completed_ids:
+                return sibling
+        return None
 ```
 
-### 5. ProgressCalculator
+### 5. PrerequisiteLockChecker
 
-```php
-namespace App\Services\Progression;
+```python
+class PrerequisiteLockChecker:
+    def are_prerequisites_met(self, node, completed_ids: set) -> AccessResult:
+        prerequisites = node.completion_rules.get('prerequisites', []) if node.completion_rules else []
+        
+        incomplete = [p for p in prerequisites if p not in completed_ids]
+        
+        if incomplete:
+            return AccessResult(
+                can_access=False,
+                status='locked',
+                lock_reason='prerequisite',
+                blocking_nodes=incomplete
+            )
+        
+        return AccessResult(can_access=True, status='unlocked')
 
-class ProgressCalculator
-{
-    /**
-     * Calculate progress as percentage
-     */
-    public function calculate(
-        Collection $allNodes, 
-        Collection $completedNodeIds
-    ): float;
-    
-    /**
-     * Filter to only completable nodes (exclude containers)
-     */
-    public function getCompletableNodes(Collection $nodes): Collection;
-}
+    def get_incomplete_prerequisites(self, node, completed_ids: set):
+        prerequisites = node.completion_rules.get('prerequisites', []) if node.completion_rules else []
+        return [p for p in prerequisites if p not in completed_ids]
 ```
 
-### 6. AccessResult DTO
+### 6. ProgressCalculator
 
-```php
-namespace App\DTOs;
+```python
+class ProgressCalculator:
+    def calculate(self, enrollment, subtree_root=None) -> float:
+        if subtree_root:
+            all_nodes = self.get_subtree_nodes(subtree_root)
+        else:
+            all_nodes = enrollment.program.nodes.all()
+        
+        completable_nodes = self.get_completable_nodes(all_nodes)
+        if not completable_nodes:
+            return 100.0
+        
+        completed_count = NodeCompletion.objects.filter(
+            enrollment=enrollment,
+            node__in=completable_nodes
+        ).count()
+        
+        return (completed_count / len(completable_nodes)) * 100
 
-class AccessResult
-{
-    public function __construct(
-        public readonly bool $canAccess,
-        public readonly string $status,  // 'unlocked', 'locked', 'completed'
-        public readonly ?string $lockReason,  // 'sequential', 'prerequisite'
-        public readonly ?array $blockingNodes,
-    ) {}
-}
+    def get_completable_nodes(self, nodes):
+        # Filter out container nodes (nodes with children that aren't completable)
+        return [n for n in nodes if n.completion_rules and n.completion_rules.get('is_completable', True)]
+
+    def get_subtree_nodes(self, root):
+        nodes = [root]
+        for child in root.children.all():
+            nodes.extend(self.get_subtree_nodes(child))
+        return nodes
 ```
+
 
 ## Data Models
 
@@ -198,21 +258,18 @@ class AccessResult
 
 ```sql
 CREATE TABLE node_completions (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    enrollment_id BIGINT UNSIGNED NOT NULL,
-    node_id BIGINT UNSIGNED NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    enrollment_id BIGINT NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
+    node_id BIGINT NOT NULL REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
     completed_at TIMESTAMP NOT NULL,
-    completion_type VARCHAR(50) NOT NULL,  -- 'view', 'quiz_pass', 'upload', 'manual'
-    metadata JSON NULL,
+    completion_type VARCHAR(20) NOT NULL,
+    metadata JSONB NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
-    FOREIGN KEY (node_id) REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
-    
-    UNIQUE KEY unique_enrollment_node (enrollment_id, node_id),
-    INDEX idx_enrollment (enrollment_id),
-    INDEX idx_node (node_id)
+    UNIQUE (enrollment_id, node_id)
 );
+CREATE INDEX idx_completions_enrollment ON node_completions(enrollment_id);
+CREATE INDEX idx_completions_node ON node_completions(node_id);
 ```
 
 ### JSON Schema: Completion Rules (on CurriculumNode)
@@ -237,11 +294,7 @@ CREATE TABLE node_completions (
 }
 ```
 
-
-
 ## Correctness Properties
-
-*A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
 ### Property 1: Sequential Unlock Progression
 *For any* set of sibling nodes with sequential locking enabled, only the first uncompleted node (by position) SHALL be unlocked; completing it SHALL unlock the next sibling.
@@ -275,61 +328,23 @@ CREATE TABLE node_completions (
 *For any* node marked complete multiple times, exactly one completion record SHALL exist.
 **Validates: Requirements 3.5**
 
-### Property 9: Progress Calculation Formula
-*For any* enrollment, progress percentage SHALL equal (completed completable nodes / total completable nodes) × 100.
-**Validates: Requirements 4.1**
-
-### Property 10: Progress Subtree Scoping
-*For any* subtree progress calculation, only nodes within that subtree SHALL be counted.
-**Validates: Requirements 4.2**
-
-### Property 11: Container Node Exclusion
-*For any* progress calculation, nodes marked as non-completable (containers) SHALL be excluded from both numerator and denominator.
-**Validates: Requirements 4.3**
-
-### Property 12: Program Completion at 100%
-*For any* enrollment reaching 100% progress, the enrollment status SHALL be set to "completed".
-**Validates: Requirements 4.4**
-
-### Property 13: Unlock Status Completeness
-*For any* unlock status query, every node SHALL have a status of "locked", "unlocked", or "completed".
-**Validates: Requirements 5.1**
-
-### Property 14: Lock Reason Included
-*For any* locked node in status query, the result SHALL include lock_reason and blocking_nodes.
-**Validates: Requirements 5.2**
-
-### Property 15: Completion Rules Validation
-*For any* completion_rules with type "quiz_pass", a quiz_id MUST be present; prerequisite node IDs MUST reference existing nodes.
-**Validates: Requirements 6.1, 6.2, 6.3**
-
-## Error Handling
-
-- **NodeLockedException**: Thrown when attempting to access a locked node
-- **InvalidCompletionRulesException**: Thrown when completion_rules fail validation
-- **PrerequisiteNotFoundException**: Thrown when prerequisite node ID doesn't exist
-- **QuizNotFoundException**: Thrown when quiz_id in completion_rules doesn't exist
+### Property 9-15: Progress Calculation, Subtree Scoping, Container Exclusion, Program Completion, Unlock Status, Lock Reason, Completion Rules Validation
+(See requirements 4.1-4.4, 5.1-5.2, 6.1-6.3)
 
 ## Testing Strategy
 
 ### Property-Based Testing Library
-PHPUnit with eris/eris for property-based tests.
+We will use **Hypothesis** for property-based tests.
 
-### Test Data Generators
-```php
-// Sibling nodes generator (ordered by position)
-$siblingsGen = Generator::seq(
-    Generator::tuple(
-        Generator::nat(),  // position
-        Generator::bool()  // is_completed
-    )
-)->map(fn($nodes) => collect($nodes)->sortBy(0));
+```python
+from hypothesis import strategies as st
 
-// Prerequisites generator
-$prerequisitesGen = Generator::subset(
-    Generator::listOf(Generator::nat(), 1, 5)
-);
+# Sibling nodes generator (ordered by position)
+@st.composite
+def siblings_strategy(draw):
+    count = draw(st.integers(min_value=1, max_value=10))
+    completed = draw(st.lists(st.booleans(), min_size=count, max_size=count))
+    return [(i, completed[i]) for i in range(count)]
 
-// Completion type generator
-$completionTypeGen = Generator::elements(['view', 'quiz_pass', 'upload', 'manual']);
+completion_type_strategy = st.sampled_from(['view', 'quiz_pass', 'upload', 'manual'])
 ```

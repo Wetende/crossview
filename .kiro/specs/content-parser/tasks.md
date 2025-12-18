@@ -1,34 +1,36 @@
 # Implementation Plan
 
+> **🔄 Migration Notice:** This implementation plan is for migrating from PHP/Laravel to Python/Django. All tasks reference Django-specific implementations (Django models, migrations, pytest/Hypothesis for testing, management commands).
+
 - [ ] 1. Set up database schema and models
-  - [ ] 1.1 Create migration for content_versions table
+  - [ ] 1.1 Create Django migration for content_versions table
     - Create table with node_id, version, source_file_path, source_file_name, page_count, is_published, is_manually_edited, parsed_at, published_at, metadata
     - Add foreign keys and indexes
     - _Requirements: 5.1_
 
-  - [ ] 1.2 Create migration for parsed_images table
+  - [ ] 1.2 Create Django migration for parsed_images table
     - Create table with content_version_id, original_path, optimized_path, page_number, width, height, file_size
     - Add foreign key
     - _Requirements: 1.3_
 
-  - [ ] 1.3 Create ContentVersion Eloquent model
-    - Define fillable fields and relationships
-    - Add sessions() relationship
+  - [ ] 1.3 Create ContentVersion Django model
+    - Define fields and relationships
+    - Add sessions relationship
     - _Requirements: 5.1, 5.2_
 
 - [ ] 2. Implement PDF extraction
-  - [ ] 2.1 Install smalot/pdfparser dependency
-    - Add to composer.json
+  - [ ] 2.1 Install PyMuPDF (fitz) dependency
+    - Add to requirements.txt
     - _Requirements: 1.1_
 
   - [ ] 2.2 Create PdfExtractor service
     - Implement extract() for full PDF extraction
-    - Implement extractPages() for page range extraction
-    - Implement detectSections() for chapter detection
+    - Implement extract_pages() for page range extraction
+    - Implement detect_sections() for chapter detection
     - _Requirements: 1.1, 1.2, 2.2_
 
-  - [ ] 2.3 Create ExtractedContent DTO
-    - Define pages, images, headings, pageCount, metadata
+  - [ ] 2.3 Create ExtractedContent dataclass
+    - Define pages, images, headings, page_count, metadata
     - _Requirements: 1.1_
 
   - [ ] 2.4 Write property test for PDF extraction completeness
@@ -45,8 +47,8 @@
 - [ ] 4. Implement session generation
   - [ ] 4.1 Create SessionGenerator service
     - Implement generate() to create session nodes from content
-    - Implement autoGenerateRanges() for auto-detection
-    - Implement generateTitle() for title extraction
+    - Implement auto_generate_ranges() for auto-detection
+    - Implement generate_title() for title extraction
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
   - [ ] 4.2 Write property test for session generation from ranges
@@ -61,15 +63,16 @@
     - **Property 5: Session Title Generation**
     - **Validates: Requirements 2.3**
 
+
 - [ ] 5. Implement content optimization
-  - [ ] 5.1 Install intervention/image dependency
-    - Add to composer.json
+  - [ ] 5.1 Install Pillow dependency
+    - Add to requirements.txt
     - _Requirements: 3.2_
 
   - [ ] 5.2 Create ContentOptimizer service
     - Implement optimize() for mobile optimization
-    - Implement optimizeImages() for compression/resize
-    - Implement toHtml() for HTML conversion
+    - Implement optimize_images() for compression/resize
+    - Implement to_html() for HTML conversion
     - Implement paginate() for large content
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
@@ -90,7 +93,7 @@
 
 - [ ] 7. Implement ContentParserService
   - [ ] 7.1 Create ContentParserService
-    - Implement parsePdf() orchestrating extraction, generation, optimization
+    - Implement parse_pdf() orchestrating extraction, generation, optimization
     - Create ContentVersion record
     - Store parsed content in node properties
     - _Requirements: 1.1, 2.1, 3.1_

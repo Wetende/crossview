@@ -1,0 +1,31 @@
+# Django Core
+Django>=5.0,<6.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.3.0
+
+# Inertia.js for Django
+inertia-django>=1.0.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# Testing
+pytest>=8.0.0
+pytest-django>=4.7.0
+hypothesis>=6.98.0
+factory-boy>=3.3.0
+
+# PDF Generation
+WeasyPrint>=61.0
+
+# Image Processing
+Pillow>=10.2.0
+
+# PDF Parsing
+PyMuPDF>=1.23.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Utilities
+python-dateutil>=2.8.2

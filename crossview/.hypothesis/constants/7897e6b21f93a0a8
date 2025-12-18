@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\core\models.py
+# hypothesis_version: 6.148.7
+
+[255, 'is_published', 'name', 'programs', 'tenants.Tenant', 'users']

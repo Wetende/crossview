@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\curriculum\repositories.py
+# hypothesis_version: 6.148.7
+
+['parent', 'position', 'program__blueprint']

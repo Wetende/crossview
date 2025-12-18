@@ -23,6 +23,7 @@ final class Course extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'blueprint_id',
         'user_id',
         'title',
         'slug',
@@ -103,6 +104,22 @@ final class Course extends Model
         'draft_notes' => 'array',
         'editing_locked' => 'boolean',
     ];
+
+    /**
+     * Get the academic blueprint for this course.
+     */
+    public function blueprint(): BelongsTo
+    {
+        return $this->belongsTo(AcademicBlueprint::class, 'blueprint_id');
+    }
+
+    /**
+     * Get the curriculum nodes for this course.
+     */
+    public function curriculumNodes(): HasMany
+    {
+        return $this->hasMany(CurriculumNode::class);
+    }
 
     /**
      * Get the teacher who owns the course.

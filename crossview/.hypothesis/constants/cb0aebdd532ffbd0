@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\curriculum\models.py
+# hypothesis_version: 6.148.7
+
+[255, 'children', 'core.Program', 'curriculum_nodes', 'node_type', 'parent', 'position', 'program', 'self', 'skip_validation']

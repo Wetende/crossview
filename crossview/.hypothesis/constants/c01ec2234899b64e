@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\blueprints\services.py
+# hypothesis_version: 6.148.7
+
+['certificate_enabled', 'competency', 'components', 'description', 'gamification_enabled', 'grading_logic', 'hierarchy_structure', 'name', 'pass_fail', 'progression_rules', 'type', 'weighted']

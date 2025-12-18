@@ -1,5 +1,7 @@
 # Design Document: Assessment Engine
 
+> **🔄 Migration Notice:** This spec is being migrated from PHP/Laravel to Python/Django. All code examples, models, and implementation details are written for Django. The original Laravel implementation exists in the codebase and will be replaced.
+
 ## Overview
 
 The Assessment Engine calculates and stores student grades using configurable strategies defined in Academic Blueprints. It supports three grading types: weighted summative (Theology), competency-based (TVET), and pass/fail. The engine uses the Strategy pattern to swap grading algorithms based on blueprint configuration.
@@ -38,150 +40,175 @@ graph TB
 
 ### 1. GradingStrategyInterface
 
-```php
-namespace App\Contracts;
+```python
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Dict, Any, Optional
 
-interface GradingStrategyInterface
-{
-    /**
-     * Calculate the final result from component scores
-     */
-    public function calculate(array $componentScores, array $config): AssessmentResultData;
-    
-    /**
-     * Validate that component scores match expected components
-     */
-    public function validateComponents(array $componentScores, array $config): bool;
-    
-    /**
-     * Get the result status (Pass, Fail, Competent, etc.)
-     */
-    public function getStatus(float $total, array $config): string;
-}
+@dataclass
+class AssessmentResultData:
+    total: float
+    status: str
+    letter_grade: Optional[str] = None
+    components: Dict[str, float] = None
+
+class GradingStrategyInterface(ABC):
+    @abstractmethod
+    def calculate(self, component_scores: Dict[str, float], config: Dict[str, Any]) -> AssessmentResultData:
+        """Calculate the final result from component scores"""
+        pass
+
+    @abstractmethod
+    def validate_components(self, component_scores: Dict[str, float], config: Dict[str, Any]) -> bool:
+        """Validate that component scores match expected components"""
+        pass
+
+    @abstractmethod
+    def get_status(self, total: float, config: Dict[str, Any]) -> str:
+        """Get the result status (Pass, Fail, Competent, etc.)"""
+        pass
 ```
 
 ### 2. WeightedGradingStrategy
 
-```php
-namespace App\Services\Grading;
+```python
+class WeightedGradingStrategy(GradingStrategyInterface):
+    def calculate(self, component_scores: Dict[str, float], config: Dict[str, Any]) -> AssessmentResultData:
+        components = config.get('components', [])
+        total = 0.0
+        for comp in components:
+            score = component_scores.get(comp['name'], 0)  # Missing = 0
+            total += score * comp['weight']
+        
+        status = self.get_status(total, config)
+        letter_grade = self.get_letter_grade(total, config.get('grade_boundaries', []))
+        return AssessmentResultData(total=total, status=status, letter_grade=letter_grade, components=component_scores)
 
-class WeightedGradingStrategy implements GradingStrategyInterface
-{
-    public function calculate(array $componentScores, array $config): AssessmentResultData
-    {
-        // Multiply each score by weight, sum products
-        // Calculate letter grade from boundaries
-        // Return total, status, letter_grade
-    }
-    
-    public function getStatus(float $total, array $config): string
-    {
-        return $total >= ($config['pass_mark'] ?? 40) ? 'Pass' : 'Referral';
-    }
-    
-    public function getLetterGrade(float $total, array $boundaries): string;
-}
+    def get_status(self, total: float, config: Dict[str, Any]) -> str:
+        pass_mark = config.get('pass_mark', 40)
+        return 'Pass' if total >= pass_mark else 'Referral'
+
+    def get_letter_grade(self, total: float, boundaries: list) -> Optional[str]:
+        for boundary in sorted(boundaries, key=lambda x: x['min'], reverse=True):
+            if total >= boundary['min']:
+                return boundary['grade']
+        return 'F'
+
+    def validate_components(self, component_scores: Dict[str, float], config: Dict[str, Any]) -> bool:
+        return True
 ```
+
 
 ### 3. CompetencyGradingStrategy
 
-```php
-namespace App\Services\Grading;
+```python
+class CompetencyGradingStrategy(GradingStrategyInterface):
+    def calculate(self, component_scores: Dict[str, float], config: Dict[str, Any]) -> AssessmentResultData:
+        # All evidences must be 'pass' or 1.0
+        all_pass = all(score in ['pass', 1, 1.0, True] for score in component_scores.values())
+        total = 1.0 if all_pass else 0.0
+        status = self.get_status(total, config)
+        return AssessmentResultData(total=total, status=status, components=component_scores)
 
-class CompetencyGradingStrategy implements GradingStrategyInterface
-{
-    public function calculate(array $componentScores, array $config): AssessmentResultData
-    {
-        // Check all required evidences are present/pass
-        // Return status using custom labels if defined
-    }
-    
-    public function getStatus(float $total, array $config): string
-    {
-        $labels = $config['competency_labels'] ?? ['pass' => 'Competent', 'fail' => 'Not Yet Competent'];
-        return $total === 1.0 ? $labels['pass'] : $labels['fail'];
-    }
-}
+    def get_status(self, total: float, config: Dict[str, Any]) -> str:
+        labels = config.get('competency_labels', {'pass': 'Competent', 'fail': 'Not Yet Competent'})
+        return labels['pass'] if total == 1.0 else labels['fail']
+
+    def validate_components(self, component_scores: Dict[str, float], config: Dict[str, Any]) -> bool:
+        return True
 ```
 
 ### 4. GradingStrategyFactory
 
-```php
-namespace App\Services\Grading;
-
-class GradingStrategyFactory
-{
-    public function createFromBlueprint(AcademicBlueprint $blueprint): GradingStrategyInterface
-    {
-        return match($blueprint->grading_logic['type']) {
-            'weighted' => new WeightedGradingStrategy(),
-            'competency' => new CompetencyGradingStrategy(),
-            'pass_fail' => new PassFailGradingStrategy(),
-            default => throw new InvalidGradingTypeException(),
-        };
-    }
-}
+```python
+class GradingStrategyFactory:
+    def create_from_blueprint(self, blueprint) -> GradingStrategyInterface:
+        grading_type = blueprint.grading_logic.get('type')
+        if grading_type == 'weighted':
+            return WeightedGradingStrategy()
+        elif grading_type == 'competency':
+            return CompetencyGradingStrategy()
+        elif grading_type == 'pass_fail':
+            return PassFailGradingStrategy()
+        else:
+            raise InvalidGradingTypeException(f"Unknown grading type: {grading_type}")
 ```
 
 ### 5. AssessmentEngine
 
-```php
-namespace App\Services;
+```python
+class AssessmentEngine:
+    def __init__(self, strategy_factory: GradingStrategyFactory):
+        self.strategy_factory = strategy_factory
 
-class AssessmentEngine
-{
-    public function __construct(
-        private GradingStrategyFactory $strategyFactory
-    ) {}
-    
-    public function calculateResult(
-        Enrollment $enrollment,
-        CurriculumNode $node,
-        array $componentScores
-    ): AssessmentResult;
-    
-    public function saveResult(AssessmentResult $result): AssessmentResult;
-    
-    public function publishResult(AssessmentResult $result): void;
-    
-    public function bulkPublish(CurriculumNode $node): int;
-    
-    public function getStudentResults(User $student, ?bool $publishedOnly = true): Collection;
-}
+    def calculate_result(self, enrollment, node, component_scores: Dict[str, float]) -> 'AssessmentResult':
+        blueprint = enrollment.program.blueprint
+        strategy = self.strategy_factory.create_from_blueprint(blueprint)
+        result_data = strategy.calculate(component_scores, blueprint.grading_logic)
+        return AssessmentResult(
+            enrollment=enrollment,
+            node=node,
+            result_data=result_data.__dict__
+        )
+
+    def save_result(self, result: 'AssessmentResult') -> 'AssessmentResult':
+        # Upsert: update if exists, create if not
+        existing, created = AssessmentResult.objects.update_or_create(
+            enrollment=result.enrollment,
+            node=result.node,
+            defaults={'result_data': result.result_data}
+        )
+        return existing
+
+    def publish_result(self, result: 'AssessmentResult') -> None:
+        result.is_published = True
+        result.published_at = timezone.now()
+        result.save()
+
+    def bulk_publish(self, node) -> int:
+        return AssessmentResult.objects.filter(node=node, is_published=False).update(
+            is_published=True, published_at=timezone.now()
+        )
+
+    def get_student_results(self, student, published_only: bool = True):
+        qs = AssessmentResult.objects.filter(enrollment__user=student)
+        if published_only:
+            qs = qs.filter(is_published=True)
+        return qs
 ```
 
 ### 6. AssessmentResult Model
 
-```php
-namespace App\Models;
+```python
+from django.db import models
+from django.utils import timezone
 
-class AssessmentResult extends Model
-{
-    protected $fillable = [
-        'enrollment_id',
-        'node_id',
-        'result_data',
-        'lecturer_comments',
-        'is_published',
-        'published_at',
-        'graded_by_user_id',
-    ];
+class AssessmentResult(models.Model):
+    enrollment = models.ForeignKey('Enrollment', on_delete=models.CASCADE, related_name='assessment_results')
+    node = models.ForeignKey('CurriculumNode', on_delete=models.CASCADE, related_name='assessment_results')
+    result_data = models.JSONField()
+    lecturer_comments = models.TextField(blank=True, null=True)
+    is_published = models.BooleanField(default=False)
+    published_at = models.DateTimeField(blank=True, null=True)
+    graded_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, related_name='graded_results')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    protected $casts = [
-        'result_data' => 'array',
-        'is_published' => 'boolean',
-        'published_at' => 'datetime',
-    ];
+    class Meta:
+        db_table = 'assessment_results'
+        unique_together = ['enrollment', 'node']
+        indexes = [models.Index(fields=['node', 'is_published'])]
 
-    public function enrollment(): BelongsTo;
-    public function node(): BelongsTo;
-    public function gradedBy(): BelongsTo;
-    
-    public function getTotal(): ?float;
-    public function getStatus(): string;
-    public function getLetterGrade(): ?string;
-}
+    def get_total(self) -> float:
+        return self.result_data.get('total')
+
+    def get_status(self) -> str:
+        return self.result_data.get('status')
+
+    def get_letter_grade(self) -> str:
+        return self.result_data.get('letter_grade')
 ```
+
 
 ## Data Models
 
@@ -189,34 +216,27 @@ class AssessmentResult extends Model
 
 ```sql
 CREATE TABLE assessment_results (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    enrollment_id BIGINT UNSIGNED NOT NULL,
-    node_id BIGINT UNSIGNED NOT NULL,
-    result_data JSON NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    enrollment_id BIGINT NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
+    node_id BIGINT NOT NULL REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
+    result_data JSONB NOT NULL,
     lecturer_comments TEXT NULL,
     is_published BOOLEAN DEFAULT FALSE,
     published_at TIMESTAMP NULL,
-    graded_by_user_id BIGINT UNSIGNED NULL,
+    graded_by_user_id BIGINT NULL REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
-    FOREIGN KEY (node_id) REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
-    FOREIGN KEY (graded_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
-    
-    UNIQUE KEY unique_enrollment_node (enrollment_id, node_id),
-    INDEX idx_node_published (node_id, is_published)
+    UNIQUE (enrollment_id, node_id)
 );
+CREATE INDEX idx_results_node_published ON assessment_results(node_id, is_published);
 ```
 
 ### JSON Schema: Result Data (Weighted)
 
 ```json
 {
-    "components": {
-        "cat": 25,
-        "exam": 60
-    },
+    "components": { "cat": 25, "exam": 60 },
     "total": 51.5,
     "status": "Pass",
     "letter_grade": "C"
@@ -235,22 +255,6 @@ CREATE TABLE assessment_results (
     "status": "Competent"
 }
 ```
-
-### JSON Schema: Grade Boundaries (in Blueprint)
-
-```json
-{
-    "grade_boundaries": [
-        { "grade": "A", "min": 70 },
-        { "grade": "B", "min": 60 },
-        { "grade": "C", "min": 50 },
-        { "grade": "D", "min": 40 },
-        { "grade": "F", "min": 0 }
-    ]
-}
-```
-
-
 
 ## Correctness Properties
 
@@ -308,35 +312,48 @@ CREATE TABLE assessment_results (
 *For any* assessment result, serialization SHALL produce JSON containing all component scores, total, status, and letter_grade (if applicable).
 **Validates: Requirements 7.1, 7.2**
 
+
 ## Error Handling
 
-- **InvalidGradingTypeException**: Thrown when grading_logic type is not recognized
-- **InvalidGradingConfigException**: Thrown when grading_logic is missing required fields
-- **DuplicateResultException**: Should not occur due to upsert, but logged if constraint violation
-- **UnpublishedResultAccessException**: Thrown if student tries to access unpublished result directly
+```python
+class AssessmentEngineException(Exception):
+    """Base exception for Assessment Engine"""
+    pass
+
+class InvalidGradingTypeException(AssessmentEngineException):
+    """Thrown when grading_logic type is not recognized"""
+    pass
+
+class InvalidGradingConfigException(AssessmentEngineException):
+    """Thrown when grading_logic is missing required fields"""
+    pass
+```
 
 ## Testing Strategy
 
 ### Property-Based Testing Library
-PHPUnit with eris/eris for property-based tests.
+We will use **Hypothesis** (Python property-based testing library) for property-based tests.
 
-### Test Data Generators
-```php
-// Component scores generator
-$scoresGen = Generator::associativeArray([
-    'cat' => Generator::float(0, 100),
-    'exam' => Generator::float(0, 100),
-]);
+### Test Data Generators (Hypothesis Strategies)
 
-// Weights generator (must sum to 1.0)
-$weightsGen = Generator::bind(
-    Generator::float(0, 1),
-    fn($w) => ['cat' => $w, 'exam' => 1 - $w]
-);
+```python
+from hypothesis import strategies as st
 
-// Evidence set generator
-$evidenceGen = Generator::associativeArray([
-    'practical' => Generator::elements(['pass', 'fail']),
-    'portfolio' => Generator::elements(['pass', 'fail']),
-]);
+# Component scores generator
+scores_strategy = st.dictionaries(
+    keys=st.sampled_from(['cat', 'exam', 'assignment']),
+    values=st.floats(min_value=0, max_value=100)
+)
+
+# Weights generator (must sum to 1.0)
+@st.composite
+def weights_strategy(draw):
+    w1 = draw(st.floats(min_value=0, max_value=1))
+    return {'cat': w1, 'exam': 1 - w1}
+
+# Evidence set generator
+evidence_strategy = st.dictionaries(
+    keys=st.sampled_from(['practical', 'portfolio', 'written']),
+    values=st.sampled_from(['pass', 'fail'])
+)
 ```

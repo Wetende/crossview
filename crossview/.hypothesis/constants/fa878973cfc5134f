@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\config\settings.py
+# hypothesis_version: 6.148.7
+
+[',', '5432', 'ALLOWED_HOSTS', 'APP_DIRS', 'Africa/Nairobi', 'BACKEND', 'CORS_ORIGINS', 'Course', 'DB_ENGINE', 'DB_HOST', 'DB_NAME', 'DB_PASSWORD', 'DB_PORT', 'DB_USER', 'DEBUG', 'DIRS', 'DJANGO_SECRET_KEY', 'ENGINE', 'HOST', 'Lesson', 'NAME', 'OPTIONS', 'PASSWORD', 'PORT', 'Section', 'Session', 'True', 'USER', 'Unit', 'Year', 'apps.assessments', 'apps.blueprints', 'apps.certifications', 'apps.content', 'apps.core', 'apps.curriculum', 'apps.practicum', 'apps.progression', 'apps.tenants', 'base.html', 'config.urls', 'context_processors', 'core.User', 'corsheaders', 'crossview', 'db.sqlite3', 'default', 'django.contrib.admin', 'django.contrib.auth', 'en-us', 'inertia', 'localhost', 'localhost,127.0.0.1', 'media', 'media/', 'postgres', 'postgresql', 'rest_framework', 'sqlite', 'static', 'static/', 'staticfiles', 'templates', 'title', 'true']

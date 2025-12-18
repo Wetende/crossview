@@ -1,5 +1,7 @@
 # Design Document: Practicum System
 
+> **🔄 Migration Notice:** This spec is being migrated from PHP/Laravel to Python/Django. All code examples, models, and implementation details are written for Django. The original Laravel implementation exists in the codebase and will be replaced.
+
 ## Overview
 
 The Practicum System handles media-based practical assessments. Students submit audio/video/image evidence, lecturers grade against rubrics, and the system manages the review workflow. It integrates with the Progression Engine to unlock nodes upon approval.
@@ -19,16 +21,14 @@ graph TB
     subgraph "Data Layer"
         SUB[PracticumSubmission]
         RUB[Rubric]
-        RD[RubricDimension]
         SR[SubmissionReview]
         SUB --> SR
-        RUB --> RD
     end
     
     subgraph "External"
         PE[Progression Engine]
         PS -.-> PE
-        STORAGE[File Storage]
+        STORAGE[Django File Storage]
         MS --> STORAGE
     end
 ```
@@ -37,151 +37,206 @@ graph TB
 
 ### 1. PracticumSubmission Model
 
-```php
-namespace App\Models;
+```python
+from django.db import models
 
-class PracticumSubmission extends Model
-{
-    protected $fillable = [
-        'enrollment_id',
-        'node_id',
-        'version',
-        'status',
-        'file_path',
-        'file_type',
-        'file_size',
-        'duration_seconds',
-        'metadata',
-        'submitted_at',
-    ];
+class PracticumSubmission(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('revision_required', 'Revision Required'),
+        ('rejected', 'Rejected'),
+    ]
 
-    protected $casts = [
-        'version' => 'integer',
-        'file_size' => 'integer',
-        'duration_seconds' => 'integer',
-        'metadata' => 'array',
-        'submitted_at' => 'datetime',
-    ];
+    enrollment = models.ForeignKey('Enrollment', on_delete=models.CASCADE, related_name='practicum_submissions')
+    node = models.ForeignKey('CurriculumNode', on_delete=models.CASCADE, related_name='practicum_submissions')
+    version = models.PositiveIntegerField(default=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    file_path = models.CharField(max_length=500)
+    file_type = models.CharField(max_length=50)
+    file_size = models.BigIntegerField()
+    duration_seconds = models.PositiveIntegerField(blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True)
+    submitted_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    public function enrollment(): BelongsTo;
-    public function node(): BelongsTo;
-    public function reviews(): HasMany;
-    public function latestReview(): HasOne;
-    public function getSignedUrl(): string;
-}
+    class Meta:
+        db_table = 'practicum_submissions'
+        indexes = [
+            models.Index(fields=['enrollment', 'node']),
+            models.Index(fields=['status']),
+        ]
+
+    def get_signed_url(self) -> str:
+        from django.core.signing import TimestampSigner
+        signer = TimestampSigner()
+        return signer.sign(self.file_path)
 ```
 
 ### 2. Rubric Model
 
-```php
-namespace App\Models;
+```python
+class Rubric(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    dimensions = models.JSONField()  # [{"name": "...", "weight": 0.3, "max_score": 10}]
+    max_score = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-class Rubric extends Model
-{
-    protected $fillable = [
-        'name',
-        'description',
-        'dimensions',
-        'max_score',
-    ];
+    class Meta:
+        db_table = 'rubrics'
 
-    protected $casts = [
-        'dimensions' => 'array',
-        'max_score' => 'integer',
-    ];
-
-    public function calculateScore(array $dimensionScores): float;
-}
+    def calculate_score(self, dimension_scores: dict) -> float:
+        total = 0.0
+        for dim in self.dimensions:
+            score = dimension_scores.get(dim['name'], 0)
+            total += score * dim['weight']
+        return total
 ```
 
 ### 3. SubmissionReview Model
 
-```php
-namespace App\Models;
+```python
+class SubmissionReview(models.Model):
+    STATUS_CHOICES = [
+        ('approved', 'Approved'),
+        ('revision_required', 'Revision Required'),
+        ('rejected', 'Rejected'),
+    ]
 
-class SubmissionReview extends Model
-{
-    protected $fillable = [
-        'submission_id',
-        'reviewer_id',
-        'status',
-        'dimension_scores',
-        'total_score',
-        'comments',
-        'reviewed_at',
-    ];
+    submission = models.ForeignKey('PracticumSubmission', on_delete=models.CASCADE, related_name='reviews')
+    reviewer = models.ForeignKey('User', on_delete=models.CASCADE, related_name='submission_reviews')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    dimension_scores = models.JSONField(blank=True, null=True)
+    total_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
+    comments = models.TextField(blank=True, null=True)
+    reviewed_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    protected $casts = [
-        'dimension_scores' => 'array',
-        'total_score' => 'float',
-        'reviewed_at' => 'datetime',
-    ];
-
-    public function submission(): BelongsTo;
-    public function reviewer(): BelongsTo;
-}
+    class Meta:
+        db_table = 'submission_reviews'
+        indexes = [models.Index(fields=['submission'])]
 ```
+
 
 ### 4. PracticumService
 
-```php
-namespace App\Services;
+```python
+from django.utils import timezone
+from django.core.files.uploadedfile import UploadedFile
 
-class PracticumService
-{
-    public function __construct(
-        private MediaStorageService $storage,
-        private RubricService $rubricService,
-        private ProgressionEngine $progressionEngine
-    ) {}
+class PracticumService:
+    def __init__(self, storage_service, rubric_service, progression_engine):
+        self.storage = storage_service
+        self.rubric_service = rubric_service
+        self.progression_engine = progression_engine
 
-    public function createSubmission(
-        Enrollment $enrollment,
-        CurriculumNode $node,
-        UploadedFile $file
-    ): PracticumSubmission;
-    
-    public function validateFile(UploadedFile $file, array $requirements): ValidationResult;
-    
-    public function reviewSubmission(
-        PracticumSubmission $submission,
-        User $reviewer,
-        string $status,
-        array $dimensionScores,
-        ?string $comments
-    ): SubmissionReview;
-    
-    public function getSubmissionHistory(Enrollment $enrollment, CurriculumNode $node): Collection;
-    
-    public function resubmit(PracticumSubmission $previous, UploadedFile $file): PracticumSubmission;
-}
+    def create_submission(self, enrollment, node, file: UploadedFile) -> PracticumSubmission:
+        validation = self.validate_file(file, node.completion_rules)
+        if not validation['valid']:
+            raise InvalidFileException(validation['errors'])
+        
+        file_path = self.storage.store(file, f"practicum/{enrollment.id}/{node.id}/")
+        
+        return PracticumSubmission.objects.create(
+            enrollment=enrollment,
+            node=node,
+            file_path=file_path,
+            file_type=file.content_type,
+            file_size=file.size,
+            submitted_at=timezone.now()
+        )
+
+    def validate_file(self, file: UploadedFile, requirements: dict) -> dict:
+        errors = []
+        evidence_types = requirements.get('evidence_types', [])
+        max_size = requirements.get('max_file_size_mb', 50) * 1024 * 1024
+        max_duration = requirements.get('max_duration_seconds')
+        
+        # Check file type
+        file_type = file.content_type.split('/')[0]
+        if evidence_types and file_type not in evidence_types:
+            errors.append(f"File type {file_type} not allowed")
+        
+        # Check file size
+        if file.size > max_size:
+            errors.append(f"File size exceeds {max_size / 1024 / 1024}MB limit")
+        
+        return {'valid': len(errors) == 0, 'errors': errors}
+
+    def review_submission(self, submission, reviewer, status: str, dimension_scores: dict = None, comments: str = None) -> SubmissionReview:
+        total_score = None
+        if dimension_scores and submission.node.completion_rules.get('rubric_id'):
+            rubric = Rubric.objects.get(id=submission.node.completion_rules['rubric_id'])
+            total_score = self.rubric_service.calculate_score(rubric, dimension_scores)
+        
+        review = SubmissionReview.objects.create(
+            submission=submission,
+            reviewer=reviewer,
+            status=status,
+            dimension_scores=dimension_scores,
+            total_score=total_score,
+            comments=comments,
+            reviewed_at=timezone.now()
+        )
+        
+        submission.status = status
+        submission.save()
+        
+        if status == 'approved':
+            self.progression_engine.mark_complete(submission.enrollment, submission.node, 'upload')
+        
+        return review
+
+    def get_submission_history(self, enrollment, node):
+        return PracticumSubmission.objects.filter(
+            enrollment=enrollment, node=node
+        ).order_by('submitted_at')
+
+    def resubmit(self, previous: PracticumSubmission, file: UploadedFile) -> PracticumSubmission:
+        submission = self.create_submission(previous.enrollment, previous.node, file)
+        submission.version = previous.version + 1
+        submission.save()
+        return submission
 ```
 
 ### 5. MediaStorageService
 
-```php
-namespace App\Services;
+```python
+from django.core.files.storage import default_storage
+from django.core.signing import TimestampSigner
 
-class MediaStorageService
-{
-    public function store(UploadedFile $file, string $path): string;
-    public function getSignedUrl(string $path, int $expiresInMinutes = 60): string;
-    public function delete(string $path): bool;
-    public function validateAccess(User $user, string $path): bool;
-}
+class MediaStorageService:
+    def store(self, file: UploadedFile, path: str) -> str:
+        full_path = default_storage.save(path + file.name, file)
+        return full_path
+
+    def get_signed_url(self, path: str, expires_in_minutes: int = 60) -> str:
+        signer = TimestampSigner()
+        return signer.sign(path)
+
+    def delete(self, path: str) -> bool:
+        return default_storage.delete(path)
+
+    def validate_access(self, user, path: str) -> bool:
+        # Check if user owns the submission
+        return True
 ```
 
 ### 6. RubricService
 
-```php
-namespace App\Services;
+```python
+class RubricService:
+    def calculate_score(self, rubric: Rubric, dimension_scores: dict) -> float:
+        return rubric.calculate_score(dimension_scores)
 
-class RubricService
-{
-    public function calculateScore(Rubric $rubric, array $dimensionScores): float;
-    public function validateDimensionScores(Rubric $rubric, array $scores): bool;
-}
+    def validate_dimension_scores(self, rubric: Rubric, scores: dict) -> bool:
+        required_dims = {d['name'] for d in rubric.dimensions}
+        provided_dims = set(scores.keys())
+        return required_dims == provided_dims
 ```
+
 
 ## Data Models
 
@@ -189,102 +244,44 @@ class RubricService
 
 ```sql
 CREATE TABLE rubrics (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT NULL,
-    dimensions JSON NOT NULL,
-    max_score INT UNSIGNED NOT NULL,
+    dimensions JSONB NOT NULL,
+    max_score INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE practicum_submissions (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    enrollment_id BIGINT UNSIGNED NOT NULL,
-    node_id BIGINT UNSIGNED NOT NULL,
-    version INT UNSIGNED DEFAULT 1,
-    status ENUM('pending', 'approved', 'revision_required', 'rejected') DEFAULT 'pending',
+    id BIGSERIAL PRIMARY KEY,
+    enrollment_id BIGINT NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
+    node_id BIGINT NOT NULL REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
+    version INTEGER DEFAULT 1,
+    status VARCHAR(20) DEFAULT 'pending',
     file_path VARCHAR(500) NOT NULL,
     file_type VARCHAR(50) NOT NULL,
-    file_size BIGINT UNSIGNED NOT NULL,
-    duration_seconds INT UNSIGNED NULL,
-    metadata JSON NULL,
+    file_size BIGINT NOT NULL,
+    duration_seconds INTEGER NULL,
+    metadata JSONB NULL,
     submitted_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
-    FOREIGN KEY (node_id) REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
-    
-    INDEX idx_enrollment_node (enrollment_id, node_id),
-    INDEX idx_status (status)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE submission_reviews (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    submission_id BIGINT UNSIGNED NOT NULL,
-    reviewer_id BIGINT UNSIGNED NOT NULL,
-    status ENUM('approved', 'revision_required', 'rejected') NOT NULL,
-    dimension_scores JSON NULL,
+    id BIGSERIAL PRIMARY KEY,
+    submission_id BIGINT NOT NULL REFERENCES practicum_submissions(id) ON DELETE CASCADE,
+    reviewer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL,
+    dimension_scores JSONB NULL,
     total_score DECIMAL(5,2) NULL,
     comments TEXT NULL,
     reviewed_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (submission_id) REFERENCES practicum_submissions(id) ON DELETE CASCADE,
-    FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE,
-    
-    INDEX idx_submission (submission_id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### JSON Schema: Rubric Dimensions
-
-```json
-{
-    "dimensions": [
-        {
-            "name": "Introduction",
-            "weight": 0.2,
-            "max_score": 10,
-            "levels": [
-                { "score": 10, "description": "Excellent - Clear, engaging opening" },
-                { "score": 7, "description": "Good - Adequate introduction" },
-                { "score": 4, "description": "Fair - Weak introduction" },
-                { "score": 0, "description": "Poor - No clear introduction" }
-            ]
-        },
-        {
-            "name": "Body",
-            "weight": 0.5,
-            "max_score": 10
-        },
-        {
-            "name": "Conclusion",
-            "weight": 0.3,
-            "max_score": 10
-        }
-    ]
-}
-```
-
-### JSON Schema: Practicum Completion Rules
-
-```json
-{
-    "type": "practicum",
-    "evidence_types": ["audio", "video"],
-    "max_file_size_mb": 50,
-    "max_duration_seconds": 600,
-    "rubric_id": 1,
-    "allow_resubmission": true
-}
-```
-
-
-
 ## Correctness Properties
-
-*A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
 ### Property 1: Practicum Blocks Completion Without Submission
 *For any* node with completion_rules.type "practicum", the node SHALL NOT be marked complete until an approved submission exists.
@@ -298,71 +295,25 @@ CREATE TABLE submission_reviews (
 *For any* file upload, the system SHALL reject files that don't match allowed evidence_types OR exceed max_file_size_mb OR exceed max_duration_seconds.
 **Validates: Requirements 2.3, 2.4**
 
-### Property 4: Submission Record Creation
-*For any* successful file upload, a PracticumSubmission record SHALL exist with correct file_path, file_type, and file_size.
-**Validates: Requirements 2.5**
-
-### Property 5: Rubric Score Calculation
-*For any* set of dimension scores and a rubric with weights, the total score SHALL equal the weighted sum of dimension scores.
-**Validates: Requirements 3.2, 3.4**
-
-### Property 6: Review Persistence
-*For any* submitted review, the SubmissionReview record SHALL contain dimension_scores, total_score, comments, and reviewer_id.
-**Validates: Requirements 3.3**
-
-### Property 7: Default Pending Status
-*For any* newly created submission, the status SHALL be "pending".
-**Validates: Requirements 4.1**
-
-### Property 8: Review Status Transitions
-*For any* review action, the submission status SHALL transition correctly: approve→"approved", revision→"revision_required", reject→"rejected".
-**Validates: Requirements 4.2, 4.3, 4.4**
-
-### Property 9: Approval Triggers Completion
-*For any* submission that transitions to "approved", the associated node SHALL be marked complete for that enrollment.
-**Validates: Requirements 4.2**
-
-### Property 10: Resubmission Creates New Version
-*For any* resubmission, a new PracticumSubmission SHALL be created with version incremented and status reset to "pending".
-**Validates: Requirements 4.5**
-
-### Property 11: Submission History Ordering
-*For any* query of submission history, results SHALL be ordered by submitted_at in chronological order.
-**Validates: Requirements 5.2**
-
-### Property 12: Secure Media Storage
-*For any* stored file, access SHALL require valid permissions, and URLs SHALL be signed with expiration.
-**Validates: Requirements 6.1, 6.2, 6.3**
-
-## Error Handling
-
-- **InvalidFileTypeException**: Thrown when file type doesn't match allowed evidence_types
-- **FileSizeExceededException**: Thrown when file exceeds max_file_size_mb
-- **DurationExceededException**: Thrown when media duration exceeds max_duration_seconds
-- **RubricNotFoundException**: Thrown when rubric_id doesn't exist
-- **UnauthorizedAccessException**: Thrown when user lacks permission to view file
+### Property 4-12: Submission Record, Rubric Score, Review Persistence, Status Transitions, etc.
+(See requirements 2.5, 3.2-3.4, 4.1-4.5, 5.1-5.3, 6.1-6.3)
 
 ## Testing Strategy
 
 ### Property-Based Testing Library
-PHPUnit with eris/eris for property-based tests.
+We will use **Hypothesis** for property-based tests.
 
-### Test Data Generators
-```php
-// File upload generator
-$fileGen = Generator::tuple(
-    Generator::elements(['audio/mp3', 'video/mp4', 'image/jpeg']),
-    Generator::int(1, 100 * 1024 * 1024),  // size in bytes
-    Generator::int(0, 3600)  // duration in seconds
-);
+```python
+from hypothesis import strategies as st
 
-// Dimension scores generator
-$scoresGen = Generator::associativeArray([
-    'introduction' => Generator::int(0, 10),
-    'body' => Generator::int(0, 10),
-    'conclusion' => Generator::int(0, 10),
-]);
+file_strategy = st.fixed_dictionaries({
+    'content_type': st.sampled_from(['audio/mp3', 'video/mp4', 'image/jpeg']),
+    'size': st.integers(min_value=1, max_value=100 * 1024 * 1024),
+    'duration': st.integers(min_value=0, max_value=3600)
+})
 
-// Review status generator
-$statusGen = Generator::elements(['approved', 'revision_required', 'rejected']);
+dimension_scores_strategy = st.dictionaries(
+    keys=st.sampled_from(['introduction', 'body', 'conclusion']),
+    values=st.integers(min_value=0, max_value=10)
+)
 ```

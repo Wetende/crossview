@@ -1,5 +1,7 @@
 # Design Document: Content Parser
 
+> **🔄 Migration Notice:** This spec is being migrated from PHP/Laravel to Python/Django. All code examples, models, and implementation details are written for Django. The original Laravel implementation exists in the codebase and will be replaced.
+
 ## Overview
 
 The Content Parser transforms PDF documents into structured, mobile-optimized curriculum nodes. It extracts text and images, splits content into sessions based on page ranges or detected chapters, and stores the result as HTML for efficient mobile rendering.
@@ -25,8 +27,8 @@ graph TB
     end
     
     subgraph "External"
-        PDF[PDF Library - Smalot/PdfParser]
-        IMG[Image Processing - Intervention]
+        PDF[PDF Library - PyMuPDF/pdfplumber]
+        IMG[Image Processing - Pillow]
         PE --> PDF
         CO --> IMG
     end
@@ -36,173 +38,200 @@ graph TB
 
 ### 1. ContentVersion Model
 
-```php
-namespace App\Models;
+```python
+from django.db import models
 
-class ContentVersion extends Model
-{
-    protected $fillable = [
-        'node_id',
-        'version',
-        'source_file_path',
-        'source_file_name',
-        'page_count',
-        'is_published',
-        'is_manually_edited',
-        'parsed_at',
-        'published_at',
-        'metadata',
-    ];
+class ContentVersion(models.Model):
+    node = models.ForeignKey('CurriculumNode', on_delete=models.CASCADE, related_name='content_versions')
+    version = models.PositiveIntegerField(default=1)
+    source_file_path = models.CharField(max_length=500)
+    source_file_name = models.CharField(max_length=255)
+    page_count = models.PositiveIntegerField()
+    is_published = models.BooleanField(default=False)
+    is_manually_edited = models.BooleanField(default=False)
+    parsed_at = models.DateTimeField(blank=True, null=True)
+    published_at = models.DateTimeField(blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    protected $casts = [
-        'version' => 'integer',
-        'page_count' => 'integer',
-        'is_published' => 'boolean',
-        'is_manually_edited' => 'boolean',
-        'parsed_at' => 'datetime',
-        'published_at' => 'datetime',
-        'metadata' => 'array',
-    ];
-
-    public function node(): BelongsTo;
-    public function sessions(): HasMany;
-}
+    class Meta:
+        db_table = 'content_versions'
+        indexes = [
+            models.Index(fields=['node', 'version']),
+            models.Index(fields=['is_published']),
+        ]
 ```
 
 ### 2. ContentParserService
 
-```php
-namespace App\Services;
+```python
+from dataclasses import dataclass
+from typing import List, Optional
 
-class ContentParserService
-{
-    public function __construct(
-        private PdfExtractor $pdfExtractor,
-        private SessionGenerator $sessionGenerator,
-        private ContentOptimizer $optimizer
-    ) {}
+@dataclass
+class ExtractedContent:
+    pages: List[dict]
+    images: List[dict]
+    headings: List[str]
+    page_count: int
+    metadata: dict
 
-    /**
-     * Parse PDF and generate session nodes
-     */
-    public function parsePdf(
-        CurriculumNode $parentNode,
-        UploadedFile $pdf,
-        ?array $pageRanges = null
-    ): ContentVersion;
-    
-    /**
-     * Re-parse with warning for edited content
-     */
-    public function reParse(
-        ContentVersion $version,
-        ?array $pageRanges = null
-    ): ContentVersion;
-    
-    /**
-     * Get parsing status/progress
-     */
-    public function getParsingStatus(ContentVersion $version): ParsingStatus;
-}
+class ContentParserService:
+    def __init__(self, pdf_extractor, session_generator, optimizer):
+        self.pdf_extractor = pdf_extractor
+        self.session_generator = session_generator
+        self.optimizer = optimizer
+
+    def parse_pdf(self, parent_node, pdf_file, page_ranges=None) -> ContentVersion:
+        content = self.pdf_extractor.extract(pdf_file.path)
+        
+        if page_ranges is None:
+            page_ranges = self.session_generator.auto_generate_ranges(content)
+        
+        sessions = self.session_generator.generate(parent_node, content, page_ranges)
+        
+        for session in sessions:
+            optimized = self.optimizer.optimize(session.content)
+            session.properties['content_html'] = self.optimizer.to_html(optimized)
+            session.save()
+        
+        return ContentVersion.objects.create(
+            node=parent_node,
+            source_file_path=pdf_file.path,
+            source_file_name=pdf_file.name,
+            page_count=content.page_count,
+            parsed_at=timezone.now()
+        )
+
+    def re_parse(self, version, page_ranges=None) -> ContentVersion:
+        if version.is_manually_edited:
+            raise ManuallyEditedWarning("Content has been manually edited")
+        return self.parse_pdf(version.node, version.source_file_path, page_ranges)
 ```
+
 
 ### 3. PdfExtractor
 
-```php
-namespace App\Services\ContentParser;
+```python
+import fitz  # PyMuPDF
 
-class PdfExtractor
-{
-    /**
-     * Extract text and images from PDF
-     */
-    public function extract(string $pdfPath): ExtractedContent;
-    
-    /**
-     * Extract specific page range
-     */
-    public function extractPages(string $pdfPath, int $startPage, int $endPage): ExtractedContent;
-    
-    /**
-     * Detect chapter/section boundaries
-     */
-    public function detectSections(ExtractedContent $content): array;
-}
+class PdfExtractor:
+    def extract(self, pdf_path: str) -> ExtractedContent:
+        doc = fitz.open(pdf_path)
+        pages = []
+        images = []
+        headings = []
+        
+        for page_num, page in enumerate(doc):
+            text = page.get_text()
+            pages.append({'page': page_num + 1, 'text': text})
+            
+            for img in page.get_images():
+                images.append({'page': page_num + 1, 'image': img})
+        
+        return ExtractedContent(
+            pages=pages,
+            images=images,
+            headings=headings,
+            page_count=len(doc),
+            metadata={'title': doc.metadata.get('title', '')}
+        )
+
+    def extract_pages(self, pdf_path: str, start_page: int, end_page: int) -> ExtractedContent:
+        doc = fitz.open(pdf_path)
+        pages = []
+        for i in range(start_page - 1, min(end_page, len(doc))):
+            pages.append({'page': i + 1, 'text': doc[i].get_text()})
+        return ExtractedContent(pages=pages, images=[], headings=[], page_count=len(pages), metadata={})
+
+    def detect_sections(self, content: ExtractedContent) -> List[dict]:
+        # Detect chapter/section boundaries based on headings
+        sections = []
+        # Implementation based on font size, bold text, etc.
+        return sections
 ```
 
 ### 4. SessionGenerator
 
-```php
-namespace App\Services\ContentParser;
+```python
+class SessionGenerator:
+    def generate(self, parent, content: ExtractedContent, page_ranges: List[dict]) -> List:
+        sessions = []
+        for i, range_info in enumerate(page_ranges):
+            title = range_info.get('title') or self.generate_title(content, i + 1)
+            session = CurriculumNode.objects.create(
+                program=parent.program,
+                parent=parent,
+                node_type='Session',
+                title=title,
+                position=i,
+                properties={'page_range': range_info}
+            )
+            sessions.append(session)
+        return sessions
 
-class SessionGenerator
-{
-    /**
-     * Generate session nodes from extracted content
-     */
-    public function generate(
-        CurriculumNode $parent,
-        ExtractedContent $content,
-        array $pageRanges
-    ): Collection;
-    
-    /**
-     * Auto-generate page ranges from detected sections
-     */
-    public function autoGenerateRanges(ExtractedContent $content): array;
-    
-    /**
-     * Generate session title from content
-     */
-    public function generateTitle(ExtractedContent $sessionContent, int $sessionNumber): string;
-}
+    def auto_generate_ranges(self, content: ExtractedContent) -> List[dict]:
+        # Auto-detect based on headings or create single session
+        if not content.headings:
+            return [{'start': 1, 'end': content.page_count, 'title': None}]
+        return [{'start': 1, 'end': content.page_count, 'title': None}]
+
+    def generate_title(self, content: ExtractedContent, session_number: int) -> str:
+        return f"Session {session_number}"
 ```
 
 ### 5. ContentOptimizer
 
-```php
-namespace App\Services\ContentParser;
+```python
+from PIL import Image
+import io
 
-class ContentOptimizer
-{
-    /**
-     * Optimize content for mobile
-     */
-    public function optimize(ExtractedContent $content): OptimizedContent;
-    
-    /**
-     * Compress and resize images
-     */
-    public function optimizeImages(array $images, int $maxWidth = 800): array;
-    
-    /**
-     * Convert to mobile-friendly HTML
-     */
-    public function toHtml(ExtractedContent $content): string;
-    
-    /**
-     * Paginate content if too large
-     */
-    public function paginate(string $html, int $maxSizeKb = 100): array;
-}
+class ContentOptimizer:
+    def optimize(self, content: ExtractedContent) -> ExtractedContent:
+        optimized_images = self.optimize_images(content.images)
+        return ExtractedContent(
+            pages=content.pages,
+            images=optimized_images,
+            headings=content.headings,
+            page_count=content.page_count,
+            metadata=content.metadata
+        )
+
+    def optimize_images(self, images: List[dict], max_width: int = 800) -> List[dict]:
+        optimized = []
+        for img_data in images:
+            img = Image.open(io.BytesIO(img_data['data']))
+            if img.width > max_width:
+                ratio = max_width / img.width
+                img = img.resize((max_width, int(img.height * ratio)))
+            optimized.append({'page': img_data['page'], 'image': img})
+        return optimized
+
+    def to_html(self, content: ExtractedContent) -> str:
+        html_parts = []
+        for page in content.pages:
+            html_parts.append(f"<div class='page'>{page['text']}</div>")
+        return '\n'.join(html_parts)
+
+    def paginate(self, html: str, max_size_kb: int = 100) -> List[str]:
+        max_bytes = max_size_kb * 1024
+        if len(html.encode()) <= max_bytes:
+            return [html]
+        # Split into chunks
+        chunks = []
+        current = ""
+        for line in html.split('\n'):
+            if len((current + line).encode()) > max_bytes:
+                chunks.append(current)
+                current = line
+            else:
+                current += '\n' + line
+        if current:
+            chunks.append(current)
+        return chunks
 ```
 
-### 6. ExtractedContent DTO
-
-```php
-namespace App\DTOs;
-
-class ExtractedContent
-{
-    public function __construct(
-        public readonly array $pages,
-        public readonly array $images,
-        public readonly array $headings,
-        public readonly int $pageCount,
-        public readonly array $metadata,
-    ) {}
-}
-```
 
 ## Data Models
 
@@ -210,72 +239,34 @@ class ExtractedContent
 
 ```sql
 CREATE TABLE content_versions (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    node_id BIGINT UNSIGNED NOT NULL,
-    version INT UNSIGNED DEFAULT 1,
+    id BIGSERIAL PRIMARY KEY,
+    node_id BIGINT NOT NULL REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
+    version INTEGER DEFAULT 1,
     source_file_path VARCHAR(500) NOT NULL,
     source_file_name VARCHAR(255) NOT NULL,
-    page_count INT UNSIGNED NOT NULL,
+    page_count INTEGER NOT NULL,
     is_published BOOLEAN DEFAULT FALSE,
     is_manually_edited BOOLEAN DEFAULT FALSE,
     parsed_at TIMESTAMP NULL,
     published_at TIMESTAMP NULL,
-    metadata JSON NULL,
+    metadata JSONB NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (node_id) REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
-    
-    INDEX idx_node_version (node_id, version),
-    INDEX idx_published (is_published)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE parsed_images (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    content_version_id BIGINT UNSIGNED NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    content_version_id BIGINT NOT NULL REFERENCES content_versions(id) ON DELETE CASCADE,
     original_path VARCHAR(500) NOT NULL,
     optimized_path VARCHAR(500) NOT NULL,
-    page_number INT UNSIGNED NOT NULL,
-    width INT UNSIGNED,
-    height INT UNSIGNED,
-    file_size INT UNSIGNED,
-    
-    FOREIGN KEY (content_version_id) REFERENCES content_versions(id) ON DELETE CASCADE
+    page_number INTEGER NOT NULL,
+    width INTEGER,
+    height INTEGER,
+    file_size INTEGER
 );
 ```
 
-### JSON Schema: Page Ranges
-
-```json
-{
-    "page_ranges": [
-        { "start": 1, "end": 5, "title": "Session 1: Introduction" },
-        { "start": 6, "end": 12, "title": "Session 2: Core Concepts" },
-        { "start": 13, "end": 20, "title": null }
-    ]
-}
-```
-
-### Node Properties: Parsed Content
-
-```json
-{
-    "content_html": "<h2>Session 1</h2><p>Content here...</p>",
-    "content_version_id": 1,
-    "page_range": { "start": 1, "end": 5 },
-    "images": [
-        { "id": 1, "url": "/storage/images/123.jpg", "caption": null }
-    ],
-    "word_count": 1500,
-    "estimated_read_time_minutes": 6
-}
-```
-
-
-
 ## Correctness Properties
-
-*A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
 ### Property 1: PDF Extraction Completeness
 *For any* PDF with N pages, text content, and images, extraction SHALL return content from all N pages with formatting preserved and images stored separately.
@@ -309,50 +300,20 @@ CREATE TABLE parsed_images (
 *For any* content exceeding the size threshold, the result SHALL be paginated into multiple chunks each under the threshold.
 **Validates: Requirements 3.3**
 
-### Property 9: Edit Persistence with Modified Flag
-*For any* edited session content, the changes SHALL be saved and is_manually_edited SHALL be true.
-**Validates: Requirements 4.1, 4.2**
-
-### Property 10: Re-parse Warning for Edited Content
-*For any* re-parse of content where is_manually_edited is true, the system SHALL return a warning before proceeding.
-**Validates: Requirements 4.3**
-
-### Property 11: Version Creation and Retrieval
-*For any* new PDF upload to an existing unit, a new ContentVersion SHALL be created with version incremented, and all versions SHALL be retrievable.
-**Validates: Requirements 5.1, 5.2**
-
-### Property 12: Version Publishing
-*For any* published version, is_published SHALL be true and it SHALL be the version returned to students.
-**Validates: Requirements 5.3**
-
-## Error Handling
-
-- **PdfParseException**: Thrown when PDF cannot be parsed (corrupted, encrypted)
-- **InvalidPageRangeException**: Thrown when page range exceeds PDF page count
-- **ImageExtractionException**: Thrown when image cannot be extracted
-- **ContentTooLargeException**: Thrown when content cannot be paginated under threshold
+### Property 9-12: Edit Persistence, Re-parse Warning, Version Creation, Version Publishing
+(See requirements 4.1-4.3, 5.1-5.3)
 
 ## Testing Strategy
 
 ### Property-Based Testing Library
-PHPUnit with eris/eris for property-based tests.
+We will use **Hypothesis** for property-based tests, **PyMuPDF** for PDF extraction, and **Pillow** for image processing.
 
-### Test Data Generators
-```php
-// Page range generator
-$rangeGen = Generator::bind(
-    Generator::tuple(Generator::int(1, 50), Generator::int(1, 50)),
-    fn($pair) => ['start' => min($pair), 'end' => max($pair)]
-);
+```python
+from hypothesis import strategies as st
 
-// Multiple ranges generator (non-overlapping)
-$rangesGen = Generator::listOf($rangeGen, 1, 5)
-    ->map(fn($ranges) => sortAndMergeRanges($ranges));
-
-// Content size generator
-$contentGen = Generator::string()->map(fn($s) => str_repeat($s, rand(1, 1000)));
+page_range_strategy = st.fixed_dictionaries({
+    'start': st.integers(min_value=1, max_value=50),
+    'end': st.integers(min_value=1, max_value=50),
+    'title': st.one_of(st.none(), st.text(min_size=1, max_size=100))
+}).filter(lambda x: x['start'] <= x['end'])
 ```
-
-### External Dependencies
-- **smalot/pdfparser**: PHP library for PDF text extraction
-- **intervention/image**: PHP library for image processing

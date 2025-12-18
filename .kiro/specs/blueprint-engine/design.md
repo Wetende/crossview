@@ -1,5 +1,7 @@
 # Design Document: Blueprint Engine
 
+> **🔄 Migration Notice:** This spec is being migrated from PHP/Laravel to Python/Django. All code examples, models, and implementation details are written for Django. The original Laravel implementation exists in the codebase and will be replaced.
+
 ## Overview
 
 The Blueprint Engine transforms the LMS from a rigid Course → Section → Lesson hierarchy into a configurable, multi-tenant academic platform. This enables Crossview College to run Theology programs (Session-based), TVET programs (Competency-based), and future SaaS clients using the same codebase with different JSON configurations.
@@ -41,137 +43,262 @@ graph TB
 
 ### 1. AcademicBlueprint Model
 
-```php
-namespace App\Models;
+```python
+from django.db import models
 
-class AcademicBlueprint extends Model
-{
-    protected $fillable = [
-        'name',
-        'description',
-        'hierarchy_structure',  // JSON: ["Year", "Unit", "Session"]
-        'grading_logic',        // JSON: {"type": "weighted", "components": [...]}
-        'progression_rules',    // JSON: {"sequential": true, "prerequisites": [...]}
-        'gamification_enabled',
-        'certificate_enabled',
-    ];
+class AcademicBlueprint(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    hierarchy_structure = models.JSONField()  # ["Year", "Unit", "Session"]
+    grading_logic = models.JSONField()  # {"type": "weighted", "components": [...]}
+    progression_rules = models.JSONField(blank=True, null=True)
+    gamification_enabled = models.BooleanField(default=False)
+    certificate_enabled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True, null=True)
 
-    protected $casts = [
-        'hierarchy_structure' => 'array',
-        'grading_logic' => 'array',
-        'progression_rules' => 'array',
-        'gamification_enabled' => 'boolean',
-        'certificate_enabled' => 'boolean',
-    ];
+    class Meta:
+        db_table = 'academic_blueprints'
+        indexes = [models.Index(fields=['name'])]
 
-    public function programs(): HasMany;
-    public function getHierarchyDepth(): int;
-    public function getLabelForDepth(int $depth): string;
-    public function getGradingStrategy(): GradingStrategyInterface;
-}
+    def get_hierarchy_depth(self) -> int:
+        return len(self.hierarchy_structure)
+
+    def get_label_for_depth(self, depth: int) -> str:
+        if 0 <= depth < len(self.hierarchy_structure):
+            return self.hierarchy_structure[depth]
+        raise ValueError(f"Invalid depth {depth}")
 ```
+
 
 ### 2. CurriculumNode Model
 
-```php
-namespace App\Models;
+```python
+from django.db import models
 
-class CurriculumNode extends Model
-{
-    protected $fillable = [
-        'program_id',
-        'parent_id',
-        'node_type',
-        'title',
-        'code',
-        'description',
-        'properties',       // JSON: {"pdf_url": "...", "video_url": "...", "credit_hours": 3}
-        'completion_rules', // JSON: {"requires_upload": true, "min_score": 40}
-        'position',
-        'is_published',
-    ];
+class CurriculumNode(models.Model):
+    program = models.ForeignKey('Program', on_delete=models.CASCADE, related_name='nodes')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    node_type = models.CharField(max_length=50)
+    title = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    properties = models.JSONField(blank=True, null=True)  # {"pdf_url": "...", "video_url": "..."}
+    completion_rules = models.JSONField(blank=True, null=True)  # {"requires_upload": true}
+    position = models.PositiveIntegerField(default=0)
+    is_published = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(blank=True, null=True)
 
-    protected $casts = [
-        'properties' => 'array',
-        'completion_rules' => 'array',
-        'position' => 'integer',
-        'is_published' => 'boolean',
-    ];
+    class Meta:
+        db_table = 'curriculum_nodes'
+        indexes = [
+            models.Index(fields=['program', 'parent']),
+            models.Index(fields=['node_type']),
+            models.Index(fields=['position']),
+        ]
 
-    public function program(): BelongsTo;
-    public function parent(): BelongsTo;
-    public function children(): HasMany;
-    public function ancestors(): Collection;
-    public function descendants(): Collection;
-    public function getDepth(): int;
-    public function getLabel(): string;  // Returns label from blueprint based on depth
-}
+    def get_depth(self) -> int:
+        depth = 0
+        node = self
+        while node.parent:
+            depth += 1
+            node = node.parent
+        return depth
+
+    def get_label(self) -> str:
+        blueprint = self.program.blueprint
+        return blueprint.get_label_for_depth(self.get_depth())
+
+    def get_ancestors(self):
+        ancestors = []
+        node = self.parent
+        while node:
+            ancestors.append(node)
+            node = node.parent
+        return list(reversed(ancestors))
+
+    def get_descendants(self):
+        descendants = []
+        for child in self.children.all():
+            descendants.append(child)
+            descendants.extend(child.get_descendants())
+        return descendants
 ```
 
 ### 3. CurriculumNodeRepository
 
-```php
-namespace App\Repositories;
+```python
+from django.db import connection
+from typing import List, Optional
 
-class CurriculumNodeRepository
-{
-    /**
-     * Fetch entire tree using recursive CTE
-     */
-    public function getTreeForProgram(int $programId): Collection;
-    
-    /**
-     * Fetch subtree from a specific node
-     */
-    public function getSubtree(int $nodeId): Collection;
-    
-    /**
-     * Get ancestors (breadcrumb path)
-     */
-    public function getAncestors(int $nodeId): Collection;
-    
-    /**
-     * Move node to new parent with validation
-     */
-    public function moveNode(int $nodeId, ?int $newParentId): bool;
-    
-    /**
-     * Reorder siblings
-     */
-    public function reorderSiblings(array $nodeIds): void;
-}
+class CurriculumNodeRepository:
+    def get_tree_for_program(self, program_id: int) -> List[CurriculumNode]:
+        """Fetch entire tree using recursive CTE"""
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                WITH RECURSIVE tree AS (
+                    SELECT * FROM curriculum_nodes WHERE program_id = %s AND parent_id IS NULL
+                    UNION ALL
+                    SELECT cn.* FROM curriculum_nodes cn
+                    INNER JOIN tree t ON cn.parent_id = t.id
+                )
+                SELECT * FROM tree ORDER BY position
+            """, [program_id])
+            # Process results into CurriculumNode instances
+            return self._rows_to_nodes(cursor.fetchall())
+
+    def get_subtree(self, node_id: int) -> List[CurriculumNode]:
+        """Fetch subtree from a specific node"""
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                WITH RECURSIVE subtree AS (
+                    SELECT * FROM curriculum_nodes WHERE id = %s
+                    UNION ALL
+                    SELECT cn.* FROM curriculum_nodes cn
+                    INNER JOIN subtree s ON cn.parent_id = s.id
+                )
+                SELECT * FROM subtree ORDER BY position
+            """, [node_id])
+            return self._rows_to_nodes(cursor.fetchall())
+
+    def get_ancestors(self, node_id: int) -> List[CurriculumNode]:
+        """Get ancestors (breadcrumb path)"""
+        node = CurriculumNode.objects.get(id=node_id)
+        return node.get_ancestors()
+
+    def move_node(self, node_id: int, new_parent_id: Optional[int]) -> bool:
+        """Move node to new parent with validation"""
+        node = CurriculumNode.objects.get(id=node_id)
+        # Validate depth won't exceed blueprint hierarchy
+        new_depth = 0 if new_parent_id is None else CurriculumNode.objects.get(id=new_parent_id).get_depth() + 1
+        max_depth = node.program.blueprint.get_hierarchy_depth() - 1
+        if new_depth > max_depth:
+            raise MaxDepthExceededException(f"Move would exceed max depth {max_depth}")
+        node.parent_id = new_parent_id
+        node.save()
+        return True
+
+    def reorder_siblings(self, node_ids: List[int]) -> None:
+        """Reorder siblings by updating position field"""
+        for position, node_id in enumerate(node_ids):
+            CurriculumNode.objects.filter(id=node_id).update(position=position)
 ```
 
-### 4. BlueprintService
 
-```php
-namespace App\Services;
+### 4. BlueprintValidationService
 
-class BlueprintService
-{
-    public function validateHierarchyStructure(array $structure): bool;
-    public function validateGradingLogic(array $logic): bool;
-    public function createDefaultTheologyBlueprint(): AcademicBlueprint;
-    public function createDefaultTVETBlueprint(): AcademicBlueprint;
-    public function serializeToJson(AcademicBlueprint $blueprint): string;
-    public function deserializeFromJson(string $json): AcademicBlueprint;
-}
+```python
+from typing import List, Dict, Any
+from .exceptions import InvalidHierarchyStructureException, InvalidGradingLogicException
+
+class BlueprintValidationService:
+    def validate_hierarchy_structure(self, structure: List[str]) -> bool:
+        if not structure or not isinstance(structure, list):
+            raise InvalidHierarchyStructureException("Hierarchy structure must be a non-empty list")
+        for item in structure:
+            if not isinstance(item, str) or not item.strip():
+                raise InvalidHierarchyStructureException("All hierarchy items must be non-empty strings")
+        return True
+
+    def validate_grading_logic(self, logic: Dict[str, Any]) -> bool:
+        if not logic or 'type' not in logic:
+            raise InvalidGradingLogicException("Grading logic must have a 'type' field")
+        
+        grading_type = logic['type']
+        if grading_type == 'weighted':
+            if 'components' not in logic:
+                raise InvalidGradingLogicException("Weighted grading requires 'components'")
+        elif grading_type == 'competency':
+            pass  # competency_labels optional
+        elif grading_type == 'pass_fail':
+            pass  # pass_mark optional with default
+        else:
+            raise InvalidGradingLogicException(f"Unknown grading type: {grading_type}")
+        return True
 ```
 
-### 5. MigrationService
+### 5. BlueprintSerializationService
 
-```php
-namespace App\Services;
+```python
+import json
+from typing import Dict, Any
+from .models import AcademicBlueprint
+from .exceptions import InvalidBlueprintJsonException
 
-class LegacyMigrationService
-{
-    public function migrateCoursesToNodes(): MigrationReport;
-    public function migrateSectionsToNodes(): MigrationReport;
-    public function migrateLessonsToNodes(): MigrationReport;
-    public function rollbackMigration(): void;
-    public function generateReport(): array;
-}
+class BlueprintSerializationService:
+    def serialize_to_json(self, blueprint: AcademicBlueprint) -> str:
+        return json.dumps({
+            'name': blueprint.name,
+            'description': blueprint.description,
+            'hierarchy_structure': blueprint.hierarchy_structure,
+            'grading_logic': blueprint.grading_logic,
+            'progression_rules': blueprint.progression_rules,
+            'gamification_enabled': blueprint.gamification_enabled,
+            'certificate_enabled': blueprint.certificate_enabled,
+        })
+
+    def deserialize_from_json(self, json_str: str) -> AcademicBlueprint:
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise InvalidBlueprintJsonException(f"Invalid JSON: {e}")
+        
+        required_fields = ['name', 'hierarchy_structure', 'grading_logic']
+        for field in required_fields:
+            if field not in data:
+                raise InvalidBlueprintJsonException(f"Missing required field: {field}")
+        
+        return AcademicBlueprint(**data)
 ```
+
+### 6. LegacyMigrationService
+
+```python
+from typing import Dict, List
+from dataclasses import dataclass
+
+@dataclass
+class MigrationReport:
+    courses_migrated: int = 0
+    sections_migrated: int = 0
+    lessons_migrated: int = 0
+    errors: List[str] = None
+
+class LegacyMigrationService:
+    def create_default_theology_blueprint(self) -> AcademicBlueprint:
+        return AcademicBlueprint.objects.create(
+            name="Theology Standard",
+            hierarchy_structure=["Course", "Section", "Lesson"],
+            grading_logic={"type": "weighted", "pass_mark": 40, "components": [
+                {"name": "CAT", "weight": 0.3},
+                {"name": "Exam", "weight": 0.7}
+            ]}
+        )
+
+    def migrate_courses_to_nodes(self) -> MigrationReport:
+        """Convert Course records to root CurriculumNodes"""
+        pass
+
+    def migrate_sections_to_nodes(self) -> MigrationReport:
+        """Convert CourseSection records to child nodes"""
+        pass
+
+    def migrate_lessons_to_nodes(self) -> MigrationReport:
+        """Convert Lesson records to child nodes, preserving content"""
+        pass
+
+    def rollback_migration(self) -> None:
+        """Rollback migration changes"""
+        pass
+
+    def generate_report(self) -> Dict:
+        """Generate migration report"""
+        pass
+```
+
 
 ## Data Models
 
@@ -180,49 +307,43 @@ class LegacyMigrationService
 ```sql
 -- Academic Blueprints Table
 CREATE TABLE academic_blueprints (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     description TEXT NULL,
-    hierarchy_structure JSON NOT NULL,
-    grading_logic JSON NOT NULL,
-    progression_rules JSON NULL,
+    hierarchy_structure JSONB NOT NULL,
+    grading_logic JSONB NOT NULL,
+    progression_rules JSONB NULL,
     gamification_enabled BOOLEAN DEFAULT FALSE,
     certificate_enabled BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL,
-    
-    INDEX idx_name (name)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL
 );
+CREATE INDEX idx_blueprints_name ON academic_blueprints(name);
 
 -- Curriculum Nodes Table (Recursive Tree)
 CREATE TABLE curriculum_nodes (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    program_id BIGINT UNSIGNED NOT NULL,
-    parent_id BIGINT UNSIGNED NULL,
+    id BIGSERIAL PRIMARY KEY,
+    program_id BIGINT NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+    parent_id BIGINT NULL REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
     node_type VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,
     code VARCHAR(50) NULL,
     description TEXT NULL,
-    properties JSON NULL,
-    completion_rules JSON NULL,
-    position INT UNSIGNED DEFAULT 0,
+    properties JSONB NULL,
+    completion_rules JSONB NULL,
+    position INTEGER DEFAULT 0,
     is_published BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL,
-    
-    FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
-    FOREIGN KEY (parent_id) REFERENCES curriculum_nodes(id) ON DELETE CASCADE,
-    
-    INDEX idx_program_parent (program_id, parent_id),
-    INDEX idx_node_type (node_type),
-    INDEX idx_position (position)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL
 );
+CREATE INDEX idx_nodes_program_parent ON curriculum_nodes(program_id, parent_id);
+CREATE INDEX idx_nodes_type ON curriculum_nodes(node_type);
+CREATE INDEX idx_nodes_position ON curriculum_nodes(position);
 
 -- Programs Table (Modified to link to Blueprint)
-ALTER TABLE programs ADD COLUMN blueprint_id BIGINT UNSIGNED NULL;
-ALTER TABLE programs ADD FOREIGN KEY (blueprint_id) REFERENCES academic_blueprints(id);
+ALTER TABLE programs ADD COLUMN blueprint_id BIGINT NULL REFERENCES academic_blueprints(id);
 ```
 
 ### JSON Schema: Hierarchy Structure
@@ -232,14 +353,10 @@ ALTER TABLE programs ADD FOREIGN KEY (blueprint_id) REFERENCES academic_blueprin
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "array",
     "minItems": 1,
-    "items": {
-        "type": "string",
-        "minLength": 1
-    },
+    "items": { "type": "string", "minLength": 1 },
     "examples": [
         ["Year", "Unit", "Session"],
-        ["Level", "Module", "Competency", "Element"],
-        ["Track", "Course", "Lesson"]
+        ["Level", "Module", "Competency", "Element"]
     ]
 }
 ```
@@ -252,15 +369,8 @@ ALTER TABLE programs ADD FOREIGN KEY (blueprint_id) REFERENCES academic_blueprin
     "type": "object",
     "required": ["type"],
     "properties": {
-        "type": {
-            "type": "string",
-            "enum": ["weighted", "competency", "pass_fail"]
-        },
-        "pass_mark": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-        },
+        "type": { "type": "string", "enum": ["weighted", "competency", "pass_fail"] },
+        "pass_mark": { "type": "number", "minimum": 0, "maximum": 100 },
         "components": {
             "type": "array",
             "items": {
@@ -271,32 +381,8 @@ ALTER TABLE programs ADD FOREIGN KEY (blueprint_id) REFERENCES academic_blueprin
                     "weight": { "type": "number", "minimum": 0, "maximum": 1 }
                 }
             }
-        },
-        "competency_labels": {
-            "type": "object",
-            "properties": {
-                "pass": { "type": "string" },
-                "fail": { "type": "string" }
-            }
         }
-    },
-    "examples": [
-        {
-            "type": "weighted",
-            "pass_mark": 40,
-            "components": [
-                { "name": "CAT", "weight": 0.3 },
-                { "name": "Exam", "weight": 0.7 }
-            ]
-        },
-        {
-            "type": "competency",
-            "competency_labels": {
-                "pass": "Competent",
-                "fail": "Not Yet Competent"
-            }
-        }
-    ]
+    }
 }
 ```
 
@@ -311,23 +397,11 @@ ALTER TABLE programs ADD FOREIGN KEY (blueprint_id) REFERENCES academic_blueprin
         "duration_minutes": { "type": "integer" },
         "pdf_url": { "type": "string", "format": "uri" },
         "video_url": { "type": "string", "format": "uri" },
-        "audio_url": { "type": "string", "format": "uri" },
         "content_html": { "type": "string" },
-        "attachments": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": { "type": "string" },
-                    "url": { "type": "string", "format": "uri" },
-                    "type": { "type": "string" }
-                }
-            }
-        }
+        "attachments": { "type": "array" }
     }
 }
 ```
-
 
 
 ## Correctness Properties
@@ -390,36 +464,58 @@ ALTER TABLE programs ADD FOREIGN KEY (blueprint_id) REFERENCES academic_blueprin
 *For any* malformed or schema-invalid JSON string, deserializing should throw a validation exception with error details, not silently fail or create invalid objects.
 **Validates: Requirements 7.3**
 
+
 ## Error Handling
 
-### Validation Errors
-- **InvalidHierarchyStructureException**: Thrown when hierarchy_structure is empty or contains non-string values
-- **InvalidGradingLogicException**: Thrown when grading_logic is missing required fields for its type
-- **InvalidNodeTypeException**: Thrown when node_type doesn't match blueprint hierarchy
-- **MaxDepthExceededException**: Thrown when node creation/move would exceed hierarchy depth
+### Custom Exceptions
 
-### Database Errors
-- **BlueprintInUseException**: Thrown when attempting to delete a blueprint with associated programs
-- **OrphanedNodeException**: Thrown when a node's parent_id references a non-existent node
-- **CircularReferenceException**: Thrown when a node move would create a circular parent reference
+```python
+class BlueprintEngineException(Exception):
+    """Base exception for Blueprint Engine"""
+    pass
 
-### Migration Errors
-- **MigrationDataIntegrityException**: Thrown when source data is inconsistent
-- **MigrationRollbackException**: Thrown when rollback fails
+class InvalidHierarchyStructureException(BlueprintEngineException):
+    """Thrown when hierarchy_structure is empty or contains non-string values"""
+    pass
+
+class InvalidGradingLogicException(BlueprintEngineException):
+    """Thrown when grading_logic is missing required fields for its type"""
+    pass
+
+class InvalidNodeTypeException(BlueprintEngineException):
+    """Thrown when node_type doesn't match blueprint hierarchy"""
+    pass
+
+class MaxDepthExceededException(BlueprintEngineException):
+    """Thrown when node creation/move would exceed hierarchy depth"""
+    pass
+
+class BlueprintInUseException(BlueprintEngineException):
+    """Thrown when attempting to delete a blueprint with associated programs"""
+    pass
+
+class OrphanedNodeException(BlueprintEngineException):
+    """Thrown when a node's parent_id references a non-existent node"""
+    pass
+
+class InvalidBlueprintJsonException(BlueprintEngineException):
+    """Thrown when JSON deserialization fails"""
+    pass
+```
 
 ## Testing Strategy
 
 ### Property-Based Testing Library
-We will use **PHPUnit** with **eris/eris** (PHP property-based testing library) for property-based tests.
+We will use **Hypothesis** (Python property-based testing library) for property-based tests.
 
 Each property-based test will:
 1. Run a minimum of 100 iterations with random inputs
 2. Be tagged with a comment referencing the correctness property: `**Feature: blueprint-engine, Property {number}: {property_text}**`
-3. Use generators to create valid and invalid test data
+3. Use strategies to create valid and invalid test data
 
 ### Unit Tests
 Unit tests will cover:
-- Individual model methods (getHierarchyDepth, getLabelForDepth)
+- Individual model methods (get_hierarchy_depth, get_label_for_depth)
 - Service method edge cases
 - JSON schema validation
 - Database constraint enforcement
@@ -430,24 +526,29 @@ Integration tests will cover:
 - API endpoints for CRUD operations
 - Tree traversal with real database queries
 
-### Test Data Generators
-```php
-// Blueprint generator
-$blueprintGen = Generator::tuple(
-    Generator::nonEmptyArrayOf(Generator::string()),  // hierarchy_structure
-    Generator::oneOf([
-        ['type' => 'weighted', 'pass_mark' => Generator::int(0, 100)],
-        ['type' => 'competency'],
-        ['type' => 'pass_fail']
-    ])
-);
+### Test Data Generators (Hypothesis Strategies)
 
-// Curriculum tree generator
-$treeGen = Generator::recursive(
-    fn($self) => Generator::tuple(
-        Generator::string(),  // title
-        Generator::arrayOf($self)  // children
-    ),
-    maxDepth: 4
-);
+```python
+from hypothesis import strategies as st
+
+# Blueprint generator
+blueprint_strategy = st.fixed_dictionaries({
+    'name': st.text(min_size=1, max_size=100),
+    'hierarchy_structure': st.lists(st.text(min_size=1, max_size=50), min_size=1, max_size=5),
+    'grading_logic': st.one_of(
+        st.fixed_dictionaries({'type': st.just('weighted'), 'pass_mark': st.integers(0, 100)}),
+        st.fixed_dictionaries({'type': st.just('competency')}),
+        st.fixed_dictionaries({'type': st.just('pass_fail')})
+    )
+})
+
+# Curriculum tree generator
+@st.composite
+def tree_strategy(draw, max_depth=4):
+    title = draw(st.text(min_size=1, max_size=100))
+    if max_depth > 0:
+        children = draw(st.lists(tree_strategy(max_depth=max_depth-1), max_size=3))
+    else:
+        children = []
+    return {'title': title, 'children': children}
 ```

@@ -1,15 +1,17 @@
 # Implementation Plan
 
+> **🔄 Migration Notice:** This implementation plan is for migrating from PHP/Laravel to Python/Django. All tasks reference Django-specific implementations (Django models, migrations, pytest/Hypothesis for testing, management commands).
+
 - [ ] 1. Set up database schema and models
-  - [ ] 1.1 Create migration for node_completions table
-    - Create table with enrollment_id, node_id, completed_at, completion_type, metadata (JSON)
+  - [ ] 1.1 Create Django migration for node_completions table
+    - Create table with enrollment_id, node_id, completed_at, completion_type, metadata (JSONField)
     - Add unique constraint on (enrollment_id, node_id)
     - Add foreign keys with CASCADE delete
     - _Requirements: 3.1, 3.5_
 
-  - [ ] 1.2 Create NodeCompletion Eloquent model
-    - Define fillable fields and casts
-    - Add relationships: enrollment(), node()
+  - [ ] 1.2 Create NodeCompletion Django model
+    - Define fields and JSONField for metadata
+    - Add relationships: enrollment, node
     - _Requirements: 3.1_
 
   - [ ] 1.3 Write property test for completion record creation
@@ -22,8 +24,8 @@
 
 - [ ] 2. Implement sequential locking
   - [ ] 2.1 Create SequentialLockChecker service
-    - Implement isUnlocked() checking if node is first uncompleted sibling
-    - Implement getFirstUncompletedSibling()
+    - Implement is_unlocked() checking if node is first uncompleted sibling
+    - Implement get_first_uncompleted_sibling()
     - _Requirements: 1.1, 1.2_
 
   - [ ] 2.2 Write property test for sequential unlock progression
@@ -43,8 +45,8 @@
 
 - [ ] 4. Implement prerequisite locking
   - [ ] 4.1 Create PrerequisiteLockChecker service
-    - Implement arePrerequisitesMet() checking all prerequisites completed
-    - Implement getIncompletePrerequisites()
+    - Implement are_prerequisites_met() checking all prerequisites completed
+    - Implement get_incomplete_prerequisites()
     - _Requirements: 2.1, 2.2, 2.3_
 
   - [ ] 4.2 Write property test for prerequisite unlock
@@ -58,6 +60,7 @@
   - [ ] 4.4 Write property test for prerequisite re-lock
     - **Property 5: Prerequisite Re-lock**
     - **Validates: Requirements 2.4**
+
 
 - [ ] 5. Implement completion type handling
   - [ ] 5.1 Create CompletionTriggerHandler
@@ -76,7 +79,7 @@
 - [ ] 7. Implement progress calculation
   - [ ] 7.1 Create ProgressCalculator service
     - Implement calculate() with formula: (completed / total) × 100
-    - Implement getCompletableNodes() to filter out containers
+    - Implement get_completable_nodes() to filter out containers
     - _Requirements: 4.1, 4.3_
 
   - [ ] 7.2 Write property test for progress calculation formula
@@ -108,11 +111,11 @@
 
 - [ ] 9. Implement ProgressionEngine service
   - [ ] 9.1 Create ProgressionEngine service
-    - Implement canAccess() combining sequential and prerequisite checks
-    - Implement markComplete() with completion type handling
+    - Implement can_access() combining sequential and prerequisite checks
+    - Implement mark_complete() with completion type handling using get_or_create
     - _Requirements: 1.3, 3.1_
 
-  - [ ] 9.2 Implement getUnlockStatus() for all nodes
+  - [ ] 9.2 Implement get_unlock_status() for all nodes
     - Return status for each node in single query
     - Include lock_reason and blocking_nodes for locked nodes
     - _Requirements: 5.1, 5.2_

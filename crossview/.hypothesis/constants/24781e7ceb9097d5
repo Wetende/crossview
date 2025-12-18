@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\tenants\migrations\0001_initial.py
+# hypothesis_version: 6.148.7
+
+[100, 254, 255, 'ID', 'Tenant', 'activated_at', 'admin_email', 'created_at', 'db_table', 'id', 'is_active', 'name', 'settings', 'subdomain', 'tenant', 'tenants', 'tenants_is_acti_idx', 'tenants_subdoma_idx', 'updated_at']

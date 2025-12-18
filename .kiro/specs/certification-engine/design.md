@@ -1,5 +1,7 @@
 # Design Document: Certification Engine
 
+> **🔄 Migration Notice:** This spec is being migrated from PHP/Laravel to Python/Django. All code examples, models, and implementation details are written for Django. The original Laravel implementation exists in the codebase and will be replaced.
+
 ## Overview
 
 The Certification Engine generates PDF certificates when students complete programs. It listens for 100% completion events from the Progression Engine, populates certificate templates with student data, generates unique serial numbers, and provides verification endpoints.
@@ -26,7 +28,7 @@ graph TB
     
     subgraph "External"
         PE[Progression Engine]
-        PDF[PDF Library - DOMPDF]
+        PDF[PDF Library - WeasyPrint]
         PE -.->|100% Event| CE
         TG --> PDF
     end
@@ -36,200 +38,229 @@ graph TB
 
 ### 1. CertificateTemplate Model
 
-```php
-namespace App\Models;
+```python
+from django.db import models
 
-class CertificateTemplate extends Model
-{
-    protected $fillable = [
-        'name',
-        'blueprint_id',
-        'template_html',
-        'is_default',
-        'metadata',
-    ];
+class CertificateTemplate(models.Model):
+    name = models.CharField(max_length=255)
+    blueprint = models.ForeignKey('AcademicBlueprint', on_delete=models.SET_NULL, null=True, related_name='templates')
+    template_html = models.TextField()
+    is_default = models.BooleanField(default=False)
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    protected $casts = [
-        'is_default' => 'boolean',
-        'metadata' => 'array',
-    ];
+    class Meta:
+        db_table = 'certificate_templates'
+        indexes = [
+            models.Index(fields=['blueprint']),
+            models.Index(fields=['is_default']),
+        ]
 
-    public function blueprint(): BelongsTo;
-    public function certificates(): HasMany;
-    public function hasRequiredPlaceholders(): bool;
-}
+    def has_required_placeholders(self) -> bool:
+        required = ['{{student_name}}', '{{program_title}}', '{{completion_date}}', '{{serial_number}}']
+        return all(p in self.template_html for p in required)
 ```
 
 ### 2. Certificate Model
 
-```php
-namespace App\Models;
+```python
+class Certificate(models.Model):
+    enrollment = models.ForeignKey('Enrollment', on_delete=models.CASCADE, related_name='certificates')
+    template = models.ForeignKey('CertificateTemplate', on_delete=models.PROTECT)
+    serial_number = models.CharField(max_length=50, unique=True)
+    student_name = models.CharField(max_length=255)
+    program_title = models.CharField(max_length=255)
+    completion_date = models.DateField()
+    issue_date = models.DateField()
+    pdf_path = models.CharField(max_length=500)
+    is_revoked = models.BooleanField(default=False)
+    revoked_at = models.DateTimeField(blank=True, null=True)
+    revocation_reason = models.TextField(blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-class Certificate extends Model
-{
-    protected $fillable = [
-        'enrollment_id',
-        'template_id',
-        'serial_number',
-        'student_name',
-        'program_title',
-        'completion_date',
-        'issue_date',
-        'pdf_path',
-        'is_revoked',
-        'revoked_at',
-        'revocation_reason',
-        'metadata',
-    ];
+    class Meta:
+        db_table = 'certificates'
+        indexes = [
+            models.Index(fields=['serial_number']),
+            models.Index(fields=['enrollment']),
+        ]
 
-    protected $casts = [
-        'completion_date' => 'date',
-        'issue_date' => 'date',
-        'is_revoked' => 'boolean',
-        'revoked_at' => 'datetime',
-        'metadata' => 'array',
-    ];
+    def get_signed_download_url(self) -> str:
+        from django.core.signing import TimestampSigner
+        signer = TimestampSigner()
+        return signer.sign(self.pdf_path)
 
-    public function enrollment(): BelongsTo;
-    public function template(): BelongsTo;
-    public function verificationLogs(): HasMany;
-    public function getSignedDownloadUrl(): string;
-    public function getVerificationUrl(): string;
-}
+    def get_verification_url(self) -> str:
+        from django.urls import reverse
+        return reverse('certificate-verify', kwargs={'serial': self.serial_number})
 ```
+
 
 ### 3. VerificationLog Model
 
-```php
-namespace App\Models;
+```python
+class VerificationLog(models.Model):
+    certificate = models.ForeignKey('Certificate', on_delete=models.SET_NULL, null=True, related_name='verification_logs')
+    serial_number_queried = models.CharField(max_length=50)
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    result = models.CharField(max_length=20, choices=[('valid', 'Valid'), ('revoked', 'Revoked'), ('not_found', 'Not Found')])
+    verified_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
-class VerificationLog extends Model
-{
-    protected $fillable = [
-        'certificate_id',
-        'serial_number_queried',
-        'ip_address',
-        'user_agent',
-        'result',
-        'verified_at',
-    ];
-
-    protected $casts = [
-        'verified_at' => 'datetime',
-    ];
-
-    public function certificate(): BelongsTo;
-}
+    class Meta:
+        db_table = 'verification_logs'
+        indexes = [
+            models.Index(fields=['serial_number_queried']),
+            models.Index(fields=['verified_at']),
+        ]
 ```
 
 ### 4. CertificationEngine Service
 
-```php
-namespace App\Services;
+```python
+from django.utils import timezone
+from typing import Optional
 
-class CertificationEngine
-{
-    public function __construct(
-        private TemplateGenerator $templateGenerator,
-        private SerialNumberGenerator $serialGenerator,
-        private VerificationService $verificationService
-    ) {}
+class CertificationEngine:
+    def __init__(self, template_generator, serial_generator, verification_service):
+        self.template_generator = template_generator
+        self.serial_generator = serial_generator
+        self.verification_service = verification_service
 
-    /**
-     * Generate certificate for completed enrollment
-     */
-    public function generateCertificate(Enrollment $enrollment): Certificate;
-    
-    /**
-     * Handle program completion event
-     */
-    public function onProgramCompleted(Enrollment $enrollment): void;
-    
-    /**
-     * Revoke a certificate
-     */
-    public function revoke(Certificate $certificate, string $reason): void;
-    
-    /**
-     * Get certificate for download
-     */
-    public function getCertificateForDownload(Certificate $certificate): string;
-}
+    def generate_certificate(self, enrollment) -> Certificate:
+        template = self.template_generator.get_template_for_enrollment(enrollment)
+        serial = self.serial_generator.generate()
+        
+        data = {
+            'student_name': enrollment.user.get_full_name(),
+            'program_title': enrollment.program.title,
+            'completion_date': timezone.now().date(),
+            'serial_number': serial,
+        }
+        
+        pdf_path = self.template_generator.generate(template, data)
+        
+        return Certificate.objects.create(
+            enrollment=enrollment,
+            template=template,
+            serial_number=serial,
+            student_name=data['student_name'],
+            program_title=data['program_title'],
+            completion_date=data['completion_date'],
+            issue_date=timezone.now().date(),
+            pdf_path=pdf_path,
+        )
+
+    def on_program_completed(self, enrollment) -> None:
+        if enrollment.program.blueprint.certificate_enabled:
+            self.generate_certificate(enrollment)
+
+    def revoke(self, certificate: Certificate, reason: str) -> None:
+        certificate.is_revoked = True
+        certificate.revoked_at = timezone.now()
+        certificate.revocation_reason = reason
+        certificate.save()
+
+    def get_certificate_for_download(self, certificate: Certificate) -> str:
+        return certificate.pdf_path
 ```
 
 ### 5. TemplateGenerator
 
-```php
-namespace App\Services\Certification;
+```python
+from weasyprint import HTML
+import os
 
-class TemplateGenerator
-{
-    /**
-     * Generate PDF from template with data
-     */
-    public function generate(
-        CertificateTemplate $template,
-        array $data
-    ): string;
-    
-    /**
-     * Validate template has required placeholders
-     */
-    public function validateTemplate(string $templateHtml): ValidationResult;
-    
-    /**
-     * Get default template
-     */
-    public function getDefaultTemplate(): CertificateTemplate;
-}
+class TemplateGenerator:
+    def generate(self, template: CertificateTemplate, data: dict) -> str:
+        html_content = template.template_html
+        for key, value in data.items():
+            html_content = html_content.replace(f'{{{{{key}}}}}', str(value))
+        
+        pdf_path = f"certificates/{data['serial_number']}.pdf"
+        HTML(string=html_content).write_pdf(pdf_path)
+        return pdf_path
+
+    def validate_template(self, template_html: str) -> dict:
+        required = ['{{student_name}}', '{{program_title}}', '{{completion_date}}', '{{serial_number}}']
+        missing = [p for p in required if p not in template_html]
+        return {'valid': len(missing) == 0, 'missing': missing}
+
+    def get_default_template(self) -> CertificateTemplate:
+        return CertificateTemplate.objects.filter(is_default=True).first()
+
+    def get_template_for_enrollment(self, enrollment) -> CertificateTemplate:
+        blueprint = enrollment.program.blueprint
+        template = CertificateTemplate.objects.filter(blueprint=blueprint).first()
+        return template or self.get_default_template()
 ```
 
 ### 6. SerialNumberGenerator
 
-```php
-namespace App\Services\Certification;
+```python
+import random
+import string
+from datetime import datetime
 
-class SerialNumberGenerator
-{
-    /**
-     * Generate unique serial number
-     */
-    public function generate(string $prefix = 'CCT'): string;
-    
-    /**
-     * Verify serial number is unique
-     */
-    public function isUnique(string $serialNumber): bool;
-    
-    /**
-     * Parse serial number components
-     */
-    public function parse(string $serialNumber): array;
-}
+class SerialNumberGenerator:
+    def generate(self, prefix: str = 'CCT') -> str:
+        year = datetime.now().year
+        random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        serial = f"{prefix}-{year}-{random_part}"
+        
+        while not self.is_unique(serial):
+            random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            serial = f"{prefix}-{year}-{random_part}"
+        
+        return serial
+
+    def is_unique(self, serial_number: str) -> bool:
+        return not Certificate.objects.filter(serial_number=serial_number).exists()
+
+    def parse(self, serial_number: str) -> dict:
+        parts = serial_number.split('-')
+        return {'prefix': parts[0], 'year': int(parts[1]), 'code': parts[2]}
 ```
+
 
 ### 7. VerificationService
 
-```php
-namespace App\Services\Certification;
+```python
+from dataclasses import dataclass
+from typing import Optional
 
-class VerificationService
-{
-    /**
-     * Verify certificate by serial number
-     */
-    public function verify(string $serialNumber, ?string $ipAddress = null): VerificationResult;
-    
-    /**
-     * Log verification attempt
-     */
-    public function logAttempt(
-        ?Certificate $certificate,
-        string $serialNumber,
-        string $result,
-        ?string $ipAddress
-    ): void;
-}
+@dataclass
+class VerificationResult:
+    status: str  # 'valid', 'revoked', 'not_found'
+    certificate: Optional[Certificate] = None
+    message: str = ''
+
+class VerificationService:
+    def verify(self, serial_number: str, ip_address: str = None) -> VerificationResult:
+        try:
+            certificate = Certificate.objects.get(serial_number=serial_number)
+            if certificate.is_revoked:
+                result = VerificationResult(status='revoked', certificate=certificate, message='Certificate has been revoked')
+            else:
+                result = VerificationResult(status='valid', certificate=certificate, message='Certificate is valid')
+        except Certificate.DoesNotExist:
+            result = VerificationResult(status='not_found', message='Certificate not found')
+            certificate = None
+        
+        self.log_attempt(certificate, serial_number, result.status, ip_address)
+        return result
+
+    def log_attempt(self, certificate, serial_number: str, result: str, ip_address: str = None) -> None:
+        VerificationLog.objects.create(
+            certificate=certificate,
+            serial_number_queried=serial_number,
+            ip_address=ip_address,
+            result=result,
+            verified_at=timezone.now()
+        )
 ```
 
 ## Data Models
@@ -238,24 +269,20 @@ class VerificationService
 
 ```sql
 CREATE TABLE certificate_templates (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    blueprint_id BIGINT UNSIGNED NULL,
-    template_html LONGTEXT NOT NULL,
+    blueprint_id BIGINT NULL REFERENCES academic_blueprints(id) ON DELETE SET NULL,
+    template_html TEXT NOT NULL,
     is_default BOOLEAN DEFAULT FALSE,
-    metadata JSON NULL,
+    metadata JSONB NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (blueprint_id) REFERENCES academic_blueprints(id) ON DELETE SET NULL,
-    INDEX idx_blueprint (blueprint_id),
-    INDEX idx_default (is_default)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE certificates (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    enrollment_id BIGINT UNSIGNED NOT NULL,
-    template_id BIGINT UNSIGNED NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    enrollment_id BIGINT NOT NULL REFERENCES enrollments(id) ON DELETE CASCADE,
+    template_id BIGINT NOT NULL REFERENCES certificate_templates(id),
     serial_number VARCHAR(50) NOT NULL UNIQUE,
     student_name VARCHAR(255) NOT NULL,
     program_title VARCHAR(255) NOT NULL,
@@ -265,61 +292,25 @@ CREATE TABLE certificates (
     is_revoked BOOLEAN DEFAULT FALSE,
     revoked_at TIMESTAMP NULL,
     revocation_reason TEXT NULL,
-    metadata JSON NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
-    FOREIGN KEY (template_id) REFERENCES certificate_templates(id),
-    
-    INDEX idx_serial (serial_number),
-    INDEX idx_enrollment (enrollment_id)
+    metadata JSONB NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE verification_logs (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    certificate_id BIGINT UNSIGNED NULL,
+    id BIGSERIAL PRIMARY KEY,
+    certificate_id BIGINT NULL REFERENCES certificates(id) ON DELETE SET NULL,
     serial_number_queried VARCHAR(50) NOT NULL,
-    ip_address VARCHAR(45) NULL,
+    ip_address INET NULL,
     user_agent TEXT NULL,
-    result ENUM('valid', 'revoked', 'not_found') NOT NULL,
+    result VARCHAR(20) NOT NULL,
     verified_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (certificate_id) REFERENCES certificates(id) ON DELETE SET NULL,
-    INDEX idx_serial_queried (serial_number_queried),
-    INDEX idx_verified_at (verified_at)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### Template Placeholders
-
-```html
-<div class="certificate">
-    <h1>Certificate of Completion</h1>
-    <p>This certifies that</p>
-    <h2>{{student_name}}</h2>
-    <p>has successfully completed</p>
-    <h3>{{program_title}}</h3>
-    <p>on {{completion_date}}</p>
-    <p>Serial Number: {{serial_number}}</p>
-</div>
-```
-
-### Serial Number Format
-
-```
-CCT-2025-A1B2C3
-│   │    │
-│   │    └── Random alphanumeric (6 chars)
-│   └── Year
-└── Institution prefix
-```
-
-
-
 ## Correctness Properties
 
-*A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
+*A property is a characteristic or behavior that should hold true across all valid executions of a system.*
 
 ### Property 1: Template Attachment Requires Certificate Enabled
 *For any* blueprint with certificate_enabled false, attaching a template SHALL be rejected.
@@ -353,53 +344,21 @@ CCT-2025-A1B2C3
 *For any* verification attempt, a VerificationLog record SHALL be created with serial_number_queried, result, and verified_at.
 **Validates: Requirements 4.4**
 
-### Property 9: Certificate Download Returns PDF
-*For any* certificate download request by the owner, the PDF file SHALL be returned.
-**Validates: Requirements 5.1**
-
-### Property 10: Signed URL with Expiration
-*For any* certificate download URL, it SHALL be signed and have an expiration time.
-**Validates: Requirements 5.2**
-
-### Property 11: Public Verification URL
-*For any* certificate share request, the returned URL SHALL be a public verification endpoint containing the serial number.
-**Validates: Requirements 5.3**
-
-### Property 12: Revocation Workflow
-*For any* revoked certificate, is_revoked SHALL be true, revocation_reason SHALL be non-empty, and the record SHALL be retained.
-**Validates: Requirements 6.1, 6.2, 6.3**
-
-## Error Handling
-
-- **CertificateNotEnabledException**: Thrown when generating for blueprint without certificate_enabled
-- **TemplateMissingPlaceholdersException**: Thrown when template lacks required placeholders
-- **DuplicateSerialNumberException**: Should not occur due to uniqueness check, but logged if constraint violation
-- **CertificateNotFoundException**: Thrown when serial number not found during verification
-- **CertificateAlreadyRevokedException**: Thrown when attempting to revoke already-revoked certificate
+### Property 9-12: Download, Signed URL, Public URL, Revocation
+(See requirements 5.1-5.3, 6.1-6.3)
 
 ## Testing Strategy
 
 ### Property-Based Testing Library
-PHPUnit with eris/eris for property-based tests.
+We will use **Hypothesis** for property-based tests and **WeasyPrint** for PDF generation.
 
-### Test Data Generators
-```php
-// Serial number generator
-$serialGen = Generator::tuple(
-    Generator::elements(['CCT', 'XYZ', 'ABC']),
-    Generator::int(2020, 2030),
-    Generator::string(6)->filter(fn($s) => ctype_alnum($s))
-)->map(fn($parts) => implode('-', $parts));
+```python
+from hypothesis import strategies as st
 
-// Template HTML generator
-$templateGen = Generator::elements([
-    '<h1>{{student_name}}</h1><p>{{program_title}}</p><p>{{completion_date}}</p><p>{{serial_number}}</p>',
-    '<div>Missing placeholders</div>',
-]);
-
-// Verification result generator
-$resultGen = Generator::elements(['valid', 'revoked', 'not_found']);
+serial_strategy = st.builds(
+    lambda prefix, year, code: f"{prefix}-{year}-{code}",
+    prefix=st.sampled_from(['CCT', 'XYZ', 'ABC']),
+    year=st.integers(min_value=2020, max_value=2030),
+    code=st.text(alphabet=string.ascii_uppercase + string.digits, min_size=6, max_size=6)
+)
 ```
-
-### External Dependencies
-- **barryvdh/laravel-dompdf**: PDF generation from HTML

@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\blueprints\migrations\0001_initial.py
+# hypothesis_version: 6.148.7
+
+[100, '0001_initial', 'AcademicBlueprint', 'ID', 'academic_bl_name_idx', 'academic_blueprints', 'academicblueprint', 'blueprints', 'certificate_enabled', 'created_at', 'db_table', 'deleted_at', 'description', 'gamification_enabled', 'grading_logic', 'hierarchy_structure', 'id', 'name', 'progression_rules', 'tenant', 'tenants', 'tenants.tenant', 'updated_at']
