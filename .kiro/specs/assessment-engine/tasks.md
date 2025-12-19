@@ -2,81 +2,141 @@
 
 > **🔄 Migration Notice:** This implementation plan is for migrating from PHP/Laravel to Python/Django. All tasks reference Django-specific implementations (Django models, migrations, pytest/Hypothesis for testing, management commands).
 
-- [ ] 1. Set up database schema and models
+- [x] 1. Set up database schema and models
+
+
+
+
   - [ ] 1.1 Create Django migration for assessment_results table
     - Create table with enrollment_id, node_id, result_data (JSONField), lecturer_comments, is_published, published_at, graded_by_user_id
     - Add unique constraint on (enrollment_id, node_id)
     - Add foreign keys with CASCADE delete
+
+
     - _Requirements: 2.1, 2.3_
 
   - [ ] 1.2 Create AssessmentResult Django model
     - Define fields and JSONField for result_data
+
+
     - Add relationships: enrollment, node, graded_by
+
+
+
+
     - Add accessor methods: get_total(), get_status(), get_letter_grade()
     - _Requirements: 2.1, 2.4_
 
-  - [ ] 1.3 Write property test for result persistence
+
+
+  - [x] 1.3 Write property test for result persistence
+
+
+
     - **Property 5: Result Persistence Integrity**
     - **Validates: Requirements 2.1, 2.4**
 
 - [ ] 2. Implement grading strategy interface and factory
   - [ ] 2.1 Create GradingStrategyInterface ABC
     - Define calculate(), validate_components(), get_status() abstract methods
+
+
     - _Requirements: 1.1, 1.2, 1.3_
+
 
   - [ ] 2.2 Create GradingStrategyFactory
     - Implement create_from_blueprint() using match/if-else
     - Raise InvalidGradingTypeException for unknown types
+
     - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 3. Implement WeightedGradingStrategy
+- [x] 3. Implement WeightedGradingStrategy
+
   - [ ] 3.1 Create WeightedGradingStrategy class
     - Implement calculate() with weighted sum formula
+
+
     - Implement get_status() with pass_mark threshold
     - Implement get_letter_grade() with boundary mapping
+
+
+
     - Handle missing components as zero
     - _Requirements: 1.1, 3.1, 3.2, 3.3, 3.4_
 
   - [ ] 3.2 Write property test for weighted calculation
     - **Property 1: Weighted Calculation Correctness**
+
+
     - **Validates: Requirements 1.1, 3.1**
+
 
   - [ ] 3.3 Write property test for pass/fail threshold
     - **Property 3: Pass/Fail Threshold**
+
     - **Validates: Requirements 1.3, 3.2, 3.3**
+
 
   - [ ] 3.4 Write property test for missing component
     - **Property 7: Missing Component Treated as Zero**
+
+
+
+
     - **Validates: Requirements 3.4**
 
   - [ ] 3.5 Write property test for grade boundary mapping
     - **Property 9: Grade Boundary Mapping**
+
+
     - **Validates: Requirements 5.1, 5.3**
+
+
+
+
+
+
 
 - [ ] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 
+
+
 - [ ] 5. Implement CompetencyGradingStrategy
-  - [ ] 5.1 Create CompetencyGradingStrategy class
+  - [x] 5.1 Create CompetencyGradingStrategy class
+
     - Implement calculate() checking all required evidences
     - Implement get_status() returning Competent/Not Yet Competent
     - Support custom competency labels from config
     - _Requirements: 1.2, 4.1, 4.2, 4.3, 4.4_
 
+
   - [ ] 5.2 Write property test for competency all-or-nothing
     - **Property 2: Competency All-Or-Nothing**
+
     - **Validates: Requirements 1.2, 4.2, 4.3**
 
-  - [ ] 5.3 Write property test for custom competency labels
+  - [x] 5.3 Write property test for custom competency labels
+
     - **Property 8: Custom Competency Labels**
     - **Validates: Requirements 4.4**
 
+
 - [ ] 6. Implement PassFailGradingStrategy
-  - [ ] 6.1 Create PassFailGradingStrategy class
+  - [x] 6.1 Create PassFailGradingStrategy class
+
+
+
+
     - Implement calculate() with simple threshold check
     - Return Pass or Fail status
     - _Requirements: 1.3_
+
+
+
+
+
 
 - [ ] 7. Implement grading config validation
   - [ ] 7.1 Create GradingConfigValidator

@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\practicum\services.py
+# hypothesis_version: 6.148.7
+
+['-version', 'approved', 'max_score', 'name', 'pending', 'rejected', 'reviews', 'revision_required', 'rubric_id', 'submitted_at', 'upload']

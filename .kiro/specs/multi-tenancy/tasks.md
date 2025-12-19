@@ -3,7 +3,8 @@
 > **🔄 Migration Notice:** This implementation plan is for migrating from PHP/Laravel to Python/Django. All tasks reference Django-specific implementations (Django models, migrations, pytest/Hypothesis for testing, management commands).
 
 - [ ] 1. Set up database schema and models
-  - [-] 1.1 Create Django migration for tenants table
+  - [ ] 1.1 Create Django migration for tenants table
+
 
     - Create table with name, subdomain (unique), admin_email, subscription_tier_id, is_active, settings, activated_at
     - Add indexes on subdomain and is_active

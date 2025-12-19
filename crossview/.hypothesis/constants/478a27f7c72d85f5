@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\tenants\models.py
+# hypothesis_version: 6.148.7
+
+[100, 255, 500, 5000, '#1E40AF', '#3B82F6', 'branding', 'code', 'is_active', 'limits', 'preset_blueprints', 'subdomain', 'subscription_tiers', 'tenant_brandings', 'tenant_limits', 'tenants']

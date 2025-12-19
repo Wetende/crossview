@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\progression\migrations\0001_initial.py
+# hypothesis_version: 6.148.7
+
+['0002_program', 'Active', 'Completed', 'Enrollment', 'ID', 'Suspended', 'Withdrawn', 'active', 'completed', 'completed_at', 'core', 'core.program', 'created_at', 'db_table', 'enrolled_at', 'enrollment', 'enrollments', 'id', 'program', 'status', 'suspended', 'updated_at', 'user', 'withdrawn']

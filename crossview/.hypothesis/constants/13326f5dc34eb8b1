@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\practicum\models.py
+# hypothesis_version: 6.148.7
+
+[255, 500, '0', 'Approved', 'Pending', 'PracticumSubmission', 'Rejected', 'Revision Required', 'approved', 'core.User', 'enrollment', 'name', 'node', 'pending', 'practicum_status_idx', 'rejected', 'reviews', 'revision_required', 'rubrics', 'status', 'submission', 'submission_reviews', 'weight']

@@ -2,41 +2,41 @@
 
 > **🔄 Migration Notice:** This implementation plan is for migrating from PHP/Laravel to Python/Django. All tasks reference Django-specific implementations (Django models, migrations, pytest/Hypothesis for testing, management commands).
 
-- [ ] 1. Set up database schema and models
-  - [ ] 1.1 Create Django migration for node_completions table
+- [x] 1. Set up database schema and models
+  - [x] 1.1 Create Django migration for node_completions table
     - Create table with enrollment_id, node_id, completed_at, completion_type, metadata (JSONField)
     - Add unique constraint on (enrollment_id, node_id)
     - Add foreign keys with CASCADE delete
     - _Requirements: 3.1, 3.5_
 
-  - [ ] 1.2 Create NodeCompletion Django model
+  - [x] 1.2 Create NodeCompletion Django model
     - Define fields and JSONField for metadata
     - Add relationships: enrollment, node
     - _Requirements: 3.1_
 
-  - [ ] 1.3 Write property test for completion record creation
+  - [x] 1.3 Write property test for completion record creation
     - **Property 6: Completion Record Creation**
     - **Validates: Requirements 3.1**
 
-  - [ ] 1.4 Write property test for completion idempotency
+  - [x] 1.4 Write property test for completion idempotency
     - **Property 8: Completion Idempotency**
     - **Validates: Requirements 3.5**
 
-- [ ] 2. Implement sequential locking
-  - [ ] 2.1 Create SequentialLockChecker service
+- [x] 2. Implement sequential locking
+  - [x] 2.1 Create SequentialLockChecker service
     - Implement is_unlocked() checking if node is first uncompleted sibling
     - Implement get_first_uncompleted_sibling()
     - _Requirements: 1.1, 1.2_
 
-  - [ ] 2.2 Write property test for sequential unlock progression
+  - [x] 2.2 Write property test for sequential unlock progression
     - **Property 1: Sequential Unlock Progression**
     - **Validates: Requirements 1.1, 1.2**
 
-  - [ ] 2.3 Write property test for sequential lock denial
+  - [x] 2.3 Write property test for sequential lock denial
     - **Property 2: Sequential Lock Denial**
     - **Validates: Requirements 1.3**
 
-  - [ ] 2.4 Write property test for sequential disabled
+  - [x] 2.4 Write property test for sequential disabled
     - **Property 3: Sequential Disabled Allows All**
     - **Validates: Requirements 1.4**
 

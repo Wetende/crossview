@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\blueprints\legacy_migration.py
-# hypothesis_version: 6.148.7
-
-['Course', 'Lesson', 'Section', 'Untitled Course', 'Untitled Lesson', 'Untitled Section', 'assignments', 'attachments', 'code', 'components', 'content', 'course_id', 'courses_migrated', 'description', 'duration', 'duration_minutes', 'errors', 'exams', 'has_quiz', 'id', 'instructor_id', 'is_preview', 'is_published', 'lessons_migrated', 'level', 'min_score', 'name', 'original_course_id', 'original_id', 'original_section_id', 'position', 'price', 'quizzes', 'require_completion', 'require_quiz_pass', 'require_video_watch', 'section_id', 'sections_migrated', 'success', 'thumbnail', 'title', 'total_nodes', 'type', 'video_url', 'weight', 'weighted']

@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\progression\models.py
+# hypothesis_version: 6.148.7
+
+['Active', 'Completed', 'Enrollment', 'Manual', 'Quiz Pass', 'Suspended', 'Upload', 'View', 'Withdrawn', 'active', 'completed', 'completions', 'completions_node_idx', 'core.Program', 'core.User', 'enrollment', 'enrollments', 'manual', 'node', 'node_completions', 'program', 'quiz_pass', 'status', 'suspended', 'upload', 'user', 'view', 'withdrawn']

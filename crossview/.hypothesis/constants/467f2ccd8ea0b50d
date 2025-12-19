@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\conftest.py
-# hypothesis_version: 6.148.7
-
-['Session', 'Unit', 'Year', 'assignments', 'components', 'config.settings', 'exams', 'name', 'session', 'type', 'weight', 'weighted']
