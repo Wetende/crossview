@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\assessments\validators.py
+# hypothesis_version: 6.148.7
+
+[0.0, 0.001, 1.0, 'competency', 'competency_labels', 'components', 'fail', 'name', 'pass', 'pass_fail', 'pass_mark', 'required_evidences', 'threshold', 'type', 'weight', 'weighted']

@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\assessments\serializers.py
+# hypothesis_version: 6.148.7
+
+['components', 'created_at', 'enrollment_id', 'graded_at', 'graded_by_id', 'id', 'is_published', 'lecturer_comments', 'letter_grade', 'node_id', 'node_title', 'node_type', 'program_name', 'published_at', 'status', 'student_email', 'student_name', 'total', 'updated_at']
