@@ -89,7 +89,7 @@ class TestSequentialUnlockProgression:
         assume(completed_count < num_siblings)
         
         checker = SequentialLockChecker()
-        data = create_program_with_siblings(num_siblings, sequential=True)
+        data = _make_program_with_siblings(num_siblings, sequential=True)
         siblings = data['siblings']
         enrollment = data['enrollment']
         
@@ -114,7 +114,7 @@ class TestSequentialUnlockProgression:
         assume(completed_count + target_offset < num_siblings)
         
         checker = SequentialLockChecker()
-        data = create_program_with_siblings(num_siblings, sequential=True)
+        data = _make_program_with_siblings(num_siblings, sequential=True)
         siblings = data['siblings']
         enrollment = data['enrollment']
         
@@ -148,7 +148,7 @@ class TestSequentialLockDenial:
         assume(target_idx < num_siblings)
         
         checker = SequentialLockChecker()
-        data = create_program_with_siblings(num_siblings, sequential=True)
+        data = _make_program_with_siblings(num_siblings, sequential=True)
         siblings = data['siblings']
         enrollment = data['enrollment']
         
@@ -179,7 +179,7 @@ class TestSequentialDisabled:
         assume(target_idx < num_siblings)
         
         checker = SequentialLockChecker()
-        data = create_program_with_siblings(num_siblings, sequential=False)
+        data = _make_program_with_siblings(num_siblings, sequential=False)
         siblings = data['siblings']
         enrollment = data['enrollment']
         
@@ -201,7 +201,7 @@ class TestGetFirstUncompletedSibling:
         assume(completed_count < num_siblings)
         
         checker = SequentialLockChecker()
-        data = create_program_with_siblings(num_siblings, sequential=True)
+        data = _make_program_with_siblings(num_siblings, sequential=True)
         siblings = data['siblings']
         
         completed_ids = set()
@@ -217,7 +217,7 @@ class TestGetFirstUncompletedSibling:
     @settings(max_examples=100, deadline=None)
     def test_returns_none_when_all_completed(self, num_siblings):
         checker = SequentialLockChecker()
-        data = create_program_with_siblings(num_siblings, sequential=True)
+        data = _make_program_with_siblings(num_siblings, sequential=True)
         siblings = data['siblings']
         
         completed_ids = {s.id for s in siblings}
