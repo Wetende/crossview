@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\certifications\models.py
+# hypothesis_version: 6.148.7
+
+[255, 500, 3600, 'Certificate', 'CertificateTemplate', 'Not Found', 'Revoked', 'Valid', 'blueprint', 'cert_enrollment_idx', 'cert_is_revoked_idx', 'certificates', 'enrollment', 'is_default', 'is_revoked', 'not_found', 'revoked', 'serial_number', 'valid', 'verification_logs', 'verified_at', '{{completion_date}}', '{{program_title}}', '{{serial_number}}', '{{student_name}}']
