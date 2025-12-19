@@ -5,6 +5,8 @@ Migrated from Laravel AcademicBlueprint model.
 from django.db import models
 from django.core.exceptions import ValidationError
 
+from apps.tenants.managers import TenantManager, AllTenantsManager
+
 
 class AcademicBlueprint(models.Model):
     """
@@ -17,6 +19,10 @@ class AcademicBlueprint(models.Model):
         blank=True,
         related_name='blueprints'
     )
+    
+    # Tenant-aware managers
+    objects = TenantManager()
+    all_objects = AllTenantsManager()
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     hierarchy_structure = models.JSONField()  # ["Year", "Unit", "Session"]
