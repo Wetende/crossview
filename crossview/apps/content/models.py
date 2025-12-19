@@ -29,8 +29,8 @@ class ContentVersion(models.Model):
     class Meta:
         db_table = 'content_versions'
         indexes = [
-            models.Index(fields=['node', 'version'], name='content_ver_node_id_version_idx'),
-            models.Index(fields=['is_published'], name='content_ver_is_published_idx'),
+            models.Index(fields=['node', 'version'], name='cv_node_version_idx'),
+            models.Index(fields=['is_published'], name='cv_is_published_idx'),
         ]
 
     def __str__(self):

@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\tenants\middleware.py
+# hypothesis_version: 6.148.7
+
+['.', '127.0.0.1', ':', 'BASE_DOMAIN', 'admin', 'api', 'localhost', 'media', 'static', 'www']

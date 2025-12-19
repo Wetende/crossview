@@ -61,10 +61,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='contentversion',
-            index=models.Index(fields=['node', 'version'], name='content_ver_node_id_version_idx'),
+            index=models.Index(fields=['node', 'version'], name='cv_node_version_idx'),
         ),
         migrations.AddIndex(
             model_name='contentversion',
-            index=models.Index(fields=['is_published'], name='content_ver_is_published_idx'),
+            index=models.Index(fields=['is_published'], name='cv_is_published_idx'),
         ),
     ]

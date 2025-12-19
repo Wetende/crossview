@@ -1,0 +1,4 @@
+# file: C:\xampp\htdocs\cross-view\crossview\apps\blueprints\models.py
+# hypothesis_version: 6.148.7
+
+[100, 'academic_blueprints', 'blueprints', 'name', 'tenants.Tenant']
