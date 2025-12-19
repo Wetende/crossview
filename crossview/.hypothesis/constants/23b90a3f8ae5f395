@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\core\migrations\0002_program.py
-# hypothesis_version: 6.148.7
-
-[255, '0001_initial', 'ID', 'Program', 'blueprint', 'blueprints', 'code', 'core', 'created_at', 'db_table', 'description', 'id', 'is_published', 'name', 'program', 'programs', 'programs_is_publ_idx', 'programs_name_idx', 'tenant', 'tenants', 'tenants.tenant', 'updated_at']

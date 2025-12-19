@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\practicum\migrations\0001_initial.py
-# hypothesis_version: 6.148.7
-
-[255, 500, '0001_initial', '0002_nodecompletion', 'Approved', 'ID', 'Pending', 'PracticumSubmission', 'Rejected', 'Revision Required', 'Rubric', 'SubmissionReview', 'approved', 'comments', 'created_at', 'curriculum', 'db_table', 'description', 'dimension_scores', 'dimensions', 'duration_seconds', 'enrollment', 'file_path', 'file_size', 'file_type', 'id', 'max_score', 'metadata', 'name', 'node', 'pending', 'practicum_status_idx', 'practicumsubmission', 'progression', 'rejected', 'reviewed_at', 'reviewer', 'reviews', 'revision_required', 'rubrics', 'status', 'submission', 'submission_reviews', 'submissionreview', 'submitted_at', 'total_score', 'updated_at', 'version']

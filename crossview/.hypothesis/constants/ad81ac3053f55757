@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\assessments\migrations\0001_initial.py
-# hypothesis_version: 6.148.7
-
-['0001_initial', 'AssessmentResult', 'ID', 'assessment_results', 'assessmentresult', 'created_at', 'curriculum', 'db_table', 'enrollment', 'graded_by', 'graded_results', 'id', 'is_published', 'lecturer_comments', 'node', 'progression', 'published_at', 'result_data', 'updated_at']

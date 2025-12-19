@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\content\services.py
-# hypothesis_version: 6.148.7
-
-[1.2, 100, 200, 800, 1024, '"', '&', '&#39;', '&amp;', '&gt;', '&lt;', '&quot;', "'", '<', '</div>', '>', 'JPEG', 'P', 'RGB', 'RGBA', 'Session', '_session_content', 'author', 'blocks', 'content_html', 'creator', 'data', 'dict', 'end', 'ext', 'font_size', 'height', 'image', 'index', 'is_paginated', 'jpeg', 'lines', 'optimized_size', 'original_size', 'page', 'page_range', 'size', 'spans', 'start', 'subject', 'text', 'title', 'type', 'utf-8', 'version', 'width']

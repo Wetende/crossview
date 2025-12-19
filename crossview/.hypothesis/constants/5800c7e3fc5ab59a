@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\certifications\services.py
-# hypothesis_version: 6.148.7
-
-[3600, '%B %d, %Y', '-', ':', 'CCT', 'Certificate is valid', 'certificates', 'code', 'completion_date', 'enrollment', 'missing', 'not_found', 'prefix', 'program_title', 'revoked', 'serial_number', 'student_name', 'template', 'valid', 'year', '{{completion_date}}', '{{program_title}}', '{{serial_number}}', '{{student_name}}']

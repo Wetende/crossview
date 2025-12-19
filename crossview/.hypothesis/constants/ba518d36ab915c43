@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\config\urls.py
-# hypothesis_version: 6.148.7
-
-['admin/', 'apps.blueprints.urls', 'apps.content.urls', 'apps.core.urls', 'apps.curriculum.urls', 'apps.practicum.urls', 'assessments/', 'blueprints/', 'certifications/', 'content/', 'curriculum/', 'practicum/', 'progression/']

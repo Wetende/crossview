@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\assessments\services.py
-# hypothesis_version: 6.148.7
-
-['enrollment', 'enrollment__user', 'graded_by', 'lecturer_comments', 'node', 'result_data']

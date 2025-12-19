@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\content\migrations\0001_initial.py
-# hypothesis_version: 6.148.7
-
-[255, 500, '0001_initial', 'ContentVersion', 'ID', 'ParsedImage', 'content_version', 'content_versions', 'contentversion', 'created_at', 'curriculum', 'db_table', 'file_size', 'height', 'id', 'is_manually_edited', 'is_published', 'metadata', 'node', 'optimized_path', 'original_path', 'page_count', 'page_number', 'parsed_at', 'parsed_images', 'published_at', 'source_file_name', 'source_file_path', 'updated_at', 'version', 'width']

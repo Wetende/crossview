@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\assessments\strategies.py
-# hypothesis_version: 6.148.7
-
-[0.0, 1.0, 'A', 'B', 'C', 'Competent', 'D', 'F', 'Fail', 'Not Yet Competent', 'Pass', 'Present', 'Referral', 'competency', 'competency_labels', 'components', 'fail', 'grade', 'grade_boundaries', 'min', 'name', 'pass', 'pass_fail', 'pass_mark', 'present', 'score', 'threshold', 'true', 'type', 'weight', 'weighted']

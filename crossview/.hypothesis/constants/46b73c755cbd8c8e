@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\practicum\validators.py
-# hypothesis_version: 6.148.7
-
-[1024, '/', 'application/msword', 'application/pdf', 'audio', 'audio/mp3', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'document', 'evidence_types', 'image', 'image/gif', 'image/jpeg', 'image/png', 'image/webp', 'max_duration_seconds', 'max_file_size_mb', 'practicum', 'rubric_id', 'type', 'video', 'video/mp4', 'video/ogg', 'video/quicktime', 'video/webm']

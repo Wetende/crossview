@@ -1,0 +1,18 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossview LMS</title>
+    {% if debug %}
+    <script type="module" src="http://localhost:5173/@vite/client"></script>
+    <script type="module" src="http://localhost:5173/src/main.jsx"></script>
+    {% else %}
+    <script type="module" src="{% static 'dist/main.js' %}"></script>
+    {% endif %}
+</head>
+<body>
+    <div id="app" data-page='{{ page|safe }}'></div>
+</body>
+</html>

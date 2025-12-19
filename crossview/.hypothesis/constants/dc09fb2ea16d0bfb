@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\tenants\migrations\0002_complete_multitenancy.py
-# hypothesis_version: 6.148.7
-
-[100, 255, 500, 5000, '#1E40AF', '#3B82F6', '0001_initial', 'ID', 'PresetBlueprint', 'SubscriptionTier', 'TenantBranding', 'TenantLimits', 'branding', 'code', 'created_at', 'current_programs', 'current_storage_mb', 'current_students', 'custom_css', 'db_table', 'description', 'favicon_path', 'features', 'grading_config', 'hierarchy_labels', 'id', 'institution_name', 'is_active', 'limits', 'logo_path', 'max_programs', 'max_storage_mb', 'max_students', 'name', 'preset_blue_code_idx', 'preset_blueprints', 'presetblueprint', 'price_monthly', 'primary_color', 'regulatory_body', 'secondary_color', 'structure_rules', 'subscription_tier', 'subscription_tiers', 'tagline', 'tenant', 'tenant_brandings', 'tenant_limits', 'tenants', 'tenants.tenant', 'updated_at']

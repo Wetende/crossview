@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\progression\services.py
-# hypothesis_version: 6.148.7
-
-[100.0, 100, 'blocking_nodes', 'completed', 'completed_at', 'completion_type', 'file_uploaded', 'is_completable', 'lock_reason', 'locked', 'metadata', 'min_score', 'node_id', 'position', 'prerequisite', 'prerequisites', 'quiz_id', 'quiz_pass', 'score', 'sequential', 'status', 'type', 'unlocked', 'upload', 'view']

@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\curriculum\migrations\0001_initial.py
-# hypothesis_version: 6.148.7
-
-[255, '0002_program', 'CurriculumNode', 'ID', 'children', 'code', 'completion_rules', 'core', 'core.program', 'created_at', 'curriculum_nodes', 'curriculumnode', 'db_table', 'description', 'id', 'is_published', 'node_type', 'ordering', 'parent', 'position', 'program', 'properties', 'title', 'updated_at']

@@ -1,4 +1,0 @@
-# file: C:\xampp\htdocs\cross-view\crossview\apps\certifications\migrations\0001_initial.py
-# hypothesis_version: 6.148.7
-
-[255, 500, '0001_initial', 'Certificate', 'CertificateTemplate', 'ID', 'Not Found', 'Revoked', 'Valid', 'VerificationLog', 'blueprint', 'blueprints', 'cert_enrollment_idx', 'cert_is_revoked_idx', 'certificate', 'certificates', 'certificatetemplate', 'completion_date', 'created_at', 'db_table', 'enrollment', 'id', 'ip_address', 'is_default', 'is_revoked', 'issue_date', 'metadata', 'name', 'not_found', 'pdf_path', 'program_title', 'progression', 'result', 'revocation_reason', 'revoked', 'revoked_at', 'serial_number', 'student_name', 'template', 'template_html', 'updated_at', 'user_agent', 'valid', 'verification_logs', 'verificationlog', 'verified_at']
