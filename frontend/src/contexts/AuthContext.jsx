@@ -1,28 +1,14 @@
-import {
-    createContext,
-    useContext,
-    useState,
-    useCallback,
-    useEffect,
-} from "react";
-import { router, usePage } from "@inertiajs/react";
+import { createContext, useContext, useState, useCallback } from "react";
+import { router } from "@inertiajs/react";
 
 const AuthContext = createContext(undefined);
 
 /**
  * AuthProvider - Manages authentication state
- * Integrates with Inertia's shared data for user state
+ * Receives initial user from props (passed from Inertia page props)
  */
-export function AuthProvider({ children }) {
-    const { auth } = usePage().props;
-    const [user, setUser] = useState(auth?.user || null);
-
-    // Sync user state with Inertia page props
-    useEffect(() => {
-        if (auth?.user !== undefined) {
-            setUser(auth.user);
-        }
-    }, [auth?.user]);
+export function AuthProvider({ children, initialUser = null }) {
+    const [user, setUser] = useState(initialUser);
 
     const login = useCallback(async (credentials) => {
         return new Promise((resolve, reject) => {
@@ -55,12 +41,17 @@ export function AuthProvider({ children }) {
         router.reload({ only: ["auth"] });
     }, []);
 
+    const updateUser = useCallback((newUser) => {
+        setUser(newUser);
+    }, []);
+
     const value = {
         user,
         isAuthenticated: !!user,
         login,
         logout,
         refreshUser,
+        updateUser,
     };
 
     return (

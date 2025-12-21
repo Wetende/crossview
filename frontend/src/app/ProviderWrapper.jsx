@@ -1,33 +1,19 @@
-import { useState, useEffect } from "react";
 import { ConfigProvider } from "@/contexts/ConfigContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ThemeProvider from "@/theme";
-import Loader from "@/components/Loader";
 
 /**
  * ProviderWrapper - Root component that composes all context providers
  * Order: ConfigProvider → ThemeProvider → AuthProvider
+ *
+ * @param {object} initialUser - User data from Inertia page props
  */
-export default function ProviderWrapper({ children }) {
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        // Brief loading state for initial configuration
-        const timer = setTimeout(() => setLoading(false), 100);
-        return () => clearTimeout(timer);
-    }, []);
-
+export default function ProviderWrapper({ children, initialUser = null }) {
     return (
         <ConfigProvider>
             <ThemeProvider>
-                <AuthProvider>
-                    <main>
-                        {loading ? (
-                            <Loader fullScreen message="Loading..." />
-                        ) : (
-                            children
-                        )}
-                    </main>
+                <AuthProvider initialUser={initialUser}>
+                    {children}
                 </AuthProvider>
             </ThemeProvider>
         </ConfigProvider>

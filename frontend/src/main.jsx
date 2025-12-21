@@ -22,17 +22,18 @@ createInertiaApp({
 
         if (!page) {
             console.error(`Page not found: ${name}`);
-            return (
-                pages["./Pages/Errors/NotFound.jsx"] ||
-                pages["./Pages/Dashboard.jsx"]
-            );
+            // Return a simple fallback component
+            return { default: () => <div>Page not found: {name}</div> };
         }
 
         return page;
     },
     setup({ el, App, props }) {
+        // Extract user from Inertia's initial page props
+        const initialUser = props.initialPage?.props?.auth?.user || null;
+
         createRoot(el).render(
-            <ProviderWrapper>
+            <ProviderWrapper initialUser={initialUser}>
                 <App {...props} />
             </ProviderWrapper>
         );
