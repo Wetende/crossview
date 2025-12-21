@@ -2,33 +2,54 @@
 
 ## Overview
 
-This implementation plan covers the public-facing pages for Crossview LMS including the landing page, authentication flows, certificate verification, and tenant branding. The implementation follows a backend-first approach, establishing API endpoints before building the React frontend components.
+This implementation plan covers the public-facing pages for Crossview LMS including the landing page, authentication flows, certificate verification, and tenant branding. The implementation follows an **Inertia-first approach** - Django views return React components with props directly, no separate REST API needed.
+
+## Architecture Notes
+
+> **Inertia-First**: All page rendering uses Django views with `inertia.render()`. Forms use `router.post()` which submits to the same URL and returns updated props with errors.
 
 ## Tasks
 
--   [ ] 1. Set up authentication API endpoints
+-   [x] 1. Set up Inertia middleware and shared data
 
-    -   [ ] 1.1 Create auth app views for login endpoint
+    -   [x] 1.1 Create TenantMiddleware
 
-        -   Implement POST `/api/auth/login/` with email/password validation
-        -   Return JWT token, user info, and role-based redirect URL
-        -   _Requirements: 2.2_
+        -   Extract subdomain from request host
+        -   Load tenant and set `request.tenant`
+        -   Handle inactive tenant and not found cases
+        -   _Requirements: 6.1, 6.5, 6.6_
 
-    -   [ ] 1.2 Create auth app views for registration endpoint
+    -   [x] 1.2 Create InertiaShareMiddleware
 
-        -   Implement POST `/api/auth/register/` with validation
-        -   Create user with student role, associate with tenant
-        -   Check tenant registration settings before allowing
-        -   _Requirements: 3.2, 3.5_
+        -   Share tenant branding on every page (logo, colors, settings)
+        -   Share flash messages for feedback
+        -   _Requirements: 2.6, 3.6, 6.1, 6.2, 6.4_
 
-    -   [ ] 1.3 Create password reset endpoints
+-   [x] 2. Set up authentication Inertia views
 
-        -   Implement POST `/api/auth/forgot-password/`
-        -   Implement POST `/api/auth/reset-password/`
-        -   Generate secure tokens with expiration
-        -   _Requirements: 4.1, 4.2, 4.5_
+    -   [x] 2.1 Create login view
 
-    -   [ ] 1.4 Write property tests for auth endpoints
+        -   GET: Render `Auth/Login` component with `registrationEnabled` prop
+        -   POST: Authenticate user, redirect to role-based dashboard on success
+        -   POST: Return same component with `errors` prop on failure
+        -   _Requirements: 2.1, 2.2, 2.3, 2.5, 2.6_
+
+    -   [x] 2.2 Create registration view
+
+        -   GET: Render `Auth/Register` component (or closed message if disabled)
+        -   POST: Create user with student role, associate with tenant
+        -   POST: Return with `errors` prop on validation failure
+        -   _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
+
+    -   [x] 2.3 Create password reset views
+
+        -   GET `/forgot-password/`: Render `Auth/ForgotPassword` component
+        -   POST `/forgot-password/`: Send reset email, return success message
+        -   GET `/reset-password/<token>/`: Render `Auth/ResetPassword` with token validation
+        -   POST `/reset-password/<token>/`: Reset password, redirect to login
+        -   _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+
+    -   [x] 2.4 Write property tests for auth views
         -   **Property 2: Role-Based Authentication Redirect**
         -   **Property 3: Login Error Message Security**
         -   **Property 6: Student Role Assignment on Registration**
@@ -37,106 +58,74 @@ This implementation plan covers the public-facing pages for Crossview LMS includ
         -   **Property 10: Password Reset Email Enumeration Prevention**
         -   **Validates: Requirements 2.2, 2.3, 3.2, 3.3, 3.4, 4.2**
 
--   [ ] 2. Set up tenant branding API endpoints
+-   [x] 3. Set up public page Inertia views
 
-    -   [ ] 2.1 Create tenant branding endpoint
+    -   [x] 3.1 Create landing page view
 
-        -   Implement GET `/api/tenants/branding/` with subdomain parameter
-        -   Return branding config (logo, colors, settings)
-        -   Handle inactive tenant and not found cases
-        -   _Requirements: 6.1, 6.2, 6.5, 6.6_
+        -   Render `Public/Landing` with subscription tiers
+        -   _Requirements: 1.1, 1.2, 1.3_
 
-    -   [ ] 2.2 Create subscription tiers endpoint
-        -   Implement GET `/api/tenants/tiers/` for landing page
-        -   Return active tiers with pricing and features
-        -   _Requirements: 1.2_
+    -   [x] 3.2 Create certificate verification view
 
--   [ ] 3. Set up certificate verification API endpoint
+        -   GET: Render `Public/VerifyCertificate` with empty form
+        -   POST: Verify certificate, return result as prop
+        -   Log verification attempt (IP, user agent, result)
+        -   _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
 
-    -   [ ] 3.1 Create certificate verification endpoint
-
-        -   Implement POST `/api/certificates/verify/`
-        -   Return certificate details or not found
-        -   Handle revoked certificates
-        -   _Requirements: 5.2, 5.3, 5.4_
-
-    -   [ ] 3.2 Implement verification audit logging
-
-        -   Create VerificationLog on each verification attempt
-        -   Capture IP address, user agent, result, timestamp
-        -   _Requirements: 5.5_
-
-    -   [ ] 3.3 Write property tests for certificate verification
+    -   [x] 3.3 Write property tests for public views
         -   **Property 12: Certificate Verification Detail Display**
         -   **Property 13: Verification Audit Logging**
         -   **Validates: Requirements 5.2, 5.3, 5.5**
 
--   [ ] 4. Checkpoint - Backend API complete
+-   [x] 4. Checkpoint - Backend views complete
 
-    -   Ensure all API tests pass
+    -   Ensure all view tests pass
     -   Ask the user if questions arise
 
--   [ ] 5. Create frontend shared components
+-   [x] 5. Create frontend page components (Inertia Pages)
 
-    -   [ ] 5.1 Create TenantBrandingProvider context
+    -   [x] 5.1 Create Landing Page component
 
-        -   Fetch branding based on subdomain
-        -   Apply CSS variables for colors
-        -   Inject custom CSS if present
-        -   _Requirements: 2.6, 3.6, 6.1, 6.2, 6.4_
+        -   Display platform features and subscription tiers from props
+        -   Call-to-action buttons using `<Link href="/register/">`
+        -   Apply MUI theme, Framer Motion animations
+        -   _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-    -   [ ] 5.2 Create AuthForm component
+    -   [x] 5.2 Create Login Page component
 
-        -   Support login, register, forgot-password, reset-password modes
-        -   Handle form validation and error display
-        -   _Requirements: 2.1, 3.1_
-
-    -   [ ] 5.3 Create AlertMessage and LoadingSpinner components
-        -   Reusable UI components for feedback
-        -   _Requirements: 2.3, 3.3, 3.4_
-
--   [ ] 6. Create public page components
-
-    -   [ ] 6.1 Create Landing Page component
-
-        -   Display platform features and subscription tiers
-        -   Call-to-action buttons for registration
-        -   _Requirements: 1.1, 1.2, 1.3_
-
-    -   [ ] 6.2 Create Login Page component
-
-        -   Use AuthForm in login mode
-        -   Apply tenant branding
-        -   Conditional registration link based on tenant settings
+        -   Use `useForm` hook from `@inertiajs/react`
+        -   Display errors from props
+        -   Conditional registration link based on `registrationEnabled` prop
+        -   Apply tenant branding from shared props
         -   _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-    -   [ ] 6.3 Create Register Page component
+    -   [x] 5.3 Create Register Page component
 
-        -   Use AuthForm in register mode
-        -   Check registration enabled setting
-        -   Display closed message if disabled
+        -   Use `useForm` hook for form submission
+        -   Display password strength requirements
+        -   Show "registration closed" if `registrationEnabled` is false
         -   _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-    -   [ ] 6.4 Create Password Reset pages
+    -   [x] 5.4 Create Password Reset pages
 
-        -   Forgot password page with email form
-        -   Reset password page with token validation
+        -   ForgotPassword: Email form with `useForm`
+        -   ResetPassword: New password form with token from URL
         -   _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-    -   [ ] 6.5 Create Certificate Verification Page
+    -   [x] 5.5 Create Certificate Verification Page
 
-        -   Search form for serial number
-        -   Display certificate details or not found
+        -   Search form using `useForm` and `router.post()`
+        -   Display certificate details from `result` prop
         -   Show revoked status when applicable
         -   _Requirements: 5.1, 5.2, 5.3, 5.4, 5.6_
 
-    -   [ ] 6.6 Create Tenant Landing Page
+    -   [x] 5.6 Create Tenant Landing Page component
 
-        -   Display tenant branding
+        -   Display tenant branding from shared props
         -   Navigation with conditional registration link
         -   _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-    -   [ ] 6.7 Write property tests for frontend components
+    -   [ ] 5.7 Write property tests for frontend components
         -   **Property 1: Subscription Tier Display Completeness**
         -   **Property 4: Registration Link Conditional Visibility**
         -   **Property 5: Tenant Branding Application**
@@ -144,26 +133,40 @@ This implementation plan covers the public-facing pages for Crossview LMS includ
         -   **Property 14: Tenant Navigation Conditional Display**
         -   **Validates: Requirements 1.2, 2.5, 2.6, 3.5, 6.3**
 
--   [ ] 7. Set up routing and navigation
+-   [x] 6. Create shared components
 
-    -   [ ] 7.1 Configure React Router for public pages
+    -   [x] 6.1 Create AuthForm component
 
-        -   Set up routes for all public pages
-        -   Handle subdomain-based routing
-        -   _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
+        -   Reusable form with MUI TextField components
+        -   Support login, register, forgot-password, reset-password modes
+        -   Error display from props
+        -   _Requirements: 2.1, 3.1_
 
-    -   [ ] 7.2 Create public layout wrapper
-        -   Apply tenant branding context
+    -   [x] 6.2 Create PublicLayout component
+
+        -   Apply tenant branding CSS variables
+        -   Inject custom CSS if present
         -   Handle error states (tenant not found, inactive)
         -   _Requirements: 6.5, 6.6_
 
+-   [x] 7. Configure Django URLs (Server-Side Routing)
+
+    -   [x] 7.1 Set up public page URLs
+
+        -   Configure all public routes in `apps/core/urls.py`
+        -   No `/api/` prefix - these are Inertia pages
+        -   _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1_
+
 -   [ ] 8. Final checkpoint - Integration complete
     -   Ensure all tests pass
-    -   Verify all pages render correctly
+    -   Verify all pages render correctly with Inertia
+    -   Test form submissions work with `router.post()`
     -   Ask the user if questions arise
 
 ## Notes
 
--   Backend tasks (1-3) should be completed before frontend tasks (5-7)
+-   **No REST API endpoints** - All data flows through Inertia views
+-   Forms use `useForm` hook and `router.post()` - errors returned as props
+-   Tenant branding passed via `InertiaShareMiddleware` (available on every page)
 -   Property tests use Hypothesis (Python) for backend and fast-check (JS) for frontend
 -   Each property test should run minimum 100 iterations

@@ -1,11 +1,17 @@
 import { createRoot } from "react-dom/client";
 import { createInertiaApp } from "@inertiajs/react";
+import axios from "axios";
 import NProgress from "nprogress";
 import { router } from "@inertiajs/react";
 import ProviderWrapper from "@/app/ProviderWrapper";
 import "@/config"; // Load fonts
 import "./styles/app.css";
 import "nprogress/nprogress.css";
+
+// Configure axios for CSRF (used by Inertia internally)
+axios.defaults.xsrfCookieName = "csrftoken";
+axios.defaults.xsrfHeaderName = "X-CSRFToken";
+axios.defaults.withCredentials = true;
 
 // Configure NProgress
 NProgress.configure({ showSpinner: false });

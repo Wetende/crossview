@@ -49,6 +49,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "inertia.middleware.InertiaMiddleware",
+    # Custom middleware
+    "apps.tenants.middleware.TenantNotFoundMiddleware",  # Tenant from subdomain
+    "apps.core.middleware.InertiaShareMiddleware",  # Shared props (auth, tenant, flash)
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -69,6 +72,11 @@ TEMPLATES = [
     },
 ]
 
+# Expose DEBUG to templates (for Vite dev server detection)
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Password validation
@@ -83,6 +91,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Custom User Model
 AUTH_USER_MODEL = "core.User"
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    "apps.core.backends.EmailBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
 
 # Internationalization
 LANGUAGE_CODE = "en-us"

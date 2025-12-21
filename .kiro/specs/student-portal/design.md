@@ -2,281 +2,442 @@
 
 ## Overview
 
-The Student Portal provides authenticated students with access to their enrolled programs, course content, progress tracking, assessment results, practicum submissions, and certificates. The portal is built as a React SPA with Django REST API backend, featuring real-time progress updates and responsive design.
+The Student Portal provides authenticated students with access to their enrolled programs, course content, progress tracking, assessment results, practicum submissions, and certificates. The portal is built using **Inertia.js** - Django views return React components with props directly, providing an SPA feel with server-side routing.
 
 ## Architecture
 
-### Page Structure
+### Inertia-First Approach
 
--   `/student/dashboard` → Student Dashboard
--   `/student/programs` → Program List
--   `/student/programs/:id` → Program View with Curriculum Tree
--   `/student/programs/:id/session/:nodeId` → Session/Lesson Viewer
--   `/student/assessments` → Assessment Results
--   `/student/practicum` → Practicum History
--   `/student/practicum/:nodeId/upload` → Practicum Upload
--   `/student/certificates` → My Certificates
--   `/student/profile` → Profile Settings
+> **Golden Rule**: If it happens in the Browser, use Inertia first. Only use REST API for file uploads (practicum) and real-time features.
+
+| Use Case | Approach | Notes |
+|----------|----------|-------|
+| Page rendering | **Inertia** | Django views return component + props |
+| Navigation | **Inertia** | `<Link>` component, server-side routing |
+| Form submissions | **Inertia** | `router.post()` with validation errors as props |
+| Mark as complete | **Inertia** | `router.post()` returns updated completions |
+| Pagination | **Inertia Partial Reloads** | `router.visit({ only: ['items'] })` |
+| File uploads | **REST API** | Practicum uploads need multipart/form-data |
+| File downloads | **REST API** | Signed URLs for certificates/submissions |
+
+### Page Structure (Django URLs - Server-Side Routing)
+
+```python
+# apps/student/urls.py
+urlpatterns = [
+    path('student/dashboard/', views.dashboard, name='student.dashboard'),
+    path('student/programs/', views.program_list, name='student.programs'),
+    path('student/programs/<int:pk>/', views.program_view, name='student.program'),
+    path('student/programs/<int:pk>/session/<int:node_id>/', views.session_viewer, name='student.session'),
+    path('student/assessments/', views.assessment_results, name='student.assessments'),
+    path('student/practicum/', views.practicum_history, name='student.practicum'),
+    path('student/practicum/<int:node_id>/upload/', views.practicum_upload, name='student.practicum_upload'),
+    path('student/certificates/', views.certificates, name='student.certificates'),
+    path('student/profile/', views.profile_settings, name='student.profile'),
+]
+
+# REST API endpoints (only for file operations)
+api_urlpatterns = [
+    path('api/v1/student/practicum/upload/', views.PracticumUploadAPI.as_view()),
+    path('api/v1/student/practicum/<int:pk>/download/', views.practicum_download),
+    path('api/v1/student/certificates/<int:pk>/download/', views.certificate_download),
+]
+```
 
 ### Component Hierarchy
 
 ```
-StudentLayout
-├── Sidebar (navigation)
-├── Header (user info, notifications)
-└── Content Area
-    ├── Dashboard
-    ├── ProgramList
-    ├── ProgramView
-    │   └── CurriculumTree
-    ├── SessionViewer
-    ├── AssessmentResults
-    ├── PracticumUpload
-    ├── PracticumHistory
-    ├── Certificates
-    └── ProfileSettings
+StudentLayout (shared via Inertia layout)
+├── Sidebar (navigation with active state from URL)
+├── Header (user info from shared props)
+└── Content Area (Inertia page component)
+    ├── Student/Dashboard
+    ├── Student/Programs/Index
+    ├── Student/Programs/Show
+    ├── Student/Session
+    ├── Student/Assessments
+    ├── Student/Practicum/Index
+    ├── Student/Practicum/Upload
+    ├── Student/Certificates
+    └── Student/Profile
+```
+
+## Django View Patterns (Inertia)
+
+### Dashboard View
+```python
+# apps/student/views.py
+from inertia import render
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def dashboard(request):
+    user = request.user
+    enrollments = Enrollment.objects.filter(
+        user=user, tenant=user.tenant
+    ).select_related('program')
+    
+    return render(request, 'Student/Dashboard', {
+        'enrollments': [
+            {
+                'id': e.id,
+                'programId': e.program.id,
+                'programName': e.program.name,
+                'programCode': e.program.code,
+                'progressPercent': e.calculate_progress(),
+                'status': e.status,
+                'lastAccessedAt': e.last_accessed_at,
+            }
+            for e in enrollments
+        ],
+        'recentActivity': get_recent_activity(user),
+        'upcomingDeadlines': get_upcoming_deadlines(user),
+    })
+```
+
+### Session Viewer with Mark Complete
+```python
+@login_required
+def session_viewer(request, pk, node_id):
+    enrollment = get_object_or_404(Enrollment, pk=pk, user=request.user)
+    node = get_object_or_404(CurriculumNode, pk=node_id, program=enrollment.program)
+    
+    # Handle mark as complete POST
+    if request.method == 'POST' and 'mark_complete' in request.POST:
+        NodeCompletion.objects.get_or_create(
+            enrollment=enrollment,
+            node=node,
+            defaults={'completion_type': 'view'}
+        )
+        # Return updated props (Inertia handles the update)
+    
+    unlock_status = check_unlock_status(enrollment, node)
+    
+    return render(request, 'Student/Session', {
+        'node': serialize_node(node),
+        'enrollment': serialize_enrollment(enrollment),
+        'isCompleted': NodeCompletion.objects.filter(enrollment=enrollment, node=node).exists(),
+        'isLocked': not unlock_status['is_unlocked'],
+        'lockReason': unlock_status.get('reason'),
+        'breadcrumbs': get_breadcrumbs(node),
+        'siblings': get_sibling_nodes(node),
+    })
+```
+
+### Pagination with Partial Reloads
+```python
+@login_required
+def assessment_results(request):
+    page = request.GET.get('page', 1)
+    program_filter = request.GET.get('program')
+    
+    results = AssessmentResult.objects.filter(
+        enrollment__user=request.user,
+        published_at__isnull=False
+    ).select_related('node', 'enrollment__program')
+    
+    if program_filter:
+        results = results.filter(enrollment__program_id=program_filter)
+    
+    paginator = Paginator(results, 20)
+    page_obj = paginator.get_page(page)
+    
+    return render(request, 'Student/Assessments', {
+        'results': serialize_results(page_obj),  # Only this updates on pagination
+        'pagination': {
+            'page': page_obj.number,
+            'totalPages': paginator.num_pages,
+            'hasNext': page_obj.has_next(),
+            'hasPrev': page_obj.has_previous(),
+        },
+        'programs': get_user_programs(request.user),  # Stays cached
+        'filters': {'program': program_filter},
+    })
 ```
 
 ## Components and Interfaces
 
-### StudentLayout
+### React Page Components (Inertia)
 
-Main layout wrapper for all student portal pages.
+```jsx
+// frontend/src/Pages/Student/Dashboard.jsx
+import { Head, Link } from '@inertiajs/react';
+import { Box, Card, Stack, Typography, LinearProgress } from '@mui/material';
+import { motion } from 'framer-motion';
 
-```typescript
-interface StudentLayoutProps {
-    children: React.ReactNode;
+export default function Dashboard({ enrollments, recentActivity, upcomingDeadlines }) {
+    return (
+        <>
+            <Head title="Dashboard" />
+            <Stack spacing={3}>
+                {enrollments.map((enrollment, index) => (
+                    <motion.div
+                        key={enrollment.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                    >
+                        <Card component={Link} href={`/student/programs/${enrollment.programId}/`}>
+                            <Typography variant="h6">{enrollment.programName}</Typography>
+                            <LinearProgress 
+                                variant="determinate" 
+                                value={enrollment.progressPercent} 
+                            />
+                        </Card>
+                    </motion.div>
+                ))}
+            </Stack>
+        </>
+    );
 }
 ```
 
-### Dashboard Component
+### Session Viewer with Mark Complete
+```jsx
+// frontend/src/Pages/Student/Session.jsx
+import { Head, Link, router } from '@inertiajs/react';
+import { Box, Button, Breadcrumbs, Typography } from '@mui/material';
 
-```typescript
-interface DashboardData {
-    enrollments: EnrollmentSummary[];
-    recentActivity: ActivityItem[];
-    upcomingDeadlines: Deadline[];
+export default function Session({ 
+    node, enrollment, isCompleted, isLocked, lockReason, breadcrumbs, siblings 
+}) {
+    const handleMarkComplete = () => {
+        router.post(`/student/programs/${enrollment.id}/session/${node.id}/`, {
+            mark_complete: true,
+        }, {
+            preserveScroll: true,
+        });
+    };
+    
+    if (isLocked) {
+        return <LockedState reason={lockReason} />;
+    }
+    
+    return (
+        <>
+            <Head title={node.title} />
+            <Breadcrumbs>
+                {breadcrumbs.map(crumb => (
+                    <Link key={crumb.id} href={crumb.url}>{crumb.title}</Link>
+                ))}
+            </Breadcrumbs>
+            
+            <Box dangerouslySetInnerHTML={{ __html: node.contentHtml }} />
+            
+            {!isCompleted && (
+                <Button onClick={handleMarkComplete} variant="contained">
+                    Mark as Complete
+                </Button>
+            )}
+            
+            <SiblingNavigation siblings={siblings} currentId={node.id} />
+        </>
+    );
 }
+```
 
-interface EnrollmentSummary {
-    id: string;
-    programId: string;
-    programName: string;
-    programCode: string;
-    progressPercent: number;
-    status: "active" | "completed" | "withdrawn";
-    lastAccessedAt: string;
-}
+### Pagination with Partial Reloads
+```jsx
+// frontend/src/Pages/Student/Assessments.jsx
+import { router } from '@inertiajs/react';
 
-interface ActivityItem {
-    id: string;
-    type: "completion" | "submission" | "result";
-    title: string;
-    programName: string;
-    timestamp: string;
+export default function Assessments({ results, pagination, programs, filters }) {
+    const loadPage = (page) => {
+        router.visit(`/student/assessments/?page=${page}`, {
+            only: ['results', 'pagination'],  // Partial reload - only fetch results
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+    
+    const handleFilter = (programId) => {
+        router.visit(`/student/assessments/?program=${programId}`, {
+            only: ['results', 'pagination', 'filters'],
+            preserveState: true,
+        });
+    };
+    
+    return (
+        <>
+            <FilterControls programs={programs} onFilter={handleFilter} />
+            <ResultsList results={results} />
+            <Pagination {...pagination} onPageChange={loadPage} />
+        </>
+    );
 }
 ```
 
 ### CurriculumTree Component
 
-```typescript
-interface CurriculumTreeProps {
-    programId: string;
-    nodes: CurriculumNode[];
-    completions: NodeCompletion[];
-    onNodeClick: (nodeId: string) => void;
+```jsx
+// frontend/src/components/CurriculumTree.jsx
+import { Link } from '@inertiajs/react';
+import PropTypes from 'prop-types';
+
+function CurriculumTree({ nodes, completions, enrollmentId, hierarchyLabels }) {
+    const getNodeStatus = (nodeId) => {
+        const completion = completions.find(c => c.nodeId === nodeId);
+        if (completion) return 'completed';
+        // Check if locked based on prerequisites
+        return 'available';
+    };
+    
+    const renderNode = (node, depth = 0) => (
+        <Box key={node.id} sx={{ ml: depth * 2 }}>
+            <Link 
+                href={`/student/programs/${enrollmentId}/session/${node.id}/`}
+                style={{ 
+                    opacity: getNodeStatus(node.id) === 'locked' ? 0.5 : 1 
+                }}
+            >
+                <Typography>
+                    {hierarchyLabels[depth] || 'Item'}: {node.title}
+                </Typography>
+                <StatusIndicator status={getNodeStatus(node.id)} />
+            </Link>
+            {node.children?.map(child => renderNode(child, depth + 1))}
+        </Box>
+    );
+    
+    return <Box>{nodes.map(node => renderNode(node))}</Box>;
 }
 
-interface CurriculumNode {
-    id: string;
-    parentId: string | null;
-    nodeType: string;
-    title: string;
-    code: string | null;
-    position: number;
-    isPublished: boolean;
-    properties: Record<string, any>;
-    completionRules: CompletionRules;
-    children: CurriculumNode[];
-}
-
-interface NodeCompletion {
-    nodeId: string;
-    completedAt: string;
-    completionType: "view" | "quiz_pass" | "upload" | "manual";
-}
-
-interface CompletionRules {
-    type: "all_children" | "percentage" | "manual";
-    threshold?: number;
-    prerequisites?: string[];
-    sequential?: boolean;
-}
+CurriculumTree.propTypes = {
+    nodes: PropTypes.array.isRequired,
+    completions: PropTypes.array.isRequired,
+    enrollmentId: PropTypes.string.isRequired,
+    hierarchyLabels: PropTypes.array.isRequired,
+};
 ```
 
-### SessionViewer Component
+### PracticumUpload Component (Uses REST API for file upload)
 
-```typescript
-interface SessionViewerProps {
-    node: CurriculumNode;
-    enrollment: Enrollment;
-    isCompleted: boolean;
-    isLocked: boolean;
-    lockReason?: string;
-    onMarkComplete: () => Promise<void>;
-}
-```
+```jsx
+// frontend/src/Pages/Student/Practicum/Upload.jsx
+import { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import axios from 'axios';
 
-### PracticumUpload Component
+// Configure axios for CSRF (required when mixing with session auth)
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
 
-```typescript
-interface PracticumUploadProps {
-    node: CurriculumNode;
-    enrollment: Enrollment;
-    currentSubmission: PracticumSubmission | null;
-    rubric: Rubric | null;
-    onUpload: (file: File) => Promise<void>;
-}
-
-interface PracticumSubmission {
-    id: string;
-    version: number;
-    status: "pending" | "approved" | "revision_required" | "rejected";
-    fileType: string;
-    fileSize: number;
-    submittedAt: string;
-    reviews: SubmissionReview[];
-}
-
-interface SubmissionReview {
-    id: string;
-    status: string;
-    dimensionScores: Record<string, number> | null;
-    totalScore: number | null;
-    comments: string | null;
-    reviewedAt: string;
-}
-```
-
-### API Service Interfaces
-
-```typescript
-interface StudentAPI {
-    // Dashboard
-    getDashboard(): Promise<DashboardData>;
-
-    // Programs
-    getEnrollments(filters?: EnrollmentFilters): Promise<Enrollment[]>;
-    getProgramWithCurriculum(programId: string): Promise<ProgramWithCurriculum>;
-
-    // Progress
-    getNodeCompletions(enrollmentId: string): Promise<NodeCompletion[]>;
-    markNodeComplete(
-        enrollmentId: string,
-        nodeId: string
-    ): Promise<NodeCompletion>;
-    getNodeUnlockStatus(
-        enrollmentId: string,
-        nodeId: string
-    ): Promise<UnlockStatus>;
-
-    // Assessments
-    getAssessmentResults(filters?: ResultFilters): Promise<AssessmentResult[]>;
-
-    // Practicum
-    getPracticumSubmissions(
-        filters?: SubmissionFilters
-    ): Promise<PracticumSubmission[]>;
-    uploadPracticum(
-        enrollmentId: string,
-        nodeId: string,
-        file: File
-    ): Promise<PracticumSubmission>;
-    getSubmissionDownloadUrl(submissionId: string): Promise<string>;
-
-    // Certificates
-    getCertificates(): Promise<Certificate[]>;
-    getCertificateDownloadUrl(certificateId: string): Promise<string>;
-
-    // Profile
-    getProfile(): Promise<UserProfile>;
-    updateProfile(data: ProfileUpdateData): Promise<UserProfile>;
-    changePassword(data: PasswordChangeData): Promise<void>;
+export default function PracticumUpload({ node, enrollment, currentSubmission, rubric }) {
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState(null);
+    
+    const handleUpload = async (file) => {
+        // Validate file type and size on client
+        if (!node.allowedTypes.includes(file.type)) {
+            setError('File type not supported');
+            return;
+        }
+        if (file.size > node.maxFileSize) {
+            setError('File exceeds maximum size');
+            return;
+        }
+        
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('enrollment_id', enrollment.id);
+        formData.append('node_id', node.id);
+        
+        try {
+            await axios.post('/api/v1/student/practicum/upload/', formData);
+            // Refresh page to get updated submission status
+            router.reload({ only: ['currentSubmission'] });
+        } catch (err) {
+            setError(err.response?.data?.message || 'Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
+    
+    return (
+        <>
+            <Head title={`Upload - ${node.title}`} />
+            {rubric && <RubricDisplay rubric={rubric} />}
+            <FileUpload onUpload={handleUpload} uploading={uploading} error={error} />
+            {currentSubmission && <SubmissionStatus submission={currentSubmission} />}
+        </>
+    );
 }
 ```
 
 ## Data Models
 
-### Backend API Endpoints
+### Inertia Views (Primary - No /api/ prefix)
 
-| Endpoint                                              | Method  | Description                 |
-| ----------------------------------------------------- | ------- | --------------------------- |
-| `/api/student/dashboard/`                             | GET     | Get dashboard data          |
-| `/api/student/enrollments/`                           | GET     | List student enrollments    |
-| `/api/student/programs/:id/`                          | GET     | Get program with curriculum |
-| `/api/student/enrollments/:id/completions/`           | GET     | Get node completions        |
-| `/api/student/enrollments/:id/complete/:nodeId/`      | POST    | Mark node complete          |
-| `/api/student/enrollments/:id/unlock-status/:nodeId/` | GET     | Check node unlock status    |
-| `/api/student/assessments/`                           | GET     | List assessment results     |
-| `/api/student/practicum/`                             | GET     | List practicum submissions  |
-| `/api/student/practicum/upload/`                      | POST    | Upload practicum file       |
-| `/api/student/practicum/:id/download/`                | GET     | Get signed download URL     |
-| `/api/student/certificates/`                          | GET     | List certificates           |
-| `/api/student/certificates/:id/download/`             | GET     | Get signed download URL     |
-| `/api/student/profile/`                               | GET/PUT | Get/update profile          |
-| `/api/student/profile/password/`                      | POST    | Change password             |
+| URL | Method | Django View | React Component |
+| --- | ------ | ----------- | --------------- |
+| `/student/dashboard/` | GET | `dashboard` | `Student/Dashboard` |
+| `/student/programs/` | GET | `program_list` | `Student/Programs/Index` |
+| `/student/programs/<id>/` | GET | `program_view` | `Student/Programs/Show` |
+| `/student/programs/<id>/session/<node_id>/` | GET/POST | `session_viewer` | `Student/Session` |
+| `/student/assessments/` | GET | `assessment_results` | `Student/Assessments` |
+| `/student/practicum/` | GET | `practicum_history` | `Student/Practicum/Index` |
+| `/student/practicum/<node_id>/upload/` | GET | `practicum_upload` | `Student/Practicum/Upload` |
+| `/student/certificates/` | GET | `certificates` | `Student/Certificates` |
+| `/student/profile/` | GET/POST | `profile_settings` | `Student/Profile` |
 
-### Response Models
+### REST API Endpoints (Only for file operations)
+
+| Endpoint | Method | Description |
+| -------- | ------ | ----------- |
+| `/api/v1/student/practicum/upload/` | POST | Upload practicum file (multipart) |
+| `/api/v1/student/practicum/<id>/download/` | GET | Get signed download URL |
+| `/api/v1/student/certificates/<id>/download/` | GET | Get signed PDF download URL |
+
+### Props Passed to Components
 
 ```typescript
-interface ProgramWithCurriculum {
-    id: string;
-    name: string;
-    code: string;
-    description: string;
-    blueprint: {
-        hierarchyLabels: string[];
-        gradingConfig: Record<string, any>;
+// Dashboard props
+interface DashboardProps {
+    enrollments: EnrollmentSummary[];
+    recentActivity: ActivityItem[];
+    upcomingDeadlines: Deadline[];
+}
+
+// Program view props
+interface ProgramViewProps {
+    program: {
+        id: string;
+        name: string;
+        code: string;
+        description: string;
+        blueprint: {
+            hierarchyLabels: string[];
+            gradingConfig: Record<string, any>;
+        };
     };
     curriculumTree: CurriculumNode[];
+    completions: NodeCompletion[];
     enrollment: {
         id: string;
         status: string;
-        enrolledAt: string;
         progressPercent: number;
     };
 }
 
-interface UnlockStatus {
-    isUnlocked: boolean;
-    reason?: "prerequisite" | "sequential" | "not_published";
-    prerequisiteNodes?: { id: string; title: string; isCompleted: boolean }[];
-    previousNode?: { id: string; title: string; isCompleted: boolean };
+// Session viewer props
+interface SessionProps {
+    node: CurriculumNode;
+    enrollment: EnrollmentSummary;
+    isCompleted: boolean;
+    isLocked: boolean;
+    lockReason?: string;
+    breadcrumbs: Breadcrumb[];
+    siblings: { prev?: CurriculumNode; next?: CurriculumNode };
 }
 
-interface AssessmentResult {
-    id: string;
-    nodeId: string;
-    nodeTitle: string;
-    programName: string;
-    resultData: {
-        total: number;
-        status: string;
-        letterGrade?: string;
-        components: Record<string, number>;
-    };
-    lecturerComments: string | null;
-    publishedAt: string;
-}
-
-interface Certificate {
-    id: string;
-    serialNumber: string;
-    programTitle: string;
-    completionDate: string;
-    issueDate: string;
-    isRevoked: boolean;
-    verificationUrl: string;
+// Assessment results props (with pagination)
+interface AssessmentsProps {
+    results: AssessmentResult[];
+    pagination: PaginationInfo;
+    programs: ProgramOption[];  // For filter dropdown
+    filters: { program?: string };
 }
 ```
 

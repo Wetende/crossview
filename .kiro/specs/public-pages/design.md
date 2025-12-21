@@ -4,127 +4,205 @@
 
 The public pages module provides the unauthenticated entry points for the Crossview LMS platform. This includes the marketing landing page, authentication flows (login, registration, password reset), certificate verification, and tenant-specific branded landing pages.
 
-The design follows a React-based SPA architecture using the existing frontend stack (React, Vite, TailwindCSS) with Django REST API backend integration. Tenant branding is dynamically applied based on subdomain detection.
+The design follows an **Inertia.js-first architecture** using Django views that return React components with props. No separate REST API is needed for page rendering - data flows directly from Django views to React components.
 
 ## Architecture
 
-### Routing Structure
+### Inertia-First Approach
 
--   `/` → Landing Page (platform marketing)
--   `/login` → Login Page
--   `/register` → Register Page
--   `/forgot-password` → Forgot Password Page
--   `/reset-password/:token` → Reset Password Page
--   `/verify-certificate` → Certificate Verification Page
--   Tenant subdomains (e.g., `acme.crossview.com`) → Tenant Landing
+> **Golden Rule**: If it happens in the Browser, use Inertia first. Only use REST API for mobile apps or WebSockets.
+
+| Use Case | Approach | Notes |
+|----------|----------|-------|
+| Page rendering | **Inertia** | Django views return component + props |
+| Form submissions | **Inertia** | `router.post()` with validation errors as props |
+| Navigation | **Inertia** | Server-side routing via Django URLs |
+| Certificate verification | **Inertia** | Form POST returns results as props |
+
+### Routing Structure (Django URLs - Server-Side)
+
+```python
+# apps/core/urls.py (public routes)
+urlpatterns = [
+    path('', views.landing_page, name='landing'),
+    path('login/', views.login_page, name='login'),
+    path('register/', views.register_page, name='register'),
+    path('forgot-password/', views.forgot_password_page, name='forgot_password'),
+    path('reset-password/<str:token>/', views.reset_password_page, name='reset_password'),
+    path('verify-certificate/', views.verify_certificate_page, name='verify_certificate'),
+]
+```
 
 ### Subdomain Detection Strategy
 
 1. Main domain serves platform landing
 2. Tenant subdomains serve tenant-branded pages
-3. Backend middleware extracts subdomain and loads tenant context
-4. Frontend receives tenant branding via API and applies dynamically
+3. **TenantMiddleware** extracts subdomain and sets `request.tenant`
+4. **InertiaShareMiddleware** passes tenant branding as shared props to all pages
 
 ## Components and Interfaces
 
-### TenantBrandingProvider
+### TenantBrandingProvider (Shared Props via Middleware)
 
-Context provider that fetches and applies tenant branding based on current subdomain.
+Tenant branding is passed as shared props via `InertiaShareMiddleware`, not fetched via API.
+
+```python
+# apps/core/middleware.py
+from inertia import share
+
+class InertiaShareMiddleware:
+    def __call__(self, request):
+        # Tenant branding available on every page
+        if hasattr(request, 'tenant') and request.tenant:
+            share(request, tenant={
+                'id': request.tenant.id,
+                'institutionName': request.tenant.name,
+                'tagline': request.tenant.branding.tagline,
+                'logoUrl': request.tenant.branding.logo_url,
+                'primaryColor': request.tenant.branding.primary_color,
+                'secondaryColor': request.tenant.branding.secondary_color,
+                'customCss': request.tenant.branding.custom_css,
+                'registrationEnabled': request.tenant.registration_enabled,
+            })
+        return self.get_response(request)
+```
 
 ```typescript
+// Props available on every page via usePage()
 interface TenantBranding {
-    tenantId: string;
+    id: string;
     institutionName: string;
     tagline: string | null;
     logoUrl: string | null;
-    faviconUrl: string | null;
     primaryColor: string;
     secondaryColor: string;
     customCss: string | null;
-    isActive: boolean;
     registrationEnabled: boolean;
-}
-
-interface TenantBrandingContextValue {
-    branding: TenantBranding | null;
-    isLoading: boolean;
-    error: string | null;
-    isTenantSubdomain: boolean;
 }
 ```
 
 ### AuthForm Component
 
-Reusable form component for login, registration, and password reset flows.
+Reusable form component using Inertia's `useForm` hook for form handling.
 
-```typescript
-interface AuthFormProps {
-    mode: "login" | "register" | "forgot-password" | "reset-password";
-    onSubmit: (data: AuthFormData) => Promise<void>;
-    isLoading: boolean;
-    error: string | null;
-}
+```jsx
+// frontend/src/components/forms/AuthForm.jsx
+import { useForm } from '@inertiajs/react';
 
-interface AuthFormData {
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    resetToken?: string;
+export default function AuthForm({ mode, errors }) {
+    const { data, setData, post, processing } = useForm({
+        email: '',
+        password: '',
+        // ... other fields based on mode
+    });
+    
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        post(`/${mode}/`);  // Inertia handles form submission
+    };
+    
+    return (
+        <form onSubmit={handleSubmit}>
+            {/* Form fields with error display from props */}
+        </form>
+    );
 }
 ```
 
-### API Service Interfaces
+### Django View Patterns (Inertia)
 
-```typescript
-interface AuthAPI {
-    login(email: string, password: string): Promise<LoginResponse>;
-    register(data: RegistrationData): Promise<RegistrationResponse>;
-    forgotPassword(email: string): Promise<void>;
-    resetPassword(token: string, password: string): Promise<void>;
-}
+```python
+# apps/core/views.py
+from inertia import render
+from django.shortcuts import redirect
+from django.contrib.auth import authenticate, login
 
-interface LoginResponse {
-    token: string;
-    user: { id: string; email: string; role: string };
-    redirectUrl: string;
-}
+def landing_page(request):
+    """Platform landing page with subscription tiers."""
+    tiers = SubscriptionTier.objects.filter(is_active=True)
+    return render(request, 'Public/Landing', {
+        'tiers': list(tiers.values('id', 'name', 'price', 'features')),
+    })
 
-interface CertificateAPI {
-    verifyCertificate(
-        serialNumber: string
-    ): Promise<CertificateVerificationResult>;
-}
+def login_page(request):
+    """Login page with form handling."""
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        user = authenticate(request, email=email, password=password)
+        
+        if user:
+            login(request, user)
+            # Role-based redirect
+            redirect_url = get_dashboard_url(user.role)
+            return redirect(redirect_url)
+        
+        # Return with error (same message for security)
+        return render(request, 'Auth/Login', {
+            'errors': {'auth': 'Invalid email or password'},
+        })
+    
+    return render(request, 'Auth/Login', {
+        'registrationEnabled': getattr(request.tenant, 'registration_enabled', True),
+    })
 
-interface CertificateVerificationResult {
-    found: boolean;
-    certificate: {
-        serialNumber: string;
-        studentName: string;
-        programTitle: string;
-        completionDate: string;
-        issueDate: string;
-        isRevoked: boolean;
-        revokedAt: string | null;
-    } | null;
-}
+def verify_certificate_page(request):
+    """Certificate verification with form POST."""
+    result = None
+    if request.method == 'POST':
+        serial = request.POST.get('serial_number')
+        result = CertificateService.verify(serial, request)  # Logs verification
+    
+    return render(request, 'Public/VerifyCertificate', {
+        'result': result,
+    })
 ```
 
 ## Data Models
 
-### Backend API Endpoints
+### Inertia Views (Primary - No /api/ prefix)
 
-| Endpoint                     | Method | Description                      |
-| ---------------------------- | ------ | -------------------------------- |
-| `/api/auth/login/`           | POST   | Authenticate user                |
-| `/api/auth/register/`        | POST   | Register new student             |
-| `/api/auth/forgot-password/` | POST   | Request password reset           |
-| `/api/auth/reset-password/`  | POST   | Reset password with token        |
-| `/api/tenants/branding/`     | GET    | Get tenant branding by subdomain |
-| `/api/tenants/tiers/`        | GET    | Get subscription tiers           |
-| `/api/certificates/verify/`  | POST   | Verify certificate by serial     |
+| URL | Method | Django View | React Component |
+| --- | ------ | ----------- | --------------- |
+| `/` | GET | `landing_page` | `Public/Landing` |
+| `/login/` | GET/POST | `login_page` | `Auth/Login` |
+| `/register/` | GET/POST | `register_page` | `Auth/Register` |
+| `/forgot-password/` | GET/POST | `forgot_password_page` | `Auth/ForgotPassword` |
+| `/reset-password/<token>/` | GET/POST | `reset_password_page` | `Auth/ResetPassword` |
+| `/verify-certificate/` | GET/POST | `verify_certificate_page` | `Public/VerifyCertificate` |
+
+### Props Passed to Components
+
+```typescript
+// Landing page props
+interface LandingPageProps {
+    tiers: SubscriptionTier[];
+    tenant?: TenantBranding;  // From shared props
+}
+
+// Login page props
+interface LoginPageProps {
+    errors?: { auth?: string };
+    registrationEnabled: boolean;
+    tenant?: TenantBranding;  // From shared props
+}
+
+// Certificate verification props
+interface VerifyCertificateProps {
+    result?: {
+        found: boolean;
+        certificate?: {
+            serialNumber: string;
+            studentName: string;
+            programTitle: string;
+            completionDate: string;
+            issueDate: string;
+            isRevoked: boolean;
+            revokedAt: string | null;
+        };
+    };
+}
+```
 
 ## Correctness Properties
 
