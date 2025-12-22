@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { IconSchool } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import DashboardLayout from '../../../components/layouts/DashboardLayout';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -41,53 +42,51 @@ export default function ProgramList({
     };
 
     return (
-        <>
+        <DashboardLayout role="student">
             <Head title="My Programs" />
-            <Box sx={{ p: 3 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
-                    <Box>
-                        <Typography variant="h4" fontWeight={700} gutterBottom>
-                            My Programs
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary">
-                            View and continue your enrolled programs
-                        </Typography>
-                    </Box>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
+                <Box>
+                    <Typography variant="h4" fontWeight={700} gutterBottom>
+                        My Programs
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        View and continue your enrolled programs
+                    </Typography>
+                </Box>
 
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                        <InputLabel>Status</InputLabel>
-                        <Select
-                            value={filters.status || ''}
-                            label="Status"
-                            onChange={(e) => handleFilterChange(e.target.value)}
-                        >
-                            {statusOptions.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Stack>
-
-                {enrollments.length === 0 ? (
-                    <EmptyState hasFilter={!!filters.status} />
-                ) : (
-                    <Grid container spacing={3}>
-                        {enrollments.map((enrollment, index) => (
-                            <Grid item xs={12} md={6} lg={4} key={enrollment.id}>
-                                <motion.div
-                                    {...fadeInUp}
-                                    transition={{ ...fadeInUp.transition, delay: index * 0.1 }}
-                                >
-                                    <ProgramCard enrollment={enrollment} />
-                                </motion.div>
-                            </Grid>
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                        value={filters.status || ''}
+                        label="Status"
+                        onChange={(e) => handleFilterChange(e.target.value)}
+                    >
+                        {statusOptions.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                            </MenuItem>
                         ))}
-                    </Grid>
-                )}
-            </Box>
-        </>
+                    </Select>
+                </FormControl>
+            </Stack>
+
+            {enrollments.length === 0 ? (
+                <EmptyState hasFilter={!!filters.status} />
+            ) : (
+                <Grid container spacing={3}>
+                    {enrollments.map((enrollment, index) => (
+                        <Grid item xs={12} md={6} lg={4} key={enrollment.id}>
+                            <motion.div
+                                {...fadeInUp}
+                                transition={{ ...fadeInUp.transition, delay: index * 0.1 }}
+                            >
+                                <ProgramCard enrollment={enrollment} />
+                            </motion.div>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
+        </DashboardLayout>
     );
 }
 

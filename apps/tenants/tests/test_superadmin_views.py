@@ -1,0 +1,154 @@
+"""Tests for super admin views."""
+
+import pytest
+from django.test import Client
+from apps.core.tests.factories import UserFactory
+from apps.tenants.tests.factories import (
+    TenantFactory,
+    SubscriptionTierFactory,
+    PresetBlueprintFactory,
+)
+
+
+@pytest.fixture
+def superadmin_user(db):
+    """Create a superadmin user."""
+    tenant = TenantFactory()
+    return UserFactory(tenant=tenant, is_superuser=True, is_staff=True)
+
+
+@pytest.fixture
+def regular_user(db):
+    """Create a regular user."""
+    tenant = TenantFactory()
+    return UserFactory(tenant=tenant, is_superuser=False, is_staff=False)
+
+
+@pytest.fixture
+def authenticated_superadmin(client, superadmin_user):
+    """Return client authenticated as superadmin."""
+    client.force_login(superadmin_user)
+    return client
+
+
+@pytest.fixture
+def authenticated_regular(client, regular_user):
+    """Return client authenticated as regular user."""
+    client.force_login(regular_user)
+    return client
+
+
+class TestSuperAdminDashboard:
+    """Tests for super admin dashboard view."""
+
+    def test_superadmin_can_access_dashboard(self, authenticated_superadmin):
+        """Superadmin should be able to access dashboard."""
+        response = authenticated_superadmin.get("/superadmin/")
+        assert response.status_code == 200
+
+    def test_regular_user_redirected_from_dashboard(self, authenticated_regular):
+        """Regular user should be redirected from dashboard."""
+        response = authenticated_regular.get("/superadmin/")
+        assert response.status_code == 302
+        assert "/dashboard/" in response.url
+
+
+class TestSuperAdminTenants:
+    """Tests for tenant management views."""
+
+    def test_superadmin_can_list_tenants(self, authenticated_superadmin):
+        """Superadmin should be able to list tenants."""
+        TenantFactory.create_batch(3)
+        response = authenticated_superadmin.get("/superadmin/tenants/")
+        assert response.status_code == 200
+
+    def test_superadmin_can_view_tenant_detail(self, authenticated_superadmin):
+        """Superadmin should be able to view tenant detail."""
+        tenant = TenantFactory()
+        response = authenticated_superadmin.get(f"/superadmin/tenants/{tenant.id}/")
+        assert response.status_code == 200
+
+    def test_superadmin_can_access_tenant_create(self, authenticated_superadmin):
+        """Superadmin should be able to access tenant create form."""
+        response = authenticated_superadmin.get("/superadmin/tenants/create/")
+        assert response.status_code == 200
+
+    def test_superadmin_can_access_tenant_edit(self, authenticated_superadmin):
+        """Superadmin should be able to access tenant edit form."""
+        tenant = TenantFactory()
+        response = authenticated_superadmin.get(
+            f"/superadmin/tenants/{tenant.id}/edit/"
+        )
+        assert response.status_code == 200
+
+    def test_regular_user_cannot_list_tenants(self, authenticated_regular):
+        """Regular user should not be able to list tenants."""
+        response = authenticated_regular.get("/superadmin/tenants/")
+        assert response.status_code == 302
+
+
+class TestSuperAdminTiers:
+    """Tests for subscription tier management views."""
+
+    def test_superadmin_can_list_tiers(self, authenticated_superadmin):
+        """Superadmin should be able to list tiers."""
+        SubscriptionTierFactory.create_batch(3)
+        response = authenticated_superadmin.get("/superadmin/tiers/")
+        assert response.status_code == 200
+
+    def test_superadmin_can_access_tier_create(self, authenticated_superadmin):
+        """Superadmin should be able to access tier create form."""
+        response = authenticated_superadmin.get("/superadmin/tiers/create/")
+        assert response.status_code == 200
+
+    def test_superadmin_can_access_tier_edit(self, authenticated_superadmin):
+        """Superadmin should be able to access tier edit form."""
+        tier = SubscriptionTierFactory()
+        response = authenticated_superadmin.get(f"/superadmin/tiers/{tier.id}/edit/")
+        assert response.status_code == 200
+
+
+class TestSuperAdminPresets:
+    """Tests for preset blueprint management views."""
+
+    def test_superadmin_can_list_presets(self, authenticated_superadmin):
+        """Superadmin should be able to list presets."""
+        PresetBlueprintFactory.create_batch(3)
+        response = authenticated_superadmin.get("/superadmin/presets/")
+        assert response.status_code == 200
+
+    def test_superadmin_can_access_preset_create(self, authenticated_superadmin):
+        """Superadmin should be able to access preset create form."""
+        response = authenticated_superadmin.get("/superadmin/presets/create/")
+        assert response.status_code == 200
+
+    def test_superadmin_can_access_preset_edit(self, authenticated_superadmin):
+        """Superadmin should be able to access preset edit form."""
+        preset = PresetBlueprintFactory()
+        response = authenticated_superadmin.get(
+            f"/superadmin/presets/{preset.id}/edit/"
+        )
+        assert response.status_code == 200
+
+
+class TestSuperAdminSettings:
+    """Tests for platform settings views."""
+
+    def test_superadmin_can_access_settings(self, authenticated_superadmin):
+        """Superadmin should be able to access settings."""
+        response = authenticated_superadmin.get("/superadmin/settings/")
+        assert response.status_code == 200
+
+    def test_regular_user_cannot_access_settings(self, authenticated_regular):
+        """Regular user should not be able to access settings."""
+        response = authenticated_regular.get("/superadmin/settings/")
+        assert response.status_code == 302
+
+
+class TestSuperAdminLogs:
+    """Tests for system logs views."""
+
+    def test_superadmin_can_access_logs(self, authenticated_superadmin):
+        """Superadmin should be able to access logs."""
+        response = authenticated_superadmin.get("/superadmin/logs/")
+        assert response.status_code == 200

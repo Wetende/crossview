@@ -6,7 +6,6 @@
 import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import {
-  Box,
   Card,
   CardContent,
   Stack,
@@ -14,9 +13,10 @@ import {
   TextField,
   Button,
   Alert,
-  Divider,
+  Box,
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -187,7 +187,7 @@ function PasswordForm({ errors }) {
 
 export default function Profile({ user, tenant, errors = {}, success }) {
   return (
-    <>
+    <DashboardLayout role="student">
       <Head title="Profile Settings" />
 
       <Stack spacing={3}>
@@ -210,6 +210,6 @@ export default function Profile({ user, tenant, errors = {}, success }) {
           <PasswordForm errors={errors} />
         </motion.div>
       </Stack>
-    </>
+    </DashboardLayout>
   );
 }

@@ -1,8 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Alert,
     Box,
-    Breadcrumbs,
     Button,
     Card,
     CardContent,
@@ -17,6 +15,7 @@ import {
     IconLock,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -46,190 +45,160 @@ export default function Session({
         );
     };
 
+    // Build breadcrumbs for DashboardLayout
+    const layoutBreadcrumbs = [
+        { label: enrollment.programName, href: `/student/programs/${enrollment.id}/` },
+        ...breadcrumbs.slice(0, -1).map((crumb) => ({
+            label: crumb.title,
+            href: crumb.url
+        })),
+        { label: node.title }
+    ];
+
     if (isLocked) {
         return (
-            <>
+            <DashboardLayout 
+                role="student"
+                breadcrumbs={[
+                    { label: enrollment.programName, href: `/student/programs/${enrollment.id}/` },
+                    { label: node.title }
+                ]}
+            >
                 <Head title={node.title} />
-                <Box sx={{ p: 3 }}>
-                    <LockedState 
-                        node={node} 
-                        enrollment={enrollment} 
-                        lockReason={lockReason} 
-                        breadcrumbs={breadcrumbs}
-                    />
-                </Box>
-            </>
+                <LockedState
+                    node={node}
+                    enrollment={enrollment}
+                    lockReason={lockReason}
+                />
+            </DashboardLayout>
         );
     }
 
     return (
-        <>
+        <DashboardLayout role="student" breadcrumbs={layoutBreadcrumbs}>
             <Head title={node.title} />
-            <Box sx={{ p: 3 }}>
-                {/* Breadcrumbs */}
-                <Breadcrumbs sx={{ mb: 2 }}>
-                    <Link href="/student/dashboard/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                        Dashboard
-                    </Link>
-                    <Link 
-                        href={`/student/programs/${enrollment.id}/`} 
-                        style={{ textDecoration: 'none', color: 'inherit' }}
-                    >
-                        {enrollment.programName}
-                    </Link>
-                    {breadcrumbs.slice(0, -1).map((crumb) => (
-                        <Link
-                            key={crumb.id}
-                            href={crumb.url}
-                            style={{ textDecoration: 'none', color: 'inherit' }}
-                        >
-                            {crumb.title}
-                        </Link>
-                    ))}
-                    <Typography color="text.primary">{node.title}</Typography>
-                </Breadcrumbs>
 
-                {/* Content Card */}
-                <motion.div {...fadeInUp}>
-                    <Card sx={{ mb: 3 }}>
-                        <CardContent>
-                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
-                                <Box>
-                                    <Typography variant="caption" color="text.secondary">
-                                        {node.nodeType}
-                                    </Typography>
-                                    <Typography variant="h4" fontWeight={700}>
-                                        {node.title}
-                                    </Typography>
-                                </Box>
-                                {isCompleted && (
-                                    <Stack direction="row" spacing={1} alignItems="center" color="success.main">
-                                        <IconCheck size={20} />
-                                        <Typography variant="body2" fontWeight={600}>
-                                            Completed
-                                        </Typography>
-                                    </Stack>
-                                )}
-                            </Stack>
-
-                            {node.description && (
-                                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                                    {node.description}
+            {/* Content Card */}
+            <motion.div {...fadeInUp}>
+                <Card sx={{ mb: 3 }}>
+                    <CardContent>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">
+                                    {node.nodeType}
                                 </Typography>
-                            )}
-
-                            <Divider sx={{ my: 3 }} />
-
-                            {/* Content HTML */}
-                            {node.contentHtml ? (
-                                <Box
-                                    sx={{
-                                        '& img': { maxWidth: '100%', height: 'auto' },
-                                        '& video': { maxWidth: '100%' },
-                                        '& iframe': { maxWidth: '100%' },
-                                        '& p': { mb: 2 },
-                                        '& h1, & h2, & h3, & h4': { mt: 3, mb: 2 },
-                                    }}
-                                    dangerouslySetInnerHTML={{ __html: node.contentHtml }}
-                                />
-                            ) : (
-                                <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                    No content available for this session.
+                                <Typography variant="h4" fontWeight={700}>
+                                    {node.title}
                                 </Typography>
-                            )}
-                        </CardContent>
-                    </Card>
-                </motion.div>
-
-                {/* Actions */}
-                <motion.div {...fadeInUp}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        {/* Previous/Next Navigation */}
-                        <Stack direction="row" spacing={2}>
-                            {siblings.prev ? (
-                                <Button
-                                    component={Link}
-                                    href={siblings.prev.url}
-                                    startIcon={<IconArrowLeft size={18} />}
-                                    variant="outlined"
-                                >
-                                    Previous
-                                </Button>
-                            ) : (
-                                <Box />
+                            </Box>
+                            {isCompleted && (
+                                <Stack direction="row" spacing={1} alignItems="center" color="success.main">
+                                    <IconCheck size={20} />
+                                    <Typography variant="body2" fontWeight={600}>
+                                        Completed
+                                    </Typography>
+                                </Stack>
                             )}
                         </Stack>
 
-                        {/* Mark Complete Button */}
-                        {!isCompleted && (
-                            <Button
-                                onClick={handleMarkComplete}
-                                variant="contained"
-                                color="primary"
-                                startIcon={<IconCheck size={18} />}
-                            >
-                                Mark as Complete
-                            </Button>
+                        {node.description && (
+                            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                                {node.description}
+                            </Typography>
                         )}
 
-                        <Stack direction="row" spacing={2}>
-                            {siblings.next ? (
-                                <Button
-                                    component={Link}
-                                    href={siblings.next.url}
-                                    endIcon={<IconArrowRight size={18} />}
-                                    variant="outlined"
-                                >
-                                    Next
-                                </Button>
-                            ) : (
-                                <Box />
-                            )}
-                        </Stack>
-                    </Stack>
-                </motion.div>
-            </Box>
-        </>
-    );
-}
+                        <Divider sx={{ my: 3 }} />
 
-function LockedState({ node, enrollment, lockReason, breadcrumbs }) {
-    return (
-        <>
-            {/* Breadcrumbs */}
-            <Breadcrumbs sx={{ mb: 2 }}>
-                <Link href="/student/dashboard/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                    Dashboard
-                </Link>
-                <Link 
-                    href={`/student/programs/${enrollment.id}/`} 
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                    {enrollment.programName}
-                </Link>
-                <Typography color="text.primary">{node.title}</Typography>
-            </Breadcrumbs>
-
-            <motion.div {...fadeInUp}>
-                <Card>
-                    <CardContent sx={{ textAlign: 'center', py: 6 }}>
-                        <IconLock size={64} stroke={1.5} style={{ opacity: 0.5 }} />
-                        <Typography variant="h5" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
-                            Content Locked
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                            {lockReason || 'Complete the prerequisites to unlock this content.'}
-                        </Typography>
-                        <Button
-                            component={Link}
-                            href={`/student/programs/${enrollment.id}/`}
-                            variant="contained"
-                        >
-                            Back to Program
-                        </Button>
+                        {/* Content HTML */}
+                        {node.contentHtml ? (
+                            <Box
+                                sx={{
+                                    '& img': { maxWidth: '100%', height: 'auto' },
+                                    '& video': { maxWidth: '100%' },
+                                    '& iframe': { maxWidth: '100%' },
+                                    '& p': { mb: 2 },
+                                    '& h1, & h2, & h3, & h4': { mt: 3, mb: 2 },
+                                }}
+                                dangerouslySetInnerHTML={{ __html: node.contentHtml }}
+                            />
+                        ) : (
+                            <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                No content available for this session.
+                            </Typography>
+                        )}
                     </CardContent>
                 </Card>
             </motion.div>
-        </>
+
+            {/* Actions */}
+            <motion.div {...fadeInUp}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    {/* Previous Navigation */}
+                    <Box>
+                        {siblings.prev && (
+                            <Button
+                                component={Link}
+                                href={siblings.prev.url}
+                                startIcon={<IconArrowLeft size={18} />}
+                                variant="outlined"
+                            >
+                                Previous
+                            </Button>
+                        )}
+                    </Box>
+
+                    {/* Mark Complete Button */}
+                    {!isCompleted && (
+                        <Button
+                            onClick={handleMarkComplete}
+                            variant="contained"
+                            color="primary"
+                            startIcon={<IconCheck size={18} />}
+                        >
+                            Mark as Complete
+                        </Button>
+                    )}
+
+                    {/* Next Navigation */}
+                    <Box>
+                        {siblings.next && (
+                            <Button
+                                component={Link}
+                                href={siblings.next.url}
+                                endIcon={<IconArrowRight size={18} />}
+                                variant="outlined"
+                            >
+                                Next
+                            </Button>
+                        )}
+                    </Box>
+                </Stack>
+            </motion.div>
+        </DashboardLayout>
+    );
+}
+
+function LockedState({ node, enrollment, lockReason }) {
+    return (
+        <motion.div {...fadeInUp}>
+            <Card>
+                <CardContent sx={{ textAlign: 'center', py: 6 }}>
+                    <IconLock size={64} stroke={1.5} style={{ opacity: 0.5 }} />
+                    <Typography variant="h5" fontWeight={600} sx={{ mt: 2, mb: 1 }}>
+                        Content Locked
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                        {lockReason || 'Complete the prerequisites to unlock this content.'}
+                    </Typography>
+                    <Button
+                        component={Link}
+                        href={`/student/programs/${enrollment.id}/`}
+                        variant="contained"
+                    >
+                        Back to Program
+                    </Button>
+                </CardContent>
+            </Card>
+        </motion.div>
     );
 }

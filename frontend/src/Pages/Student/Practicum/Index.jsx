@@ -18,11 +18,11 @@ import {
   Typography,
   Alert,
   Button,
-  Divider,
 } from '@mui/material';
 import { Download as DownloadIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import DashboardLayout from '../../../components/layouts/DashboardLayout';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -167,7 +167,7 @@ export default function PracticumHistory({
   };
 
   return (
-    <>
+    <DashboardLayout role="student">
       <Head title="Practicum Submissions" />
 
       <Stack spacing={3}>
@@ -245,6 +245,6 @@ export default function PracticumHistory({
           </>
         )}
       </Stack>
-    </>
+    </DashboardLayout>
   );
 }

@@ -1,4 +1,4 @@
-{% load static %}
+{% load static vite_tags %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,22 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Crossview LMS</title>
-    {% if debug %}
-    <!-- Development: Load from Vite dev server -->
-    <script type="module">
-        import RefreshRuntime from 'http://localhost:5173/@react-refresh'
-        RefreshRuntime.injectIntoGlobalHook(window)
-        window.$RefreshReg$ = () => {}
-        window.$RefreshSig$ = () => (type) => type
-        window.__vite_plugin_react_preamble_installed__ = true
-    </script>
-    <script type="module" src="http://localhost:5173/@vite/client"></script>
-    <script type="module" src="http://localhost:5173/src/main.jsx"></script>
-    {% else %}
-    <!-- Production: Load built assets -->
-    <link rel="stylesheet" href="{% static 'dist/main-gRFszmKj.css' %}">
-    <script type="module" src="{% static 'dist/main-C2PSukDJ.js' %}"></script>
-    {% endif %}
+    {% vite_assets 'src/main.jsx' %}
 </head>
 <body>
     {% block inertia %}{% endblock %}

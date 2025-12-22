@@ -182,9 +182,14 @@ pytest apps/blueprints/
 
 ## Documentation
 
-- `understand` - Business context and architecture vision
-- `frontend.md` - Frontend design system and patterns
-- `docs/` - Additional documentation
+| Document | Description |
+|----------|-------------|
+| `understand` | Business context and architecture vision |
+| `frontend.md` | Frontend design system and patterns |
+| `docs/dashboard-architecture.md` | Unified dashboard layout system |
+| `docs/services-layer.md` | Services layer pattern and implementation |
+| `docs/inertia-architecture.md` | Inertia.js integration details |
+| `docs/course_management.md` | Course and curriculum management |
 
 ## Environment Variables
 

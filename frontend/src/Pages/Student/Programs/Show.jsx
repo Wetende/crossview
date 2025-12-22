@@ -1,11 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     Box,
-    Breadcrumbs,
     Card,
     CardContent,
     Collapse,
-    IconButton,
     LinearProgress,
     List,
     ListItem,
@@ -25,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import DashboardLayout from '../../../components/layouts/DashboardLayout';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -45,84 +44,78 @@ export default function ProgramShow({
     hierarchyLabels = []
 }) {
     return (
-        <>
+        <DashboardLayout
+            role="student"
+            breadcrumbs={[
+                { label: 'Programs', href: '/student/programs/' },
+                { label: program.name }
+            ]}
+        >
             <Head title={program.name} />
-            <Box sx={{ p: 3 }}>
-                {/* Breadcrumbs */}
-                <Breadcrumbs sx={{ mb: 2 }}>
-                    <Link href="/student/dashboard/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                        Dashboard
-                    </Link>
-                    <Link href="/student/programs/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                        Programs
-                    </Link>
-                    <Typography color="text.primary">{program.name}</Typography>
-                </Breadcrumbs>
 
-                {/* Program Header */}
-                <motion.div {...fadeInUp}>
-                    <Card sx={{ mb: 3 }}>
-                        <CardContent>
-                            <Stack direction="row" spacing={2} alignItems="flex-start">
-                                <IconSchool size={48} />
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="h4" fontWeight={700}>
-                                        {program.name}
+            {/* Program Header */}
+            <motion.div {...fadeInUp}>
+                <Card sx={{ mb: 3 }}>
+                    <CardContent>
+                        <Stack direction="row" spacing={2} alignItems="flex-start">
+                            <IconSchool size={48} />
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="h4" fontWeight={700}>
+                                    {program.name}
+                                </Typography>
+                                {program.code && (
+                                    <Typography variant="body1" color="text.secondary">
+                                        {program.code}
                                     </Typography>
-                                    {program.code && (
-                                        <Typography variant="body1" color="text.secondary">
-                                            {program.code}
-                                        </Typography>
-                                    )}
-                                    {program.description && (
-                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                            {program.description}
-                                        </Typography>
-                                    )}
-                                </Box>
-                            </Stack>
-
-                            {/* Progress Bar */}
-                            <Box sx={{ mt: 3 }}>
-                                <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Overall Progress
+                                )}
+                                {program.description && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                        {program.description}
                                     </Typography>
-                                    <Typography variant="body2" fontWeight={600}>
-                                        {enrollment.progressPercent}%
-                                    </Typography>
-                                </Stack>
-                                <LinearProgress
-                                    variant="determinate"
-                                    value={enrollment.progressPercent}
-                                    sx={{ height: 10, borderRadius: 5 }}
-                                />
+                                )}
                             </Box>
-                        </CardContent>
-                    </Card>
-                </motion.div>
+                        </Stack>
 
-                {/* Curriculum Tree */}
-                <motion.div {...fadeInUp}>
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                        Curriculum
-                    </Typography>
-                    <Card>
-                        <List disablePadding>
-                            {curriculumTree.map((node, index) => (
-                                <CurriculumNode
-                                    key={node.id}
-                                    node={node}
-                                    depth={0}
-                                    hierarchyLabels={hierarchyLabels}
-                                    isLast={index === curriculumTree.length - 1}
-                                />
-                            ))}
-                        </List>
-                    </Card>
-                </motion.div>
-            </Box>
-        </>
+                        {/* Progress Bar */}
+                        <Box sx={{ mt: 3 }}>
+                            <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Overall Progress
+                                </Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {enrollment.progressPercent}%
+                                </Typography>
+                            </Stack>
+                            <LinearProgress
+                                variant="determinate"
+                                value={enrollment.progressPercent}
+                                sx={{ height: 10, borderRadius: 5 }}
+                            />
+                        </Box>
+                    </CardContent>
+                </Card>
+            </motion.div>
+
+            {/* Curriculum Tree */}
+            <motion.div {...fadeInUp}>
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Curriculum
+                </Typography>
+                <Card>
+                    <List disablePadding>
+                        {curriculumTree.map((node, index) => (
+                            <CurriculumNode
+                                key={node.id}
+                                node={node}
+                                depth={0}
+                                hierarchyLabels={hierarchyLabels}
+                                isLast={index === curriculumTree.length - 1}
+                            />
+                        ))}
+                    </List>
+                </Card>
+            </motion.div>
+        </DashboardLayout>
     );
 }
 

@@ -1,6 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import {
-    Box,
     Card,
     CardContent,
     Grid,
@@ -13,6 +12,7 @@ import {
     ListItemText,
     ListItemIcon,
     Paper,
+    Box,
 } from '@mui/material';
 import {
     IconBook,
@@ -21,6 +21,7 @@ import {
     IconSchool,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -41,104 +42,102 @@ export default function Dashboard({
     const hasEnrollments = enrollments.length > 0;
 
     return (
-        <>
+        <DashboardLayout role="student">
             <Head title="Dashboard" />
-            <Box sx={{ p: 3 }}>
-                <Typography variant="h4" fontWeight={700} gutterBottom>
-                    Dashboard
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-                    Welcome back! Here's your learning progress.
-                </Typography>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+                Dashboard
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+                Welcome back! Here's your learning progress.
+            </Typography>
 
-                {!hasEnrollments ? (
-                    <EmptyState />
-                ) : (
-                    <Grid container spacing={3}>
-                        {/* Enrollments Section */}
-                        <Grid item xs={12} lg={8}>
-                            <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                                My Programs
-                            </Typography>
-                            <Stack spacing={2}>
-                                {enrollments.map((enrollment, index) => (
-                                    <motion.div
-                                        key={enrollment.id}
-                                        {...fadeInUp}
-                                        transition={{ ...fadeInUp.transition, delay: index * 0.1 }}
-                                    >
-                                        <EnrollmentCard enrollment={enrollment} />
-                                    </motion.div>
-                                ))}
-                            </Stack>
-                        </Grid>
-
-                        {/* Sidebar */}
-                        <Grid item xs={12} lg={4}>
-                            <Stack spacing={3}>
-                                {/* Recent Activity */}
-                                <motion.div {...fadeInUp}>
-                                    <Paper sx={{ p: 2 }}>
-                                        <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                                            Recent Activity
-                                        </Typography>
-                                        {recentActivity.length > 0 ? (
-                                            <List dense disablePadding>
-                                                {recentActivity.slice(0, 5).map((activity) => (
-                                                    <ListItem key={activity.id} disablePadding sx={{ py: 0.5 }}>
-                                                        <ListItemIcon sx={{ minWidth: 32 }}>
-                                                            <IconCheck size={16} color="green" />
-                                                        </ListItemIcon>
-                                                        <ListItemText
-                                                            primary={activity.nodeTitle}
-                                                            secondary={activity.programName}
-                                                            primaryTypographyProps={{ variant: 'body2' }}
-                                                            secondaryTypographyProps={{ variant: 'caption' }}
-                                                        />
-                                                    </ListItem>
-                                                ))}
-                                            </List>
-                                        ) : (
-                                            <Typography variant="body2" color="text.secondary">
-                                                No recent activity
-                                            </Typography>
-                                        )}
-                                    </Paper>
+            {!hasEnrollments ? (
+                <EmptyState />
+            ) : (
+                <Grid container spacing={3}>
+                    {/* Enrollments Section */}
+                    <Grid item xs={12} lg={8}>
+                        <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                            My Programs
+                        </Typography>
+                        <Stack spacing={2}>
+                            {enrollments.map((enrollment, index) => (
+                                <motion.div
+                                    key={enrollment.id}
+                                    {...fadeInUp}
+                                    transition={{ ...fadeInUp.transition, delay: index * 0.1 }}
+                                >
+                                    <EnrollmentCard enrollment={enrollment} />
                                 </motion.div>
-
-                                {/* Upcoming Deadlines */}
-                                <motion.div {...fadeInUp}>
-                                    <Paper sx={{ p: 2 }}>
-                                        <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                                            Upcoming Deadlines
-                                        </Typography>
-                                        {upcomingDeadlines.length > 0 ? (
-                                            <List dense disablePadding>
-                                                {upcomingDeadlines.map((deadline, idx) => (
-                                                    <ListItem key={idx} disablePadding sx={{ py: 0.5 }}>
-                                                        <ListItemIcon sx={{ minWidth: 32 }}>
-                                                            <IconClock size={16} />
-                                                        </ListItemIcon>
-                                                        <ListItemText
-                                                            primary={deadline.title}
-                                                            secondary={deadline.dueDate}
-                                                        />
-                                                    </ListItem>
-                                                ))}
-                                            </List>
-                                        ) : (
-                                            <Typography variant="body2" color="text.secondary">
-                                                No upcoming deadlines
-                                            </Typography>
-                                        )}
-                                    </Paper>
-                                </motion.div>
-                            </Stack>
-                        </Grid>
+                            ))}
+                        </Stack>
                     </Grid>
-                )}
-            </Box>
-        </>
+
+                    {/* Sidebar */}
+                    <Grid item xs={12} lg={4}>
+                        <Stack spacing={3}>
+                            {/* Recent Activity */}
+                            <motion.div {...fadeInUp}>
+                                <Paper sx={{ p: 2 }}>
+                                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                        Recent Activity
+                                    </Typography>
+                                    {recentActivity.length > 0 ? (
+                                        <List dense disablePadding>
+                                            {recentActivity.slice(0, 5).map((activity) => (
+                                                <ListItem key={activity.id} disablePadding sx={{ py: 0.5 }}>
+                                                    <ListItemIcon sx={{ minWidth: 32 }}>
+                                                        <IconCheck size={16} color="green" />
+                                                    </ListItemIcon>
+                                                    <ListItemText
+                                                        primary={activity.nodeTitle}
+                                                        secondary={activity.programName}
+                                                        primaryTypographyProps={{ variant: 'body2' }}
+                                                        secondaryTypographyProps={{ variant: 'caption' }}
+                                                    />
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">
+                                            No recent activity
+                                        </Typography>
+                                    )}
+                                </Paper>
+                            </motion.div>
+
+                            {/* Upcoming Deadlines */}
+                            <motion.div {...fadeInUp}>
+                                <Paper sx={{ p: 2 }}>
+                                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                                        Upcoming Deadlines
+                                    </Typography>
+                                    {upcomingDeadlines.length > 0 ? (
+                                        <List dense disablePadding>
+                                            {upcomingDeadlines.map((deadline, idx) => (
+                                                <ListItem key={idx} disablePadding sx={{ py: 0.5 }}>
+                                                    <ListItemIcon sx={{ minWidth: 32 }}>
+                                                        <IconClock size={16} />
+                                                    </ListItemIcon>
+                                                    <ListItemText
+                                                        primary={deadline.title}
+                                                        secondary={deadline.dueDate}
+                                                    />
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">
+                                            No upcoming deadlines
+                                        </Typography>
+                                    )}
+                                </Paper>
+                            </motion.div>
+                        </Stack>
+                    </Grid>
+                </Grid>
+            )}
+        </DashboardLayout>
     );
 }
 

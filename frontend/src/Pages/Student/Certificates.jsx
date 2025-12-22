@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -61,8 +62,8 @@ function CertificateCard({ certificate }) {
 
   return (
     <motion.div {...fadeIn}>
-      <Card 
-        sx={{ 
+      <Card
+        sx={{
           mb: 2,
           borderLeft: certificate.isRevoked ? '4px solid' : 'none',
           borderColor: 'error.main',
@@ -85,11 +86,11 @@ function CertificateCard({ certificate }) {
                   <Chip label="Revoked" color="error" size="small" />
                 )}
               </Box>
-              
+
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Awarded to: {certificate.studentName}
               </Typography>
-              
+
               <Stack direction="row" spacing={3} sx={{ mt: 2 }}>
                 <Box>
                   <Typography variant="caption" color="text.secondary">
@@ -147,7 +148,7 @@ function CertificateCard({ certificate }) {
 
 export default function Certificates({ certificates }) {
   return (
-    <>
+    <DashboardLayout role="student">
       <Head title="My Certificates" />
 
       <Stack spacing={3}>
@@ -172,6 +173,6 @@ export default function Certificates({ certificates }) {
           ))
         )}
       </Stack>
-    </>
+    </DashboardLayout>
   );
 }

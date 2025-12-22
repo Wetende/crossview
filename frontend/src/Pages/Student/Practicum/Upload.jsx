@@ -18,7 +18,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Breadcrumbs,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,
@@ -27,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import DashboardLayout from '../../../components/layouts/DashboardLayout';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -212,7 +212,7 @@ export default function PracticumUpload({
 
       setSuccess(true);
       setFile(null);
-      
+
       // Refresh page to show new submission
       router.reload({ only: ['currentSubmission'] });
     } catch (err) {
@@ -225,19 +225,17 @@ export default function PracticumUpload({
   const canUpload = currentSubmission?.status === 'revision_required' || !currentSubmission;
 
   return (
-    <>
+    <DashboardLayout
+      role="student"
+      breadcrumbs={[
+        { label: 'Programs', href: '/student/programs/' },
+        { label: enrollment.programName, href: `/student/programs/${enrollment.id}/` },
+        { label: node.title }
+      ]}
+    >
       <Head title={`Upload Practicum - ${node.title}`} />
 
       <Stack spacing={3}>
-        {/* Breadcrumbs */}
-        <motion.div {...fadeIn}>
-          <Breadcrumbs>
-            <Link href="/student/programs/">Programs</Link>
-            <Link href={`/student/programs/${enrollment.id}/`}>{enrollment.programName}</Link>
-            <Typography color="text.primary">{node.title}</Typography>
-          </Breadcrumbs>
-        </motion.div>
-
         {/* Header */}
         <motion.div {...fadeIn}>
           <Typography variant="h4" component="h1" gutterBottom>
@@ -266,7 +264,7 @@ export default function PracticumUpload({
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Allowed file types: {config.allowedTypes.join(', ').toUpperCase()} • 
+                  Allowed file types: {config.allowedTypes.join(', ').toUpperCase()} •
                   Maximum size: {config.maxSizeMb}MB
                 </Typography>
 
@@ -296,7 +294,7 @@ export default function PracticumUpload({
                     accept={config.allowedTypes.map(t => `.${t}`).join(',')}
                     onChange={handleFileSelect}
                   />
-                  
+
                   {file ? (
                     <Stack alignItems="center" spacing={1}>
                       <FileIcon sx={{ fontSize: 48, color: 'primary.main' }} />
@@ -362,6 +360,6 @@ export default function PracticumUpload({
           </motion.div>
         )}
       </Stack>
-    </>
+    </DashboardLayout>
   );
 }

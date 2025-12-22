@@ -2,8 +2,9 @@
  * Admin Program Detail Page
  */
 
-import { Head, Link, router } from '@inertia
-js/react';  Box,
+import { Head, Link, router } from '@inertiajs/react';
+import {
+  Box,
   Typography,
   Button,
   Card,

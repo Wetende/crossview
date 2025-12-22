@@ -1,480 +1,486 @@
 """
-Tenant services - Registration, provisioning, presets, billing.
-Requirements: 1.1, 1.2, 1.3, 1.4, 2.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4
+Tenant services - Business logic for tenant management.
 """
-import logging
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
 
-from django.db import transaction
+from typing import Optional
+from datetime import timedelta
+from django.db.models import Count, Sum, Q
 from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.utils.crypto import get_random_string
+from django.core.exceptions import ValidationError
 
-from .models import Tenant, TenantBranding, TenantLimits, PresetBlueprint, SubscriptionTier
-from .context import TenantContext
-
-logger = logging.getLogger(__name__)
-User = get_user_model()
+from apps.tenants.models import Tenant, SubscriptionTier, TenantLimits, PresetBlueprint
 
 
-class TenantCreationError(Exception):
-    """Raised when tenant creation fails."""
-    pass
+class PlatformStatsService:
+    """Service for platform-wide statistics."""
 
+    @staticmethod
+    def get_dashboard_stats() -> dict:
+        """Get platform-wide stats for super admin dashboard."""
+        total_tenants = Tenant.objects.count()
+        active_tenants = Tenant.objects.filter(is_active=True).count()
 
-class LimitExceededError(Exception):
-    """Raised when a tenant limit is exceeded."""
-    def __init__(self, resource: str, current: int, maximum: int):
-        self.resource = resource
-        self.current = current
-        self.maximum = maximum
-        super().__init__(f"{resource} limit exceeded: {current}/{maximum}")
+        from apps.core.models import User
 
+        total_users = User.objects.count()
 
-@dataclass
-class UsageStats:
-    """Usage statistics for a tenant."""
-    current_students: int
-    max_students: int
-    current_storage_mb: int
-    max_storage_mb: int
-    current_programs: int
-    max_programs: int
-    
-    @property
-    def students_percentage(self) -> float:
-        return (self.current_students / self.max_students * 100) if self.max_students > 0 else 0
-    
-    @property
-    def storage_percentage(self) -> float:
-        return (self.current_storage_mb / self.max_storage_mb * 100) if self.max_storage_mb > 0 else 0
-    
-    @property
-    def programs_percentage(self) -> float:
-        return (self.current_programs / self.max_programs * 100) if self.max_programs > 0 else 0
+        # Monthly revenue (simplified)
+        monthly_revenue = (
+            Tenant.objects.filter(is_active=True, subscription_tier__isnull=False)
+            .select_related("subscription_tier")
+            .aggregate(total=Sum("subscription_tier__price_monthly"))
+        )["total"] or 0
 
+        return {
+            "totalTenants": total_tenants,
+            "activeTenants": active_tenants,
+            "totalUsers": total_users,
+            "monthlyRevenue": float(monthly_revenue),
+        }
 
-class PresetService:
-    """
-    Service for managing preset blueprints.
-    Requirements: 5.1, 5.2, 5.3, 5.4
-    """
-    
-    def get_all(self) -> List[PresetBlueprint]:
-        """Get all active preset blueprints."""
-        return list(PresetBlueprint.objects.filter(is_active=True))
-    
-    def get_by_code(self, code: str) -> PresetBlueprint:
-        """Get a preset blueprint by code."""
-        return PresetBlueprint.objects.get(code=code, is_active=True)
-    
-    def copy_to_tenant(self, preset_code: str, tenant: Tenant) -> 'AcademicBlueprint':
-        """
-        Create a tenant-specific blueprint from a preset.
-        Requirements: 5.2
-        """
-        from apps.blueprints.models import AcademicBlueprint
-        
-        preset = self.get_by_code(preset_code)
-        
-        return AcademicBlueprint.objects.create(
-            tenant=tenant,
-            name=preset.name,
-            description=preset.description,
-            hierarchy_structure=preset.hierarchy_labels,
-            grading_logic=preset.grading_config,
-            progression_rules=preset.structure_rules,
-        )
-    
-    def seed_presets(self) -> None:
-        """
-        Seed the database with regulatory presets.
-        Requirements: 5.1
-        """
-        presets = [
-            {
-                'code': 'tvet_cdacc',
-                'name': 'TVET CDACC Standard',
-                'description': 'TVETA/CDACC compliant curriculum structure for TVET institutions',
-                'regulatory_body': 'TVETA/CDACC',
-                'hierarchy_labels': ['Qualification', 'Module', 'Unit of Competency', 'Element'],
-                'grading_config': {
-                    'mode': 'cbet',
-                    'scale': ['Competent', 'Not Yet Competent'],
-                    'pass_threshold': 50,
-                    'components': {
-                        'theory': 30,
-                        'practical': 70,
-                    },
-                    'requires_portfolio': True,
-                },
-                'structure_rules': {
-                    'module_types': ['Basic', 'Common', 'Core'],
-                },
-            },
-            {
-                'code': 'nita_trade',
-                'name': 'NITA Trade Test',
-                'description': 'NITA Trade Test structure for artisan certification',
-                'regulatory_body': 'NITA',
-                'hierarchy_labels': ['Trade Area', 'Grade Level', 'Practical Project'],
-                'grading_config': {
-                    'mode': 'visual_review',
-                    'checklist': ['Safety Gear', 'Tools', 'Finished Product Quality'],
-                    'levels': ['Grade III', 'Grade II', 'Grade I'],
-                },
-                'structure_rules': {},
-            },
-            {
-                'code': 'ntsa_driving',
-                'name': 'NTSA Driving Curriculum',
-                'description': 'NTSA compliant driving school curriculum',
-                'regulatory_body': 'NTSA',
-                'hierarchy_labels': ['License Class', 'Unit', 'Lesson Type'],
-                'grading_config': {
-                    'mode': 'instructor_checklist',
-                    'lesson_types': ['Theory', 'Yard Training', 'Roadwork'],
-                    'components': ['Theory Test', 'Maneuver Test', 'Road Test'],
-                    'requires_hours_logged': True,
-                },
-                'structure_rules': {},
-            },
-            {
-                'code': 'cbc_k12',
-                'name': 'CBC K-12 Standard',
-                'description': 'KICD Competency-Based Curriculum for K-12',
-                'regulatory_body': 'KICD',
-                'hierarchy_labels': ['Grade', 'Learning Area', 'Strand', 'Sub-strand'],
-                'grading_config': {
-                    'mode': 'rubric',
-                    'scale': ['Exceeding Expectation', 'Meeting Expectation', 'Approaching Expectation', 'Below Expectation'],
-                    'competencies': ['Communication', 'Critical Thinking', 'Digital Literacy'],
-                },
-                'structure_rules': {},
-            },
-            {
-                'code': 'cct_theology',
-                'name': 'CCT Theology Standard',
-                'description': 'Crossview College of Theology curriculum structure',
-                'regulatory_body': 'Internal',
-                'hierarchy_labels': ['Program', 'Year', 'Unit', 'Session'],
-                'grading_config': {
-                    'mode': 'summative',
-                    'components': {
-                        'cat': 30,
-                        'exam': 70,
-                    },
-                    'pass_mark': 40,
-                    'practicum_enabled': True,
-                },
-                'structure_rules': {},
-            },
-        ]
-        
-        for preset_data in presets:
-            PresetBlueprint.objects.update_or_create(
-                code=preset_data['code'],
-                defaults=preset_data
+    @staticmethod
+    def get_growth_data(months: int = 12) -> tuple[list, list]:
+        """Get tenant and user growth data for the last N months."""
+        from apps.core.models import User
+
+        now = timezone.now()
+        tenant_growth = []
+        user_growth = []
+
+        for i in range(months - 1, -1, -1):
+            month_start = (now - timedelta(days=30 * i)).replace(day=1)
+            month_end = (month_start + timedelta(days=32)).replace(day=1)
+
+            tenant_count = Tenant.objects.filter(created_at__lt=month_end).count()
+            user_count = User.objects.filter(date_joined__lt=month_end).count()
+
+            tenant_growth.append(
+                {"month": month_start.strftime("%b"), "count": tenant_count}
             )
-        
-        logger.info(f"Seeded {len(presets)} preset blueprints")
+            user_growth.append(
+                {"month": month_start.strftime("%b"), "count": user_count}
+            )
 
+        return tenant_growth, user_growth
 
-class BillingService:
-    """
-    Service for managing tenant billing and limits.
-    Requirements: 6.1, 6.2, 6.3, 6.4
-    """
-    
-    def check_limit(self, tenant: Tenant, resource: str) -> bool:
-        """
-        Check if a tenant can add more of a resource.
-        Requirements: 6.2, 6.3
-        
-        Returns True if within limits, False if limit exceeded.
-        """
-        limits = tenant.limits
-        
-        if resource == 'students':
-            return limits.current_students < limits.max_students
-        elif resource == 'storage':
-            return limits.current_storage_mb < limits.max_storage_mb
-        elif resource == 'programs':
-            return limits.current_programs < limits.max_programs
-        
-        return True
-    
-    def enforce_limit(self, tenant: Tenant, resource: str) -> None:
-        """
-        Enforce a limit, raising an error if exceeded.
-        Requirements: 6.2, 6.3
-        """
-        limits = tenant.limits
-        
-        if resource == 'students' and limits.current_students >= limits.max_students:
-            raise LimitExceededError('students', limits.current_students, limits.max_students)
-        elif resource == 'storage' and limits.current_storage_mb >= limits.max_storage_mb:
-            raise LimitExceededError('storage', limits.current_storage_mb, limits.max_storage_mb)
-        elif resource == 'programs' and limits.current_programs >= limits.max_programs:
-            raise LimitExceededError('programs', limits.current_programs, limits.max_programs)
-    
-    def increment_usage(self, tenant: Tenant, resource: str, amount: int = 1) -> None:
-        """Increment usage for a resource."""
-        limits = tenant.limits
-        
-        if resource == 'students':
-            limits.current_students += amount
-        elif resource == 'storage':
-            limits.current_storage_mb += amount
-        elif resource == 'programs':
-            limits.current_programs += amount
-        
-        limits.save()
-    
-    def decrement_usage(self, tenant: Tenant, resource: str, amount: int = 1) -> None:
-        """Decrement usage for a resource."""
-        limits = tenant.limits
-        
-        if resource == 'students':
-            limits.current_students = max(0, limits.current_students - amount)
-        elif resource == 'storage':
-            limits.current_storage_mb = max(0, limits.current_storage_mb - amount)
-        elif resource == 'programs':
-            limits.current_programs = max(0, limits.current_programs - amount)
-        
-        limits.save()
-    
-    def get_usage_stats(self, tenant: Tenant) -> UsageStats:
-        """
-        Get current usage statistics for a tenant.
-        Requirements: 6.4
-        """
-        limits = tenant.limits
-        return UsageStats(
-            current_students=limits.current_students,
-            max_students=limits.max_students,
-            current_storage_mb=limits.current_storage_mb,
-            max_storage_mb=limits.max_storage_mb,
-            current_programs=limits.current_programs,
-            max_programs=limits.max_programs,
+    @staticmethod
+    def get_tier_distribution() -> list:
+        """Get distribution of tenants across subscription tiers."""
+        return list(
+            SubscriptionTier.objects.filter(is_active=True)
+            .annotate(tenant_count=Count("tenants"))
+            .values("name", "tenant_count")
+            .order_by("-tenant_count")
         )
-    
-    def assign_tier(self, tenant: Tenant, tier: SubscriptionTier) -> None:
-        """
-        Assign a subscription tier to a tenant.
-        Requirements: 6.1
-        """
-        tenant.subscription_tier = tier
-        tenant.save()
-        
-        # Update limits based on tier
-        limits = tenant.limits
-        limits.max_students = tier.max_students
-        limits.max_storage_mb = tier.max_storage_mb
-        limits.max_programs = tier.max_programs
-        limits.save()
+
+    @staticmethod
+    def get_recent_tenants(limit: int = 10) -> list:
+        """Get recently created tenants."""
+        tenants = Tenant.objects.select_related("subscription_tier").order_by(
+            "-created_at"
+        )[:limit]
+        return [
+            {
+                "id": t.id,
+                "name": t.name,
+                "subdomain": t.subdomain,
+                "tierName": t.subscription_tier.name if t.subscription_tier else "Free",
+                "isActive": t.is_active,
+                "createdAt": t.created_at.isoformat(),
+            }
+            for t in tenants
+        ]
 
 
 class TenantService:
-    """
-    Main service for tenant management.
-    Requirements: 1.1, 1.2, 1.3, 1.4, 2.4
-    """
-    
-    def __init__(
-        self,
-        preset_service: PresetService = None,
-        billing_service: BillingService = None
-    ):
-        self.preset_service = preset_service or PresetService()
-        self.billing_service = billing_service or BillingService()
-    
-    @transaction.atomic
-    def create(
-        self,
+    """Service for tenant CRUD operations."""
+
+    @staticmethod
+    def list_tenants(
+        tier_id: Optional[int] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
+    ) -> tuple[list, int]:
+        """List tenants with filtering and pagination."""
+        from apps.core.models import User, Program
+
+        queryset = Tenant.objects.select_related("subscription_tier")
+
+        if tier_id:
+            queryset = queryset.filter(subscription_tier_id=tier_id)
+
+        if status == "active":
+            queryset = queryset.filter(is_active=True)
+        elif status == "inactive":
+            queryset = queryset.filter(is_active=False)
+
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(subdomain__icontains=search)
+            )
+
+        total = queryset.count()
+        queryset = queryset.order_by("-created_at")
+        tenants = queryset[(page - 1) * per_page : page * per_page]
+
+        # Get counts
+        tenant_ids = [t.id for t in tenants]
+        user_counts = dict(
+            User.objects.filter(tenant_id__in=tenant_ids)
+            .values("tenant_id")
+            .annotate(count=Count("id"))
+            .values_list("tenant_id", "count")
+        )
+        program_counts = dict(
+            Program.objects.filter(tenant_id__in=tenant_ids)
+            .values("tenant_id")
+            .annotate(count=Count("id"))
+            .values_list("tenant_id", "count")
+        )
+
+        tenants_data = [
+            {
+                "id": t.id,
+                "name": t.name,
+                "subdomain": t.subdomain,
+                "adminEmail": t.admin_email,
+                "tierName": t.subscription_tier.name if t.subscription_tier else "Free",
+                "tierId": t.subscription_tier_id,
+                "isActive": t.is_active,
+                "userCount": user_counts.get(t.id, 0),
+                "programCount": program_counts.get(t.id, 0),
+                "createdAt": t.created_at.isoformat(),
+            }
+            for t in tenants
+        ]
+
+        return tenants_data, total
+
+    @staticmethod
+    def get_tenant_detail(tenant_id: int) -> dict:
+        """Get detailed tenant information."""
+        from apps.core.models import User, Program
+
+        tenant = Tenant.objects.select_related("subscription_tier").get(pk=tenant_id)
+        limits = getattr(tenant, "limits", None)
+        admin_user = User.objects.filter(tenant=tenant, is_staff=True).first()
+        user_count = User.objects.filter(tenant=tenant).count()
+        program_count = Program.objects.filter(tenant=tenant).count()
+
+        return {
+            "tenant": {
+                "id": tenant.id,
+                "name": tenant.name,
+                "subdomain": tenant.subdomain,
+                "adminEmail": tenant.admin_email,
+                "isActive": tenant.is_active,
+                "createdAt": tenant.created_at.isoformat(),
+                "activatedAt": (
+                    tenant.activated_at.isoformat() if tenant.activated_at else None
+                ),
+            },
+            "subscription": {
+                "tierName": (
+                    tenant.subscription_tier.name
+                    if tenant.subscription_tier
+                    else "Free"
+                ),
+                "tierId": tenant.subscription_tier_id,
+            },
+            "limits": {
+                "maxStudents": limits.max_students if limits else 100,
+                "maxPrograms": limits.max_programs if limits else 10,
+                "maxStorageMb": limits.max_storage_mb if limits else 5000,
+                "currentStudents": limits.current_students if limits else 0,
+                "currentPrograms": limits.current_programs if limits else 0,
+                "currentStorageMb": limits.current_storage_mb if limits else 0,
+            },
+            "stats": {
+                "userCount": user_count,
+                "programCount": program_count,
+            },
+            "admin": {
+                "id": admin_user.id if admin_user else None,
+                "email": admin_user.email if admin_user else None,
+                "name": admin_user.get_full_name() if admin_user else None,
+            },
+        }
+
+    @staticmethod
+    def create_tenant(
         name: str,
         subdomain: str,
         admin_email: str,
-        preset_code: str = None,
-        subscription_tier: SubscriptionTier = None,
-        **kwargs
+        admin_name: str = "",
+        tier_id: Optional[int] = None,
     ) -> Tenant:
-        """
-        Create a new tenant with full provisioning.
-        Requirements: 1.1, 1.2, 1.3
-        """
-        # Validate subdomain uniqueness
+        """Create a new tenant with admin user."""
+        from apps.core.models import User
+        import secrets
+
+        # Validation
         if Tenant.objects.filter(subdomain=subdomain).exists():
-            raise TenantCreationError(f"Subdomain '{subdomain}' is already taken")
-        
+            raise ValidationError({"subdomain": "Subdomain already exists"})
+        if User.objects.filter(email=admin_email).exists():
+            raise ValidationError({"adminEmail": "Email already exists"})
+
+        # Get tier
+        tier = None
+        if tier_id:
+            tier = SubscriptionTier.objects.filter(pk=tier_id).first()
+
         # Create tenant
         tenant = Tenant.objects.create(
             name=name,
             subdomain=subdomain,
             admin_email=admin_email,
-            subscription_tier=subscription_tier,
-            **kwargs
+            subscription_tier=tier,
+            is_active=True,
+            activated_at=timezone.now(),
         )
-        
-        # Provision tenant
-        admin_user, password = self.provision(tenant, preset_code)
-        
-        # Send welcome email
-        self.send_welcome_email(tenant, admin_user, password)
-        
-        return tenant
-    
-    def provision(self, tenant: Tenant, preset_code: str = None) -> tuple:
-        """
-        Provision a tenant with admin user, branding, limits, and optional blueprint.
-        Requirements: 1.2, 1.3
-        
-        Returns (admin_user, password) tuple.
-        """
+
+        # Create limits
+        TenantLimits.objects.create(
+            tenant=tenant,
+            max_students=tier.max_students if tier else 100,
+            max_programs=tier.max_programs if tier else 10,
+            max_storage_mb=tier.max_storage_mb if tier else 5000,
+        )
+
         # Create admin user
-        password = get_random_string(12)
-        admin_user = User.objects.create_user(
-            username=f"admin_{tenant.subdomain}",
-            email=tenant.admin_email,
-            password=password,
+        temp_password = secrets.token_urlsafe(12)
+        names = admin_name.split(" ", 1) if admin_name else [""]
+        first_name = names[0] if names else ""
+        last_name = names[1] if len(names) > 1 else ""
+
+        User.objects.create_user(
+            username=admin_email,
+            email=admin_email,
+            password=temp_password,
+            first_name=first_name,
+            last_name=last_name,
             tenant=tenant,
             is_staff=True,
         )
-        
-        # Create branding with defaults
-        TenantBranding.objects.create(
-            tenant=tenant,
-            institution_name=tenant.name,
-        )
-        
-        # Create limits (from tier or defaults)
-        if tenant.subscription_tier:
-            TenantLimits.objects.create(
-                tenant=tenant,
-                max_students=tenant.subscription_tier.max_students,
-                max_storage_mb=tenant.subscription_tier.max_storage_mb,
-                max_programs=tenant.subscription_tier.max_programs,
-            )
-        else:
-            TenantLimits.objects.create(tenant=tenant)
-        
-        # Copy preset blueprint if provided
-        if preset_code:
-            self.preset_service.copy_to_tenant(preset_code, tenant)
-        
-        # Mark as activated
-        tenant.activated_at = timezone.now()
+
+        # TODO: Send welcome email with temp password
+
+        return tenant
+
+    @staticmethod
+    def update_tenant(
+        tenant_id: int,
+        name: str,
+        subdomain: str,
+        admin_email: Optional[str] = None,
+        tier_id: Optional[int] = None,
+    ) -> Tenant:
+        """Update tenant details."""
+        tenant = Tenant.objects.get(pk=tenant_id)
+
+        # Validation
+        if Tenant.objects.filter(subdomain=subdomain).exclude(pk=tenant_id).exists():
+            raise ValidationError({"subdomain": "Subdomain already exists"})
+
+        tenant.name = name
+        tenant.subdomain = subdomain
+        if admin_email:
+            tenant.admin_email = admin_email
+
+        # Update tier if changed
+        if tier_id and tier_id != tenant.subscription_tier_id:
+            tier = SubscriptionTier.objects.filter(pk=tier_id).first()
+            tenant.subscription_tier = tier
+
+            # Update limits
+            if hasattr(tenant, "limits") and tier:
+                tenant.limits.max_students = tier.max_students
+                tenant.limits.max_programs = tier.max_programs
+                tenant.limits.max_storage_mb = tier.max_storage_mb
+                tenant.limits.save()
+
         tenant.save()
-        
-        return admin_user, password
-    
-    def send_welcome_email(self, tenant: Tenant, admin_user, password: str) -> None:
-        """
-        Send welcome email with login credentials.
-        Requirements: 1.4
-        """
-        try:
-            subject = f"Welcome to {settings.SITE_NAME} - Your account is ready"
-            message = f"""
-Hello,
+        return tenant
 
-Your institution "{tenant.name}" has been set up on {settings.SITE_NAME}.
+    @staticmethod
+    def toggle_tenant_status(tenant_id: int) -> Tenant:
+        """Suspend or reactivate a tenant."""
+        tenant = Tenant.objects.get(pk=tenant_id)
+        tenant.is_active = not tenant.is_active
+        tenant.save()
+        return tenant
 
-Login Details:
-- URL: https://{tenant.subdomain}.{settings.BASE_DOMAIN}
-- Email: {admin_user.email}
-- Password: {password}
 
-Please change your password after first login.
+class SubscriptionTierService:
+    """Service for subscription tier management."""
 
-Best regards,
-The {settings.SITE_NAME} Team
-            """
-            
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[admin_user.email],
-                fail_silently=True,
+    @staticmethod
+    def list_tiers() -> list:
+        """List all subscription tiers with tenant counts."""
+        tiers = SubscriptionTier.objects.annotate(
+            tenant_count=Count("tenants")
+        ).order_by("price_monthly")
+
+        return [
+            {
+                "id": t.id,
+                "name": t.name,
+                "code": t.code,
+                "priceMonthly": float(t.price_monthly),
+                "maxStudents": t.max_students,
+                "maxPrograms": t.max_programs,
+                "maxStorageMb": t.max_storage_mb,
+                "features": t.features or {},
+                "isActive": t.is_active,
+                "tenantCount": t.tenant_count,
+            }
+            for t in tiers
+        ]
+
+    @staticmethod
+    def create_tier(
+        name: str,
+        code: str,
+        price_monthly: float = 0,
+        max_students: int = 100,
+        max_programs: int = 10,
+        max_storage_mb: int = 5000,
+        features: Optional[dict] = None,
+        is_active: bool = True,
+    ) -> SubscriptionTier:
+        """Create a new subscription tier."""
+        if SubscriptionTier.objects.filter(code=code).exists():
+            raise ValidationError({"code": "Code already exists"})
+
+        return SubscriptionTier.objects.create(
+            name=name,
+            code=code,
+            price_monthly=price_monthly,
+            max_students=max_students,
+            max_programs=max_programs,
+            max_storage_mb=max_storage_mb,
+            features=features or {},
+            is_active=is_active,
+        )
+
+    @staticmethod
+    def update_tier(
+        tier_id: int,
+        name: str,
+        code: str,
+        price_monthly: Optional[float] = None,
+        max_students: Optional[int] = None,
+        max_programs: Optional[int] = None,
+        max_storage_mb: Optional[int] = None,
+        features: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+    ) -> SubscriptionTier:
+        """Update a subscription tier."""
+        tier = SubscriptionTier.objects.get(pk=tier_id)
+
+        if SubscriptionTier.objects.filter(code=code).exclude(pk=tier_id).exists():
+            raise ValidationError({"code": "Code already exists"})
+
+        tier.name = name
+        tier.code = code
+        if price_monthly is not None:
+            tier.price_monthly = price_monthly
+        if max_students is not None:
+            tier.max_students = max_students
+        if max_programs is not None:
+            tier.max_programs = max_programs
+        if max_storage_mb is not None:
+            tier.max_storage_mb = max_storage_mb
+        if features is not None:
+            tier.features = features
+        if is_active is not None:
+            tier.is_active = is_active
+
+        tier.save()
+        return tier
+
+
+class PresetBlueprintService:
+    """Service for preset blueprint management."""
+
+    @staticmethod
+    def list_presets() -> list:
+        """List all preset blueprints."""
+        presets = PresetBlueprint.objects.order_by("name")
+        return [
+            {
+                "id": p.id,
+                "name": p.name,
+                "code": p.code,
+                "description": p.description or "",
+                "regulatoryBody": p.regulatory_body or "",
+                "hierarchyLabels": p.hierarchy_labels or [],
+                "gradingConfig": p.grading_config or {},
+                "isActive": p.is_active,
+            }
+            for p in presets
+        ]
+
+    @staticmethod
+    def create_preset(
+        name: str,
+        code: str,
+        hierarchy_labels: list,
+        description: str = "",
+        regulatory_body: str = "",
+        grading_config: Optional[dict] = None,
+        is_active: bool = True,
+    ) -> PresetBlueprint:
+        """Create a new preset blueprint."""
+        if PresetBlueprint.objects.filter(code=code).exists():
+            raise ValidationError({"code": "Code already exists"})
+        if not hierarchy_labels:
+            raise ValidationError(
+                {"hierarchyLabels": "At least one hierarchy level is required"}
             )
-            logger.info(f"Welcome email sent to {admin_user.email}")
-        except Exception as e:
-            logger.error(f"Failed to send welcome email: {e}")
-    
-    @transaction.atomic
-    def delete(self, tenant: Tenant) -> None:
-        """
-        Delete a tenant and all associated data.
-        Requirements: 2.4
-        
-        Django's CASCADE will handle related objects.
-        """
-        tenant_name = tenant.name
-        tenant_id = tenant.id
-        
-        # Delete tenant (cascades to all related objects)
-        tenant.delete()
-        
-        logger.info(f"Deleted tenant {tenant_name} (ID: {tenant_id}) and all associated data")
-    
-    def update_branding(
-        self,
-        tenant: Tenant,
-        logo_path: str = None,
-        primary_color: str = None,
-        secondary_color: str = None,
-        institution_name: str = None,
-        tagline: str = None,
-        favicon_path: str = None,
-    ) -> TenantBranding:
-        """
-        Update tenant branding configuration.
-        Requirements: 4.1
-        """
-        branding = tenant.branding
-        
-        if logo_path is not None:
-            branding.logo_path = logo_path
-        if primary_color is not None:
-            branding.primary_color = primary_color
-        if secondary_color is not None:
-            branding.secondary_color = secondary_color
-        if institution_name is not None:
-            branding.institution_name = institution_name
-        if tagline is not None:
-            branding.tagline = tagline
-        if favicon_path is not None:
-            branding.favicon_path = favicon_path
-        
-        branding.save()
-        return branding
-    
-    def get_branding(self, tenant: Tenant) -> Dict[str, Any]:
-        """
-        Get branding configuration with defaults.
-        Requirements: 4.3
-        """
-        try:
-            branding = tenant.branding
-            return {
-                'logo_path': branding.logo_path,
-                'favicon_path': branding.favicon_path,
-                'primary_color': branding.primary_color or '#3B82F6',
-                'secondary_color': branding.secondary_color or '#1E40AF',
-                'institution_name': branding.institution_name or tenant.name,
-                'tagline': branding.tagline or '',
-            }
-        except TenantBranding.DoesNotExist:
-            # Return defaults
-            return {
-                'logo_path': None,
-                'favicon_path': None,
-                'primary_color': '#3B82F6',
-                'secondary_color': '#1E40AF',
-                'institution_name': tenant.name,
-                'tagline': '',
-            }
+
+        return PresetBlueprint.objects.create(
+            name=name,
+            code=code,
+            description=description,
+            regulatory_body=regulatory_body,
+            hierarchy_labels=hierarchy_labels,
+            grading_config=grading_config or {},
+            is_active=is_active,
+        )
+
+    @staticmethod
+    def update_preset(
+        preset_id: int,
+        name: str,
+        code: str,
+        hierarchy_labels: list,
+        description: str = "",
+        regulatory_body: str = "",
+        grading_config: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+    ) -> PresetBlueprint:
+        """Update a preset blueprint."""
+        preset = PresetBlueprint.objects.get(pk=preset_id)
+
+        if PresetBlueprint.objects.filter(code=code).exclude(pk=preset_id).exists():
+            raise ValidationError({"code": "Code already exists"})
+        if not hierarchy_labels:
+            raise ValidationError(
+                {"hierarchyLabels": "At least one hierarchy level is required"}
+            )
+
+        preset.name = name
+        preset.code = code
+        preset.description = description
+        preset.regulatory_body = regulatory_body
+        preset.hierarchy_labels = hierarchy_labels
+        if grading_config is not None:
+            preset.grading_config = grading_config
+        if is_active is not None:
+            preset.is_active = is_active
+
+        preset.save()
+        return preset

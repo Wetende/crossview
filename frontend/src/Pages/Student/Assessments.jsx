@@ -17,10 +17,10 @@ import {
   Stack,
   Typography,
   Alert,
-  Divider,
   LinearProgress,
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -174,7 +174,7 @@ export default function Assessments({
   };
 
   return (
-    <>
+    <DashboardLayout role="student">
       <Head title="Assessment Results" />
 
       <Stack spacing={3}>
@@ -253,6 +253,6 @@ export default function Assessments({
           </>
         )}
       </Stack>
-    </>
+    </DashboardLayout>
   );
 }

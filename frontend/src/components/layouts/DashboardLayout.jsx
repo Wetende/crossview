@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import {
   Box,
   Drawer,
@@ -112,7 +112,7 @@ const roleNavigation = {
   superadmin: [
     {
       items: [
-        { label: 'Dashboard', href: '/dashboard/', icon: DashboardIcon },
+        { label: 'Dashboard', href: '/superadmin/', icon: DashboardIcon },
       ],
     },
     {
