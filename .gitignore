@@ -51,4 +51,4 @@ Thumbs.db
 # Build
 *.egg-info/
 build/
-/specs
+specs

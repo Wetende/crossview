@@ -1,23 +1,24 @@
 """
 URL configuration for Crossview LMS project.
 """
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    
-    # App URLs
-    path('', include('apps.core.urls')),
-    path('blueprints/', include('apps.blueprints.urls')),
-    path('curriculum/', include('apps.curriculum.urls')),
-    path('assessments/', include('apps.assessments.urls')),
-    path('progression/', include('apps.progression.urls')),
-    path('certifications/', include('apps.certifications.urls')),
-    path('practicum/', include('apps.practicum.urls')),
-    path('content/', include('apps.content.urls')),
+    path("admin/", admin.site.urls),
+    # App URLs - Inertia pages and REST APIs
+    path("", include("apps.core.urls")),
+    path("", include("apps.progression.urls")),  # Student portal routes
+    path("", include("apps.practicum.urls")),  # Practicum API routes
+    path("", include("apps.certifications.urls")),  # Certificate routes
+    path("", include("apps.blueprints.urls")),  # Blueprint admin routes
+    path("", include("apps.curriculum.urls")),  # Curriculum admin routes
+    path("", include("apps.tenants.urls")),  # Tenant settings routes
+    path("assessments/", include("apps.assessments.urls")),
+    path("content/", include("apps.content.urls")),
 ]
 
 if settings.DEBUG:

@@ -5,225 +5,419 @@ import {
     Typography,
     Button,
     Card,
-    CardContent,
     Grid,
     Stack,
     Chip,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
+    useTheme,
+    AppBar,
+    Toolbar,
+    useScrollTrigger,
 } from "@mui/material";
 import {
-    IconCheck,
     IconSchool,
     IconCertificate,
     IconUsers,
     IconDeviceAnalytics,
+    IconArrowRight,
+    IconBrandTabler,
+    IconCheck,
 } from "@tabler/icons-react";
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { getBackgroundDots } from "../../utils/getBackgroundDots";
+import ButtonAnimationWrapper from "../../components/common/ButtonAnimationWrapper";
+import { cloneElement } from "react";
 
+// --- Animation Variants ---
 const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
+    initial: { opacity: 0, y: 30 },
     whileInView: { opacity: 1, y: 0 },
     viewport: { once: true },
-    transition: { duration: 0.5, ease: [0.215, 0.61, 0.355, 1] },
+    transition: { duration: 0.6, ease: [0.215, 0.61, 0.355, 1] },
 };
 
-const features = [
-    {
-        icon: IconSchool,
-        title: "Flexible Blueprints",
-        description: "Support multiple educational models - Theology, TVET, Vocational, K-12",
-    },
-    {
-        icon: IconCertificate,
-        title: "Digital Certificates",
-        description: "Issue verifiable certificates with QR codes and public verification",
-    },
-    {
-        icon: IconUsers,
-        title: "Multi-Tenant",
-        description: "Each institution gets their own branded portal and data isolation",
-    },
-    {
-        icon: IconDeviceAnalytics,
-        title: "Progress Tracking",
-        description: "Real-time analytics on student progress and completion rates",
-    },
-];
+// --- Helper Components ---
 
-/**
- * Landing Page - Platform marketing page with subscription tiers
- * Requirements: 1.1, 1.2, 1.3, 1.4
- */
-export default function Landing({ tiers }) {
+function ElevationScroll({ children }) {
+    const trigger = useScrollTrigger({
+        disableHysteresis: true,
+        threshold: 0,
+    });
+
+    return cloneElement(children, {
+        elevation: trigger ? 4 : 0,
+        sx: {
+            bgcolor: trigger ? "rgba(255, 255, 255, 0.9)" : "transparent",
+            backdropFilter: trigger ? "blur(20px)" : "none",
+            borderBottom: trigger ? 1 : 0,
+            borderColor: "divider",
+            transition: "all 0.3s ease",
+            py: trigger ? 1 : 2,
+        },
+    });
+}
+
+function SectionLabel({ children }) {
+    return (
+        <Chip
+            label={children}
+            size="small"
+            sx={{
+                bgcolor: "primary.lighter",
+                color: "primary.main",
+                fontWeight: 700,
+                mb: 2,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+            }}
+        />
+    );
+}
+
+function GraphicsCard({ children, sx = {} }) {
+    return (
+        <Card
+            sx={{
+                borderRadius: { xs: 6, sm: 8 },
+                border: "1px solid",
+                borderColor: "grey.200",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                overflow: "hidden",
+                ...sx,
+            }}
+        >
+            {children}
+        </Card>
+    );
+}
+
+// --- Main Component ---
+
+export default function Landing() {
     const { tenant } = usePage().props;
+    const theme = useTheme();
+    const { scrollY } = useScroll();
+    const heroY = useTransform(scrollY, [0, 500], [0, 150]);
 
-    // If on tenant subdomain, show tenant landing instead
     if (tenant) {
         return <TenantLanding tenant={tenant} />;
     }
 
     return (
         <>
-            <Head title="Crossview LMS - Modern Learning Management" />
+            <Head title="Crossview LMS - The Chameleon Engine" />
 
-            <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+            <Box sx={{ minHeight: "100vh", bgcolor: "background.default", overflowX: "hidden" }}>
+                {/* Navbar */}
+                <ElevationScroll>
+                    <AppBar position="fixed" color="transparent" sx={{ py: 2 }}>
+                        <Container maxWidth="lg">
+                            <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <Box
+                                        sx={{
+                                            width: 40,
+                                            height: 40,
+                                            bgcolor: "primary.main",
+                                            borderRadius: 2,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: "white",
+                                        }}
+                                    >
+                                        <IconBrandTabler size={24} />
+                                    </Box>
+                                    <Typography variant="h5" fontWeight={700} sx={{ color: "grey.900" }}>
+                                        Crossview
+                                    </Typography>
+                                </Stack>
+
+                                <Stack direction="row" spacing={3} sx={{ display: { xs: "none", md: "flex" } }}>
+                                    <Link href="/programs/" style={{ textDecoration: 'none', color: theme.palette.text.primary, fontWeight: 500 }}>Programs</Link>
+                                    <Link href="/about/" style={{ textDecoration: 'none', color: theme.palette.text.primary, fontWeight: 500 }}>About</Link>
+                                    <Link href="/contact/" style={{ textDecoration: 'none', color: theme.palette.text.primary, fontWeight: 500 }}>Contact</Link>
+                                </Stack>
+
+                                <Stack direction="row" spacing={2}>
+                                    <Button component={Link} href="/login/" color="inherit" sx={{ fontWeight: 600 }}>
+                                        Sign In
+                                    </Button>
+                                    <ButtonAnimationWrapper>
+                                        <Button
+                                            component={Link}
+                                            href="/register/"
+                                            variant="contained"
+                                            sx={{ borderRadius: 100, px: 3 }}
+                                        >
+                                            Get Started
+                                        </Button>
+                                    </ButtonAnimationWrapper>
+                                </Stack>
+                            </Toolbar>
+                        </Container>
+                    </AppBar>
+                </ElevationScroll>
+
                 {/* Hero Section */}
                 <Box
                     sx={{
-                        background: "linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)",
-                        color: "white",
-                        py: { xs: 8, md: 12 },
+                        position: "relative",
+                        pt: { xs: 16, md: 24 },
+                        pb: { xs: 12, md: 20 },
+                        overflow: "hidden",
                     }}
                 >
+                    {/* Background Pattern */}
+                    <Box
+                        sx={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: getBackgroundDots(theme.palette.grey[300], 2, 30),
+                            zIndex: -1,
+                            maskImage: "linear-gradient(to bottom, black 0%, transparent 100%)",
+                        }}
+                    />
+
                     <Container maxWidth="lg">
-                        <motion.div {...fadeInUp}>
-                            <Stack spacing={4} alignItems="center" textAlign="center">
-                                <Typography variant="h2" fontWeight={700}>
-                                    Crossview LMS
-                                </Typography>
-                                <Typography variant="h5" sx={{ maxWidth: 600, opacity: 0.9 }}>
-                                    A modern learning management system built for Kenyan educational institutions
-                                </Typography>
-                                <Stack direction="row" spacing={2}>
-                                    <Button
-                                        component={Link}
-                                        href="/register/"
-                                        variant="contained"
-                                        size="large"
-                                        sx={{
-                                            bgcolor: "white",
-                                            color: "primary.main",
-                                            "&:hover": { bgcolor: "grey.100" },
-                                        }}
+                        <Grid container spacing={8} alignItems="center">
+                            <Grid item xs={12} md={6}>
+                                <motion.div {...fadeInUp}>
+                                    <SectionLabel>The Chameleon Engine</SectionLabel>
+                                    <Typography variant="h1" gutterBottom sx={{ mb: 3 }}>
+                                        One LMS for{" "}
+                                        <Box component="span" sx={{ color: "primary.main" }}>
+                                            Every Model
+                                        </Box>
+                                    </Typography>
+                                    <Typography
+                                        variant="h5"
+                                        color="text.secondary"
+                                        sx={{ mb: 5, fontWeight: 400, maxWidth: 500 }}
                                     >
-                                        Get Started
-                                    </Button>
-                                    <Button
-                                        component={Link}
-                                        href="/login/"
-                                        variant="outlined"
-                                        size="large"
-                                        sx={{
-                                            borderColor: "white",
-                                            color: "white",
-                                            "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
-                                        }}
-                                    >
-                                        Sign In
-                                    </Button>
-                                </Stack>
-                            </Stack>
-                        </motion.div>
+                                        From Theology to TVET. Crossview adapts to your academic structure with flexible blueprints.
+                                    </Typography>
+
+                                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                                        <ButtonAnimationWrapper>
+                                            <Button
+                                                component={Link}
+                                                href="/register/"
+                                                variant="contained"
+                                                size="large"
+                                                endIcon={<IconArrowRight size={20} />}
+                                                sx={{ borderRadius: 100, px: 4, py: 1.5, fontSize: 18 }}
+                                            >
+                                                Get Started
+                                            </Button>
+                                        </ButtonAnimationWrapper>
+                                        <ButtonAnimationWrapper>
+                                            <Button
+                                                component={Link}
+                                                href="/verify-certificate/"
+                                                variant="outlined"
+                                                size="large"
+                                                sx={{ borderRadius: 100, px: 4, py: 1.5, fontSize: 18 }}
+                                            >
+                                                Verify Certificate
+                                            </Button>
+                                        </ButtonAnimationWrapper>
+                                    </Stack>
+
+                                    <Stack direction="row" spacing={3} sx={{ mt: 6, opacity: 0.7 }}>
+                                        <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                            <IconCheck size={18} color={theme.palette.success.main} />
+                                            Kenyan Curriculum Ready
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                            <IconCheck size={18} color={theme.palette.success.main} />
+                                            Blueprint Driven
+                                        </Typography>
+                                    </Stack>
+                                </motion.div>
+                            </Grid>
+
+                            <Grid item xs={12} md={6}>
+                                <motion.div style={{ y: heroY }} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}>
+                                    <GraphicsCard sx={{ bgcolor: "background.paper", p: 4, position: "relative" }}>
+                                        <Box
+                                            sx={{
+                                                position: "absolute",
+                                                top: 0,
+                                                right: 0,
+                                                p: 2,
+                                                bgcolor: "primary.lighter",
+                                                borderBottomLeftRadius: 16,
+                                            }}
+                                        >
+                                            <Typography variant="caption" fontWeight={700} color="primary.main">
+                                                BLUEPRINT: TVET
+                                            </Typography>
+                                        </Box>
+                                        {/* Abstract UI representation */}
+                                        <Stack spacing={2}>
+                                            <Stack direction="row" spacing={2} alignItems="center">
+                                                <Box sx={{ width: 48, height: 48, borderRadius: 2, bgcolor: "primary.main" }} />
+                                                <Box>
+                                                    <Box sx={{ width: 120, height: 16, bgcolor: "grey.200", borderRadius: 1, mb: 1 }} />
+                                                    <Box sx={{ width: 80, height: 12, bgcolor: "grey.100", borderRadius: 1 }} />
+                                                </Box>
+                                            </Stack>
+                                            <Box sx={{ height: 1, bgcolor: "divider", my: 2 }} />
+                                            <Stack spacing={2}>
+                                                {[1, 2, 3].map((i) => (
+                                                    <Stack key={i} direction="row" justifyContent="space-between" alignItems="center">
+                                                        <Box sx={{ width: "60%", height: 12, bgcolor: "grey.100", borderRadius: 1 }} />
+                                                        <Box sx={{ width: 24, height: 24, borderRadius: "50%", bgcolor: "success.lighter", color: "success.main", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                            <IconCheck size={14} />
+                                                        </Box>
+                                                    </Stack>
+                                                ))}
+                                            </Stack>
+                                        </Stack>
+                                    </GraphicsCard>
+                                </motion.div>
+                            </Grid>
+                        </Grid>
                     </Container>
                 </Box>
 
-                {/* Features Section */}
-                <Container maxWidth="lg" sx={{ py: { xs: 6, md: 10 } }}>
-                    <motion.div {...fadeInUp}>
-                        <Typography variant="h4" textAlign="center" fontWeight={600} gutterBottom>
-                            Why Choose Crossview?
-                        </Typography>
-                        <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 6 }}>
-                            Built specifically for the Kenyan education market
-                        </Typography>
-                    </motion.div>
+                {/* Features Grid */}
+                <Container maxWidth="lg" sx={{ py: { xs: 10, md: 16 } }}>
+                    <Stack spacing={2} textAlign="center" sx={{ mb: 10 }}>
+                        <motion.div {...fadeInUp}>
+                            <SectionLabel>Key Features</SectionLabel>
+                            <Typography variant="h2">Everything you need to run</Typography>
+                            <Typography variant="h2" color="text.secondary">
+                                a modern institution.
+                            </Typography>
+                        </motion.div>
+                    </Stack>
 
                     <Grid container spacing={4}>
-                        {features.map((feature, index) => (
-                            <Grid item xs={12} sm={6} md={3} key={feature.title}>
+                        {[
+                            {
+                                icon: IconSchool,
+                                title: "Adaptive Blueprints",
+                                desc: "Configure your structure: Years > Terms > Units or Levels > Modules > Competencies.",
+                            },
+                            {
+                                icon: IconCertificate,
+                                title: "Verifiable Certificates",
+                                desc: "Generate PDF certificates with QR codes that link to a public verification page.",
+                            },
+                            {
+                                icon: IconUsers,
+                                title: "Multi-Tenancy",
+                                desc: "Secure data isolation for every department or campus.",
+                            },
+                            {
+                                icon: IconDeviceAnalytics,
+                                title: "Real-time Progress",
+                                desc: "Track student completion rates, grades, and attendance in real-time.",
+                            },
+                        ].map((feature, idx) => (
+                            <Grid item xs={12} md={6} lg={3} key={idx}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true }}
-                                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                                    transition={{ delay: idx * 0.1, duration: 0.5 }}
                                 >
-                                    <Card sx={{ height: "100%", textAlign: "center", p: 2 }}>
-                                        <CardContent>
-                                            <feature.icon size={48} color="#3B82F6" />
-                                            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
-                                                {feature.title}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {feature.description}
-                                            </Typography>
-                                        </CardContent>
-                                    </Card>
+                                    <GraphicsCard sx={{ p: 4, height: "100%", transition: "transform 0.2s", "&:hover": { transform: "translateY(-4px)" } }}>
+                                        <Box
+                                            sx={{
+                                                width: 48,
+                                                height: 48,
+                                                borderRadius: 2,
+                                                bgcolor: "primary.lighter",
+                                                color: "primary.main",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                mb: 3,
+                                            }}
+                                        >
+                                            <feature.icon size={24} />
+                                        </Box>
+                                        <Typography variant="h6" gutterBottom>
+                                            {feature.title}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {feature.desc}
+                                        </Typography>
+                                    </GraphicsCard>
                                 </motion.div>
                             </Grid>
                         ))}
                     </Grid>
                 </Container>
 
-                {/* Pricing Section */}
-                <Box sx={{ bgcolor: "grey.50", py: { xs: 6, md: 10 } }}>
-                    <Container maxWidth="lg">
+                {/* CTA Section (Replaces Pricing) */}
+                <Box sx={{ bgcolor: "grey.50", py: { xs: 10, md: 16 } }}>
+                    <Container maxWidth="md" sx={{ textAlign: "center" }}>
                         <motion.div {...fadeInUp}>
-                            <Typography variant="h4" textAlign="center" fontWeight={600} gutterBottom>
-                                Simple, Transparent Pricing
+                            <Typography variant="h2" gutterBottom>
+                                Ready to get started?
                             </Typography>
-                            <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 6 }}>
-                                Choose the plan that fits your institution
+                            <Typography variant="h5" color="text.secondary" sx={{ mb: 5, fontWeight: 400 }}>
+                                Join Crossview today and transform how you manage education.
                             </Typography>
+                            <ButtonAnimationWrapper>
+                                <Button
+                                    component={Link}
+                                    href="/register/"
+                                    variant="contained"
+                                    size="large"
+                                    sx={{ borderRadius: 100, px: 5, py: 1.5, fontSize: 18 }}
+                                >
+                                    Get Started
+                                </Button>
+                            </ButtonAnimationWrapper>
                         </motion.div>
-
-                        <Grid container spacing={4} justifyContent="center">
-                            {tiers?.map((tier, index) => (
-                                <Grid item xs={12} sm={6} md={4} key={tier.id}>
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true }}
-                                        transition={{ duration: 0.5, delay: index * 0.1 }}
-                                    >
-                                        <PricingCard tier={tier} />
-                                    </motion.div>
-                                </Grid>
-                            ))}
-                        </Grid>
                     </Container>
                 </Box>
 
-                {/* CTA Section */}
-                <Container maxWidth="md" sx={{ py: { xs: 6, md: 10 }, textAlign: "center" }}>
-                    <motion.div {...fadeInUp}>
-                        <Typography variant="h4" fontWeight={600} gutterBottom>
-                            Ready to Transform Your Institution?
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-                            Join hundreds of Kenyan institutions already using Crossview LMS
-                        </Typography>
-                        <Button
-                            component={Link}
-                            href="/register/"
-                            variant="contained"
-                            size="large"
-                        >
-                            Start Free Trial
-                        </Button>
-                    </motion.div>
-                </Container>
-
                 {/* Footer */}
-                <Box sx={{ bgcolor: "grey.900", color: "grey.300", py: 4 }}>
+                <Box sx={{ bgcolor: "grey.900", color: "grey.400", py: 8 }}>
                     <Container maxWidth="lg">
-                        <Stack
-                            direction={{ xs: "column", sm: "row" }}
-                            justifyContent="space-between"
-                            alignItems="center"
-                            spacing={2}
-                        >
-                            <Typography variant="body2">
-                                © 2024 Crossview LMS. All rights reserved.
+                        <Grid container spacing={8}>
+                            <Grid item xs={12} md={4}>
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, color: "white" }}>
+                                    <IconBrandTabler size={32} />
+                                    <Typography variant="h5" fontWeight={700}>
+                                        Crossview
+                                    </Typography>
+                                </Stack>
+                                <Typography variant="body2" sx={{ maxWidth: 300 }}>
+                                    Empowering Kenyan institutions with modern, flexible, and reliable educational technology.
+                                </Typography>
+                            </Grid>
+                            <Grid item xs={6} md={2}>
+                                <Typography variant="subtitle2" color="white" gutterBottom>
+                                    Platform
+                                </Typography>
+                                <Stack spacing={1}>
+                                    <Link href="/login/" style={{ color: "inherit", textDecoration: "none" }}>Sign In</Link>
+                                    <Link href="/register/" style={{ color: "inherit", textDecoration: "none" }}>Register</Link>
+                                </Stack>
+                            </Grid>
+                            <Grid item xs={6} md={2}>
+                                <Typography variant="subtitle2" color="white" gutterBottom>
+                                    Tools
+                                </Typography>
+                                <Stack spacing={1}>
+                                    <Link href="/verify-certificate/" style={{ color: "inherit", textDecoration: "none" }}>Verify Certificate</Link>
+                                </Stack>
+                            </Grid>
+                        </Grid>
+                        <Box sx={{ mt: 8, pt: 4, borderTop: 1, borderColor: "grey.800", textAlign: "center" }}>
+                            <Typography variant="caption">
+                                © 2025 Crossview LMS. All rights reserved.
                             </Typography>
-                            <Stack direction="row" spacing={3}>
-                                <Link href="/verify-certificate/" style={{ color: "inherit" }}>
-                                    Verify Certificate
-                                </Link>
-                            </Stack>
-                        </Stack>
+                        </Box>
                     </Container>
                 </Box>
             </Box>
@@ -231,95 +425,8 @@ export default function Landing({ tiers }) {
     );
 }
 
-/**
- * Pricing Card Component
- */
-function PricingCard({ tier }) {
-    const featureList = tier.features?.highlights || [];
+// --- Tenant Landing (Preserved) ---
 
-    return (
-        <Card
-            sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                position: "relative",
-                overflow: "visible",
-            }}
-        >
-            {tier.code === "professional" && (
-                <Chip
-                    label="Most Popular"
-                    color="primary"
-                    size="small"
-                    sx={{
-                        position: "absolute",
-                        top: -12,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                    }}
-                />
-            )}
-            <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                <Typography variant="h5" fontWeight={600} gutterBottom>
-                    {tier.name}
-                </Typography>
-                <Box sx={{ mb: 3 }}>
-                    <Typography variant="h3" component="span" fontWeight={700}>
-                        KES {Number(tier.price_monthly).toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" component="span" color="text.secondary">
-                        /month
-                    </Typography>
-                </Box>
-
-                <List dense>
-                    <ListItem disableGutters>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                            <IconCheck size={18} color="#22c55e" />
-                        </ListItemIcon>
-                        <ListItemText primary={`Up to ${tier.max_students} students`} />
-                    </ListItem>
-                    <ListItem disableGutters>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                            <IconCheck size={18} color="#22c55e" />
-                        </ListItemIcon>
-                        <ListItemText primary={`${tier.max_programs} programs`} />
-                    </ListItem>
-                    <ListItem disableGutters>
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                            <IconCheck size={18} color="#22c55e" />
-                        </ListItemIcon>
-                        <ListItemText primary={`${tier.max_storage_mb / 1000}GB storage`} />
-                    </ListItem>
-                    {featureList.map((feature, idx) => (
-                        <ListItem key={idx} disableGutters>
-                            <ListItemIcon sx={{ minWidth: 32 }}>
-                                <IconCheck size={18} color="#22c55e" />
-                            </ListItemIcon>
-                            <ListItemText primary={feature} />
-                        </ListItem>
-                    ))}
-                </List>
-            </CardContent>
-            <Box sx={{ p: 3, pt: 0 }}>
-                <Button
-                    component={Link}
-                    href="/register/"
-                    variant="contained"
-                    fullWidth
-                >
-                    Get Started
-                </Button>
-            </Box>
-        </Card>
-    );
-}
-
-/**
- * Tenant Landing Page - Branded landing for tenant subdomains
- * Requirements: 6.1, 6.2, 6.3, 6.4
- */
 function TenantLanding({ tenant }) {
     return (
         <>
@@ -343,6 +450,7 @@ function TenantLanding({ tenant }) {
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
+                        bgcolor: "background.paper"
                     }}
                 >
                     <Stack direction="row" spacing={2} alignItems="center">
@@ -385,42 +493,48 @@ function TenantLanding({ tenant }) {
                     <Container maxWidth="md">
                         <motion.div {...fadeInUp}>
                             <Stack spacing={3} alignItems="center" textAlign="center">
-                                <Typography variant="h3" fontWeight={700}>
+                                <Typography variant="h2" fontWeight={700}>
                                     Welcome to {tenant.institutionName}
                                 </Typography>
                                 {tenant.tagline && (
-                                    <Typography variant="h6" sx={{ opacity: 0.9 }}>
+                                    <Typography variant="h5" sx={{ opacity: 0.9 }}>
                                         {tenant.tagline}
                                     </Typography>
                                 )}
-                                <Stack direction="row" spacing={2}>
-                                    <Button
-                                        component={Link}
-                                        href="/login/"
-                                        variant="contained"
-                                        size="large"
-                                        sx={{
-                                            bgcolor: "white",
-                                            color: tenant.primaryColor,
-                                            "&:hover": { bgcolor: "grey.100" },
-                                        }}
-                                    >
-                                        Sign In
-                                    </Button>
-                                    {tenant.registrationEnabled && (
+                                <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 4 }}>
+                                    <ButtonAnimationWrapper>
                                         <Button
                                             component={Link}
-                                            href="/register/"
-                                            variant="outlined"
+                                            href="/login/"
+                                            variant="contained"
                                             size="large"
                                             sx={{
-                                                borderColor: "white",
-                                                color: "white",
-                                                "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                                                bgcolor: "white",
+                                                color: tenant.primaryColor,
+                                                "&:hover": { bgcolor: "grey.100" },
+                                                px: 4, borderRadius: 100
                                             }}
                                         >
-                                            Register
+                                            Sign In
                                         </Button>
+                                    </ButtonAnimationWrapper>
+                                    {tenant.registrationEnabled && (
+                                        <ButtonAnimationWrapper>
+                                            <Button
+                                                component={Link}
+                                                href="/register/"
+                                                variant="outlined"
+                                                size="large"
+                                                sx={{
+                                                    borderColor: "white",
+                                                    color: "white",
+                                                    "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+                                                    px: 4, borderRadius: 100
+                                                }}
+                                            >
+                                                Register
+                                            </Button>
+                                        </ButtonAnimationWrapper>
                                     )}
                                 </Stack>
                             </Stack>
@@ -429,7 +543,7 @@ function TenantLanding({ tenant }) {
                 </Box>
 
                 {/* Footer */}
-                <Box sx={{ py: 3, textAlign: "center", borderTop: 1, borderColor: "divider" }}>
+                <Box sx={{ py: 3, textAlign: "center", borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
                     <Typography variant="body2" color="text.secondary">
                         Powered by Crossview LMS
                     </Typography>
