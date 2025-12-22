@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.core.models import User, Program
-from apps.tenants.models import Tenant, SubscriptionTier
+from apps.tenants.models import Tenant
 from apps.blueprints.models import AcademicBlueprint
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment, NodeCompletion
@@ -51,34 +51,19 @@ class Command(BaseCommand):
     def seed_data(self):
         """Seed test data."""
 
-        # 1. Create subscription tier if not exists
-        tier, _ = SubscriptionTier.objects.get_or_create(
-            code="starter",
-            defaults={
-                "name": "Starter",
-                "price_monthly": 0,
-                "max_students": 100,
-                "max_programs": 5,
-                "max_storage_mb": 1024,
-                "features": {"basic_reports": True},
-                "is_active": True,
-            },
-        )
-        self.stdout.write(f"  ✓ Subscription tier: {tier.name}")
-
-        # 2. Create tenant
+        # 1. Create tenant
         tenant, _ = Tenant.objects.get_or_create(
             subdomain="demo",
             defaults={
                 "name": "Demo Institution",
-                "subscription_tier": tier,
+                "admin_email": "admin@demo.com",
                 "is_active": True,
                 "settings": {"registration_enabled": True},
             },
         )
         self.stdout.write(f"  ✓ Tenant: {tenant.name}")
 
-        # 3. Create test student user
+        # 2. Create test student user
         student, created = User.objects.get_or_create(
             email="student@demo.com",
             defaults={
@@ -95,7 +80,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write(f"  ✓ Student user exists: student@demo.com")
 
-        # 4. Create admin user
+        # 3. Create admin user
         admin, created = User.objects.get_or_create(
             email="admin@demo.com",
             defaults={
@@ -113,7 +98,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write(f"  ✓ Admin user exists: admin@demo.com")
 
-        # 5. Create blueprint
+        # 4. Create blueprint
         blueprint, _ = AcademicBlueprint.objects.get_or_create(
             tenant=tenant,
             name="Theology Program Blueprint",
@@ -134,7 +119,7 @@ class Command(BaseCommand):
         )
         self.stdout.write(f"  ✓ Blueprint: {blueprint.name}")
 
-        # 6. Create program
+        # 5. Create program
         program, _ = Program.objects.get_or_create(
             tenant=tenant,
             name="Diploma in Theology",
@@ -147,10 +132,10 @@ class Command(BaseCommand):
         )
         self.stdout.write(f"  ✓ Program: {program.name}")
 
-        # 7. Create curriculum structure
+        # 6. Create curriculum structure
         self._create_curriculum(program)
 
-        # 8. Create enrollment
+        # 7. Create enrollment
         enrollment, _ = Enrollment.objects.get_or_create(
             user=student,
             program=program,
@@ -161,7 +146,7 @@ class Command(BaseCommand):
         )
         self.stdout.write(f"  ✓ Enrollment: {student.email} -> {program.name}")
 
-        # 9. Create some completions
+        # 8. Create some completions
         self._create_completions(enrollment)
 
         self.stdout.write("")

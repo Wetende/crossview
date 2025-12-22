@@ -2,12 +2,8 @@
 
 import pytest
 from django.test import Client
-from apps.core.tests.factories import UserFactory
-from apps.tenants.tests.factories import (
-    TenantFactory,
-    SubscriptionTierFactory,
-    PresetBlueprintFactory,
-)
+from apps.core.tests.factories import UserFactory, TenantFactory
+from apps.tenants.tests.factories import PresetBlueprintFactory
 
 
 @pytest.fixture
@@ -85,27 +81,6 @@ class TestSuperAdminTenants:
         """Regular user should not be able to list tenants."""
         response = authenticated_regular.get("/superadmin/tenants/")
         assert response.status_code == 302
-
-
-class TestSuperAdminTiers:
-    """Tests for subscription tier management views."""
-
-    def test_superadmin_can_list_tiers(self, authenticated_superadmin):
-        """Superadmin should be able to list tiers."""
-        SubscriptionTierFactory.create_batch(3)
-        response = authenticated_superadmin.get("/superadmin/tiers/")
-        assert response.status_code == 200
-
-    def test_superadmin_can_access_tier_create(self, authenticated_superadmin):
-        """Superadmin should be able to access tier create form."""
-        response = authenticated_superadmin.get("/superadmin/tiers/create/")
-        assert response.status_code == 200
-
-    def test_superadmin_can_access_tier_edit(self, authenticated_superadmin):
-        """Superadmin should be able to access tier edit form."""
-        tier = SubscriptionTierFactory()
-        response = authenticated_superadmin.get(f"/superadmin/tiers/{tier.id}/edit/")
-        assert response.status_code == 200
 
 
 class TestSuperAdminPresets:

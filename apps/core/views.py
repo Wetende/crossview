@@ -19,7 +19,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from inertia import render
 
 from apps.core.models import User, Program
-from apps.tenants.models import SubscriptionTier
+from apps.tenants.models import Tenant
 from apps.certifications.models import Certificate, VerificationLog
 
 
@@ -66,25 +66,13 @@ def _get_user_role(user: User) -> str:
 
 def landing_page(request):
     """
-    Platform landing page with subscription tiers.
+    Platform landing page.
     Requirements: 1.1, 1.2, 1.3
     """
-    tiers = SubscriptionTier.objects.filter(is_active=True).values(
-        "id",
-        "name",
-        "code",
-        "price_monthly",
-        "max_students",
-        "max_programs",
-        "max_storage_mb",
-        "features",
-    )
     return render(
         request,
         "Public/Landing",
-        {
-            "tiers": list(tiers),
-        },
+        {},
     )
 
 
@@ -640,7 +628,7 @@ def _get_admin_dashboard_data(user) -> dict:
 
     tenant = user.tenant
     if not tenant:
-        return {"stats": {}, "usage": {}, "recentActivity": []}
+        return {"stats": {}, "recentActivity": []}
 
     # Get stats
     total_students = User.objects.filter(tenant=tenant, is_staff=False).count()
@@ -651,17 +639,6 @@ def _get_admin_dashboard_data(user) -> dict:
     active_enrollments = Enrollment.objects.filter(
         program__tenant=tenant, status="active"
     ).count()
-
-    # Get usage limits
-    limits = getattr(tenant, "limits", None)
-    usage = {
-        "studentsUsed": total_students,
-        "studentsMax": limits.max_students if limits else 100,
-        "programsUsed": Program.objects.filter(tenant=tenant).count(),
-        "programsMax": limits.max_programs if limits else 10,
-        "storageUsedMb": limits.current_storage_mb if limits else 0,
-        "storageMaxMb": limits.max_storage_mb if limits else 5000,
-    }
 
     # Recent activity (simplified)
     recent_enrollments = (
@@ -686,30 +663,26 @@ def _get_admin_dashboard_data(user) -> dict:
             "certificatesIssued": certificates_issued,
             "activeEnrollments": active_enrollments,
         },
-        "usage": usage,
         "recentActivity": recent_activity,
     }
 
 
 def _get_superadmin_dashboard_data() -> dict:
     """Get dashboard data for super admins (platform-wide)."""
-    from apps.tenants.models import Tenant
 
     total_tenants = Tenant.objects.count()
     active_tenants = Tenant.objects.filter(is_active=True).count()
     total_users = User.objects.count()
 
     # Recent tenants
-    recent_tenants = Tenant.objects.select_related("subscription_tier").order_by(
-        "-created_at"
-    )[:5]
+    recent_tenants = Tenant.objects.order_by("-created_at")[:5]
 
     recent_tenants_data = [
         {
             "id": t.id,
             "name": t.name,
             "subdomain": t.subdomain,
-            "tierName": t.subscription_tier.name if t.subscription_tier else "Free",
+            "isActive": t.is_active,
         }
         for t in recent_tenants
     ]
@@ -719,7 +692,6 @@ def _get_superadmin_dashboard_data() -> dict:
             "totalTenants": total_tenants,
             "activeTenants": active_tenants,
             "totalUsers": total_users,
-            "monthlyRevenue": 0,  # Would calculate from subscriptions
         },
         "recentTenants": recent_tenants_data,
     }

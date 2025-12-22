@@ -6,27 +6,9 @@ import factory
 from factory.django import DjangoModelFactory
 from django.contrib.auth import get_user_model
 
-from apps.tenants.models import Tenant, TenantBranding, SubscriptionTier
+from apps.tenants.models import Tenant, TenantBranding
 
 User = get_user_model()
-
-
-class SubscriptionTierFactory(DjangoModelFactory):
-    """Factory for SubscriptionTier model."""
-
-    class Meta:
-        model = SubscriptionTier
-
-    name = factory.Sequence(lambda n: f"Tier {n}")
-    code = factory.Sequence(lambda n: f"tier-{n}")
-    max_students = 100
-    max_storage_mb = 5000
-    max_programs = 10
-    price_monthly = factory.Faker(
-        "pydecimal", left_digits=4, right_digits=2, positive=True
-    )
-    features = {"highlights": ["Feature 1", "Feature 2"]}
-    is_active = True
 
 
 class TenantFactory(DjangoModelFactory):
@@ -38,7 +20,6 @@ class TenantFactory(DjangoModelFactory):
     name = factory.Faker("company")
     subdomain = factory.Sequence(lambda n: f"tenant{n}")
     admin_email = factory.Faker("email")
-    subscription_tier = factory.SubFactory(SubscriptionTierFactory)
     is_active = True
     settings = {"registration_enabled": True}
 

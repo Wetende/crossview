@@ -4,11 +4,11 @@ Tenant services - Business logic for tenant management.
 
 from typing import Optional
 from datetime import timedelta
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
-from apps.tenants.models import Tenant, SubscriptionTier, TenantLimits, PresetBlueprint
+from apps.tenants.models import Tenant, PresetBlueprint
 
 
 class PlatformStatsService:
@@ -24,18 +24,10 @@ class PlatformStatsService:
 
         total_users = User.objects.count()
 
-        # Monthly revenue (simplified)
-        monthly_revenue = (
-            Tenant.objects.filter(is_active=True, subscription_tier__isnull=False)
-            .select_related("subscription_tier")
-            .aggregate(total=Sum("subscription_tier__price_monthly"))
-        )["total"] or 0
-
         return {
             "totalTenants": total_tenants,
             "activeTenants": active_tenants,
             "totalUsers": total_users,
-            "monthlyRevenue": float(monthly_revenue),
         }
 
     @staticmethod
@@ -64,27 +56,14 @@ class PlatformStatsService:
         return tenant_growth, user_growth
 
     @staticmethod
-    def get_tier_distribution() -> list:
-        """Get distribution of tenants across subscription tiers."""
-        return list(
-            SubscriptionTier.objects.filter(is_active=True)
-            .annotate(tenant_count=Count("tenants"))
-            .values("name", "tenant_count")
-            .order_by("-tenant_count")
-        )
-
-    @staticmethod
     def get_recent_tenants(limit: int = 10) -> list:
         """Get recently created tenants."""
-        tenants = Tenant.objects.select_related("subscription_tier").order_by(
-            "-created_at"
-        )[:limit]
+        tenants = Tenant.objects.order_by("-created_at")[:limit]
         return [
             {
                 "id": t.id,
                 "name": t.name,
                 "subdomain": t.subdomain,
-                "tierName": t.subscription_tier.name if t.subscription_tier else "Free",
                 "isActive": t.is_active,
                 "createdAt": t.created_at.isoformat(),
             }
@@ -97,7 +76,6 @@ class TenantService:
 
     @staticmethod
     def list_tenants(
-        tier_id: Optional[int] = None,
         status: Optional[str] = None,
         search: Optional[str] = None,
         page: int = 1,
@@ -106,10 +84,7 @@ class TenantService:
         """List tenants with filtering and pagination."""
         from apps.core.models import User, Program
 
-        queryset = Tenant.objects.select_related("subscription_tier")
-
-        if tier_id:
-            queryset = queryset.filter(subscription_tier_id=tier_id)
+        queryset = Tenant.objects.all()
 
         if status == "active":
             queryset = queryset.filter(is_active=True)
@@ -146,8 +121,6 @@ class TenantService:
                 "name": t.name,
                 "subdomain": t.subdomain,
                 "adminEmail": t.admin_email,
-                "tierName": t.subscription_tier.name if t.subscription_tier else "Free",
-                "tierId": t.subscription_tier_id,
                 "isActive": t.is_active,
                 "userCount": user_counts.get(t.id, 0),
                 "programCount": program_counts.get(t.id, 0),
@@ -163,8 +136,7 @@ class TenantService:
         """Get detailed tenant information."""
         from apps.core.models import User, Program
 
-        tenant = Tenant.objects.select_related("subscription_tier").get(pk=tenant_id)
-        limits = getattr(tenant, "limits", None)
+        tenant = Tenant.objects.get(pk=tenant_id)
         admin_user = User.objects.filter(tenant=tenant, is_staff=True).first()
         user_count = User.objects.filter(tenant=tenant).count()
         program_count = Program.objects.filter(tenant=tenant).count()
@@ -180,22 +152,6 @@ class TenantService:
                 "activatedAt": (
                     tenant.activated_at.isoformat() if tenant.activated_at else None
                 ),
-            },
-            "subscription": {
-                "tierName": (
-                    tenant.subscription_tier.name
-                    if tenant.subscription_tier
-                    else "Free"
-                ),
-                "tierId": tenant.subscription_tier_id,
-            },
-            "limits": {
-                "maxStudents": limits.max_students if limits else 100,
-                "maxPrograms": limits.max_programs if limits else 10,
-                "maxStorageMb": limits.max_storage_mb if limits else 5000,
-                "currentStudents": limits.current_students if limits else 0,
-                "currentPrograms": limits.current_programs if limits else 0,
-                "currentStorageMb": limits.current_storage_mb if limits else 0,
             },
             "stats": {
                 "userCount": user_count,
@@ -214,7 +170,6 @@ class TenantService:
         subdomain: str,
         admin_email: str,
         admin_name: str = "",
-        tier_id: Optional[int] = None,
     ) -> Tenant:
         """Create a new tenant with admin user."""
         from apps.core.models import User
@@ -226,27 +181,13 @@ class TenantService:
         if User.objects.filter(email=admin_email).exists():
             raise ValidationError({"adminEmail": "Email already exists"})
 
-        # Get tier
-        tier = None
-        if tier_id:
-            tier = SubscriptionTier.objects.filter(pk=tier_id).first()
-
         # Create tenant
         tenant = Tenant.objects.create(
             name=name,
             subdomain=subdomain,
             admin_email=admin_email,
-            subscription_tier=tier,
             is_active=True,
             activated_at=timezone.now(),
-        )
-
-        # Create limits
-        TenantLimits.objects.create(
-            tenant=tenant,
-            max_students=tier.max_students if tier else 100,
-            max_programs=tier.max_programs if tier else 10,
-            max_storage_mb=tier.max_storage_mb if tier else 5000,
         )
 
         # Create admin user
@@ -275,7 +216,6 @@ class TenantService:
         name: str,
         subdomain: str,
         admin_email: Optional[str] = None,
-        tier_id: Optional[int] = None,
     ) -> Tenant:
         """Update tenant details."""
         tenant = Tenant.objects.get(pk=tenant_id)
@@ -289,18 +229,6 @@ class TenantService:
         if admin_email:
             tenant.admin_email = admin_email
 
-        # Update tier if changed
-        if tier_id and tier_id != tenant.subscription_tier_id:
-            tier = SubscriptionTier.objects.filter(pk=tier_id).first()
-            tenant.subscription_tier = tier
-
-            # Update limits
-            if hasattr(tenant, "limits") and tier:
-                tenant.limits.max_students = tier.max_students
-                tenant.limits.max_programs = tier.max_programs
-                tenant.limits.max_storage_mb = tier.max_storage_mb
-                tenant.limits.save()
-
         tenant.save()
         return tenant
 
@@ -312,94 +240,10 @@ class TenantService:
         tenant.save()
         return tenant
 
-
-class SubscriptionTierService:
-    """Service for subscription tier management."""
-
     @staticmethod
-    def list_tiers() -> list:
-        """List all subscription tiers with tenant counts."""
-        tiers = SubscriptionTier.objects.annotate(
-            tenant_count=Count("tenants")
-        ).order_by("price_monthly")
-
-        return [
-            {
-                "id": t.id,
-                "name": t.name,
-                "code": t.code,
-                "priceMonthly": float(t.price_monthly),
-                "maxStudents": t.max_students,
-                "maxPrograms": t.max_programs,
-                "maxStorageMb": t.max_storage_mb,
-                "features": t.features or {},
-                "isActive": t.is_active,
-                "tenantCount": t.tenant_count,
-            }
-            for t in tiers
-        ]
-
-    @staticmethod
-    def create_tier(
-        name: str,
-        code: str,
-        price_monthly: float = 0,
-        max_students: int = 100,
-        max_programs: int = 10,
-        max_storage_mb: int = 5000,
-        features: Optional[dict] = None,
-        is_active: bool = True,
-    ) -> SubscriptionTier:
-        """Create a new subscription tier."""
-        if SubscriptionTier.objects.filter(code=code).exists():
-            raise ValidationError({"code": "Code already exists"})
-
-        return SubscriptionTier.objects.create(
-            name=name,
-            code=code,
-            price_monthly=price_monthly,
-            max_students=max_students,
-            max_programs=max_programs,
-            max_storage_mb=max_storage_mb,
-            features=features or {},
-            is_active=is_active,
-        )
-
-    @staticmethod
-    def update_tier(
-        tier_id: int,
-        name: str,
-        code: str,
-        price_monthly: Optional[float] = None,
-        max_students: Optional[int] = None,
-        max_programs: Optional[int] = None,
-        max_storage_mb: Optional[int] = None,
-        features: Optional[dict] = None,
-        is_active: Optional[bool] = None,
-    ) -> SubscriptionTier:
-        """Update a subscription tier."""
-        tier = SubscriptionTier.objects.get(pk=tier_id)
-
-        if SubscriptionTier.objects.filter(code=code).exclude(pk=tier_id).exists():
-            raise ValidationError({"code": "Code already exists"})
-
-        tier.name = name
-        tier.code = code
-        if price_monthly is not None:
-            tier.price_monthly = price_monthly
-        if max_students is not None:
-            tier.max_students = max_students
-        if max_programs is not None:
-            tier.max_programs = max_programs
-        if max_storage_mb is not None:
-            tier.max_storage_mb = max_storage_mb
-        if features is not None:
-            tier.features = features
-        if is_active is not None:
-            tier.is_active = is_active
-
-        tier.save()
-        return tier
+    def delete(tenant: Tenant) -> None:
+        """Delete a tenant and all related data."""
+        tenant.delete()
 
 
 class PresetBlueprintService:

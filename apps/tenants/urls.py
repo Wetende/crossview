@@ -44,18 +44,6 @@ urlpatterns = [
         views.superadmin_exit_impersonation,
         name="superadmin.exit_impersonation",
     ),
-    # Super Admin Tiers
-    path("superadmin/tiers/", views.superadmin_tiers, name="superadmin.tiers"),
-    path(
-        "superadmin/tiers/create/",
-        views.superadmin_tier_create,
-        name="superadmin.tier.create",
-    ),
-    path(
-        "superadmin/tiers/<int:pk>/edit/",
-        views.superadmin_tier_edit,
-        name="superadmin.tier.edit",
-    ),
     # Super Admin Presets
     path("superadmin/presets/", views.superadmin_presets, name="superadmin.presets"),
     path(

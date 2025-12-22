@@ -45,7 +45,6 @@ import ArchitectureIcon from '@mui/icons-material/Architecture';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import PersonIcon from '@mui/icons-material/Person';
 import BusinessIcon from '@mui/icons-material/Business';
-import LayersIcon from '@mui/icons-material/Layers';
 import HistoryIcon from '@mui/icons-material/History';
 
 const DRAWER_WIDTH = 260;
@@ -119,7 +118,6 @@ const roleNavigation = {
       title: 'Platform',
       items: [
         { label: 'Tenants', href: '/superadmin/tenants/', icon: BusinessIcon },
-        { label: 'Subscription Tiers', href: '/superadmin/tiers/', icon: LayersIcon },
         { label: 'Preset Blueprints', href: '/superadmin/presets/', icon: ArchitectureIcon },
       ],
     },
@@ -336,7 +334,7 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
               </MenuItem>
             )}
             <Divider />
-            <MenuItem component={Link} href="/logout/" method="post" as="button">
+            <MenuItem onClick={() => router.post('/logout/')}>
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>

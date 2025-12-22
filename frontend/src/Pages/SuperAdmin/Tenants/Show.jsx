@@ -1,11 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Box, Button, Card, CardContent, Chip, Grid, LinearProgress, Stack, Typography } from '@mui/material';
+import { Box, Button, Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../../../components/layouts/DashboardLayout';
 
-export default function TenantShow({ tenant, subscription, limits, stats, admin }) {
-  const usagePercent = (current, max) => max > 0 ? Math.round((current / max) * 100) : 0;
-
+export default function TenantShow({ tenant, stats, admin }) {
   return (
     <DashboardLayout role="superadmin">
       <Head title={`Tenant: ${tenant.name}`} />
@@ -73,16 +71,20 @@ export default function TenantShow({ tenant, subscription, limits, stats, admin 
             </motion.div>
           </Grid>
 
-          {/* Subscription */}
+          {/* Stats */}
           <Grid item xs={12} md={6}>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>Subscription</Typography>
-                  <Stack spacing={2}>
+                  <Typography variant="h6" gutterBottom>Statistics</Typography>
+                  <Stack direction="row" spacing={4}>
                     <Box>
-                      <Typography variant="body2" color="text.secondary">Current Tier</Typography>
-                      <Typography variant="h5">{subscription.tierName}</Typography>
+                      <Typography variant="h4">{stats?.userCount || 0}</Typography>
+                      <Typography variant="body2" color="text.secondary">Total Users</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="h4">{stats?.programCount || 0}</Typography>
+                      <Typography variant="body2" color="text.secondary">Programs</Typography>
                     </Box>
                   </Stack>
                 </CardContent>
@@ -90,50 +92,10 @@ export default function TenantShow({ tenant, subscription, limits, stats, admin 
             </motion.div>
           </Grid>
 
-          {/* Usage */}
-          <Grid item xs={12}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Usage</Typography>
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={4}>
-                      <Typography variant="body2" color="text.secondary">Students</Typography>
-                      <Typography>{limits.currentStudents} / {limits.maxStudents}</Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={usagePercent(limits.currentStudents, limits.maxStudents)}
-                        sx={{ mt: 1 }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                      <Typography variant="body2" color="text.secondary">Programs</Typography>
-                      <Typography>{limits.currentPrograms} / {limits.maxPrograms}</Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={usagePercent(limits.currentPrograms, limits.maxPrograms)}
-                        sx={{ mt: 1 }}
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                      <Typography variant="body2" color="text.secondary">Storage (MB)</Typography>
-                      <Typography>{limits.currentStorageMb} / {limits.maxStorageMb}</Typography>
-                      <LinearProgress
-                        variant="determinate"
-                        value={usagePercent(limits.currentStorageMb, limits.maxStorageMb)}
-                        sx={{ mt: 1 }}
-                      />
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-
           {/* Admin User */}
-          {admin.id && (
+          {admin?.id && (
             <Grid item xs={12} md={6}>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Admin User</Typography>
@@ -152,27 +114,6 @@ export default function TenantShow({ tenant, subscription, limits, stats, admin 
               </motion.div>
             </Grid>
           )}
-
-          {/* Stats */}
-          <Grid item xs={12} md={6}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Statistics</Typography>
-                  <Stack direction="row" spacing={4}>
-                    <Box>
-                      <Typography variant="h4">{stats.userCount}</Typography>
-                      <Typography variant="body2" color="text.secondary">Total Users</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="h4">{stats.programCount}</Typography>
-                      <Typography variant="body2" color="text.secondary">Programs</Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
         </Grid>
 
         <Box>

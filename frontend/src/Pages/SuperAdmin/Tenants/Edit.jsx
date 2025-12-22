@@ -1,14 +1,13 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Box, Button, Card, CardContent, FormControl, Grid, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Button, Card, CardContent, Grid, Stack, TextField, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../../../components/layouts/DashboardLayout';
 
-export default function TenantEdit({ tenant, tiers, errors: serverErrors }) {
+export default function TenantEdit({ tenant, errors: serverErrors }) {
   const { data, setData, post, processing, errors } = useForm({
     name: tenant?.name || '',
     subdomain: tenant?.subdomain || '',
     adminEmail: tenant?.adminEmail || '',
-    tierId: tenant?.tierId || '',
   });
 
   const allErrors = { ...serverErrors, ...errors };
@@ -64,22 +63,6 @@ export default function TenantEdit({ tenant, tiers, errors: serverErrors }) {
                       error={!!allErrors.adminEmail}
                       helperText={allErrors.adminEmail}
                     />
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Subscription Tier</InputLabel>
-                      <Select
-                        value={data.tierId}
-                        label="Subscription Tier"
-                        onChange={(e) => setData('tierId', e.target.value)}
-                      >
-                        <MenuItem value="">Free (Default)</MenuItem>
-                        {tiers?.map((tier) => (
-                          <MenuItem key={tier.id} value={tier.id}>{tier.name}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
                   </Grid>
 
                   <Grid item xs={12}>

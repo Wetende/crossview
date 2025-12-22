@@ -1,19 +1,18 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Box, Button, Card, CardContent, Chip, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Button, Card, CardContent, Chip, FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../../../components/layouts/DashboardLayout';
 import DataTable from '../../../components/DataTable';
 
-export default function TenantsIndex({ tenants, tiers, filters, pagination }) {
+export default function TenantsIndex({ tenants, filters, pagination }) {
   const [search, setSearch] = useState(filters.search || '');
   const [status, setStatus] = useState(filters.status || '');
-  const [tier, setTier] = useState(filters.tier || '');
 
   const handleFilter = () => {
     router.visit('/superadmin/tenants/', {
-      data: { search, status, tier },
+      data: { search, status },
       preserveState: true,
     });
   };
@@ -30,7 +29,6 @@ export default function TenantsIndex({ tenants, tiers, filters, pagination }) {
     },
     { field: 'subdomain', headerName: 'Subdomain' },
     { field: 'adminEmail', headerName: 'Admin Email' },
-    { field: 'tierName', headerName: 'Tier' },
     { field: 'userCount', headerName: 'Users' },
     { field: 'programCount', headerName: 'Programs' },
     {
@@ -101,15 +99,6 @@ export default function TenantsIndex({ tenants, tiers, filters, pagination }) {
                     <MenuItem value="">All</MenuItem>
                     <MenuItem value="active">Active</MenuItem>
                     <MenuItem value="inactive">Inactive</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                  <InputLabel>Tier</InputLabel>
-                  <Select value={tier} label="Tier" onChange={(e) => setTier(e.target.value)}>
-                    <MenuItem value="">All</MenuItem>
-                    {tiers?.map((t) => (
-                      <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
-                    ))}
                   </Select>
                 </FormControl>
                 <Button variant="outlined" onClick={handleFilter}>Filter</Button>
