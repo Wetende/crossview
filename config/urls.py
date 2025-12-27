@@ -8,7 +8,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("django-admin/", admin.site.urls),  # Renamed to avoid conflict with /admin/* app routes
     # App URLs - Inertia pages and REST APIs
     path("", include("apps.core.urls")),
     path("", include("apps.progression.urls")),  # Student portal routes

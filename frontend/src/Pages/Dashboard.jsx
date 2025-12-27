@@ -334,68 +334,97 @@ function AdminContent({ stats, usage, recentActivity }) {
 }
 
 // =============================================================================
-// Super Admin Dashboard Content
+// Super Admin Dashboard Content (Single-Tenant Mode)
 // =============================================================================
 
-function SuperAdminContent({ platformStats, recentTenants }) {
+function SuperAdminContent({ platformSettings, stats, isSetupRequired }) {
+  const settings = platformSettings || {};
+  const features = settings.features || {};
+
   return (
     <Stack spacing={3}>
+      {/* Setup Required Alert */}
+      {isSetupRequired && (
+        <Paper sx={{ p: 3, bgcolor: 'warning.light' }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Typography variant="h6">⚠️ Setup Required</Typography>
+            <Button component={Link} href="/setup/" variant="contained" size="small">
+              Run Setup Wizard
+            </Button>
+          </Stack>
+        </Paper>
+      )}
+
       <Box>
-        <Typography variant="h4" component="h1" gutterBottom>Platform Overview</Typography>
-        <Typography variant="body2" color="text.secondary">Monitor platform health and manage tenants</Typography>
+        <Typography variant="h4" component="h1" gutterBottom>
+          {settings.institutionName || 'Platform Dashboard'}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {settings.tagline || 'Configure and manage your learning platform'}
+        </Typography>
       </Box>
 
-      {/* Platform Stats */}
+      {/* Stats */}
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard title="Total Tenants" value={platformStats?.totalTenants || 0} icon={BusinessIcon} color="primary" />
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <StatCard title="Total Users" value={stats?.totalUsers || 0} icon={PeopleIcon} color="primary" />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard title="Total Users" value={platformStats?.totalUsers || 0} icon={PeopleIcon} color="success" />
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <StatCard title="Programs" value={stats?.totalPrograms || 0} icon={SchoolIcon} color="success" />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard title="Active Tenants" value={platformStats?.activeTenants || 0} icon={CheckCircleIcon} color="info" />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <StatCard title="Monthly Revenue" value={`KES ${(platformStats?.monthlyRevenue || 0).toLocaleString()}`} icon={TrendingUpIcon} color="warning" />
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: settings.isSetupComplete ? 'success.light' : 'warning.light' }}>
+                {settings.isSetupComplete ? <CheckCircleIcon color="success" /> : <SettingsIcon color="warning" />}
+              </Box>
+              <Box>
+                <Typography variant="h4" fontWeight="bold">
+                  {settings.deploymentMode || 'Custom'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Deployment Mode
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
         </Grid>
       </Grid>
 
-      {/* Quick Actions & Recent Tenants */}
+      {/* Quick Actions */}
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>Quick Actions</Typography>
             <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-              <Button component={Link} href="/superadmin/tenants/create/" variant="contained" startIcon={<AddIcon />}>New Tenant</Button>
-              <Button component={Link} href="/superadmin/tenants/" variant="outlined" startIcon={<BusinessIcon />}>Manage Tenants</Button>
-              <Button component={Link} href="/superadmin/settings/" variant="outlined" startIcon={<SettingsIcon />}>Settings</Button>
+              <Button component={Link} href="/superadmin/platform/" variant="contained" startIcon={<SettingsIcon />}>
+                Platform Settings
+              </Button>
+              <Button component={Link} href="/superadmin/presets/" variant="outlined" startIcon={<SchoolIcon />}>
+                Blueprints
+              </Button>
+              <Button component={Link} href="/admin/programs/" variant="outlined" startIcon={<AddIcon />}>
+                Manage Programs
+              </Button>
             </Stack>
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Recent Tenants</Typography>
-            {recentTenants?.length > 0 ? (
-              <List dense>
-                {recentTenants.map((tenant) => (
-                  <ListItem key={tenant.id}>
-                    <ListItemIcon>
-                      <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>{tenant.name?.[0]}</Avatar>
-                    </ListItemIcon>
-                    <ListItemText primary={tenant.name} secondary={`${tenant.subdomain}.crossview.edu • ${tenant.tierName}`} />
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <Typography variant="body2" color="text.secondary">No tenants yet</Typography>
-            )}
+            <Typography variant="h6" gutterBottom>Enabled Features</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {features.certificates && <Button size="small" variant="outlined" color="success">Certificates</Button>}
+              {features.practicum && <Button size="small" variant="outlined" color="success">Practicum</Button>}
+              {features.gamification && <Button size="small" variant="outlined" color="success">Gamification</Button>}
+              {features.self_registration && <Button size="small" variant="outlined" color="success">Self-Registration</Button>}
+            </Stack>
           </Paper>
         </Grid>
       </Grid>
     </Stack>
   );
 }
+
 
 // =============================================================================
 // Main Dashboard Component

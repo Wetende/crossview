@@ -330,6 +330,73 @@ class PresetBlueprintService:
         return preset
 
 
+
+# Default blueprint templates for each deployment mode
+MODE_BLUEPRINTS = {
+    'tvet': {
+        'name': 'TVET Standard (CDACC)',
+        'description': 'Competency-based blueprint for TVET institutions following CDACC guidelines',
+        'hierarchy_structure': ['Level', 'Unit', 'Learning Outcome', 'Session'],
+        'grading_logic': {
+            'type': 'competency',
+            'levels': ['Not Yet Competent', 'Competent'],
+            'pass_threshold': 'Competent'
+        },
+    },
+    'theology': {
+        'name': 'Bible College Standard',
+        'description': 'Weighted grading blueprint for theology and bible schools',
+        'hierarchy_structure': ['Year', 'Semester', 'Course', 'Session'],
+        'grading_logic': {
+            'type': 'weighted',
+            'components': [
+                {'key': 'cat', 'label': 'CAT', 'weight': 0.30},
+                {'key': 'exam', 'label': 'Final Exam', 'weight': 0.70}
+            ],
+            'pass_mark': 50
+        },
+    },
+    'nita': {
+        'name': 'NITA Trade Test',
+        'description': 'Trade test blueprint following NITA guidelines',
+        'hierarchy_structure': ['Trade', 'Grade', 'Module', 'Practical'],
+        'grading_logic': {
+            'type': 'competency',
+            'levels': ['Fail', 'Pass', 'Credit', 'Distinction'],
+            'pass_threshold': 'Pass'
+        },
+    },
+    'driving': {
+        'name': 'Driving School (NTSA)',
+        'description': 'Checklist-based blueprint for driving schools following NTSA guidelines',
+        'hierarchy_structure': ['License Class', 'Phase', 'Lesson'],
+        'grading_logic': {
+            'type': 'checklist',
+            'pass_all_required': True
+        },
+    },
+    'cbc': {
+        'name': 'CBC K-12 Standard',
+        'description': 'Competency-Based Curriculum blueprint for K-12 schools',
+        'hierarchy_structure': ['Grade', 'Strand', 'Sub-Strand', 'Lesson'],
+        'grading_logic': {
+            'type': 'rubric',
+            'levels': ['Below Expectation', 'Approaching', 'Meeting', 'Exceeding'],
+            'pass_threshold': 'Meeting'
+        },
+    },
+    'online': {
+        'name': 'Online Self-Paced',
+        'description': 'Percentage-based grading for online self-paced courses',
+        'hierarchy_structure': ['Course', 'Module', 'Lesson'],
+        'grading_logic': {
+            'type': 'percentage',
+            'pass_mark': 70
+        },
+    },
+}
+
+
 class PlatformSettingsService:
     """Service for platform settings management (single-tenant mode)."""
 
@@ -386,18 +453,51 @@ class PlatformSettingsService:
         settings.save()
 
     @staticmethod
+    def get_or_create_blueprint_for_mode(deployment_mode: str):
+        """Get existing or create default blueprint for deployment mode."""
+        from apps.blueprints.models import AcademicBlueprint
+        
+        if deployment_mode not in MODE_BLUEPRINTS:
+            return None
+        
+        template = MODE_BLUEPRINTS[deployment_mode]
+        
+        # Check if blueprint already exists
+        blueprint = AcademicBlueprint.all_objects.filter(
+            name=template['name']
+        ).first()
+        
+        if not blueprint:
+            blueprint = AcademicBlueprint.all_objects.create(
+                name=template['name'],
+                description=template.get('description', f"Auto-generated blueprint for {deployment_mode} mode"),
+                hierarchy_structure=template['hierarchy_structure'],
+                grading_logic=template['grading_logic'],
+                progression_rules={},
+                certificate_enabled=True,
+            )
+        
+        return blueprint
+
+    @staticmethod
     def update_deployment_mode(
         deployment_mode: str,
         blueprint_id: int = None,
     ) -> None:
-        """Update deployment mode and blueprint (Step 2 of wizard)."""
+        """Update deployment mode and auto-create blueprint (Step 2 of wizard)."""
         from apps.tenants.models import PlatformSettings
         from apps.blueprints.models import AcademicBlueprint
         
         settings = PlatformSettings.get_settings()
         settings.deployment_mode = deployment_mode
         
-        if blueprint_id:
+        # Auto-create blueprint if not custom and no blueprint provided
+        if not blueprint_id and deployment_mode != 'custom':
+            blueprint = PlatformSettingsService.get_or_create_blueprint_for_mode(deployment_mode)
+            if blueprint:
+                settings.active_blueprint = blueprint
+        elif blueprint_id:
+            # Use provided blueprint
             try:
                 blueprint = AcademicBlueprint.all_objects.get(pk=blueprint_id)
                 settings.active_blueprint = blueprint

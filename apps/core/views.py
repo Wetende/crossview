@@ -663,32 +663,22 @@ def _get_admin_dashboard_data(user) -> dict:
 
 
 def _get_superadmin_dashboard_data() -> dict:
-    """Get dashboard data for super admins (platform-wide)."""
-
-    total_tenants = Tenant.objects.count()
-    active_tenants = Tenant.objects.filter(is_active=True).count()
+    """Get dashboard data for super admins (single-tenant platform settings)."""
+    from apps.tenants.services import PlatformSettingsService
+    
+    platform_settings = PlatformSettingsService.get_settings()
+    is_setup_required = PlatformSettingsService.is_setup_required()
+    
     total_users = User.objects.count()
-
-    # Recent tenants
-    recent_tenants = Tenant.objects.order_by("-created_at")[:5]
-
-    recent_tenants_data = [
-        {
-            "id": t.id,
-            "name": t.name,
-            "subdomain": t.subdomain,
-            "isActive": t.is_active,
-        }
-        for t in recent_tenants
-    ]
+    total_programs = Program.objects.count()
 
     return {
-        "platformStats": {
-            "totalTenants": total_tenants,
-            "activeTenants": active_tenants,
+        "platformSettings": platform_settings,
+        "stats": {
             "totalUsers": total_users,
+            "totalPrograms": total_programs,
         },
-        "recentTenants": recent_tenants_data,
+        "isSetupRequired": is_setup_required,
     }
 
 
