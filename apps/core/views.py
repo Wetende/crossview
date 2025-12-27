@@ -130,7 +130,6 @@ def public_programs_list(request):
 def verify_certificate_page(request):
     """
     Certificate verification page.
-    Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6
     """
     result = None
 
@@ -170,7 +169,7 @@ def verify_certificate_page(request):
                 result = {"found": False}
                 log_result = "not_found"
 
-            # Log verification attempt (Requirement: 5.5)
+            # Log verification attempt
             VerificationLog.objects.create(
                 certificate=certificate,
                 serial_number_queried=serial_number,
@@ -205,7 +204,6 @@ def _get_client_ip(request) -> Optional[str]:
 def login_page(request):
     """
     Login page with form handling.
-    Requirements: 2.1, 2.2, 2.3, 2.5, 2.6
     """
     # Redirect if already authenticated
     if request.user.is_authenticated:
@@ -268,7 +266,6 @@ def login_page(request):
 def register_page(request):
     """
     Registration page with form handling.
-    Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
     """
     # Redirect if already authenticated
     if request.user.is_authenticated:
@@ -357,7 +354,6 @@ def register_page(request):
 def forgot_password_page(request):
     """
     Forgot password page - sends reset email.
-    Requirements: 4.1, 4.2
     """
     if request.user.is_authenticated:
         return redirect("/")
@@ -401,7 +397,6 @@ def forgot_password_page(request):
 def reset_password_page(request, uidb64: str, token: str):
     """
     Reset password page - validates token and resets password.
-    Requirements: 4.3, 4.4, 4.5
     """
     if request.user.is_authenticated:
         return redirect("/")

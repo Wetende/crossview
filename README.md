@@ -1,15 +1,43 @@
 # Crossview LMS - Blueprint-Driven Learning Management System
 
-A flexible, multi-tenant Learning Management System built with Django and React. Designed as a "Chameleon Engine" that adapts to different educational models through configurable blueprints.
+A flexible, **single-tenant deployable** Learning Management System built with Django and React. Designed as a "Chameleon Engine" that adapts to different educational models through configurable blueprints.
 
 ## Overview
 
-Crossview LMS solves the fragmentation in the Kenyan education market by abstracting academic structure into a configuration layer called "The Blueprint." The same engine can power:
+Crossview LMS solves the fragmentation in the Kenyan education market by abstracting academic structure into a configuration layer called "The Blueprint." The same codebase can power:
 
 - **Theological Programs** - Session-based, reflective learning
 - **TVET Programs** - CDACC-compliant competency-based training
 - **Vocational Schools** - Practical skills with visual verification
 - **Online Courses** - Self-paced with gamification
+- **Custom Programs** - Build your own blueprint
+
+## Deployment Model
+
+This is a **template-based single-tenant** system designed for agencies:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ONE MASTER CODEBASE                          │
+└─────────────────────────────────────────────────────────────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ Angel Beauty    │  │ Netty Tech      │  │ Future Client   │
+│ angelbeauty.com │  │ netty.com       │  │ theirdomain.com │
+│ TVET Mode       │  │ Online Mode     │  │ Custom Mode     │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+### How It Works
+
+1. **Fork** the master codebase for each client
+2. **Deploy** to their server/domain
+3. **Run Setup Wizard** to configure mode, branding, features
+4. **Create courses** via Admin dashboard
+5. **Handover** to client admin
+
+No code changes required per client — only dashboard configuration!
 
 ## Tech Stack
 
@@ -22,7 +50,7 @@ Crossview LMS solves the fragmentation in the Kenyan education market by abstrac
 | PDF | WeasyPrint (generation), PyMuPDF (parsing) | |
 | Testing | pytest, pytest-django, Hypothesis | |
 
-> **Architecture Note**: Frontend uses **Inertia.js** for page rendering and data fetching. Django views return React components with props directly - no separate REST API needed for the web app. DRF is reserved for mobile apps and third-party integrations.
+> **Architecture Note**: Frontend uses **Inertia.js** for page rendering and data fetching. Django views return React components with props directly - no separate REST API needed for the web app.
 
 ## Project Structure
 
@@ -37,18 +65,14 @@ crossview/
 │   ├── practicum/          # Media submissions, rubrics
 │   ├── certifications/     # Certificate generation
 │   ├── content/            # PDF parsing, content versions
-│   └── tenants/            # Multi-tenancy
+│   └── tenants/            # Platform settings & setup wizard
 ├── config/                 # Django settings
-│   ├── settings/
-│   │   ├── base.py        # Shared settings
-│   │   ├── development.py
-│   │   └── production.py
-│   ├── urls.py
-│   └── wsgi.py
 ├── frontend/               # React frontend
 │   └── src/
 │       ├── components/
 │       ├── Pages/
+│       │   └── SuperAdmin/
+│       │       └── Setup/  # Setup Wizard pages
 │       ├── theme/
 │       └── contexts/
 ├── templates/              # Django templates
@@ -68,48 +92,41 @@ crossview/
 
 ### Installation
 
-1. **Clone the repository**
+1. **Clone/Fork the repository**
    ```bash
-   git clone https://github.com/Wetende/crossview.git
-   cd crossview
+   git clone https://github.com/Wetende/crossview.git client-lms
+   cd client-lms
    ```
 
 2. **Create virtual environment**
    ```bash
    python -m venv venv
    source venv/bin/activate  # Linux/Mac
-   # or: venv\Scripts\activate  # Windows
    ```
 
-3. **Install Python dependencies**
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
-   ```
-
-4. **Install Node dependencies**
-   ```bash
    npm install
    ```
 
-5. **Configure environment**
+4. **Configure environment**
    ```bash
    cp .env.example .env
    # Edit .env with your settings
    ```
 
-6. **Run migrations**
+5. **Run migrations**
    ```bash
    python manage.py migrate
    ```
 
-7. **Create superuser**
+6. **Create superuser**
    ```bash
    python manage.py createsuperuser
    ```
 
 ### Development
-
-Run both servers in separate terminals:
 
 ```bash
 # Terminal 1: Django backend
@@ -121,7 +138,23 @@ npm run dev
 
 Access the app at `http://localhost:8000`
 
+### First-Time Setup
+
+1. Login as superuser
+2. Navigate to `/setup/` 
+3. Complete the 4-step wizard:
+   - **Step 1**: Institution info (name, email, etc.)
+   - **Step 2**: Deployment mode (TVET, Theology, Online, Custom)
+   - **Step 3**: Branding (logo, colors)
+   - **Step 4**: Feature toggles (certificates, gamification, etc.)
+
 ## Key Features
+
+### Setup Wizard
+Configure your entire platform without touching code:
+- Select deployment mode (auto-configures terminology & grading)
+- Upload institution logo and brand colors
+- Enable/disable features per deployment
 
 ### Blueprint System
 Configure academic structure via JSON:
@@ -137,6 +170,16 @@ Configure academic structure via JSON:
   }
 }
 ```
+
+### Deployment Modes
+
+| Mode | Terminology | Assessment | Features |
+|------|-------------|------------|----------|
+| **TVET** | Qualification → Module → Element | Competency-based | Portfolio, Certificates |
+| **Theology** | Program → Year → Session | CAT + Exam | Practicum uploads |
+| **Online** | Course → Module → Lesson | Progress-based | Gamification, Badges |
+| **Driving** | License Class → Unit → Lesson | Instructor checklist | Hours tracking |
+| **Custom** | You define | You define | You choose |
 
 ### Curriculum Tree
 Recursive node structure supporting unlimited depth:
@@ -161,11 +204,50 @@ Recursive node structure supporting unlimited depth:
 - Public verification URL
 - PDF with customizable templates
 
-### Multi-Tenancy
-- Subdomain-based isolation
-- Custom branding per tenant
-- Subscription tiers with limits
-- Usage tracking
+### Feature Flags
+Per-deployment control over:
+- ✅ Certificates & verification
+- ✅ Practicum/media uploads
+- ✅ Gamification & badges
+- ✅ Self-registration
+- ✅ Payment processing (coming soon)
+
+## Agency Workflow
+
+```
+New Client Request
+      │
+      ▼
+┌─────────────────┐
+│ 1. Fork Repo    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 2. Deploy       │──→ Their server (e.g., angelbeauty.com)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 3. Setup Wizard │──→ Configure mode, branding, features
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 4. Create       │──→ Programs, courses, curriculum
+│    Content      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 5. Create Admin │──→ Client admin account
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ 6. Handover     │──→ Client manages their system
+└─────────────────┘
+```
 
 ## Testing
 

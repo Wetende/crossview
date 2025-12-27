@@ -60,4 +60,13 @@ urlpatterns = [
     path("superadmin/settings/", views.superadmin_settings, name="superadmin.settings"),
     # Super Admin Logs
     path("superadmin/logs/", views.superadmin_logs, name="superadmin.logs"),
+    # Setup Wizard (Single-Tenant Mode)
+    path("setup/", views.setup_wizard, name="setup.wizard"),
+    path("setup/institution/", views.setup_institution, name="setup.institution"),
+    path("setup/mode/", views.setup_mode, name="setup.mode"),
+    path("setup/branding/", views.setup_branding, name="setup.branding"),
+    path("setup/features/", views.setup_features, name="setup.features"),
+    # Platform Settings (post-setup)
+    path("superadmin/platform/", views.platform_settings, name="platform.settings"),
 ]
+

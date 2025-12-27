@@ -115,16 +115,15 @@ const roleNavigation = {
       ],
     },
     {
-      title: 'Platform',
+      title: 'Configuration',
       items: [
-        { label: 'Tenants', href: '/superadmin/tenants/', icon: BusinessIcon },
-        { label: 'Preset Blueprints', href: '/superadmin/presets/', icon: ArchitectureIcon },
+        { label: 'Platform Settings', href: '/superadmin/platform/', icon: SettingsIcon },
+        { label: 'Blueprints', href: '/superadmin/presets/', icon: ArchitectureIcon },
       ],
     },
     {
       title: 'System',
       items: [
-        { label: 'Settings', href: '/superadmin/settings/', icon: SettingsIcon },
         { label: 'Logs', href: '/superadmin/logs/', icon: HistoryIcon },
       ],
     },
