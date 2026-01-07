@@ -109,7 +109,7 @@ class SerialNumberGenerator:
     Service for generating unique certificate serial numbers.
     Requirements: 3.1, 3.2, 3.3
     """
-    DEFAULT_PREFIX = 'CCT'
+    DEFAULT_PREFIX = 'LMS'
 
     def generate(self, prefix: str = None) -> str:
         """
@@ -117,7 +117,7 @@ class SerialNumberGenerator:
         Requirements: 3.1, 3.2, 3.3
         
         Args:
-            prefix: Institution prefix (default: CCT)
+            prefix: Institution prefix (default: LMS)
             
         Returns:
             Unique serial number string

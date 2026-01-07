@@ -6,14 +6,7 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """Custom User model for Crossview LMS."""
-    tenant = models.ForeignKey(
-        'tenants.Tenant',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='users'
-    )
+    """Custom User model for LMS."""
     phone = models.CharField(max_length=20, blank=True, null=True)
     
     class Meta:
@@ -28,13 +21,6 @@ class Program(models.Model):
     Program model - represents an academic program/course.
     Links to AcademicBlueprint for structure configuration.
     """
-    tenant = models.ForeignKey(
-        'tenants.Tenant',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='programs'
-    )
     blueprint = models.ForeignKey(
         'blueprints.AcademicBlueprint',
         on_delete=models.SET_NULL,

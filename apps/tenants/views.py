@@ -8,10 +8,9 @@ from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from inertia import render
 
-from apps.tenants.models import Tenant, PresetBlueprint
+from apps.tenants.models import PresetBlueprint, PlatformSettings
 from apps.tenants.services import (
     PlatformStatsService,
-    TenantService,
     PresetBlueprintService,
 )
 
@@ -26,7 +25,7 @@ def _require_superadmin(user) -> bool:
 
 def _get_post_data(request) -> dict:
     if request.POST:
-        return request.POST
+        return request.POST.dict()
     if request.body:
         try:
             return json.loads(request.body)
@@ -37,35 +36,31 @@ def _get_post_data(request) -> dict:
 
 @login_required
 def admin_settings(request):
-    """Admin settings page for tenant configuration."""
+    """Admin settings page - uses PlatformSettings for single-tenant mode."""
     if not _require_admin(request.user):
         return redirect("/dashboard/")
-    tenant = request.user.tenant
-    if not tenant:
-        return redirect("/dashboard/")
+    
+    from apps.tenants.services import PlatformSettingsService
+    
     if request.method == "POST":
         data = _get_post_data(request)
-        settings = tenant.settings or {}
-        settings["registration_enabled"] = data.get("registrationEnabled", True)
-        tenant.settings = settings
-        tenant.save()
+        features = {"self_registration": data.get("registrationEnabled", True)}
+        PlatformSettingsService.update_features(features)
         messages.success(request, "Settings updated successfully")
         return redirect("tenants:admin.settings")
+    
+    settings = PlatformSettingsService.get_settings()
     return render(
         request,
         "Admin/Settings/Index",
         {
-            "tenant": {
-                "id": tenant.id,
-                "name": tenant.name,
-                "subdomain": tenant.subdomain,
-                "createdAt": tenant.created_at.isoformat(),
+            "platform": {
+                "institutionName": settings.get("institutionName", ""),
+                "deploymentMode": settings.get("deploymentMode", "custom"),
             },
             "settings": {
-                "registrationEnabled": (
-                    tenant.settings.get("registration_enabled", True)
-                    if tenant.settings
-                    else True
+                "registrationEnabled": settings.get("features", {}).get(
+                    "self_registration", True
                 ),
             },
         },
@@ -74,34 +69,37 @@ def admin_settings(request):
 
 @login_required
 def admin_branding(request):
-    """Admin branding page for tenant customization."""
+    """Admin branding page - uses PlatformSettings for single-tenant mode."""
     if not _require_admin(request.user):
         return redirect("/dashboard/")
-    tenant = request.user.tenant
-    if not tenant:
-        return redirect("/dashboard/")
+    
+    from apps.tenants.services import PlatformSettingsService
+    
     if request.method == "POST":
         data = _get_post_data(request)
-        settings = tenant.settings or {}
-        settings["branding"] = {
-            "primaryColor": data.get("primaryColor", "#2563EB"),
-            "secondaryColor": data.get("secondaryColor", "#7C3AED"),
-            "customCss": data.get("customCss", ""),
-        }
-        tenant.settings = settings
-        tenant.save()
+        logo = request.FILES.get("logo")
+        favicon = request.FILES.get("favicon")
+        
+        PlatformSettingsService.update_branding(
+            primary_color=data.get("primaryColor"),
+            secondary_color=data.get("secondaryColor"),
+            custom_css=data.get("customCss", ""),
+            logo=logo,
+            favicon=favicon,
+        )
         messages.success(request, "Branding updated successfully")
         return redirect("tenants:admin.branding")
-    branding = (tenant.settings or {}).get("branding", {})
+    
+    settings = PlatformSettingsService.get_settings()
     return render(
         request,
         "Admin/Settings/Branding",
         {
             "branding": {
-                "primaryColor": branding.get("primaryColor", "#2563EB"),
-                "secondaryColor": branding.get("secondaryColor", "#7C3AED"),
-                "logoUrl": branding.get("logoUrl", ""),
-                "customCss": branding.get("customCss", ""),
+                "primaryColor": settings.get("primaryColor", "#3B82F6"),
+                "secondaryColor": settings.get("secondaryColor", "#1E40AF"),
+                "logoUrl": settings.get("logo", ""),
+                "customCss": settings.get("customCss", ""),
             },
         },
     )

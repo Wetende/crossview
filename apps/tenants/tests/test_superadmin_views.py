@@ -49,38 +49,6 @@ class TestSuperAdminDashboard:
         assert "/dashboard/" in response.url
 
 
-class TestSuperAdminTenants:
-    """Tests for tenant management views."""
-
-    def test_superadmin_can_list_tenants(self, authenticated_superadmin):
-        """Superadmin should be able to list tenants."""
-        TenantFactory.create_batch(3)
-        response = authenticated_superadmin.get("/superadmin/tenants/")
-        assert response.status_code == 200
-
-    def test_superadmin_can_view_tenant_detail(self, authenticated_superadmin):
-        """Superadmin should be able to view tenant detail."""
-        tenant = TenantFactory()
-        response = authenticated_superadmin.get(f"/superadmin/tenants/{tenant.id}/")
-        assert response.status_code == 200
-
-    def test_superadmin_can_access_tenant_create(self, authenticated_superadmin):
-        """Superadmin should be able to access tenant create form."""
-        response = authenticated_superadmin.get("/superadmin/tenants/create/")
-        assert response.status_code == 200
-
-    def test_superadmin_can_access_tenant_edit(self, authenticated_superadmin):
-        """Superadmin should be able to access tenant edit form."""
-        tenant = TenantFactory()
-        response = authenticated_superadmin.get(
-            f"/superadmin/tenants/{tenant.id}/edit/"
-        )
-        assert response.status_code == 200
-
-    def test_regular_user_cannot_list_tenants(self, authenticated_regular):
-        """Regular user should not be able to list tenants."""
-        response = authenticated_regular.get("/superadmin/tenants/")
-        assert response.status_code == 302
 
 
 class TestSuperAdminPresets:
@@ -111,12 +79,12 @@ class TestSuperAdminSettings:
 
     def test_superadmin_can_access_settings(self, authenticated_superadmin):
         """Superadmin should be able to access settings."""
-        response = authenticated_superadmin.get("/superadmin/settings/")
+        response = authenticated_superadmin.get("/superadmin/platform/")
         assert response.status_code == 200
 
     def test_regular_user_cannot_access_settings(self, authenticated_regular):
         """Regular user should not be able to access settings."""
-        response = authenticated_regular.get("/superadmin/settings/")
+        response = authenticated_regular.get("/superadmin/platform/")
         assert response.status_code == 302
 
 

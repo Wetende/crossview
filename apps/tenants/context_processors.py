@@ -1,35 +1,34 @@
 """
-Context processors for tenant branding.
-Requirements: 4.1, 4.3
+Context processors for platform branding.
 """
-from .context import TenantContext
-from .services import TenantService
+from .models import PlatformSettings
 
 
-def tenant_branding(request):
+def platform_branding(request):
     """
-    Add tenant branding to template context.
-    Requirements: 4.1, 4.3
+    Add platform branding to template context from PlatformSettings.
     """
-    tenant = TenantContext.get()
-    
-    if tenant:
-        service = TenantService()
-        branding = service.get_branding(tenant)
+    try:
+        settings = PlatformSettings.get_settings()
         return {
-            'tenant': tenant,
-            'tenant_branding': branding,
+            'platform_branding': {
+                'logo_url': settings.logo.url if settings.logo else None,
+                'favicon_url': settings.favicon.url if settings.favicon else None,
+                'primary_color': settings.primary_color,
+                'secondary_color': settings.secondary_color,
+                'institution_name': settings.institution_name,
+                'tagline': settings.tagline,
+            },
         }
-    
-    # Default branding when no tenant
-    return {
-        'tenant': None,
-        'tenant_branding': {
-            'logo_path': None,
-            'favicon_path': None,
-            'primary_color': '#3B82F6',
-            'secondary_color': '#1E40AF',
-            'institution_name': 'Crossview LMS',
-            'tagline': '',
-        },
-    }
+    except Exception:
+        # Fallback if PlatformSettings doesn't exist yet
+        return {
+            'platform_branding': {
+                'logo_url': None,
+                'favicon_url': None,
+                'primary_color': '#3B82F6',
+                'secondary_color': '#1E40AF',
+                'institution_name': 'LMS',
+                'tagline': '',
+            },
+        }

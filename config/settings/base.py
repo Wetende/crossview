@@ -50,8 +50,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "inertia.middleware.InertiaMiddleware",
     # Custom middleware
-    "apps.tenants.middleware.TenantNotFoundMiddleware",  # Tenant from subdomain
-    "apps.core.middleware.InertiaShareMiddleware",  # Shared props (auth, tenant, flash)
+    "apps.core.middleware.InertiaShareMiddleware",  # Shared props (auth, platform, flash)
 ]
 
 ROOT_URLCONF = "config.urls"

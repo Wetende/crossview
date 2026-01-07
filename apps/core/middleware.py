@@ -1,11 +1,12 @@
 """
-Core middleware - Inertia shared data and tenant context.
-Requirements: 2.6, 3.6, 6.1, 6.2, 6.4
+Core middleware - Inertia shared data.
 """
 
 from django.http import HttpRequest, HttpResponse
 from django.contrib import messages
 from inertia import share
+
+from apps.tenants.models import PlatformSettings
 
 
 class InertiaShareMiddleware:
@@ -14,10 +15,8 @@ class InertiaShareMiddleware:
 
     Shares:
     - auth: Current user info (if authenticated)
-    - tenant: Tenant branding (if on tenant subdomain)
+    - platform: Platform branding from PlatformSettings
     - flash: Flash messages for feedback
-
-    Requirements: 2.6, 3.6, 6.1, 6.2, 6.4
     """
 
     def __init__(self, get_response):
@@ -42,35 +41,24 @@ class InertiaShareMiddleware:
         else:
             share(request, auth={"user": None})
 
-        # Share tenant branding if on tenant subdomain
-        tenant = getattr(request, "tenant", None)
-        if tenant:
-            branding = getattr(tenant, "branding", None)
+        # Share platform branding from PlatformSettings
+        try:
+            settings = PlatformSettings.get_settings()
             share(
                 request,
-                tenant={
-                    "id": tenant.id,
-                    "name": tenant.name,
-                    "subdomain": tenant.subdomain,
-                    "institutionName": (
-                        branding.institution_name if branding else tenant.name
-                    ),
-                    "tagline": branding.tagline if branding else None,
-                    "logoUrl": branding.logo_path if branding else None,
-                    "faviconUrl": branding.favicon_path if branding else None,
-                    "primaryColor": branding.primary_color if branding else "#3B82F6",
-                    "secondaryColor": (
-                        branding.secondary_color if branding else "#1E40AF"
-                    ),
-                    "customCss": branding.custom_css if branding else None,
-                    "registrationEnabled": tenant.settings.get(
-                        "registration_enabled", True
-                    ),
-                    "isActive": tenant.is_active,
+                platform={
+                    "institutionName": settings.institution_name,
+                    "tagline": settings.tagline,
+                    "logoUrl": settings.logo.url if settings.logo else None,
+                    "faviconUrl": settings.favicon.url if settings.favicon else None,
+                    "primaryColor": settings.primary_color,
+                    "secondaryColor": settings.secondary_color,
+                    "deploymentMode": settings.deployment_mode,
+                    "isSetupComplete": settings.is_setup_complete,
                 },
             )
-        else:
-            share(request, tenant=None)
+        except Exception:
+            share(request, platform=None)
 
         # Share flash messages
         flash_messages = []

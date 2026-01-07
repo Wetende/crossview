@@ -1,28 +1,14 @@
 """
 Blueprint models - Academic blueprints configuration.
-Migrated from Laravel AcademicBlueprint model.
 """
 from django.db import models
 from django.core.exceptions import ValidationError
-
-from apps.tenants.managers import TenantManager, AllTenantsManager
 
 
 class AcademicBlueprint(models.Model):
     """
     Configuration object defining hierarchy labels, grading logic, and progression rules.
     """
-    tenant = models.ForeignKey(
-        'tenants.Tenant',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='blueprints'
-    )
-    
-    # Tenant-aware managers
-    objects = TenantManager()
-    all_objects = AllTenantsManager()
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     hierarchy_structure = models.JSONField()  # ["Year", "Unit", "Session"]

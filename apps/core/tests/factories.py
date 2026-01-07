@@ -6,35 +6,8 @@ import factory
 from factory.django import DjangoModelFactory
 from django.contrib.auth import get_user_model
 
-from apps.tenants.models import Tenant, TenantBranding
 
 User = get_user_model()
-
-
-class TenantFactory(DjangoModelFactory):
-    """Factory for Tenant model."""
-
-    class Meta:
-        model = Tenant
-
-    name = factory.Faker("company")
-    subdomain = factory.Sequence(lambda n: f"tenant{n}")
-    admin_email = factory.Faker("email")
-    is_active = True
-    settings = {"registration_enabled": True}
-
-
-class TenantBrandingFactory(DjangoModelFactory):
-    """Factory for TenantBranding model."""
-
-    class Meta:
-        model = TenantBranding
-
-    tenant = factory.SubFactory(TenantFactory)
-    institution_name = factory.LazyAttribute(lambda o: o.tenant.name)
-    tagline = factory.Faker("catch_phrase")
-    primary_color = "#3B82F6"
-    secondary_color = "#1E40AF"
 
 
 class UserFactory(DjangoModelFactory):
@@ -47,7 +20,6 @@ class UserFactory(DjangoModelFactory):
     email = factory.LazyAttribute(lambda o: f"{o.username}@example.com")
     first_name = factory.Faker("first_name")
     last_name = factory.Faker("last_name")
-    tenant = factory.SubFactory(TenantFactory)
     is_active = True
 
     @factory.post_generation

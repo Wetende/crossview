@@ -19,7 +19,6 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from inertia import render
 
 from apps.core.models import User, Program
-from apps.tenants.models import Tenant
 from apps.certifications.models import Certificate, VerificationLog
 
 
@@ -30,7 +29,7 @@ def _get_post_data(request) -> dict:
     """
     # First try request.POST (form-encoded data)
     if request.POST:
-        return request.POST
+        return request.POST.dict()
 
     # If empty, try parsing JSON from request.body (Inertia sends JSON)
     if request.body:
@@ -98,15 +97,9 @@ def contact_page(request):
 def public_programs_list(request):
     """
     Public catalog of published programs.
-    Lists programs for the current tenant only.
     """
-    tenant = getattr(request, "tenant", None)
-
-    # Base query - tenant aware
+    # Base query
     programs_query = Program.objects.filter(is_published=True)
-
-    if tenant:
-        programs_query = programs_query.filter(tenant=tenant)
 
     # Search filtering
     search = request.GET.get("search", "")
@@ -221,19 +214,6 @@ def login_page(request):
         user = authenticate(request, username=email, password=password)
 
         if user is not None:
-            # Check tenant match if on tenant subdomain
-            tenant = getattr(request, "tenant", None)
-            if tenant and user.tenant_id != tenant.id:
-                # User doesn't belong to this tenant - same error for security
-                return render(
-                    request,
-                    "Auth/Login",
-                    {
-                        "errors": {"auth": "Invalid email or password"},
-                        "registrationEnabled": _get_registration_enabled(request),
-                    },
-                )
-
             login(request, user)
 
             # Set session expiry based on remember me
@@ -326,18 +306,16 @@ def register_page(request):
             )
 
         # Create user with student role (Requirement: 3.2)
-        tenant = getattr(request, "tenant", None)
         user = User.objects.create_user(
             username=email,
             email=email,
             password=password,
             first_name=first_name,
             last_name=last_name,
-            tenant=tenant,
         )
 
         # Log in the new user
-        login(request, user)
+        login(request, user, backend="apps.core.backends.EmailBackend")
         messages.success(request, "Account created successfully!")
 
         return redirect(get_dashboard_url("student"))
@@ -617,27 +595,19 @@ def _get_instructor_dashboard_data(user) -> dict:
 
 
 def _get_admin_dashboard_data(user) -> dict:
-    """Get dashboard data for tenant admins."""
+    """Get dashboard data for admins (single-tenant)."""
     from apps.progression.models import Enrollment
     from apps.certifications.models import Certificate
 
-    tenant = user.tenant
-    if not tenant:
-        return {"stats": {}, "recentActivity": []}
-
-    # Get stats
-    total_students = User.objects.filter(tenant=tenant, is_staff=False).count()
-    active_programs = Program.objects.filter(tenant=tenant, is_published=True).count()
-    certificates_issued = Certificate.objects.filter(
-        enrollment__program__tenant=tenant
-    ).count()
-    active_enrollments = Enrollment.objects.filter(
-        program__tenant=tenant, status="active"
-    ).count()
+    # Get stats for entire platform (single-tenant)
+    total_students = User.objects.filter(is_staff=False).count()
+    active_programs = Program.objects.filter(is_published=True).count()
+    certificates_issued = Certificate.objects.count()
+    active_enrollments = Enrollment.objects.filter(status="active").count()
 
     # Recent activity (simplified)
     recent_enrollments = (
-        Enrollment.objects.filter(program__tenant=tenant)
+        Enrollment.objects.all()
         .select_related("user", "program")
         .order_by("-enrolled_at")[:5]
     )
@@ -688,11 +658,13 @@ def _get_superadmin_dashboard_data() -> dict:
 
 
 def _get_registration_enabled(request) -> bool:
-    """Check if registration is enabled for current tenant."""
-    tenant = getattr(request, "tenant", None)
-    if tenant:
-        return tenant.settings.get("registration_enabled", True)
-    return True  # Default enabled for main domain
+    """Check if registration is enabled via PlatformSettings."""
+    from apps.tenants.models import PlatformSettings
+    try:
+        settings = PlatformSettings.get_settings()
+        return settings.is_feature_enabled('self_registration')
+    except Exception:
+        return True  # Default enabled
 
 
 def _validate_password_strength(password: str) -> Optional[str]:
@@ -728,13 +700,11 @@ def _require_admin(user) -> bool:
 @login_required
 def admin_programs(request):
     """
-    List programs for the tenant.
+    List all programs.
     Requirements: FR-3.1
     """
     if not _require_admin(request.user):
         return redirect("/dashboard/")
-
-    tenant = request.user.tenant
 
     # Get filter params
     status = request.GET.get("status", "")
@@ -743,8 +713,8 @@ def admin_programs(request):
     page = int(request.GET.get("page", 1))
     per_page = 20
 
-    # Build query
-    programs_query = Program.objects.filter(tenant=tenant).select_related("blueprint")
+    # Build query (single-tenant: all programs)
+    programs_query = Program.objects.all().select_related("blueprint")
 
     if status == "published":
         programs_query = programs_query.filter(is_published=True)
@@ -767,7 +737,7 @@ def admin_programs(request):
     from django.db.models import Count
 
     enrollment_counts = dict(
-        Enrollment.objects.filter(program__tenant=tenant)
+        Enrollment.objects.all()
         .values("program_id")
         .annotate(count=Count("id"))
         .values_list("program_id", "count")
@@ -791,7 +761,7 @@ def admin_programs(request):
     # Get blueprints for filter dropdown
     from apps.blueprints.models import AcademicBlueprint
 
-    blueprints = AcademicBlueprint.objects.filter(tenant=tenant).values("id", "name")
+    blueprints = AcademicBlueprint.objects.all().values("id", "name")
 
     return render(
         request,
@@ -826,7 +796,7 @@ def admin_program_detail(request, pk: int):
     from apps.progression.models import Enrollment, InstructorAssignment
     from apps.curriculum.models import CurriculumNode
 
-    program = get_object_or_404(Program, pk=pk, tenant=request.user.tenant)
+    program = get_object_or_404(Program, pk=pk)
 
     # Get stats
     enrollment_count = Enrollment.objects.filter(program=program).count()
@@ -909,8 +879,8 @@ def admin_program_create(request):
                 "Admin/Programs/Form",
                 {
                     "mode": "create",
-                    "blueprints": _get_blueprints_for_form(request.user.tenant),
-                    "instructors": _get_instructors_for_form(request.user.tenant),
+                    "blueprints": _get_blueprints_for_form(),
+                    "instructors": _get_instructors_for_form(),
                     "errors": errors,
                     "formData": data,
                 },
@@ -918,7 +888,6 @@ def admin_program_create(request):
 
         # Create program
         program = Program.objects.create(
-            tenant=request.user.tenant,
             blueprint_id=blueprint_id,
             name=name,
             code=code or None,
@@ -943,8 +912,8 @@ def admin_program_create(request):
         "Admin/Programs/Form",
         {
             "mode": "create",
-            "blueprints": _get_blueprints_for_form(request.user.tenant),
-            "instructors": _get_instructors_for_form(request.user.tenant),
+            "blueprints": _get_blueprints_for_form(),
+            "instructors": _get_instructors_for_form(),
         },
     )
 
@@ -961,7 +930,7 @@ def admin_program_edit(request, pk: int):
     from django.shortcuts import get_object_or_404
     from apps.progression.models import InstructorAssignment
 
-    program = get_object_or_404(Program, pk=pk, tenant=request.user.tenant)
+    program = get_object_or_404(Program, pk=pk)
 
     if request.method == "POST":
         data = _get_post_data(request)
@@ -978,8 +947,8 @@ def admin_program_edit(request, pk: int):
                 {
                     "mode": "edit",
                     "program": _serialize_program(program),
-                    "blueprints": _get_blueprints_for_form(request.user.tenant),
-                    "instructors": _get_instructors_for_form(request.user.tenant),
+                    "blueprints": _get_blueprints_for_form(),
+                    "instructors": _get_instructors_for_form(),
                     "errors": errors,
                 },
             )
@@ -1024,8 +993,8 @@ def admin_program_edit(request, pk: int):
             "mode": "edit",
             "program": _serialize_program(program),
             "currentInstructorIds": current_instructors,
-            "blueprints": _get_blueprints_for_form(request.user.tenant),
-            "instructors": _get_instructors_for_form(request.user.tenant),
+            "blueprints": _get_blueprints_for_form(),
+            "instructors": _get_instructors_for_form(),
             "canChangeBlueprint": not Enrollment.objects.filter(
                 program=program
             ).exists(),
@@ -1045,7 +1014,7 @@ def admin_program_delete(request, pk: int):
     from django.shortcuts import get_object_or_404
     from apps.progression.models import Enrollment
 
-    program = get_object_or_404(Program, pk=pk, tenant=request.user.tenant)
+    program = get_object_or_404(Program, pk=pk)
 
     # Check for enrollments
     if Enrollment.objects.filter(program=program).exists():
@@ -1068,18 +1037,18 @@ def admin_program_publish(request, pk: int):
 
     from django.shortcuts import get_object_or_404
 
-    program = get_object_or_404(Program, pk=pk, tenant=request.user.tenant)
+    program = get_object_or_404(Program, pk=pk)
     program.is_published = not program.is_published
     program.save()
 
     return redirect("core:admin.program", pk=pk)
 
 
-def _get_blueprints_for_form(tenant) -> list:
-    """Get blueprints for program form dropdown."""
+def _get_blueprints_for_form() -> list:
+    """Get blueprints for dropdown (single-tenant: all blueprints)."""
     from apps.blueprints.models import AcademicBlueprint
 
-    blueprints = AcademicBlueprint.objects.filter(tenant=tenant).order_by("name")
+    blueprints = AcademicBlueprint.objects.all().order_by("name")
     return [
         {
             "id": b.id,
@@ -1090,11 +1059,10 @@ def _get_blueprints_for_form(tenant) -> list:
     ]
 
 
-def _get_instructors_for_form(tenant) -> list:
-    """Get instructors for program form dropdown."""
+def _get_instructors_for_form() -> list:
+    """Get instructors for dropdown (single-tenant: all staff)."""
     instructors = User.objects.filter(
-        tenant=tenant,
-        groups__name="Instructors",
+        is_staff=True,
     ).order_by("first_name", "last_name")
 
     return [
@@ -1128,13 +1096,11 @@ def _serialize_program(program: Program) -> dict:
 @login_required
 def admin_users(request):
     """
-    List users for the tenant.
+    List all users (single-tenant).
     Requirements: FR-5.1
     """
     if not _require_admin(request.user):
         return redirect("/dashboard/")
-
-    tenant = request.user.tenant
 
     # Get filter params
     role = request.GET.get("role", "")
@@ -1143,8 +1109,8 @@ def admin_users(request):
     page = int(request.GET.get("page", 1))
     per_page = 20
 
-    # Build query
-    users_query = User.objects.filter(tenant=tenant)
+    # Build query (single-tenant: all users)
+    users_query = User.objects.all()
 
     if role == "admin":
         users_query = users_query.filter(is_staff=True)
@@ -1270,7 +1236,6 @@ def admin_user_create(request):
             password=password,
             first_name=first_name,
             last_name=last_name,
-            tenant=request.user.tenant,
         )
 
         # Set role
@@ -1305,7 +1270,7 @@ def admin_user_edit(request, pk: int):
     from django.shortcuts import get_object_or_404
     from django.contrib.auth.models import Group
 
-    user = get_object_or_404(User, pk=pk, tenant=request.user.tenant)
+    user = get_object_or_404(User, pk=pk)
 
     if request.method == "POST":
         data = _get_post_data(request)
@@ -1387,7 +1352,7 @@ def admin_user_deactivate(request, pk: int):
 
     from django.shortcuts import get_object_or_404
 
-    user = get_object_or_404(User, pk=pk, tenant=request.user.tenant)
+    user = get_object_or_404(User, pk=pk)
 
     # Don't allow deactivating yourself
     if user.id == request.user.id:
@@ -1414,7 +1379,7 @@ def admin_user_reset_password(request, pk: int):
     from django.shortcuts import get_object_or_404
     from django.core.mail import send_mail
 
-    user = get_object_or_404(User, pk=pk, tenant=request.user.tenant)
+    user = get_object_or_404(User, pk=pk)
 
     # Generate reset token
     token = default_token_generator.make_token(user)

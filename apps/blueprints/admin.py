@@ -6,12 +6,11 @@ from .models import AcademicBlueprint
 class AcademicBlueprintAdmin(admin.ModelAdmin):
     list_display = [
         "name",
-        "tenant",
         "gamification_enabled",
         "certificate_enabled",
         "created_at",
     ]
-    list_filter = ["gamification_enabled", "certificate_enabled", "tenant"]
+    list_filter = ["gamification_enabled", "certificate_enabled"]
     search_fields = ["name", "description"]
     ordering = ["-created_at"]
     date_hierarchy = "created_at"

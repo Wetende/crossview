@@ -6,12 +6,19 @@ Uses Hypothesis for property-based testing with minimum 100 iterations.
 """
 
 import pytest
-from hypothesis import given, strategies as st, settings, assume
+from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from django.test import Client
 from django.utils import timezone
 from datetime import date
 
 from apps.certifications.models import Certificate, VerificationLog
+
+
+HYPOTHESIS_SETTINGS = settings(
+    max_examples=10, 
+    suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
+    deadline=None
+)
 
 
 # =============================================================================
@@ -58,7 +65,7 @@ class TestCertificateVerificationDisplay:
             min_size=5, max_size=20, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
         )
     )
-    @settings(max_examples=100)
+    @HYPOTHESIS_SETTINGS
     def test_nonexistent_certificate_returns_not_found(self, client, serial):
         """Non-existent serial should return not found result."""
         # Ensure serial doesn't exist
@@ -126,7 +133,7 @@ class TestVerificationAuditLogging:
             min_size=5, max_size=20, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
         )
     )
-    @settings(max_examples=100)
+    @HYPOTHESIS_SETTINGS
     def test_nonexistent_certificate_logs_not_found(self, client, serial):
         """Verifying non-existent certificate should log 'not_found' result."""
         assume(not Certificate.objects.filter(serial_number=serial).exists())

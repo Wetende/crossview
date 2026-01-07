@@ -71,9 +71,9 @@ def seed_presets(apps, schema_editor):
             'structure_rules': {},
         },
         {
-            'code': 'cct_theology',
-            'name': 'CCT Theology Standard',
-            'description': 'Crossview College of Theology curriculum structure',
+            'code': 'generic_theology',
+            'name': 'Theology School Standard',
+            'description': 'Generic theology/Bible school curriculum structure',
             'regulatory_body': 'Internal',
             'hierarchy_labels': ['Program', 'Year', 'Unit', 'Session'],
             'grading_config': {
@@ -100,7 +100,7 @@ def reverse_seed(apps, schema_editor):
     """Remove seeded presets."""
     PresetBlueprint = apps.get_model('tenants', 'PresetBlueprint')
     PresetBlueprint.objects.filter(code__in=[
-        'tvet_cdacc', 'nita_trade', 'ntsa_driving', 'cbc_k12', 'cct_theology'
+        'tvet_cdacc', 'nita_trade', 'ntsa_driving', 'cbc_k12', 'generic_theology'
     ]).delete()
 
 
