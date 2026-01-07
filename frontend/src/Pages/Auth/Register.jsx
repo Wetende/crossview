@@ -33,7 +33,7 @@ const fadeInUp = {
  * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
  */
 export default function Register({ registrationEnabled, errors = {} }) {
-    const { tenant } = usePage().props;
+    const { platform } = usePage().props;
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
@@ -112,11 +112,11 @@ export default function Register({ registrationEnabled, errors = {} }) {
                         <CardContent sx={{ p: 4 }}>
                             {/* Header */}
                             <Box sx={{ textAlign: "center", mb: 4 }}>
-                                {tenant?.logoUrl && (
+                                {platform?.logoUrl && (
                                     <Box
                                         component="img"
-                                        src={tenant.logoUrl}
-                                        alt={tenant.institutionName}
+                                        src={platform.logoUrl}
+                                        alt={platform.institutionName}
                                         sx={{ height: 48, mb: 2 }}
                                     />
                                 )}
@@ -126,7 +126,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
                                     fontWeight={700}
                                     gutterBottom
                                 >
-                                    {tenant?.institutionName || "Crossview LMS"}
+                                    {platform?.institutionName || "Crossview LMS"}
                                 </Typography>
                                 <Typography variant="body1" color="text.secondary">
                                     Create your student account

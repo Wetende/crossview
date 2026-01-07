@@ -185,7 +185,7 @@ function PasswordForm({ errors }) {
   );
 }
 
-export default function Profile({ user, tenant, errors = {}, success }) {
+export default function Profile({ user, platform, errors = {}, success }) {
   return (
     <DashboardLayout role="student">
       <Head title="Profile Settings" />
@@ -195,9 +195,9 @@ export default function Profile({ user, tenant, errors = {}, success }) {
           <Typography variant="h4" component="h1" gutterBottom>
             Profile Settings
           </Typography>
-          {tenant && (
+          {platform && (
             <Typography variant="body1" color="text.secondary">
-              Organization: {tenant.name}
+              Organization: {platform.name}
             </Typography>
           )}
         </motion.div>

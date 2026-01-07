@@ -93,13 +93,13 @@ function GraphicsCard({ children, sx = {} }) {
 // --- Main Component ---
 
 export default function Landing() {
-    const { tenant } = usePage().props;
+    const { platform } = usePage().props;
     const theme = useTheme();
     const { scrollY } = useScroll();
     const heroY = useTransform(scrollY, [0, 500], [0, 150]);
 
-    if (tenant) {
-        return <TenantLanding tenant={tenant} />;
+    if (platform) {
+        return <PlatformLanding platform={platform} />;
     }
 
     return (
@@ -425,12 +425,12 @@ export default function Landing() {
     );
 }
 
-// --- Tenant Landing (Preserved) ---
+// --- Platform Landing (Preserved) ---
 
-function TenantLanding({ tenant }) {
+function PlatformLanding({ platform }) {
     return (
         <>
-            <Head title={`${tenant.institutionName} - Learning Portal`} />
+            <Head title={`${platform.institutionName} - Learning Portal`} />
 
             <Box
                 sx={{
@@ -454,23 +454,23 @@ function TenantLanding({ tenant }) {
                     }}
                 >
                     <Stack direction="row" spacing={2} alignItems="center">
-                        {tenant.logoUrl && (
+                        {platform.logoUrl && (
                             <Box
                                 component="img"
-                                src={tenant.logoUrl}
-                                alt={tenant.institutionName}
+                                src={platform.logoUrl}
+                                alt={platform.institutionName}
                                 sx={{ height: 40 }}
                             />
                         )}
                         <Typography variant="h6" fontWeight={600}>
-                            {tenant.institutionName}
+                            {platform.institutionName}
                         </Typography>
                     </Stack>
                     <Stack direction="row" spacing={2}>
                         <Button component={Link} href="/login/" variant="outlined">
                             Sign In
                         </Button>
-                        {tenant.registrationEnabled && (
+                        {platform.registrationEnabled && (
                             <Button component={Link} href="/register/" variant="contained">
                                 Register
                             </Button>
@@ -485,7 +485,7 @@ function TenantLanding({ tenant }) {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        background: `linear-gradient(135deg, ${tenant.primaryColor} 0%, ${tenant.secondaryColor} 100%)`,
+                        background: `linear-gradient(135deg, ${platform.primaryColor} 0%, ${platform.secondaryColor} 100%)`,
                         color: "white",
                         py: 8,
                     }}
@@ -494,11 +494,11 @@ function TenantLanding({ tenant }) {
                         <motion.div {...fadeInUp}>
                             <Stack spacing={3} alignItems="center" textAlign="center">
                                 <Typography variant="h2" fontWeight={700}>
-                                    Welcome to {tenant.institutionName}
+                                    Welcome to {platform.institutionName}
                                 </Typography>
-                                {tenant.tagline && (
+                                {platform.tagline && (
                                     <Typography variant="h5" sx={{ opacity: 0.9 }}>
-                                        {tenant.tagline}
+                                        {platform.tagline}
                                     </Typography>
                                 )}
                                 <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 4 }}>
@@ -510,7 +510,7 @@ function TenantLanding({ tenant }) {
                                             size="large"
                                             sx={{
                                                 bgcolor: "white",
-                                                color: tenant.primaryColor,
+                                                color: platform.primaryColor,
                                                 "&:hover": { bgcolor: "grey.100" },
                                                 px: 4, borderRadius: 100
                                             }}
@@ -518,7 +518,7 @@ function TenantLanding({ tenant }) {
                                             Sign In
                                         </Button>
                                     </ButtonAnimationWrapper>
-                                    {tenant.registrationEnabled && (
+                                    {platform.registrationEnabled && (
                                         <ButtonAnimationWrapper>
                                             <Button
                                                 component={Link}
@@ -551,8 +551,8 @@ function TenantLanding({ tenant }) {
             </Box>
 
             {/* Custom CSS injection */}
-            {tenant.customCss && (
-                <style dangerouslySetInnerHTML={{ __html: tenant.customCss }} />
+            {platform.customCss && (
+                <style dangerouslySetInnerHTML={{ __html: platform.customCss }} />
             )}
         </>
     );

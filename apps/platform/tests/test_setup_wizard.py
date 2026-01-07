@@ -3,8 +3,8 @@ import json
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from apps.tenants.models import PlatformSettings, Tenant, PresetBlueprint
-from apps.tenants.services import PlatformSettingsService
+from apps.platform.models import PlatformSettings, Tenant, PresetBlueprint
+from apps.platform.services import PlatformSettingsService
 
 User = get_user_model()
 

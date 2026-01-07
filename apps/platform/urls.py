@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from apps.tenants import views
+from apps.platform import views
 
 app_name = "tenants"
 
@@ -11,8 +11,7 @@ urlpatterns = [
     path("admin/settings/", views.admin_settings, name="admin.settings"),
     path("admin/settings/branding/", views.admin_branding, name="admin.branding"),
     
-    # Super Admin Dashboard (Single-Tenant)
-    path("superadmin/", views.superadmin_dashboard, name="superadmin.dashboard"),
+    # Super Admin Blueprints/Presets
     
     # Super Admin Blueprints/Presets
     path("superadmin/presets/", views.superadmin_presets, name="superadmin.presets"),

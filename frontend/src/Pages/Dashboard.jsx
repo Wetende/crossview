@@ -334,7 +334,7 @@ function AdminContent({ stats, usage, recentActivity }) {
 }
 
 // =============================================================================
-// Super Admin Dashboard Content (Single-Tenant Mode)
+// Super Admin Dashboard Content (Single-Platform Mode)
 // =============================================================================
 
 function SuperAdminContent({ platformSettings, stats, isSetupRequired }) {
@@ -437,7 +437,7 @@ export default function Dashboard(props) {
   const renderContent = () => {
     switch (role) {
       case 'superadmin':
-        return <SuperAdminContent platformStats={props.platformStats} recentTenants={props.recentTenants} />;
+        return <SuperAdminContent platformStats={props.platformStats} recentPlatforms={props.recentPlatforms} />;
       case 'admin':
         return <AdminContent stats={props.stats} usage={props.usage} recentActivity={props.recentActivity} />;
       case 'instructor':

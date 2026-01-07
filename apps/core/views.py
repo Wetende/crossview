@@ -595,11 +595,11 @@ def _get_instructor_dashboard_data(user) -> dict:
 
 
 def _get_admin_dashboard_data(user) -> dict:
-    """Get dashboard data for admins (single-tenant)."""
+    """Get dashboard data for admins."""
     from apps.progression.models import Enrollment
     from apps.certifications.models import Certificate
 
-    # Get stats for entire platform (single-tenant)
+    # Get stats for entire platform
     total_students = User.objects.filter(is_staff=False).count()
     active_programs = Program.objects.filter(is_published=True).count()
     certificates_issued = Certificate.objects.count()
@@ -633,8 +633,8 @@ def _get_admin_dashboard_data(user) -> dict:
 
 
 def _get_superadmin_dashboard_data() -> dict:
-    """Get dashboard data for super admins (single-tenant platform settings)."""
-    from apps.tenants.services import PlatformSettingsService
+    """Get dashboard data for super admins (platform settings)."""
+    from apps.platform.services import PlatformSettingsService
     
     platform_settings = PlatformSettingsService.get_settings()
     is_setup_required = PlatformSettingsService.is_setup_required()
@@ -659,7 +659,7 @@ def _get_superadmin_dashboard_data() -> dict:
 
 def _get_registration_enabled(request) -> bool:
     """Check if registration is enabled via PlatformSettings."""
-    from apps.tenants.models import PlatformSettings
+    from apps.platform.models import PlatformSettings
     try:
         settings = PlatformSettings.get_settings()
         return settings.is_feature_enabled('self_registration')
@@ -713,7 +713,7 @@ def admin_programs(request):
     page = int(request.GET.get("page", 1))
     per_page = 20
 
-    # Build query (single-tenant: all programs)
+    # Build query
     programs_query = Program.objects.all().select_related("blueprint")
 
     if status == "published":

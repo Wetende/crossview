@@ -26,7 +26,7 @@ const fadeInUp = {
  * Requirements: 4.3, 4.4, 4.5
  */
 export default function ResetPassword({ tokenValid, errors = {} }) {
-    const { tenant } = usePage().props;
+    const { platform } = usePage().props;
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
@@ -101,11 +101,11 @@ export default function ResetPassword({ tokenValid, errors = {} }) {
                         <CardContent sx={{ p: 4 }}>
                             {/* Header */}
                             <Box sx={{ textAlign: "center", mb: 4 }}>
-                                {tenant?.logoUrl && (
+                                {platform?.logoUrl && (
                                     <Box
                                         component="img"
-                                        src={tenant.logoUrl}
-                                        alt={tenant.institutionName}
+                                        src={platform.logoUrl}
+                                        alt={platform.institutionName}
                                         sx={{ height: 48, mb: 2 }}
                                     />
                                 )}

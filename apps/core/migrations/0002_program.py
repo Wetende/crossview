@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0001_initial'),
-        ('tenants', '0001_initial'),
+        ('platform', '0001_initial'),
         ('blueprints', '0001_initial'),
     ]
 
@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
                 ('is_published', models.BooleanField(default=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('tenant', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='programs', to='tenants.tenant')),
+                ('tenant', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='programs', to='platform.tenant')),
                 ('blueprint', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='programs', to='blueprints.academicblueprint')),
             ],
             options={

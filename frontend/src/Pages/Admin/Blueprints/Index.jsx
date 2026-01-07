@@ -55,7 +55,7 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
           </Button>
         </Box>
 
-        {/* Tenant Blueprints */}
+        {/* Platform Blueprints */}
         <Box>
           <Typography variant="h6" gutterBottom>
             Your Blueprints

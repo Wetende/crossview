@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('blueprints', '0002_rename_academic_bl_name_idx_academic_bl_name_8b7090_idx_and_more'),
-        ('tenants', '0005_remove_subscription_tiers'),
+        ('platform', '0005_remove_subscription_tiers'),
     ]
 
     operations = [

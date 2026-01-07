@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('tenants', '0001_initial'),
+        ('platform', '0001_initial'),
     ]
 
     operations = [
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                     null=True,
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='blueprints',
-                    to='tenants.tenant'
+                    to='platform.tenant'
                 )),
             ],
             options={

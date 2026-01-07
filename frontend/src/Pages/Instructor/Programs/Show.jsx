@@ -50,7 +50,7 @@ function StatCard({ title, value, icon: Icon, color = 'primary' }) {
 
 export default function InstructorProgramShow({ program, stats, curriculum }) {
   const breadcrumbs = [
-    { label: 'Dashboard', href: '/instructor/dashboard/' },
+    { label: 'Dashboard', href: '/dashboard/' },
     { label: 'My Programs', href: '/instructor/programs/' },
     { label: program.name },
   ];

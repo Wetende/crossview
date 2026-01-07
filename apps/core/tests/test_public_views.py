@@ -183,16 +183,12 @@ def client():
 @pytest.fixture
 def certificate(db):
     """Create a valid certificate for testing."""
-    from apps.core.tests.factories import TenantFactory
-    from apps.progression.models import Enrollment
     from apps.core.models import Program
-    from apps.certifications.models import CertificateTemplate
-
-    tenant = TenantFactory()
+    from apps.progression.models import Enrollment
+    from apps.certifications.models import CertificateTemplate, Certificate
 
     # Create minimal required objects
     program = Program.objects.create(
-        tenant=tenant,
         name="Test Program",
         code="TEST-001",
     )
@@ -200,7 +196,7 @@ def certificate(db):
     # Create user for enrollment
     from apps.core.tests.factories import UserFactory
 
-    user = UserFactory(tenant=tenant)
+    user = UserFactory()
 
     # Create enrollment
     enrollment = Enrollment.objects.create(

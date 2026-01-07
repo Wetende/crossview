@@ -111,7 +111,7 @@ const roleNavigation = {
   superadmin: [
     {
       items: [
-        { label: 'Dashboard', href: '/superadmin/', icon: DashboardIcon },
+        { label: 'Dashboard', href: '/dashboard/', icon: DashboardIcon },
       ],
     },
     {
@@ -149,7 +149,7 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const { auth, tenant } = usePage().props;
+  const { auth, platform } = usePage().props;
 
   // Get role from props or auth
   const role = propRole || auth?.user?.role || 'student';
@@ -166,7 +166,7 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
       {/* Logo/Brand */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="h6" fontWeight="bold" color="primary">
-          {tenant?.name || 'Crossview LMS'}
+          {platform?.name || 'Crossview LMS'}
         </Typography>
         <Chip
           label={roleLabels[role]}

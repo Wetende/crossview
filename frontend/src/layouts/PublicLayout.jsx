@@ -10,15 +10,15 @@ import {
 } from "@mui/material";
 
 /**
- * PublicLayout - Layout wrapper for public pages with tenant branding.
- * Applies tenant branding CSS variables and handles error states.
+ * PublicLayout - Layout wrapper for public pages with platform branding.
+ * Applies platform branding CSS variables and handles error states.
  * Requirements: 6.5, 6.6
  */
 export default function PublicLayout({ children, showHeader = true, showFooter = true }) {
-    const { tenant, flash } = usePage().props;
+    const { platform, flash } = usePage().props;
 
-    // Handle inactive tenant
-    if (tenant && !tenant.isActive) {
+    // Handle inactive platform
+    if (platform && !platform.isActive) {
         return (
             <ErrorState
                 title="Institution Unavailable"
@@ -34,9 +34,9 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
                 display: "flex",
                 flexDirection: "column",
                 bgcolor: "background.default",
-                // Apply tenant branding as CSS variables
-                "--tenant-primary": tenant?.primaryColor || "#3B82F6",
-                "--tenant-secondary": tenant?.secondaryColor || "#1E40AF",
+                // Apply platform branding as CSS variables
+                "--platform-primary": platform?.primaryColor || "#3B82F6",
+                "--platform-secondary": platform?.secondaryColor || "#1E40AF",
             }}
         >
             {/* Flash Messages */}
@@ -53,7 +53,7 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
             )}
 
             {/* Header */}
-            {showHeader && tenant && (
+            {showHeader && platform && (
                 <Box
                     sx={{
                         py: 2,
@@ -66,23 +66,23 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
                     }}
                 >
                     <Stack direction="row" spacing={2} alignItems="center">
-                        {tenant.logoUrl && (
+                        {platform.logoUrl && (
                             <Box
                                 component="img"
-                                src={tenant.logoUrl}
-                                alt={tenant.institutionName}
+                                src={platform.logoUrl}
+                                alt={platform.institutionName}
                                 sx={{ height: 40 }}
                             />
                         )}
                         <Typography variant="h6" fontWeight={600}>
-                            {tenant.institutionName}
+                            {platform.institutionName}
                         </Typography>
                     </Stack>
                     <Stack direction="row" spacing={2}>
                         <Button component={Link} href="/login/" variant="outlined">
                             Sign In
                         </Button>
-                        {tenant.registrationEnabled && (
+                        {platform.registrationEnabled && (
                             <Button component={Link} href="/register/" variant="contained">
                                 Register
                             </Button>
@@ -98,14 +98,14 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
             {showFooter && (
                 <Box sx={{ py: 3, textAlign: "center", borderTop: 1, borderColor: "divider" }}>
                     <Typography variant="body2" color="text.secondary">
-                        {tenant ? `Powered by Crossview LMS` : `© ${new Date().getFullYear()} Crossview LMS`}
+                        {platform ? `Powered by Crossview LMS` : `© ${new Date().getFullYear()} Crossview LMS`}
                     </Typography>
                 </Box>
             )}
 
-            {/* Custom CSS injection for tenant branding */}
-            {tenant?.customCss && (
-                <style dangerouslySetInnerHTML={{ __html: tenant.customCss }} />
+            {/* Custom CSS injection for platform branding */}
+            {platform?.customCss && (
+                <style dangerouslySetInnerHTML={{ __html: platform.customCss }} />
             )}
         </Box>
     );

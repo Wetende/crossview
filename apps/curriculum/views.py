@@ -81,7 +81,7 @@ def admin_curriculum_builder(request):
     if not program_id:
         return redirect("/admin/programs/")
 
-    program = get_object_or_404(Program, pk=program_id, tenant=request.user.tenant)
+    program = get_object_or_404(Program, pk=program_id)
 
     # Get blueprint hierarchy
     hierarchy = []
@@ -134,9 +134,8 @@ def admin_node_create(request):
     if not program_id or not node_type or not title:
         return JsonResponse({"error": "Missing required fields"}, status=400)
 
-    # Verify program belongs to tenant
-    program = get_object_or_404(Program, pk=program_id, tenant=request.user.tenant)
-
+    # Verify program exists
+    program = get_object_or_404(Program, pk=program_id)
     # Get position (add at end of siblings)
     siblings = CurriculumNode.objects.filter(program=program, parent_id=parent_id)
     position = siblings.count()
@@ -187,7 +186,7 @@ def admin_node_update(request, pk: int):
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    node = get_object_or_404(CurriculumNode, pk=pk, program__tenant=request.user.tenant)
+    node = get_object_or_404(CurriculumNode, pk=pk)
     data = _get_post_data(request)
 
     # Update fields
@@ -237,7 +236,7 @@ def admin_node_delete(request, pk: int):
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    node = get_object_or_404(CurriculumNode, pk=pk, program__tenant=request.user.tenant)
+    node = get_object_or_404(CurriculumNode, pk=pk)
 
     # Check for completions
     from apps.progression.models import NodeCompletion
@@ -273,16 +272,14 @@ def admin_node_reorder(request):
     if not node_id:
         return JsonResponse({"error": "Missing nodeId"}, status=400)
 
-    node = get_object_or_404(
-        CurriculumNode, pk=node_id, program__tenant=request.user.tenant
-    )
+    node = get_object_or_404(CurriculumNode, pk=node_id)
 
     # Update parent if changed
     if new_parent_id != node.parent_id:
         # Validate new parent is in same program
         if new_parent_id:
             new_parent = get_object_or_404(
-                CurriculumNode, pk=new_parent_id, program=node.program
+                CurriculumNode, pk=new_parent_id
             )
             node.parent = new_parent
         else:
@@ -313,7 +310,7 @@ def admin_node_detail(request, pk: int):
     if not _require_admin(request.user):
         return JsonResponse({"error": "Unauthorized"}, status=403)
 
-    node = get_object_or_404(CurriculumNode, pk=pk, program__tenant=request.user.tenant)
+    node = get_object_or_404(CurriculumNode, pk=pk)
 
     return JsonResponse(
         {

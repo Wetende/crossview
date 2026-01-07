@@ -9,7 +9,7 @@ from django.db.models import Count
 from inertia import render
 
 from apps.blueprints.models import AcademicBlueprint
-from apps.tenants.models import PresetBlueprint
+from apps.platform.models import PresetBlueprint
 from apps.core.models import Program
 
 

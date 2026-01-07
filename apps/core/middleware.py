@@ -6,7 +6,7 @@ from django.http import HttpRequest, HttpResponse
 from django.contrib import messages
 from inertia import share
 
-from apps.tenants.models import PlatformSettings
+from apps.platform.models import PlatformSettings
 
 
 class InertiaShareMiddleware:

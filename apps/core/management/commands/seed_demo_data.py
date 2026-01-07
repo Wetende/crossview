@@ -4,7 +4,7 @@ Management command to seed demo data for testing and demonstration.
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 
-from apps.tenants.models import PlatformSettings
+from apps.platform.models import PlatformSettings
 from apps.blueprints.models import AcademicBlueprint
 from apps.core.models import Program
 

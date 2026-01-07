@@ -7,7 +7,7 @@ from django.db import migrations
 
 def seed_presets(apps, schema_editor):
     """Seed the database with regulatory presets."""
-    PresetBlueprint = apps.get_model('tenants', 'PresetBlueprint')
+    PresetBlueprint = apps.get_model('platform', 'PresetBlueprint')
     
     presets = [
         {
@@ -98,7 +98,7 @@ def seed_presets(apps, schema_editor):
 
 def reverse_seed(apps, schema_editor):
     """Remove seeded presets."""
-    PresetBlueprint = apps.get_model('tenants', 'PresetBlueprint')
+    PresetBlueprint = apps.get_model('platform', 'PresetBlueprint')
     PresetBlueprint.objects.filter(code__in=[
         'tvet_cdacc', 'nita_trade', 'ntsa_driving', 'cbc_k12', 'generic_theology'
     ]).delete()
@@ -107,7 +107,7 @@ def reverse_seed(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tenants', '0002_complete_multitenancy'),
+        ('platform', '0002_complete_multitenancy'),
     ]
 
     operations = [

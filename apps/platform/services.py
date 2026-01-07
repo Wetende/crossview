@@ -5,7 +5,7 @@ Platform services - Business logic for platform management (single-tenant mode).
 from typing import Optional
 from django.core.exceptions import ValidationError
 
-from apps.tenants.models import PresetBlueprint
+from apps.platform.models import PresetBlueprint
 
 
 # Default blueprint templates for each deployment mode
@@ -183,7 +183,7 @@ class PlatformSettingsService:
     @staticmethod
     def get_settings() -> dict:
         """Get current platform settings."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         return {
@@ -206,7 +206,7 @@ class PlatformSettingsService:
     @staticmethod
     def get_deployment_modes() -> list:
         """Get available deployment modes."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         return [
             {"value": choice[0], "label": choice[1]}
@@ -222,7 +222,7 @@ class PlatformSettingsService:
         address: str = "",
     ) -> None:
         """Update institution information (Step 1 of wizard)."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         settings.institution_name = institution_name
@@ -265,7 +265,7 @@ class PlatformSettingsService:
         blueprint_id: int = None,
     ) -> None:
         """Update deployment mode and auto-create blueprint (Step 2 of wizard)."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         from apps.blueprints.models import AcademicBlueprint
         
         settings = PlatformSettings.get_settings()
@@ -297,7 +297,7 @@ class PlatformSettingsService:
         favicon=None,
     ) -> None:
         """Update branding (Step 3 of wizard)."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         
@@ -317,7 +317,7 @@ class PlatformSettingsService:
     @staticmethod
     def update_features(features: dict) -> None:
         """Update feature flags (Step 4 of wizard)."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         # Merge with existing features
@@ -329,7 +329,7 @@ class PlatformSettingsService:
     @staticmethod
     def complete_setup() -> None:
         """Mark setup as complete."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         settings.is_setup_complete = True
@@ -338,7 +338,7 @@ class PlatformSettingsService:
     @staticmethod
     def is_setup_required() -> bool:
         """Check if setup wizard should be shown."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         return not settings.is_setup_complete
@@ -346,7 +346,7 @@ class PlatformSettingsService:
     @staticmethod
     def is_feature_enabled(feature_name: str) -> bool:
         """Check if a feature is enabled."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         return settings.is_feature_enabled(feature_name)
@@ -354,7 +354,7 @@ class PlatformSettingsService:
     @staticmethod
     def get_branding_context() -> dict:
         """Get branding info for templates and frontend."""
-        from apps.tenants.models import PlatformSettings
+        from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
         return {

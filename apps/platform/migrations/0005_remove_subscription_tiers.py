@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         (
-            "tenants",
+            "platform",
             "0004_rename_preset_blue_code_idx_preset_blue_code_848d49_idx_and_more",
         ),
     ]

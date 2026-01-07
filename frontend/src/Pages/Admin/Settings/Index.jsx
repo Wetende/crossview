@@ -27,7 +27,7 @@ import SchoolIcon from '@mui/icons-material/School';
 
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 
-export default function SettingsIndex({ tenant, settings, subscription }) {
+export default function SettingsIndex({ platform, settings, subscription }) {
   const { data, setData, post, processing } = useForm({
     registrationEnabled: settings?.registrationEnabled ?? true,
   });
@@ -58,7 +58,7 @@ export default function SettingsIndex({ tenant, settings, subscription }) {
         </Box>
 
         <Grid container spacing={3}>
-          {/* Tenant Info */}
+          {/* Platform Info */}
           <Grid item xs={12} md={6}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -74,14 +74,14 @@ export default function SettingsIndex({ tenant, settings, subscription }) {
                       <Typography variant="body2" color="text.secondary">
                         Name
                       </Typography>
-                      <Typography variant="body1">{tenant?.name}</Typography>
+                      <Typography variant="body1">{platform?.name}</Typography>
                     </Box>
                     <Box>
                       <Typography variant="body2" color="text.secondary">
                         Subdomain
                       </Typography>
                       <Typography variant="body1">
-                        {tenant?.subdomain}.crossview.edu
+                        {platform?.subdomain}.crossview.edu
                       </Typography>
                     </Box>
                     <Box>
@@ -89,8 +89,8 @@ export default function SettingsIndex({ tenant, settings, subscription }) {
                         Created
                       </Typography>
                       <Typography variant="body1">
-                        {tenant?.createdAt
-                          ? new Date(tenant.createdAt).toLocaleDateString()
+                        {platform?.createdAt
+                          ? new Date(platform.createdAt).toLocaleDateString()
                           : '-'}
                       </Typography>
                     </Box>

@@ -23,7 +23,7 @@ const fadeInUp = {
  * Requirements: 4.1, 4.2
  */
 export default function ForgotPassword({ success, errors = {} }) {
-    const { tenant } = usePage().props;
+    const { platform } = usePage().props;
 
     const { data, setData, post, processing } = useForm({
         email: "",
@@ -52,11 +52,11 @@ export default function ForgotPassword({ success, errors = {} }) {
                         <CardContent sx={{ p: 4 }}>
                             {/* Header */}
                             <Box sx={{ textAlign: "center", mb: 4 }}>
-                                {tenant?.logoUrl && (
+                                {platform?.logoUrl && (
                                     <Box
                                         component="img"
-                                        src={tenant.logoUrl}
-                                        alt={tenant.institutionName}
+                                        src={platform.logoUrl}
+                                        alt={platform.institutionName}
                                         sx={{ height: 48, mb: 2 }}
                                     />
                                 )}

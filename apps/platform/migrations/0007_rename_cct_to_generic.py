@@ -6,7 +6,7 @@ from django.db import migrations
 
 def update_cct_to_generic(apps, schema_editor):
     """Update existing cct_theology preset to generic_theology."""
-    PresetBlueprint = apps.get_model('tenants', 'PresetBlueprint')
+    PresetBlueprint = apps.get_model('platform', 'PresetBlueprint')
     PresetBlueprint.objects.filter(code='cct_theology').update(
         code='generic_theology',
         name='Theology School Standard',
@@ -16,7 +16,7 @@ def update_cct_to_generic(apps, schema_editor):
 
 def reverse_update(apps, schema_editor):
     """Reverse the update (for rollback)."""
-    PresetBlueprint = apps.get_model('tenants', 'PresetBlueprint')
+    PresetBlueprint = apps.get_model('platform', 'PresetBlueprint')
     PresetBlueprint.objects.filter(code='generic_theology').update(
         code='cct_theology',
         name='CCT Theology Standard',
@@ -27,7 +27,7 @@ def reverse_update(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tenants', '0006_add_platform_settings'),
+        ('platform', '0006_add_platform_settings'),
     ]
 
     operations = [

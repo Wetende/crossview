@@ -3,7 +3,7 @@
 import pytest
 from django.test import Client
 from apps.core.tests.factories import UserFactory, TenantFactory
-from apps.tenants.tests.factories import PresetBlueprintFactory
+from apps.platform.tests.factories import PresetBlueprintFactory
 
 
 @pytest.fixture

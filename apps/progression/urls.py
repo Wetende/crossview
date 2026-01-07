@@ -10,7 +10,6 @@ app_name = "progression"
 
 urlpatterns = [
     # Student Portal - Inertia pages
-    path("student/dashboard/", views.student_dashboard, name="student.dashboard"),
     path("student/programs/", views.program_list, name="student.programs"),
     path("student/programs/<int:pk>/", views.program_view, name="student.program"),
     path(
@@ -48,14 +47,8 @@ urlpatterns = [
         name="student.profile",
     ),
     # ==========================================================================
-    # Instructor Dashboard Routes
+    # Instructor Routes
     # ==========================================================================
-    # Dashboard
-    path(
-        "instructor/dashboard/",
-        views.instructor_dashboard,
-        name="instructor.dashboard",
-    ),
     # Programs
     path(
         "instructor/programs/",

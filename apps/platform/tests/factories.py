@@ -2,7 +2,7 @@
 
 import factory
 from factory.django import DjangoModelFactory
-from apps.tenants.models import PresetBlueprint
+from apps.platform.models import PresetBlueprint
 
 
 class PresetBlueprintFactory(DjangoModelFactory):

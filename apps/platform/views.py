@@ -8,8 +8,8 @@ from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from inertia import render
 
-from apps.tenants.models import PresetBlueprint, PlatformSettings
-from apps.tenants.services import (
+from apps.platform.models import PresetBlueprint, PlatformSettings
+from apps.platform.services import (
     PlatformStatsService,
     PresetBlueprintService,
 )
@@ -40,7 +40,7 @@ def admin_settings(request):
     if not _require_admin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
         data = _get_post_data(request)
@@ -73,7 +73,7 @@ def admin_branding(request):
     if not _require_admin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
         data = _get_post_data(request)
@@ -116,7 +116,7 @@ def superadmin_dashboard(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     from apps.core.models import User, Program
     
     # Get platform settings
@@ -300,7 +300,7 @@ def setup_wizard(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     
     if not PlatformSettingsService.is_setup_required():
         return redirect("/superadmin/")
@@ -314,7 +314,7 @@ def setup_institution(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
         data = _get_post_data(request)
@@ -346,7 +346,7 @@ def setup_mode(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     from apps.blueprints.models import AcademicBlueprint
     
     if request.method == "POST":
@@ -384,7 +384,7 @@ def setup_branding(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
         data = _get_post_data(request)
@@ -419,7 +419,7 @@ def setup_features(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
         data = _get_post_data(request)
@@ -453,7 +453,7 @@ def platform_settings(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     
-    from apps.tenants.services import PlatformSettingsService
+    from apps.platform.services import PlatformSettingsService
     from apps.blueprints.models import AcademicBlueprint
     
     if request.method == "POST":

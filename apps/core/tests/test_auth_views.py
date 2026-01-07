@@ -12,7 +12,7 @@ from hypothesis.extra.django import TestCase
 from django.test import Client
 from django.contrib.auth import get_user_model
 
-from apps.core.tests.factories import UserFactory, TenantFactory
+from apps.core.tests.factories import UserFactory
 from apps.core.views import get_dashboard_url, _validate_password_strength
 
 User = get_user_model()
@@ -163,7 +163,7 @@ class TestLoginErrorSecurity:
 class TestStudentRoleAssignment(TestCase):
     """
     Property 6: For any valid registration request, the created user account
-    SHALL have the role set to "student" and be associated with the current tenant.
+    SHALL have the role set to "student".
     """
 
     @given(

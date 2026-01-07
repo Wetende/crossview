@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tenants', '0001_initial'),
+        ('platform', '0001_initial'),
     ]
 
     operations = [
@@ -42,8 +42,8 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
-                related_name='tenants',
-                to='tenants.subscriptiontier'
+                related_name='platform',
+                to='platform.subscriptiontier'
             ),
         ),
         
@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
                 ('tenant', models.OneToOneField(
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='branding',
-                    to='tenants.tenant'
+                    to='platform.tenant'
                 )),
             ],
             options={
@@ -88,7 +88,7 @@ class Migration(migrations.Migration):
                 ('tenant', models.OneToOneField(
                     on_delete=django.db.models.deletion.CASCADE,
                     related_name='limits',
-                    to='tenants.tenant'
+                    to='platform.tenant'
                 )),
             ],
             options={

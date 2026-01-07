@@ -12,7 +12,7 @@ from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment, NodeCompletion, InstructorAssignment
 from apps.assessments.models import AssessmentResult
 from apps.practicum.models import PracticumSubmission, SubmissionReview
-from apps.core.tests.factories import TenantFactory, UserFactory
+from apps.core.tests.factories import UserFactory
 from .factories import (
     ProgramFactory,
     CurriculumNodeFactory,
@@ -24,18 +24,13 @@ from .factories import (
 
 
 @pytest.fixture
-def tenant(db):
-    return TenantFactory()
+def instructor():
+    return UserFactory()
 
 
 @pytest.fixture
-def instructor(tenant):
-    return UserFactory(tenant=tenant)
-
-
-@pytest.fixture
-def program(tenant):
-    return ProgramFactory(tenant=tenant)
+def program():
+    return ProgramFactory()
 
 
 @pytest.fixture
@@ -44,8 +39,8 @@ def assignment(instructor, program):
 
 
 @pytest.fixture
-def student(tenant):
-    return UserFactory(tenant=tenant)
+def student():
+    return UserFactory()
 
 
 @pytest.fixture
@@ -63,18 +58,18 @@ class TestInstructorDashboard:
 
         # Create some enrollments
         for _ in range(3):
-            student = UserFactory(tenant=instructor.tenant)
+            student = UserFactory()
             EnrollmentFactory(user=student, program=assignment.program, status="active")
 
-        response = client.get(reverse("progression:instructor.dashboard"))
+        response = client.get(reverse("core:dashboard"))
 
         assert response.status_code == 200
-        # Inertia response contains page data as JSON in content
-        assert b"Instructor/Dashboard" in response.content
+        # Inertia response contains page data
+        assert b"Dashboard" in response.content
 
     def test_dashboard_requires_authentication(self, client):
         """Dashboard should require login."""
-        response = client.get(reverse("progression:instructor.dashboard"))
+        response = client.get(reverse("core:dashboard"))
         assert response.status_code == 302  # Redirect to login
 
 
@@ -82,27 +77,27 @@ class TestInstructorDashboard:
 class TestInstructorPrograms:
     """Test instructor programs list view."""
 
-    def test_programs_list_filters_by_assignment(self, client, instructor, tenant):
+    def test_programs_list_filters_by_assignment(self, client, instructor):
         """Should only show programs assigned to instructor."""
         client.force_login(instructor)
 
         # Create assigned program
-        assigned_program = ProgramFactory(tenant=tenant)
+        assigned_program = ProgramFactory()
         InstructorAssignmentFactory(instructor=instructor, program=assigned_program)
 
         # Create unassigned program
-        unassigned_program = ProgramFactory(tenant=tenant)
+        unassigned_program = ProgramFactory()
 
         response = client.get(reverse("progression:instructor.programs"))
 
         assert response.status_code == 200
 
-    def test_program_detail_requires_assignment(self, client, instructor, tenant):
+    def test_program_detail_requires_assignment(self, client, instructor):
         """Should return 404 for programs not assigned to instructor."""
         client.force_login(instructor)
 
         # Create program without assignment
-        program = ProgramFactory(tenant=tenant)
+        program = ProgramFactory()
 
         response = client.get(
             reverse("progression:instructor.program", kwargs={"pk": program.id})
@@ -135,12 +130,12 @@ class TestInstructorStudents:
         client.force_login(instructor)
 
         # Create students with different statuses
-        active_student = UserFactory(tenant=instructor.tenant)
+        active_student = UserFactory()
         EnrollmentFactory(
             user=active_student, program=assignment.program, status="active"
         )
 
-        completed_student = UserFactory(tenant=instructor.tenant)
+        completed_student = UserFactory()
         EnrollmentFactory(
             user=completed_student, program=assignment.program, status="completed"
         )
@@ -185,7 +180,7 @@ class TestInstructorGradebook:
 
         # Create enrollments
         for _ in range(3):
-            student = UserFactory(tenant=instructor.tenant)
+            student = UserFactory()
             EnrollmentFactory(user=student, program=assignment.program)
 
         response = client.get(
@@ -267,7 +262,7 @@ class TestInstructorPracticum:
         client.force_login(instructor)
 
         # Create submission
-        student = UserFactory(tenant=instructor.tenant)
+        student = UserFactory()
         enrollment = EnrollmentFactory(user=student, program=assignment.program)
         node = CurriculumNodeFactory(program=assignment.program, node_type="Session")
         PracticumSubmissionFactory(enrollment=enrollment, node=node)
@@ -292,7 +287,7 @@ class TestInstructorPracticum:
         client.force_login(instructor)
 
         # Create submission
-        student = UserFactory(tenant=instructor.tenant)
+        student = UserFactory()
         enrollment = EnrollmentFactory(user=student, program=assignment.program)
         node = CurriculumNodeFactory(program=assignment.program, node_type="Session")
         submission = PracticumSubmissionFactory(
@@ -328,7 +323,7 @@ class TestInstructorPracticum:
         client.force_login(instructor)
 
         # Create submission
-        student = UserFactory(tenant=instructor.tenant)
+        student = UserFactory()
         enrollment = EnrollmentFactory(user=student, program=assignment.program)
         node = CurriculumNodeFactory(program=assignment.program, node_type="Session")
         submission = PracticumSubmissionFactory(
@@ -349,62 +344,3 @@ class TestInstructorPracticum:
 
         # Check node completion was created
         assert NodeCompletion.objects.filter(enrollment=enrollment, node=node).exists()
-
-
-@pytest.mark.django_db
-class TestTenantIsolation:
-    """Test tenant isolation for instructor views."""
-
-    def test_instructor_cannot_see_other_tenant_programs(self, client):
-        """Instructor should not see programs from other tenants."""
-        tenant_a = TenantFactory()
-        tenant_b = TenantFactory()
-
-        instructor_a = UserFactory(tenant=tenant_a)
-        program_a = ProgramFactory(tenant=tenant_a)
-        program_b = ProgramFactory(tenant=tenant_b)
-
-        InstructorAssignmentFactory(instructor=instructor_a, program=program_a)
-
-        client.force_login(instructor_a)
-        response = client.get(reverse("progression:instructor.programs"))
-
-        assert response.status_code == 200
-
-    def test_instructor_cannot_access_other_tenant_program_detail(self, client):
-        """Instructor should get 404 for other tenant's programs."""
-        tenant_a = TenantFactory()
-        tenant_b = TenantFactory()
-
-        instructor_a = UserFactory(tenant=tenant_a)
-        program_b = ProgramFactory(tenant=tenant_b)
-
-        client.force_login(instructor_a)
-        response = client.get(
-            reverse("progression:instructor.program", kwargs={"pk": program_b.id})
-        )
-
-        assert response.status_code == 404
-
-    def test_instructor_cannot_review_other_tenant_submissions(self, client):
-        """Instructor should not be able to review other tenant's submissions."""
-        tenant_a = TenantFactory()
-        tenant_b = TenantFactory()
-
-        instructor_a = UserFactory(tenant=tenant_a)
-        program_b = ProgramFactory(tenant=tenant_b)
-        student_b = UserFactory(tenant=tenant_b)
-        enrollment_b = EnrollmentFactory(user=student_b, program=program_b)
-        node_b = CurriculumNodeFactory(program=program_b, node_type="Session")
-        submission_b = PracticumSubmissionFactory(enrollment=enrollment_b, node=node_b)
-
-        client.force_login(instructor_a)
-        response = client.get(
-            reverse(
-                "progression:instructor.practicum.review",
-                kwargs={"pk": submission_b.id},
-            )
-        )
-
-        # Should redirect (no assignment)
-        assert response.status_code == 302

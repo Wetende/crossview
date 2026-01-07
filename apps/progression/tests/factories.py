@@ -11,7 +11,7 @@ from apps.assessments.models import AssessmentResult
 from apps.core.models import Program
 from apps.curriculum.models import CurriculumNode
 from apps.blueprints.models import AcademicBlueprint
-from apps.core.tests.factories import UserFactory, TenantFactory
+from apps.core.tests.factories import UserFactory
 
 
 class AcademicBlueprintFactory(DjangoModelFactory):
@@ -20,7 +20,6 @@ class AcademicBlueprintFactory(DjangoModelFactory):
     class Meta:
         model = AcademicBlueprint
 
-    tenant = factory.SubFactory(TenantFactory)
     name = factory.Sequence(lambda n: f"Blueprint {n}")
     description = factory.Faker("paragraph")
     hierarchy_structure = ["Year", "Unit", "Session"]
@@ -42,11 +41,7 @@ class ProgramFactory(DjangoModelFactory):
     class Meta:
         model = Program
 
-    tenant = factory.SubFactory(TenantFactory)
-    blueprint = factory.SubFactory(
-        AcademicBlueprintFactory,
-        tenant=factory.SelfAttribute("..tenant"),
-    )
+    blueprint = factory.SubFactory(AcademicBlueprintFactory)
     name = factory.Sequence(lambda n: f"Program {n}")
     code = factory.Sequence(lambda n: f"PRG-{n:04d}")
     description = factory.Faker("paragraph")
@@ -93,10 +88,7 @@ class EnrollmentFactory(DjangoModelFactory):
         model = Enrollment
 
     user = factory.SubFactory(UserFactory)
-    program = factory.SubFactory(
-        ProgramFactory,
-        tenant=factory.SelfAttribute("..user.tenant"),
-    )
+    program = factory.SubFactory(ProgramFactory)
     status = "active"
     enrolled_at = factory.LazyFunction(timezone.now)
 
@@ -145,10 +137,7 @@ class InstructorAssignmentFactory(DjangoModelFactory):
         model = InstructorAssignment
 
     instructor = factory.SubFactory(UserFactory)
-    program = factory.SubFactory(
-        ProgramFactory,
-        tenant=factory.SelfAttribute("..instructor.tenant"),
-    )
+    program = factory.SubFactory(ProgramFactory)
     assigned_at = factory.LazyFunction(timezone.now)
 
 
@@ -177,10 +166,7 @@ class AssessmentResultFactory(DjangoModelFactory):
     lecturer_comments = factory.Faker("paragraph")
     is_published = True
     published_at = factory.LazyFunction(timezone.now)
-    graded_by = factory.SubFactory(
-        UserFactory,
-        tenant=factory.SelfAttribute("..enrollment.user.tenant"),
-    )
+    graded_by = factory.SubFactory(UserFactory)
 
     class Params:
         # Trait for unpublished results
@@ -227,8 +213,9 @@ class PracticumSubmissionFactory(DjangoModelFactory):
     )
     version = 1
     status = "pending"
+    # Adjusted path to remove tenant reference
     file_path = factory.LazyAttribute(
-        lambda o: f"practicum/{o.enrollment.user.tenant_id}/{o.enrollment.id}/{o.node.id}/v{o.version}.mp3"
+        lambda o: f"practicum/{o.enrollment.id}/{o.node.id}/v{o.version}.mp3"
     )
     file_type = "mp3"
     file_size = factory.Faker("random_int", min=1000, max=10000000)
@@ -263,10 +250,7 @@ class SubmissionReviewFactory(DjangoModelFactory):
         model = "practicum.SubmissionReview"
 
     submission = factory.SubFactory(PracticumSubmissionFactory)
-    reviewer = factory.SubFactory(
-        UserFactory,
-        tenant=factory.SelfAttribute("..submission.enrollment.user.tenant"),
-    )
+    reviewer = factory.SubFactory(UserFactory)
     status = "approved"
     dimension_scores = {"Content": 20, "Delivery": 18, "Technical": 22}
     total_score = factory.LazyAttribute(
@@ -293,8 +277,9 @@ class CertificateFactory(DjangoModelFactory):
     program_title = factory.LazyAttribute(lambda o: o.enrollment.program.name)
     completion_date = factory.LazyFunction(lambda: timezone.now().date())
     issue_date = factory.LazyFunction(lambda: timezone.now().date())
+    # Adjusted path to remove tenant reference
     pdf_path = factory.LazyAttribute(
-        lambda o: f"certificates/{o.enrollment.user.tenant_id}/{o.serial_number}.pdf"
+        lambda o: f"certificates/{o.serial_number}.pdf"
     )
     is_revoked = False
 

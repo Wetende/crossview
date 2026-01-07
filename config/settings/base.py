@@ -29,7 +29,7 @@ INSTALLED_APPS = [
     "inertia",
     # Local apps
     "apps.core",
-    "apps.tenants",
+    "apps.platform",
     "apps.blueprints",
     "apps.curriculum",
     "apps.assessments",

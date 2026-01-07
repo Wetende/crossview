@@ -58,7 +58,7 @@ export default function InstructorStudentShow({
   practicumSubmissions 
 }) {
   const breadcrumbs = [
-    { label: 'Dashboard', href: '/instructor/dashboard/' },
+    { label: 'Dashboard', href: '/dashboard/' },
     { label: 'My Programs', href: '/instructor/programs/' },
     { label: program.name, href: `/instructor/programs/${program.id}/` },
     { label: 'Students', href: `/instructor/programs/${program.id}/students/` },

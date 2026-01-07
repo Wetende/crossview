@@ -27,7 +27,7 @@ const fadeInUp = {
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
  */
 export default function Login({ registrationEnabled = true, errors = {} }) {
-    const { tenant } = usePage().props;
+    const { platform } = usePage().props;
     const [showPassword, setShowPassword] = useState(false);
 
     const { data, setData, post, processing } = useForm({
@@ -61,11 +61,11 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                         <CardContent sx={{ p: 4 }}>
                             {/* Logo and Welcome */}
                             <Box sx={{ textAlign: "center", mb: 4 }}>
-                                {tenant?.logoUrl && (
+                                {platform?.logoUrl && (
                                     <Box
                                         component="img"
-                                        src={tenant.logoUrl}
-                                        alt={tenant.institutionName}
+                                        src={platform.logoUrl}
+                                        alt={platform.institutionName}
                                         sx={{ height: 48, mb: 2 }}
                                     />
                                 )}
@@ -75,7 +75,7 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                                     fontWeight={700}
                                     gutterBottom
                                 >
-                                    {tenant?.institutionName || "Crossview LMS"}
+                                    {platform?.institutionName || "Crossview LMS"}
                                 </Typography>
                                 <Typography variant="body1" color="text.secondary">
                                     Welcome back! Please sign in to continue.
@@ -225,9 +225,9 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                 </motion.div>
             </Box>
 
-            {/* Custom CSS injection for tenant branding */}
-            {tenant?.customCss && (
-                <style dangerouslySetInnerHTML={{ __html: tenant.customCss }} />
+            {/* Custom CSS injection for platform branding */}
+            {platform?.customCss && (
+                <style dangerouslySetInnerHTML={{ __html: platform.customCss }} />
             )}
         </>
     );

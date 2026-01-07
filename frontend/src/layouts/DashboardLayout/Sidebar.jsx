@@ -64,8 +64,8 @@ const navigationItems = [
         roles: ["admin"],
     },
     {
-        path: "/tenants",
-        label: "Tenants",
+        path: "/platforms",
+        label: "Platforms",
         icon: IconBuildingCommunity,
         roles: ["admin"],
     },

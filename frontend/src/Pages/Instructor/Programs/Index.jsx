@@ -101,7 +101,7 @@ function ProgramCard({ program, index }) {
 
 export default function InstructorProgramsIndex({ programs }) {
   const breadcrumbs = [
-    { label: 'Dashboard', href: '/instructor/dashboard/' },
+    { label: 'Dashboard', href: '/dashboard/' },
     { label: 'My Programs' },
   ];
 

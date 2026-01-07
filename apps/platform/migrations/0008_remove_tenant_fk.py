@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('blueprints', '0003_remove_tenant_fk'),
         ('core', '0004_remove_tenant_fk'),
-        ('tenants', '0007_rename_cct_to_generic'),
+        ('platform', '0007_rename_cct_to_generic'),
     ]
 
     operations = [
