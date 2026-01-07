@@ -1,1 +1,1 @@
-# Tenants app tests
+# Platform app tests

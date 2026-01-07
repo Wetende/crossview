@@ -1,4 +1,4 @@
-"""Tenants app URLs - Single-Tenant Mode."""
+"""Platform app URLs - Single-Tenant Mode."""
 
 from django.urls import path
 
@@ -11,7 +11,8 @@ urlpatterns = [
     path("admin/settings/", views.admin_settings, name="admin.settings"),
     path("admin/settings/branding/", views.admin_branding, name="admin.branding"),
     
-    # Super Admin Blueprints/Presets
+    # Super Admin Dashboard
+    path("superadmin/", views.superadmin_dashboard, name="superadmin.dashboard"),
     
     # Super Admin Blueprints/Presets
     path("superadmin/presets/", views.superadmin_presets, name="superadmin.presets"),

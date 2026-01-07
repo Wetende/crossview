@@ -1,1 +1,1 @@
-# Tenants app - Multi-tenancy support
+# Platform app - Platform configuration and settings

@@ -437,7 +437,13 @@ export default function Dashboard(props) {
   const renderContent = () => {
     switch (role) {
       case 'superadmin':
-        return <SuperAdminContent platformStats={props.platformStats} recentPlatforms={props.recentPlatforms} />;
+        return (
+          <SuperAdminContent
+            platformSettings={props.platformSettings}
+            stats={props.stats}
+            isSetupRequired={props.isSetupRequired}
+          />
+        );
       case 'admin':
         return <AdminContent stats={props.stats} usage={props.usage} recentActivity={props.recentActivity} />;
       case 'instructor':

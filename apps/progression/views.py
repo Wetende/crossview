@@ -791,9 +791,6 @@ def profile_settings(request):
                     "Student/Profile",
                     {
                         "user": _serialize_user(user),
-                        "tenant": (
-                            _serialize_tenant(user.tenant) if user.tenant else None
-                        ),
                         "success": "Profile updated successfully",
                     },
                 )
@@ -820,9 +817,6 @@ def profile_settings(request):
                     "Student/Profile",
                     {
                         "user": _serialize_user(user),
-                        "tenant": (
-                            _serialize_tenant(user.tenant) if user.tenant else None
-                        ),
                         "success": "Password changed successfully",
                     },
                 )
@@ -832,7 +826,6 @@ def profile_settings(request):
         "Student/Profile",
         {
             "user": _serialize_user(user),
-            "tenant": _serialize_tenant(user.tenant) if user.tenant else None,
             "errors": errors,
         },
     )
@@ -849,12 +842,7 @@ def _serialize_user(user: User) -> dict:
     }
 
 
-def _serialize_tenant(tenant) -> dict:
-    """Serialize tenant for Inertia props."""
-    return {
-        "id": tenant.id,
-        "name": tenant.name,
-    }
+# _serialize_tenant removed - no longer needed in single-tenant mode
 
 
 # =============================================================================
@@ -1730,13 +1718,11 @@ def _get_post_data(request) -> dict:
 @login_required
 def admin_enrollments(request):
     """
-    List enrollments for the tenant.
+    List all enrollments.
     Requirements: FR-6.1
     """
     if not _require_admin(request.user):
         return redirect("/dashboard/")
-
-    tenant = request.user.tenant
 
     # Get filter params
     program_id = request.GET.get("program", "")
@@ -1745,10 +1731,8 @@ def admin_enrollments(request):
     page = int(request.GET.get("page", 1))
     per_page = 20
 
-    # Build query
-    enrollments_query = Enrollment.objects.filter(
-        program__tenant=tenant
-    ).select_related("user", "program")
+    # Build query (single-tenant: all enrollments)
+    enrollments_query = Enrollment.objects.all().select_related("user", "program")
 
     if program_id:
         enrollments_query = enrollments_query.filter(program_id=program_id)
@@ -1791,7 +1775,7 @@ def admin_enrollments(request):
         )
 
     # Get programs for filter dropdown
-    programs = Program.objects.filter(tenant=tenant).values("id", "name")
+    programs = Program.objects.all().values("id", "name")
 
     return render(
         request,
@@ -1823,8 +1807,6 @@ def admin_enrollment_create(request):
     if not _require_admin(request.user):
         return redirect("/dashboard/")
 
-    tenant = request.user.tenant
-
     if request.method == "POST":
         data = _get_post_data(request)
         errors = {}
@@ -1849,8 +1831,8 @@ def admin_enrollment_create(request):
                 request,
                 "Admin/Enrollments/Create",
                 {
-                    "programs": _get_programs_for_enrollment(tenant),
-                    "students": _get_students_for_enrollment(tenant),
+                    "programs": _get_programs_for_enrollment(),
+                    "students": _get_students_for_enrollment(),
                     "errors": errors,
                     "formData": data,
                 },
@@ -1870,8 +1852,8 @@ def admin_enrollment_create(request):
         request,
         "Admin/Enrollments/Create",
         {
-            "programs": _get_programs_for_enrollment(tenant),
-            "students": _get_students_for_enrollment(tenant),
+            "programs": _get_programs_for_enrollment(),
+            "students": _get_students_for_enrollment(),
         },
     )
 
@@ -1885,8 +1867,6 @@ def admin_enrollment_bulk(request):
     if not _require_admin(request.user):
         return redirect("/dashboard/")
 
-    tenant = request.user.tenant
-
     if request.method == "POST":
         data = _get_post_data(request)
         program_id = data.get("programId")
@@ -1897,8 +1877,8 @@ def admin_enrollment_bulk(request):
                 request,
                 "Admin/Enrollments/Bulk",
                 {
-                    "programs": _get_programs_for_enrollment(tenant),
-                    "students": _get_students_for_enrollment(tenant),
+                    "programs": _get_programs_for_enrollment(),
+                    "students": _get_students_for_enrollment(),
                     "errors": {"_form": "Program and at least one student required"},
                 },
             )
@@ -1926,8 +1906,8 @@ def admin_enrollment_bulk(request):
         request,
         "Admin/Enrollments/Bulk",
         {
-            "programs": _get_programs_for_enrollment(tenant),
-            "students": _get_students_for_enrollment(tenant),
+            "programs": _get_programs_for_enrollment(),
+            "students": _get_students_for_enrollment(),
         },
     )
 
@@ -1944,9 +1924,7 @@ def admin_enrollment_withdraw(request, pk: int):
     if request.method != "POST":
         return redirect("progression:admin.enrollments")
 
-    enrollment = get_object_or_404(
-        Enrollment, pk=pk, program__tenant=request.user.tenant
-    )
+    enrollment = get_object_or_404(Enrollment, pk=pk)
 
     enrollment.status = "withdrawn"
     enrollment.save()
@@ -1954,16 +1932,16 @@ def admin_enrollment_withdraw(request, pk: int):
     return redirect("progression:admin.enrollments")
 
 
-def _get_programs_for_enrollment(tenant) -> list:
+def _get_programs_for_enrollment() -> list:
     """Get published programs for enrollment dropdown."""
-    programs = Program.objects.filter(tenant=tenant, is_published=True).order_by("name")
+    programs = Program.objects.filter(is_published=True).order_by("name")
     return [{"id": p.id, "name": p.name} for p in programs]
 
 
-def _get_students_for_enrollment(tenant) -> list:
+def _get_students_for_enrollment() -> list:
     """Get students for enrollment dropdown."""
     students = (
-        User.objects.filter(tenant=tenant, is_staff=False)
+        User.objects.filter(is_staff=False)
         .exclude(groups__name="Instructors")
         .order_by("first_name", "last_name")
     )

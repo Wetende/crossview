@@ -1,4 +1,4 @@
-"""Factory Boy factories for tenants app."""
+"""Factory Boy factories for platform app."""
 
 import factory
 from factory.django import DjangoModelFactory

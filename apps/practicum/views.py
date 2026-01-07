@@ -109,7 +109,7 @@ def practicum_upload(request):
     file_size = file.size
 
     # Generate file path (in production, this would upload to S3/storage)
-    file_path = f"practicum/{enrollment.user.tenant_id}/{enrollment.id}/{node.id}/v{version}.{file_extension}"
+    file_path = f"practicum/{enrollment.user_id}/{enrollment.id}/{node.id}/v{version}.{file_extension}"
 
     # Create submission record
     submission = PracticumSubmission.objects.create(

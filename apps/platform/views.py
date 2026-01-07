@@ -1,4 +1,4 @@
-"""Tenant views - Admin settings, branding, and Super Admin management."""
+"""Platform views - Admin settings, branding, and Super Admin management."""
 
 import json
 from django.contrib.auth.decorators import login_required
@@ -239,7 +239,7 @@ def superadmin_logs(request):
         {
             "id": 1,
             "level": "info",
-            "message": "Tenant created",
+            "message": "Platform configured",
             "user": "admin@crossview.edu",
             "timestamp": "2024-01-15T10:30:00Z",
             "context": {},
@@ -266,14 +266,7 @@ def superadmin_logs(request):
 # =============================================================================
 
 
-def _serialize_tenant(tenant) -> dict:
-    return {
-        "id": tenant.id,
-        "name": tenant.name,
-        "subdomain": tenant.subdomain,
-        "adminEmail": tenant.admin_email,
-        "isActive": tenant.is_active,
-    }
+# _serialize_tenant removed - not needed in single-tenant mode
 
 
 def _serialize_preset(preset) -> dict:
@@ -362,7 +355,7 @@ def setup_mode(request):
     modes = PlatformSettingsService.get_deployment_modes()
     blueprints = [
         {"id": b.id, "name": b.name}
-        for b in AcademicBlueprint.all_objects.all()
+        for b in AcademicBlueprint.objects.all()
     ]
     
     return render(
@@ -492,7 +485,7 @@ def platform_settings(request):
     modes = PlatformSettingsService.get_deployment_modes()
     blueprints = [
         {"id": b.id, "name": b.name}
-        for b in AcademicBlueprint.all_objects.all()
+        for b in AcademicBlueprint.objects.all()
     ]
     
     return render(

@@ -40,17 +40,15 @@ def _get_post_data(request) -> dict:
 @login_required
 def admin_blueprints(request):
     """
-    List blueprints for the tenant.
+    List all blueprints.
     Requirements: FR-2.1
     """
     if not _require_admin(request.user):
         return redirect("/dashboard/")
 
-    tenant = request.user.tenant
-
-    # Get tenant blueprints with program counts
+    # Get all blueprints with program counts
     blueprints = (
-        AcademicBlueprint.objects.filter(tenant=tenant)
+        AcademicBlueprint.objects.all()
         .annotate(program_count=Count("programs"))
         .order_by("-created_at")
     )
@@ -117,7 +115,7 @@ def admin_blueprint_detail(request, pk: int):
     if not _require_admin(request.user):
         return redirect("/dashboard/")
 
-    blueprint = get_object_or_404(AcademicBlueprint, pk=pk, tenant=request.user.tenant)
+    blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
 
     # Get programs using this blueprint
     programs = blueprint.programs.all().values("id", "name", "code", "is_published")
@@ -186,7 +184,6 @@ def admin_blueprint_create(request):
 
         # Create blueprint
         blueprint = AcademicBlueprint.objects.create(
-            tenant=request.user.tenant,
             name=name,
             description=data.get("description", ""),
             hierarchy_structure=hierarchy_labels,
@@ -222,7 +219,7 @@ def admin_blueprint_edit(request, pk: int):
     if not _require_admin(request.user):
         return redirect("/dashboard/")
 
-    blueprint = get_object_or_404(AcademicBlueprint, pk=pk, tenant=request.user.tenant)
+    blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
 
     # Check if blueprint can be edited (no programs using it)
     has_programs = blueprint.programs.exists()
@@ -304,7 +301,7 @@ def admin_blueprint_delete(request, pk: int):
     if request.method != "POST":
         return redirect("blueprints:admin.blueprints")
 
-    blueprint = get_object_or_404(AcademicBlueprint, pk=pk, tenant=request.user.tenant)
+    blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
 
     if blueprint.programs.exists():
         # Can't delete - has programs
