@@ -13,14 +13,15 @@ import {
   Typography,
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import SchoolIcon from '@mui/icons-material/School';
 
 const STEPS = ['Institution', 'Mode', 'Branding', 'Features'];
 
 export default function SetupInstitution({ step, totalSteps, settings }) {
   const [formData, setFormData] = useState({
-    institutionName: settings?.institutionName || '',
+    institutionName: settings?.institutionName === 'My Institution' ? '' : (settings?.institutionName || ''),
     tagline: settings?.tagline || '',
-    contactEmail: settings?.contactEmail || '',
+    contactEmail: settings?.contactEmail === 'admin@example.com' ? '' : (settings?.contactEmail || ''),
     contactPhone: settings?.contactPhone || '',
     address: settings?.address || '',
   });
@@ -58,8 +59,8 @@ export default function SetupInstitution({ step, totalSteps, settings }) {
       >
         <Card sx={{ maxWidth: 600, width: '100%' }}>
           <CardContent sx={{ p: 4 }}>
-            <Typography variant="h4" gutterBottom align="center" fontWeight="bold">
-              🎓 Platform Setup
+            <Typography variant="h4" gutterBottom align="center" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+              <SchoolIcon sx={{ fontSize: 36 }} color="primary" /> Platform Setup
             </Typography>
             <Typography variant="body2" color="text.secondary" align="center" mb={4}>
               Let's configure your learning management system
@@ -103,6 +104,7 @@ export default function SetupInstitution({ step, totalSteps, settings }) {
                   onChange={handleChange('contactEmail')}
                   fullWidth
                   required
+                  placeholder="e.g., admin@institution.com"
                 />
                 
                 <TextField
@@ -110,6 +112,7 @@ export default function SetupInstitution({ step, totalSteps, settings }) {
                   value={formData.contactPhone}
                   onChange={handleChange('contactPhone')}
                   fullWidth
+                  placeholder="e.g., +254 700 000 000"
                 />
                 
                 <TextField
@@ -119,6 +122,7 @@ export default function SetupInstitution({ step, totalSteps, settings }) {
                   fullWidth
                   multiline
                   rows={2}
+                  placeholder="e.g., P.O. Box 123, Nairobi, Kenya"
                 />
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2 }}>

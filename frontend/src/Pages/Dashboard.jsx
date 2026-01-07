@@ -36,6 +36,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import BusinessIcon from '@mui/icons-material/Business';
 import SettingsIcon from '@mui/icons-material/Settings';
+import WarningIcon from '@mui/icons-material/Warning';
 
 import DashboardLayout from '../components/layouts/DashboardLayout';
 
@@ -347,7 +348,9 @@ function SuperAdminContent({ platformSettings, stats, isSetupRequired }) {
       {isSetupRequired && (
         <Paper sx={{ p: 3, bgcolor: 'warning.light' }}>
           <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h6">⚠️ Setup Required</Typography>
+            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <WarningIcon color="warning" /> Setup Required
+            </Typography>
             <Button component={Link} href="/setup/" variant="contained" size="small">
               Run Setup Wizard
             </Button>

@@ -80,8 +80,8 @@ export default function SetupMode({ step, totalSteps, settings, modes, blueprint
       >
         <Card sx={{ maxWidth: 800, width: '100%' }}>
           <CardContent sx={{ p: 4 }}>
-            <Typography variant="h4" gutterBottom align="center" fontWeight="bold">
-              🎓 Platform Setup
+            <Typography variant="h4" gutterBottom align="center" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+              <SchoolIcon sx={{ fontSize: 36 }} color="primary" /> Platform Setup
             </Typography>
 
             <Stepper activeStep={step - 1} sx={{ mb: 4 }}>

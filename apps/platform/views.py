@@ -131,8 +131,9 @@ def superadmin_dashboard(request):
     
     return render(
         request,
-        "SuperAdmin/Dashboard",
+        "Dashboard",
         {
+            "role": "superadmin",
             "platformSettings": platform_settings,
             "stats": {
                 "totalUsers": total_users,

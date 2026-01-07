@@ -1,5 +1,11 @@
 import React from 'react'
 import { Head } from '@inertiajs/react'
+import ArchitectureIcon from '@mui/icons-material/Architecture'
+import AssignmentIcon from '@mui/icons-material/Assignment'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import DescriptionIcon from '@mui/icons-material/Description'
+import TrackChangesIcon from '@mui/icons-material/TrackChanges'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 
 export default function Home({ message }) {
   return (
@@ -28,32 +34,32 @@ export default function Home({ message }) {
             <FeatureCard 
               title="Blueprint Engine"
               description="Define academic structures with flexible hierarchies and grading systems"
-              icon="📐"
+              icon={<ArchitectureIcon sx={{ fontSize: 40, color: '#059669' }} />}
             />
             <FeatureCard 
               title="Assessment Engine"
               description="Weighted, competency-based, and pass/fail grading strategies"
-              icon="📝"
+              icon={<AssignmentIcon sx={{ fontSize: 40, color: '#059669' }} />}
             />
             <FeatureCard 
               title="Progression Tracking"
               description="Sequential and prerequisite-based learning paths"
-              icon="📈"
+              icon={<TrendingUpIcon sx={{ fontSize: 40, color: '#059669' }} />}
             />
             <FeatureCard 
               title="Content Parser"
               description="PDF extraction with automatic session generation"
-              icon="📄"
+              icon={<DescriptionIcon sx={{ fontSize: 40, color: '#059669' }} />}
             />
             <FeatureCard 
               title="Practicum System"
               description="Evidence-based submissions with rubric scoring"
-              icon="🎯"
+              icon={<TrackChangesIcon sx={{ fontSize: 40, color: '#059669' }} />}
             />
             <FeatureCard 
               title="Certifications"
               description="Auto-generated certificates with verification"
-              icon="🏆"
+              icon={<EmojiEventsIcon sx={{ fontSize: 40, color: '#059669' }} />}
             />
           </div>
         </div>
@@ -65,7 +71,7 @@ export default function Home({ message }) {
 function FeatureCard({ title, description, icon }) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition">
-      <div className="text-4xl mb-4">{icon}</div>
+      <div className="mb-4">{icon}</div>
       <h3 className="text-lg font-semibold text-gray-800 mb-2">{title}</h3>
       <p className="text-gray-600">{description}</p>
     </div>

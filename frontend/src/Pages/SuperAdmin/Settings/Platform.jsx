@@ -38,9 +38,9 @@ const PRESET_COLORS = [
 
 export default function PlatformSettings({ settings, modes, blueprints }) {
   const [formData, setFormData] = useState({
-    institutionName: settings?.institutionName || '',
+    institutionName: settings?.institutionName === 'My Institution' ? '' : (settings?.institutionName || ''),
     tagline: settings?.tagline || '',
-    contactEmail: settings?.contactEmail || '',
+    contactEmail: settings?.contactEmail === 'admin@example.com' ? '' : (settings?.contactEmail || ''),
     contactPhone: settings?.contactPhone || '',
     address: settings?.address || '',
     deploymentMode: settings?.deploymentMode || 'custom',
@@ -140,12 +140,14 @@ export default function PlatformSettings({ settings, modes, blueprints }) {
                         onChange={handleChange('institutionName')}
                         fullWidth
                         required
+                        placeholder="e.g., Angel Beauty College"
                       />
                       <TextField
                         label="Tagline"
                         value={formData.tagline}
                         onChange={handleChange('tagline')}
                         fullWidth
+                        placeholder="e.g., Excellence in Beauty Education"
                       />
                       <TextField
                         label="Contact Email"
@@ -153,12 +155,14 @@ export default function PlatformSettings({ settings, modes, blueprints }) {
                         value={formData.contactEmail}
                         onChange={handleChange('contactEmail')}
                         fullWidth
+                        placeholder="e.g., admin@institution.com"
                       />
                       <TextField
                         label="Contact Phone"
                         value={formData.contactPhone}
                         onChange={handleChange('contactPhone')}
                         fullWidth
+                        placeholder="e.g., +254 700 000 000"
                       />
                       <TextField
                         label="Address"
@@ -167,6 +171,7 @@ export default function PlatformSettings({ settings, modes, blueprints }) {
                         fullWidth
                         multiline
                         rows={2}
+                        placeholder="e.g., P.O. Box 123, Nairobi, Kenya"
                       />
                     </Stack>
                   </CardContent>

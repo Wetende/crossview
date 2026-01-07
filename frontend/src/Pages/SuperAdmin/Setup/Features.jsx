@@ -19,6 +19,8 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import PaymentsIcon from '@mui/icons-material/Payments';
+import SettingsIcon from '@mui/icons-material/Settings';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 
 const STEPS = ['Institution', 'Mode', 'Branding', 'Features'];
 
@@ -104,8 +106,8 @@ export default function SetupFeatures({ step, totalSteps, settings }) {
       >
         <Card sx={{ maxWidth: 600, width: '100%' }}>
           <CardContent sx={{ p: 4 }}>
-            <Typography variant="h4" gutterBottom align="center" fontWeight="bold">
-              ⚙️ Feature Setup
+            <Typography variant="h4" gutterBottom align="center" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+              <SettingsIcon sx={{ fontSize: 36 }} color="primary" /> Feature Setup
             </Typography>
 
             <Stepper activeStep={step - 1} sx={{ mb: 4 }}>
@@ -176,7 +178,7 @@ export default function SetupFeatures({ step, totalSteps, settings }) {
                   color="success"
                   disabled={loading}
                 >
-                  {loading ? 'Finishing...' : '🚀 Complete Setup'}
+                  {loading ? 'Finishing...' : <><RocketLaunchIcon sx={{ mr: 1 }} /> Complete Setup</>}
                 </Button>
               </Box>
             </form>
