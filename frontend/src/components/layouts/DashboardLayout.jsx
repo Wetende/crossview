@@ -166,7 +166,7 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
       {/* Logo/Brand */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="h6" fontWeight="bold" color="primary">
-          {platform?.name || 'Crossview LMS'}
+          {platform?.name || 'LMS'}
         </Typography>
         <Chip
           label={roleLabels[role]}
