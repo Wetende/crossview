@@ -101,8 +101,9 @@ export default function PracticumReview({
                       </Typography>
                     </Box>
                     <Chip
-                      label={submission.status}
+                      label={submission.status?.replace('_', ' ') || 'Pending'}
                       color={statusColors[submission.status] || 'default'}
+                      sx={{ textTransform: 'capitalize' }}
                     />
                   </Box>
 
@@ -229,44 +230,96 @@ export default function PracticumReview({
             </Stack>
           </Box>
 
-          {/* Sidebar - Submission History */}
+          {/* Sidebar */}
           <Box sx={{ width: { xs: '100%', lg: 300 } }}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Submission History
-              </Typography>
-
-              {previousSubmissions.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  This is the first submission
+            <Stack spacing={2}>
+              {/* Submission History */}
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Submission History
                 </Typography>
-              ) : (
-                <List dense>
-                  {previousSubmissions.map((prev) => (
-                    <ListItem key={prev.id} divider>
-                      <ListItemText
-                        primary={`Version ${prev.version}`}
-                        secondary={
-                          <>
-                            <Typography variant="caption" display="block">
-                              {new Date(prev.submittedAt).toLocaleDateString()}
+
+                {previousSubmissions.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    This is the first submission
+                  </Typography>
+                ) : (
+                  <List dense>
+                    {previousSubmissions.map((prev) => (
+                      <ListItem key={prev.id} divider>
+                        <ListItemText
+                          primary={`Version ${prev.version}`}
+                          secondary={
+                            <>
+                              <Typography variant="caption" display="block">
+                                {new Date(prev.submittedAt).toLocaleDateString()}
+                              </Typography>
+                              {prev.review && (
+                                <Chip
+                                  label={prev.review.status.replace('_', ' ')}
+                                  size="small"
+                                  color={statusColors[prev.review.status]}
+                                  sx={{ mt: 0.5, textTransform: 'capitalize' }}
+                                />
+                              )}
+                            </>
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Paper>
+
+              {/* Previous Reviews Feedback - Only show if there are reviews */}
+              {previousSubmissions.some((prev) => prev.review?.comments) && (
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Previous Feedback
+                  </Typography>
+                  <Stack spacing={2}>
+                    {previousSubmissions
+                      .filter((prev) => prev.review?.comments)
+                      .map((prev) => (
+                        <Box
+                          key={prev.id}
+                          sx={{
+                            p: 1.5,
+                            bgcolor: 'grey.50',
+                            borderRadius: 1,
+                            borderLeft: 3,
+                            borderColor:
+                              prev.review.status === 'approved'
+                                ? 'success.main'
+                                : prev.review.status === 'revision_required'
+                                ? 'warning.main'
+                                : 'error.main',
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary">
+                            Version {prev.version} •{' '}
+                            {new Date(prev.review.reviewedAt).toLocaleDateString()}
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            {prev.review.comments}
+                          </Typography>
+                          {prev.review.totalScore && (
+                            <Typography
+                              variant="caption"
+                              color="primary"
+                              fontWeight="bold"
+                              display="block"
+                              sx={{ mt: 0.5 }}
+                            >
+                              Score: {prev.review.totalScore}%
                             </Typography>
-                            {prev.review && (
-                              <Chip
-                                label={prev.review.status}
-                                size="small"
-                                color={statusColors[prev.review.status]}
-                                sx={{ mt: 0.5 }}
-                              />
-                            )}
-                          </>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                          )}
+                        </Box>
+                      ))}
+                  </Stack>
+                </Paper>
               )}
-            </Paper>
+            </Stack>
           </Box>
         </Stack>
       </motion.div>

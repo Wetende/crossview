@@ -46,6 +46,8 @@ import RateReviewIcon from '@mui/icons-material/RateReview';
 import PersonIcon from '@mui/icons-material/Person';
 import BusinessIcon from '@mui/icons-material/Business';
 import HistoryIcon from '@mui/icons-material/History';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
 const DRAWER_WIDTH = 260;
 
@@ -73,7 +75,16 @@ const roleNavigation = {
       title: 'Teaching',
       items: [
         { label: 'My Programs', href: '/instructor/programs/', icon: SchoolIcon },
+        { label: 'My Students', href: '/instructor/students/', icon: PeopleIcon },
+        { label: 'Gradebook', href: '/instructor/gradebook/', icon: GradingIcon },
         { label: 'Practicum Review', href: '/instructor/practicum/', icon: RateReviewIcon },
+      ],
+    },
+    {
+      title: 'Content',
+      items: [
+        { label: 'Course Content', href: '/instructor/content/', icon: MenuBookIcon },
+        { label: 'Announcements', href: '/instructor/announcements/', icon: NotificationsIcon },
       ],
     },
   ],
@@ -86,7 +97,6 @@ const roleNavigation = {
     {
       title: 'Academic',
       items: [
-        { label: 'Blueprints', href: '/admin/blueprints/', icon: ArchitectureIcon },
         { label: 'Programs', href: '/admin/programs/', icon: SchoolIcon },
         { label: 'Curriculum', href: '/admin/curriculum/', icon: AccountTreeIcon },
         { label: 'Rubrics', href: '/admin/rubrics/', icon: GradingIcon },
@@ -103,7 +113,6 @@ const roleNavigation = {
     {
       title: 'Settings',
       items: [
-        { label: 'Branding', href: '/admin/settings/branding/', icon: SettingsIcon },
         { label: 'General', href: '/admin/settings/', icon: SettingsIcon },
       ],
     },
@@ -112,18 +121,9 @@ const roleNavigation = {
     {
       items: [
         { label: 'Dashboard', href: '/dashboard/', icon: DashboardIcon },
-      ],
-    },
-    {
-      title: 'Configuration',
-      items: [
         { label: 'Platform Settings', href: '/superadmin/platform/', icon: SettingsIcon },
         { label: 'Blueprints', href: '/superadmin/presets/', icon: ArchitectureIcon },
-      ],
-    },
-    {
-      title: 'System',
-      items: [
+        { label: 'Users', href: '/admin/users/', icon: PeopleIcon },
         { label: 'Logs', href: '/superadmin/logs/', icon: HistoryIcon },
       ],
     },
@@ -166,14 +166,8 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
       {/* Logo/Brand */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="h6" fontWeight="bold" color="primary">
-          {platform?.name || 'LMS'}
+          {platform?.institutionName || 'LMS'}
         </Typography>
-        <Chip
-          label={roleLabels[role]}
-          size="small"
-          color={roleColors[role]}
-          sx={{ mt: 0.5 }}
-        />
       </Box>
 
       {/* Navigation */}
@@ -255,10 +249,12 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
           ml: { md: `${DRAWER_WIDTH}px` },
           bgcolor: 'background.paper',
           color: 'text.primary',
-          boxShadow: 1,
+          boxShadow: 'none',
+          borderBottom: 1,
+          borderColor: 'divider',
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ minHeight: { xs: 48, md: 48 } }}>
           <IconButton
             edge="start"
             onClick={handleDrawerToggle}
@@ -267,35 +263,33 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
             <MenuIcon />
           </IconButton>
 
-          {/* Breadcrumbs */}
-          <Breadcrumbs
-            separator={<NavigateNextIcon fontSize="small" />}
-            sx={{ flex: 1 }}
-          >
-            <Link href="/dashboard/" style={{ textDecoration: 'none' }}>
-              <Typography color="text.secondary" variant="body2">
-                Dashboard
-              </Typography>
-            </Link>
-            {breadcrumbs.map((crumb, index) => {
-              const isLast = index === breadcrumbs.length - 1;
-              return crumb.href && !isLast ? (
-                <Link
-                  key={index}
-                  href={crumb.href}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Typography color="text.secondary" variant="body2">
+          {/* Breadcrumbs - only show when not on dashboard */}
+          {breadcrumbs.length > 0 && (
+            <Breadcrumbs
+              separator={<NavigateNextIcon fontSize="small" />}
+              sx={{ flex: 1 }}
+            >
+              {breadcrumbs.map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+                return crumb.href && !isLast ? (
+                  <Link
+                    key={index}
+                    href={crumb.href}
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Typography color="text.secondary" variant="body2">
+                      {crumb.label}
+                    </Typography>
+                  </Link>
+                ) : (
+                  <Typography key={index} color="text.primary" variant="body2">
                     {crumb.label}
                   </Typography>
-                </Link>
-              ) : (
-                <Typography key={index} color="text.primary" variant="body2">
-                  {crumb.label}
-                </Typography>
-              );
-            })}
-          </Breadcrumbs>
+                );
+              })}
+            </Breadcrumbs>
+          )}
+          {breadcrumbs.length === 0 && <Box sx={{ flex: 1 }} />}
 
           {/* User Menu */}
           <IconButton onClick={handleMenuOpen}>

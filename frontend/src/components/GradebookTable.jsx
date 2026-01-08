@@ -38,12 +38,24 @@ function SummativeGradebook({ students, components, passMark, onChange }) {
     onChange(enrollmentId, componentKey, Math.min(100, Math.max(0, numValue)));
   };
 
+  // Normalize weight: if > 1, treat as percentage; otherwise as decimal
+  const normalizeWeight = (weight) => {
+    if (weight > 1) return weight / 100; // e.g., 30 -> 0.30
+    return weight; // Already decimal like 0.30
+  };
+
+  const formatWeight = (weight) => {
+    if (weight > 1) return weight; // Already percentage like 30
+    return weight * 100; // Decimal to percentage: 0.30 -> 30
+  };
+
   const calculateTotal = (grades) => {
     if (!grades?.components) return 0;
     let total = 0;
     components.forEach(comp => {
-      const score = parseFloat(grades.components[comp.key] || 0);
-      const weight = comp.weight || 0;
+      const compKey = comp.key || comp.name;
+      const score = parseFloat(grades.components[compKey] || 0);
+      const weight = normalizeWeight(comp.weight || 0);
       total += score * weight;
     });
     return Math.round(total * 100) / 100;
@@ -61,9 +73,9 @@ function SummativeGradebook({ students, components, passMark, onChange }) {
             <TableCell>Student</TableCell>
             {components.map(comp => (
               <TableCell key={comp.key} align="center">
-                {comp.label || comp.key}
+                {comp.label || comp.name || comp.key}
                 <Typography variant="caption" display="block" color="text.secondary">
-                  ({(comp.weight * 100).toFixed(0)}%)
+                  ({formatWeight(comp.weight).toFixed(0)}%)
                 </Typography>
               </TableCell>
             ))}
@@ -86,18 +98,21 @@ function SummativeGradebook({ students, components, passMark, onChange }) {
                     {student.email}
                   </Typography>
                 </TableCell>
-                {components.map(comp => (
-                  <TableCell key={comp.key} align="center">
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={student.grades?.components?.[comp.key] || ''}
-                      onChange={(e) => handleScoreChange(student.enrollmentId, comp.key, e.target.value)}
-                      inputProps={{ min: 0, max: 100, step: 0.5 }}
-                      sx={{ width: 80 }}
-                    />
-                  </TableCell>
-                ))}
+                {components.map(comp => {
+                  const compKey = comp.key || comp.name;
+                  return (
+                    <TableCell key={compKey} align="center">
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={student.grades?.components?.[compKey] || ''}
+                        onChange={(e) => handleScoreChange(student.enrollmentId, compKey, e.target.value)}
+                        inputProps={{ min: 0, max: 100, step: 0.5 }}
+                        sx={{ width: 80 }}
+                      />
+                    </TableCell>
+                  );
+                })}
                 <TableCell align="center">
                   <Typography variant="body2" fontWeight="bold">
                     {total}
@@ -270,6 +285,200 @@ function RubricGradebook({ students, levels, competencies, onChange }) {
 }
 
 /**
+ * Percentage Mode - Simple 0-100 score
+ */
+function PercentageGradebook({ students, passMark, onChange }) {
+  const handleScoreChange = (enrollmentId, value) => {
+    const numValue = parseFloat(value) || 0;
+    onChange(enrollmentId, 'score', Math.min(100, Math.max(0, numValue)));
+  };
+
+  const getStatus = (score) => {
+    return score >= passMark ? 'Pass' : 'Fail';
+  };
+
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Student</TableCell>
+            <TableCell align="center">Score (%)</TableCell>
+            <TableCell align="center">Status</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {students.map((student) => {
+            const score = student.grades?.components?.score || 0;
+            const status = getStatus(score);
+            
+            return (
+              <TableRow key={student.enrollmentId}>
+                <TableCell>
+                  <Typography variant="body2" fontWeight="medium">
+                    {student.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {student.email}
+                  </Typography>
+                </TableCell>
+                <TableCell align="center">
+                  <TextField
+                    type="number"
+                    size="small"
+                    value={score || ''}
+                    onChange={(e) => handleScoreChange(student.enrollmentId, e.target.value)}
+                    inputProps={{ min: 0, max: 100, step: 1 }}
+                    sx={{ width: 100 }}
+                  />
+                </TableCell>
+                <TableCell align="center">
+                  <Chip 
+                    label={status} 
+                    size="small" 
+                    color={statusColors[status]}
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+/**
+ * Checklist Mode - Pass/Fail per item (e.g., driving skills)
+ */
+function ChecklistGradebook({ students, items, onChange }) {
+  const handleItemChange = (enrollmentId, itemKey, passed) => {
+    onChange(enrollmentId, itemKey, passed ? 'Pass' : 'Fail');
+  };
+
+  const getOverallStatus = (grades) => {
+    if (!grades?.components) return 'Fail';
+    const values = Object.values(grades.components);
+    if (values.length === 0) return 'Fail';
+    return values.every(v => v === 'Pass') ? 'Pass' : 'Fail';
+  };
+
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Student</TableCell>
+            {items.map(item => (
+              <TableCell key={item.key || item} align="center">
+                {item.label || item}
+              </TableCell>
+            ))}
+            <TableCell align="center">Overall</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {students.map((student) => {
+            const overallStatus = getOverallStatus(student.grades);
+            
+            return (
+              <TableRow key={student.enrollmentId}>
+                <TableCell>
+                  <Typography variant="body2" fontWeight="medium">
+                    {student.name}
+                  </Typography>
+                </TableCell>
+                {items.map(item => {
+                  const key = item.key || item;
+                  const passed = student.grades?.components?.[key] === 'Pass';
+                  
+                  return (
+                    <TableCell key={key} align="center">
+                      <Checkbox
+                        checked={passed}
+                        onChange={(e) => handleItemChange(student.enrollmentId, key, e.target.checked)}
+                        color="success"
+                      />
+                    </TableCell>
+                  );
+                })}
+                <TableCell align="center">
+                  <Chip 
+                    label={overallStatus} 
+                    size="small" 
+                    color={statusColors[overallStatus]}
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+/**
+ * Pass/Fail Mode - Simple single pass/fail grade
+ */
+function PassFailGradebook({ students, onChange }) {
+  const handleStatusChange = (enrollmentId, passed) => {
+    onChange(enrollmentId, 'status', passed ? 'Pass' : 'Fail');
+  };
+
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Student</TableCell>
+            <TableCell align="center">Result</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {students.map((student) => {
+            const passed = student.grades?.components?.status === 'Pass';
+            
+            return (
+              <TableRow key={student.enrollmentId}>
+                <TableCell>
+                  <Typography variant="body2" fontWeight="medium">
+                    {student.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {student.email}
+                  </Typography>
+                </TableCell>
+                <TableCell align="center">
+                  <Stack direction="row" spacing={1} justifyContent="center">
+                    <Chip
+                      label="Pass"
+                      size="small"
+                      color={passed ? 'success' : 'default'}
+                      variant={passed ? 'filled' : 'outlined'}
+                      onClick={() => handleStatusChange(student.enrollmentId, true)}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                    <Chip
+                      label="Fail"
+                      size="small"
+                      color={!passed && student.grades?.components?.status ? 'error' : 'default'}
+                      variant={!passed && student.grades?.components?.status ? 'filled' : 'outlined'}
+                      onClick={() => handleStatusChange(student.enrollmentId, false)}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+/**
  * Main GradebookTable Component
  */
 export default function GradebookTable({ 
@@ -301,17 +510,20 @@ export default function GradebookTable({
     }
   }, [onGradeChange]);
 
-  const mode = gradingConfig?.mode || 'summative';
+  // Support multiple naming conventions for grading type
+  const mode = gradingConfig?.mode || gradingConfig?.type || 'summative';
   const components = gradingConfig?.components || [];
-  const passMark = gradingConfig?.pass_mark || 40;
+  const passMark = gradingConfig?.pass_mark || gradingConfig?.passMark || 40;
   const levels = gradingConfig?.levels || [];
   const competencies = gradingConfig?.competencies_tracking || [];
+  const items = gradingConfig?.items || gradingConfig?.components || [];
 
-  if (mode === 'cbet') {
+  // Map grading types to modes
+  if (mode === 'cbet' || mode === 'competency') {
     return (
       <CBETGradebook
         students={localStudents}
-        components={components}
+        components={components.length > 0 ? components : levels}
         onChange={handleChange}
       />
     );
@@ -328,7 +540,36 @@ export default function GradebookTable({
     );
   }
 
-  // Default: summative mode
+  if (mode === 'percentage') {
+    return (
+      <PercentageGradebook
+        students={localStudents}
+        passMark={passMark}
+        onChange={handleChange}
+      />
+    );
+  }
+
+  if (mode === 'checklist') {
+    return (
+      <ChecklistGradebook
+        students={localStudents}
+        items={items}
+        onChange={handleChange}
+      />
+    );
+  }
+
+  if (mode === 'pass_fail') {
+    return (
+      <PassFailGradebook
+        students={localStudents}
+        onChange={handleChange}
+      />
+    );
+  }
+
+  // Default: summative/weighted mode
   return (
     <SummativeGradebook
       students={localStudents}
@@ -343,3 +584,7 @@ export default function GradebookTable({
 GradebookTable.Summative = SummativeGradebook;
 GradebookTable.CBET = CBETGradebook;
 GradebookTable.Rubric = RubricGradebook;
+GradebookTable.Percentage = PercentageGradebook;
+GradebookTable.Checklist = ChecklistGradebook;
+GradebookTable.PassFail = PassFailGradebook;
+

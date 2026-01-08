@@ -40,11 +40,15 @@ export default function ProgramForm({
 }) {
   const isEdit = mode === 'edit';
 
+  // Auto-select first blueprint if only one exists or none selected
+  const defaultBlueprintId = program?.blueprintId || formData.blueprintId || 
+    (blueprints.length === 1 ? blueprints[0].id : '');
+
   const { data, setData, post, processing } = useForm({
     name: program?.name || formData.name || '',
     code: program?.code || formData.code || '',
     description: program?.description || formData.description || '',
-    blueprintId: program?.blueprintId || formData.blueprintId || '',
+    blueprintId: defaultBlueprintId,
     instructorIds: currentInstructorIds || formData.instructorIds || [],
     isPublished: program?.isPublished || formData.isPublished || false,
   });
@@ -169,74 +173,76 @@ export default function ProgramForm({
               </motion.div>
             </Grid>
 
-            {/* Blueprint Selection */}
-            <Grid item xs={12}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Academic Blueprint
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Select the blueprint that defines the academic structure for this program
-                    </Typography>
+            {/* Blueprint Selection - Hidden if only one blueprint (auto-selected) */}
+            {blueprints.length > 1 && (
+              <Grid item xs={12}>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Academic Blueprint
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Select the blueprint that defines the academic structure for this program
+                      </Typography>
 
-                    {!canChangeBlueprint && (
-                      <Alert severity="info" sx={{ mb: 2 }}>
-                        Blueprint cannot be changed because this program has enrollments.
-                      </Alert>
-                    )}
-
-                    <FormControl fullWidth error={!!errors.blueprintId}>
-                      <InputLabel>Blueprint</InputLabel>
-                      <Select
-                        value={data.blueprintId}
-                        label="Blueprint"
-                        onChange={(e) => setData('blueprintId', e.target.value)}
-                        disabled={!canChangeBlueprint}
-                        required
-                      >
-                        {blueprints.map((bp) => (
-                          <MenuItem key={bp.id} value={bp.id}>
-                            {bp.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.blueprintId && (
-                        <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
-                          {errors.blueprintId}
-                        </Typography>
+                      {!canChangeBlueprint && (
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                          Blueprint cannot be changed because this program has enrollments.
+                        </Alert>
                       )}
-                    </FormControl>
 
-                    {/* Blueprint Preview */}
-                    {selectedBlueprint && (
-                      <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                          Hierarchy Structure
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap">
-                          {selectedBlueprint.hierarchyLabels?.map((label, i) => (
-                            <Box key={i} sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Chip label={label} size="small" color="primary" variant="outlined" />
-                              {i < selectedBlueprint.hierarchyLabels.length - 1 && (
-                                <Typography sx={{ mx: 0.5 }} color="text.secondary">
-                                  →
-                                </Typography>
-                              )}
-                            </Box>
+                      <FormControl fullWidth error={!!errors.blueprintId}>
+                        <InputLabel>Blueprint</InputLabel>
+                        <Select
+                          value={data.blueprintId}
+                          label="Blueprint"
+                          onChange={(e) => setData('blueprintId', e.target.value)}
+                          disabled={!canChangeBlueprint}
+                          required
+                        >
+                          {blueprints.map((bp) => (
+                            <MenuItem key={bp.id} value={bp.id}>
+                              {bp.name}
+                            </MenuItem>
                           ))}
-                        </Stack>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Grid>
+                        </Select>
+                        {errors.blueprintId && (
+                          <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                            {errors.blueprintId}
+                          </Typography>
+                        )}
+                      </FormControl>
+
+                      {/* Blueprint Preview */}
+                      {selectedBlueprint && (
+                        <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            Hierarchy Structure
+                          </Typography>
+                          <Stack direction="row" spacing={1} flexWrap="wrap">
+                            {selectedBlueprint.hierarchyLabels?.map((label, i) => (
+                              <Box key={i} sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Chip label={label} size="small" color="primary" variant="outlined" />
+                                {i < selectedBlueprint.hierarchyLabels.length - 1 && (
+                                  <Typography sx={{ mx: 0.5 }} color="text.secondary">
+                                    →
+                                  </Typography>
+                                )}
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </Grid>
+            )}
 
             {/* Instructors */}
             <Grid item xs={12}>

@@ -31,6 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import GradingSchemaBuilder from '@/components/GradingSchemaBuilder';
 
 export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
   const { data, setData, post, processing } = useForm({
@@ -302,48 +303,16 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
             </Grid>
 
             {/* Grading Config */}
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Grading Configuration
-                    </Typography>
-                    <Stack spacing={3}>
-                      <FormControl fullWidth>
-                        <InputLabel>Grading Mode</InputLabel>
-                        <Select
-                          value={data.gradingConfig.mode || 'summative'}
-                          label="Grading Mode"
-                          onChange={(e) => setData('gradingConfig', {
-                            ...data.gradingConfig,
-                            mode: e.target.value,
-                          })}
-                        >
-                          <MenuItem value="summative">Summative</MenuItem>
-                          <MenuItem value="formative">Formative</MenuItem>
-                          <MenuItem value="competency">Competency-Based</MenuItem>
-                          <MenuItem value="weighted">Weighted Average</MenuItem>
-                        </Select>
-                      </FormControl>
-                      <TextField
-                        label="Passing Score (%)"
-                        type="number"
-                        value={data.gradingConfig.passingScore || 50}
-                        onChange={(e) => setData('gradingConfig', {
-                          ...data.gradingConfig,
-                          passingScore: parseInt(e.target.value) || 50,
-                        })}
-                        inputProps={{ min: 0, max: 100 }}
-                        fullWidth
-                      />
-                    </Stack>
-                  </CardContent>
-                </Card>
+                <GradingSchemaBuilder
+                  value={data.gradingConfig}
+                  onChange={(config) => setData('gradingConfig', config)}
+                />
               </motion.div>
             </Grid>
           </Grid>

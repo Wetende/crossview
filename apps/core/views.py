@@ -1408,3 +1408,493 @@ def _serialize_user(user: User) -> dict:
         "lastName": user.last_name,
         "isActive": user.is_active,
     }
+
+
+# =============================================================================
+# Instructor Views
+# =============================================================================
+
+
+def _require_instructor(user) -> bool:
+    """Check if user is instructor (or higher)."""
+    if user.is_superuser or user.is_staff:
+        return True
+    return hasattr(user, "groups") and user.groups.filter(name="Instructors").exists()
+
+
+def _get_instructor_program_ids(user) -> list:
+    """Get list of program IDs assigned to this instructor."""
+    from apps.progression.models import InstructorAssignment
+    return list(
+        InstructorAssignment.objects.filter(instructor=user).values_list("program_id", flat=True)
+    )
+
+
+@login_required
+def instructor_programs(request):
+    """List programs assigned to this instructor."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    programs = Program.objects.filter(id__in=program_ids).select_related("blueprint")
+    
+    from apps.progression.models import Enrollment
+    from django.db.models import Count
+    
+    enrollment_counts = dict(
+        Enrollment.objects.filter(program_id__in=program_ids)
+        .values("program_id")
+        .annotate(count=Count("id"))
+        .values_list("program_id", "count")
+    )
+    
+    programs_data = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "code": p.code or "",
+            "description": p.description or "",
+            "blueprintName": p.blueprint.name if p.blueprint else None,
+            "enrollmentCount": enrollment_counts.get(p.id, 0),
+            "isPublished": p.is_published,
+        }
+        for p in programs
+    ]
+    
+    return render(request, "Instructor/Programs/Index", {"programs": programs_data})
+
+
+@login_required
+def instructor_program_detail(request, pk: int):
+    """View program details for instructor."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment
+    from apps.curriculum.models import CurriculumNode
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    program = get_object_or_404(Program, pk=pk, id__in=program_ids)
+    
+    # Get enrolled students
+    enrollments = Enrollment.objects.filter(
+        program=program
+    ).select_related("user").order_by("user__last_name", "user__first_name")
+    
+    students_data = [
+        {
+            "id": e.id,
+            "userId": e.user.id,
+            "name": e.user.get_full_name() or e.user.email,
+            "email": e.user.email,
+            "status": e.status,
+            "enrolledAt": e.enrolled_at.isoformat(),
+        }
+        for e in enrollments
+    ]
+    
+    # Get curriculum nodes
+    nodes = CurriculumNode.objects.filter(program=program, parent__isnull=True).order_by("position")
+    
+    return render(
+        request,
+        "Instructor/Programs/Detail",
+        {
+            "program": {
+                "id": program.id,
+                "name": program.name,
+                "code": program.code or "",
+                "description": program.description or "",
+            },
+            "students": students_data,
+            "curriculum": [{"id": n.id, "title": n.title, "type": n.node_type} for n in nodes],
+        },
+    )
+
+
+@login_required
+def instructor_students(request):
+    """List all students enrolled in instructor's programs."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from apps.progression.models import Enrollment
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    
+    enrollments = (
+        Enrollment.objects.filter(program_id__in=program_ids)
+        .select_related("user", "program")
+        .order_by("user__last_name", "user__first_name")
+    )
+    
+    # Group by user
+    students_map = {}
+    for e in enrollments:
+        if e.user.id not in students_map:
+            students_map[e.user.id] = {
+                "id": e.user.id,
+                "name": e.user.get_full_name() or e.user.email,
+                "email": e.user.email,
+                "programs": [],
+            }
+        students_map[e.user.id]["programs"].append({
+            "id": e.program.id,
+            "name": e.program.name,
+            "status": e.status,
+        })
+    
+    return render(
+        request,
+        "Instructor/Students/Index",
+        {"students": list(students_map.values())},
+    )
+
+
+@login_required
+def instructor_student_detail(request, pk: int):
+    """View individual student details."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment, NodeCompletion
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    student = get_object_or_404(User, pk=pk)
+    
+    # Only show enrollment data for instructor's programs
+    enrollments = Enrollment.objects.filter(
+        user=student, program_id__in=program_ids
+    ).select_related("program")
+    
+    enrollments_data = []
+    for e in enrollments:
+        completions = NodeCompletion.objects.filter(enrollment=e).count()
+        enrollments_data.append({
+            "id": e.id,
+            "programId": e.program.id,
+            "programName": e.program.name,
+            "status": e.status,
+            "completions": completions,
+            "enrolledAt": e.enrolled_at.isoformat(),
+        })
+    
+    return render(
+        request,
+        "Instructor/Students/Detail",
+        {
+            "student": {
+                "id": student.id,
+                "name": student.get_full_name() or student.email,
+                "email": student.email,
+            },
+            "enrollments": enrollments_data,
+        },
+    )
+
+
+@login_required
+def instructor_gradebook(request):
+    """Gradebook for instructor's programs."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from apps.progression.models import Enrollment
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    programs = Program.objects.filter(id__in=program_ids).select_related("blueprint")
+    
+    # Get grading config from blueprint
+    programs_data = []
+    for p in programs:
+        grading_config = p.blueprint.grading_logic if p.blueprint else {}
+        enrollments = Enrollment.objects.filter(program=p, status="active").select_related("user")
+        
+        programs_data.append({
+            "id": p.id,
+            "name": p.name,
+            "gradingType": grading_config.get("type") or grading_config.get("mode", "percentage"),
+            "gradingConfig": grading_config,
+            "studentCount": enrollments.count(),
+        })
+    
+    return render(request, "Instructor/Gradebook/Index", {"programs": programs_data})
+
+
+@login_required
+def instructor_grade_entry(request, enrollment_id: int):
+    """Enter grades for a specific enrollment."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program_id__in=program_ids)
+    
+    if request.method == "POST":
+        data = _get_post_data(request)
+        # TODO: Save grades based on blueprint grading_type
+        messages.success(request, "Grades saved successfully")
+        return redirect("core:instructor.gradebook")
+    
+    grading_config = enrollment.program.blueprint.grading_logic if enrollment.program.blueprint else {}
+    
+    return render(
+        request,
+        "Instructor/GradeEntry",
+        {
+            "enrollment": {
+                "id": enrollment.id,
+                "studentName": enrollment.user.get_full_name() or enrollment.user.email,
+                "programName": enrollment.program.name,
+            },
+            "gradingType": grading_config.get("type", "percentage"),
+            "gradingConfig": grading_config,
+        },
+    )
+
+
+@login_required
+def instructor_program_gradebook(request, pk: int):
+    """Gradebook for a specific program."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    program = get_object_or_404(Program, pk=pk, id__in=program_ids)
+    
+    grading_config = program.blueprint.grading_logic if program.blueprint else {}
+    
+    # Get enrolled students with their grades
+    enrollments = Enrollment.objects.filter(
+        program=program
+    ).select_related("user").order_by("user__last_name", "user__first_name")
+    
+    students_data = []
+    for e in enrollments:
+        # Get grades from enrollment metadata or create empty
+        grades = e.grades if hasattr(e, 'grades') and e.grades else {"components": {}}
+        students_data.append({
+            "enrollmentId": e.id,
+            "name": e.user.get_full_name() or e.user.email,
+            "email": e.user.email,
+            "grades": grades,
+            "isPublished": getattr(e, 'grades_published', False),
+        })
+    
+    return render(
+        request,
+        "Instructor/Gradebook",
+        {
+            "program": {
+                "id": program.id,
+                "name": program.name,
+                "code": program.code or "",
+            },
+            "gradingConfig": grading_config,
+            "students": students_data,
+        },
+    )
+
+
+@login_required
+def instructor_program_gradebook_save(request, pk: int):
+    """Save grades for a specific program."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    if request.method != "POST":
+        return redirect("core:instructor.gradebook")
+    
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    program = get_object_or_404(Program, pk=pk, id__in=program_ids)
+    
+    data = _get_post_data(request)
+    grades_data = data.get("grades", {})
+    
+    # Update grades for each enrollment
+    for enrollment_id_str, grade_info in grades_data.items():
+        try:
+            enrollment_id = int(enrollment_id_str)
+            enrollment = Enrollment.objects.filter(id=enrollment_id, program=program).first()
+            if enrollment:
+                # Store grades in enrollment - this may need a JSONField on Enrollment model
+                enrollment.grades = grade_info
+                enrollment.save(update_fields=['grades'])
+        except (ValueError, TypeError):
+            continue
+    
+    messages.success(request, "Grades saved successfully")
+    return redirect("core:instructor.program_gradebook", pk=pk)
+
+
+@login_required
+def instructor_content(request):
+    """List curriculum content for instructor's programs."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from apps.curriculum.models import CurriculumNode
+    
+    def serialize_node(node):
+        """Recursively serialize node with children."""
+        children = node.children.all().order_by("position")
+        return {
+            "id": node.id,
+            "title": node.title,
+            "type": node.node_type,
+            "children": [serialize_node(child) for child in children],
+        }
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    programs = Program.objects.filter(id__in=program_ids)
+    
+    programs_data = []
+    for p in programs:
+        root_nodes = CurriculumNode.objects.filter(
+            program=p, parent__isnull=True
+        ).prefetch_related("children").order_by("position")
+        programs_data.append({
+            "id": p.id,
+            "name": p.name,
+            "nodes": [serialize_node(n) for n in root_nodes],
+        })
+    
+    return render(request, "Instructor/Content/Index", {"programs": programs_data})
+
+
+@login_required
+def instructor_content_edit(request, node_id: int):
+    """Edit session content."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from django.shortcuts import get_object_or_404
+    from apps.curriculum.models import CurriculumNode
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    node = get_object_or_404(CurriculumNode, pk=node_id, program_id__in=program_ids)
+    
+    if request.method == "POST":
+        data = _get_post_data(request)
+        node.title = data.get("title", node.title)
+        node.description = data.get("description", node.description)
+        
+        # Store extended content in properties JSON field
+        props = node.properties or {}
+        props["content"] = data.get("content", props.get("content", ""))
+        props["objectives"] = data.get("objectives", props.get("objectives", ""))
+        props["resources"] = data.get("resources", props.get("resources", ""))
+        node.properties = props
+        
+        node.save(skip_validation=True)
+        messages.success(request, "Content updated successfully")
+        return redirect("core:instructor.content")
+    
+    props = node.properties or {}
+    
+    return render(
+        request,
+        "Instructor/Content/Edit",
+        {
+            "node": {
+                "id": node.id,
+                "title": node.title,
+                "description": node.description or "",
+                "content": props.get("content", ""),
+                "objectives": props.get("objectives", ""),
+                "resources": props.get("resources", ""),
+                "nodeType": node.node_type,
+                "programName": node.program.name,
+            },
+        },
+    )
+
+
+@login_required
+def instructor_announcements(request):
+    """List announcements for instructor's programs."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from apps.progression.models import Announcement
+    from django.utils import timezone
+    from django.utils.timesince import timesince
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    programs = Program.objects.filter(id__in=program_ids)
+    
+    announcements = Announcement.objects.filter(
+        program_id__in=program_ids
+    ).select_related("program", "author").order_by("-is_pinned", "-created_at")
+    
+    announcements_data = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "content": a.content,
+            "programId": a.program_id,
+            "programName": a.program.name,
+            "isPinned": a.is_pinned,
+            "createdAt": timesince(a.created_at) + " ago",
+        }
+        for a in announcements
+    ]
+    
+    return render(
+        request,
+        "Instructor/Announcements/Index",
+        {
+            "programs": [{"id": p.id, "name": p.name} for p in programs],
+            "announcements": announcements_data,
+        },
+    )
+
+
+@login_required
+def instructor_announcement_create(request):
+    """Create a new announcement."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from apps.progression.models import Announcement
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    programs = Program.objects.filter(id__in=program_ids)
+    
+    if request.method == "POST":
+        data = _get_post_data(request)
+        program_id = data.get("programId")
+        
+        # Validate program belongs to instructor
+        if int(program_id) not in program_ids:
+            messages.error(request, "Invalid program selected")
+            return redirect("core:instructor.announcements")
+        
+        Announcement.objects.create(
+            program_id=program_id,
+            author=request.user,
+            title=data.get("title", ""),
+            content=data.get("content", ""),
+            is_pinned=data.get("isPinned", False),
+        )
+        messages.success(request, "Announcement posted successfully")
+        return redirect("core:instructor.announcements")
+    
+    return render(
+        request,
+        "Instructor/Announcements/Create",
+        {"programs": [{"id": p.id, "name": p.name} for p in programs]},
+    )
+

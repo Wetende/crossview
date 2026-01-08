@@ -66,4 +66,17 @@ urlpatterns = [
         views.admin_user_reset_password,
         name="admin.user.reset_password",
     ),
+    # Instructor Views
+    path("instructor/programs/", views.instructor_programs, name="instructor.programs"),
+    path("instructor/programs/<int:pk>/", views.instructor_program_detail, name="instructor.program"),
+    path("instructor/students/", views.instructor_students, name="instructor.students"),
+    path("instructor/students/<int:pk>/", views.instructor_student_detail, name="instructor.student"),
+    path("instructor/gradebook/", views.instructor_gradebook, name="instructor.gradebook"),
+    path("instructor/programs/<int:pk>/gradebook/", views.instructor_program_gradebook, name="instructor.program_gradebook"),
+    path("instructor/programs/<int:pk>/gradebook/save/", views.instructor_program_gradebook_save, name="instructor.program_gradebook_save"),
+    path("instructor/gradebook/<int:enrollment_id>/", views.instructor_grade_entry, name="instructor.grade_entry"),
+    path("instructor/content/", views.instructor_content, name="instructor.content"),
+    path("instructor/content/<int:node_id>/edit/", views.instructor_content_edit, name="instructor.content_edit"),
+    path("instructor/announcements/", views.instructor_announcements, name="instructor.announcements"),
+    path("instructor/announcements/create/", views.instructor_announcement_create, name="instructor.announcement_create"),
 ]

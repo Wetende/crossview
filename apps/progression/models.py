@@ -98,6 +98,8 @@ class Enrollment(models.Model):
         ],
         default="active",
     )
+    grades = models.JSONField(blank=True, null=True)  # Stores grade components
+    grades_published = models.BooleanField(default=False)
     completed_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -112,3 +114,32 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.program}"
+
+
+class Announcement(models.Model):
+    """
+    Instructor announcements to program students.
+    """
+    
+    program = models.ForeignKey(
+        "core.Program", on_delete=models.CASCADE, related_name="announcements"
+    )
+    author = models.ForeignKey(
+        "core.User", on_delete=models.CASCADE, related_name="announcements"
+    )
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    is_pinned = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = "announcements"
+        ordering = ["-is_pinned", "-created_at"]
+        indexes = [
+            models.Index(fields=["program", "-created_at"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.program}"
+
