@@ -12,17 +12,24 @@ import {
   Button,
   Alert,
   Chip,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import SaveIcon from '@mui/icons-material/Save';
 import PublishIcon from '@mui/icons-material/Publish';
+import { IconCheck, IconX, IconClock, IconAlertTriangle } from '@tabler/icons-react';
 
 import InstructorLayout from '../../components/layouts/InstructorLayout';
-import GradebookTable from '../../components/GradebookTable';
 
-export default function Gradebook({ program, gradingConfig, students }) {
+export default function Gradebook({ program, gradingConfig, quizzes = [], assignments = [], students }) {
   const [grades, setGrades] = useState(() => {
-    // Initialize grades from existing data
     const initial = {};
     students.forEach((student) => {
       initial[student.enrollmentId] = student.grades || { components: {} };
@@ -33,7 +40,6 @@ export default function Gradebook({ program, gradingConfig, students }) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  // Determine grading mode
   const gradingMode = gradingConfig?.mode || 'summative';
 
   const handleGradeChange = useCallback((enrollmentId, componentKey, value) => {
@@ -80,14 +86,26 @@ export default function Gradebook({ program, gradingConfig, students }) {
     );
   };
 
-  // Check if any grades are unpublished
-  const hasUnpublished = students.some((s) => !s.isPublished && s.grades?.total);
+  const hasUnpublished = students.some((s) => !s.isPublished && s.overallScore != null);
 
   const breadcrumbs = [
     { label: 'Programs', href: '/instructor/programs/' },
     { label: program.name, href: `/instructor/programs/${program.id}/` },
     { label: 'Gradebook' },
   ];
+
+  const renderScoreCell = (score, passed = null) => {
+    if (score === null || score === undefined) {
+      return <Typography variant="body2" color="text.secondary">—</Typography>;
+    }
+    return (
+      <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Typography variant="body2">{score.toFixed(1)}%</Typography>
+        {passed === true && <IconCheck size={14} color="green" />}
+        {passed === false && <IconX size={14} color="red" />}
+      </Stack>
+    );
+  };
 
   return (
     <InstructorLayout breadcrumbs={breadcrumbs}>
@@ -146,7 +164,6 @@ export default function Gradebook({ program, gradingConfig, students }) {
             </Stack>
           </Box>
 
-          {/* Unsaved changes warning */}
           {hasChanges && (
             <Alert severity="warning">
               You have unsaved changes. Click Save to keep your work.
@@ -154,26 +171,103 @@ export default function Gradebook({ program, gradingConfig, students }) {
           )}
 
           {/* Gradebook Table */}
-          <GradebookTable
-            students={students.map((s) => ({
-              ...s,
-              grades: grades[s.enrollmentId] || s.grades,
-            }))}
-            gradingConfig={gradingConfig}
-            onGradeChange={handleGradeChange}
-          />
-
-          {/* Empty state */}
-          {students.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Typography variant="h6" color="text.secondary">
-                No students enrolled
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Students will appear here once they enroll in this program.
-              </Typography>
-            </Box>
-          )}
+          <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ minWidth: 180, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+                    Student
+                  </TableCell>
+                  {quizzes.map((q) => (
+                    <TableCell key={`quiz-${q.id}`} align="center" sx={{ minWidth: 100 }}>
+                      <Tooltip title={q.title}>
+                        <Typography variant="caption" noWrap sx={{ display: 'block' }}>
+                          {q.title.length > 15 ? q.title.slice(0, 15) + '…' : q.title}
+                        </Typography>
+                      </Tooltip>
+                      <Chip label="Quiz" size="small" sx={{ fontSize: 10 }} />
+                    </TableCell>
+                  ))}
+                  {assignments.map((a) => (
+                    <TableCell key={`assign-${a.id}`} align="center" sx={{ minWidth: 100 }}>
+                      <Tooltip title={`${a.title} (${a.weight}%)`}>
+                        <Typography variant="caption" noWrap sx={{ display: 'block' }}>
+                          {a.title.length > 15 ? a.title.slice(0, 15) + '…' : a.title}
+                        </Typography>
+                      </Tooltip>
+                      <Chip label={`${a.weight}%`} size="small" color="secondary" sx={{ fontSize: 10 }} />
+                    </TableCell>
+                  ))}
+                  <TableCell align="center" sx={{ minWidth: 80, fontWeight: 'bold' }}>
+                    Overall
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {students.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={quizzes.length + assignments.length + 2} align="center" sx={{ py: 4 }}>
+                      <Typography color="text.secondary">No students enrolled</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  students.map((student) => (
+                    <TableRow key={student.enrollmentId} hover>
+                      <TableCell sx={{ position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                          {student.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {student.email}
+                        </Typography>
+                      </TableCell>
+                      {(student.quizScores || []).map((qs) => (
+                        <TableCell key={`q-${qs.quizId}`} align="center">
+                          {renderScoreCell(qs.score, qs.passed)}
+                        </TableCell>
+                      ))}
+                      {(student.assignmentScores || []).map((as) => (
+                        <TableCell key={`a-${as.assignmentId}`} align="center">
+                          <Stack alignItems="center" spacing={0.5}>
+                            {as.status === 'not_submitted' ? (
+                              <Chip label="No submission" size="small" variant="outlined" />
+                            ) : (
+                              <>
+                                {renderScoreCell(as.score)}
+                                {as.isLate && (
+                                  <Chip
+                                    icon={<IconAlertTriangle size={12} />}
+                                    label="Late"
+                                    size="small"
+                                    color="warning"
+                                  />
+                                )}
+                              </>
+                            )}
+                          </Stack>
+                        </TableCell>
+                      ))}
+                      <TableCell align="center">
+                        <Typography
+                          variant="body2"
+                          fontWeight="bold"
+                          color={
+                            student.overallScore !== null
+                              ? student.overallScore >= 70
+                                ? 'success.main'
+                                : 'error.main'
+                              : 'text.secondary'
+                          }
+                        >
+                          {student.overallScore !== null ? `${student.overallScore}%` : '—'}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Stack>
       </motion.div>
     </InstructorLayout>
