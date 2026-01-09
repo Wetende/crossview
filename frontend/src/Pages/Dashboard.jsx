@@ -206,7 +206,7 @@ function StudentContent({ enrollments, recentActivity }) {
 
 function InstructorContent({ stats, recentSubmissions }) {
   return (
-    <Stack spacing={3}>
+    <Stack spacing={4}>
       <Box>
         <Typography variant="h4" component="h1" gutterBottom>
           Instructor Dashboard
@@ -217,7 +217,7 @@ function InstructorContent({ stats, recentSubmissions }) {
       </Box>
 
       {/* Stats */}
-      <Grid container spacing={3}>
+      <Grid container spacing={5}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard title="Programs" value={stats?.programCount || 0} icon={SchoolIcon} color="primary" />
         </Grid>
@@ -233,34 +233,82 @@ function InstructorContent({ stats, recentSubmissions }) {
       </Grid>
 
       {/* Quick Actions & Submissions */}
-      <Grid container spacing={3}>
+      <Grid container spacing={4}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 4, height: '100%' }}>
             <Typography variant="h6" gutterBottom>Quick Actions</Typography>
-            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-              <Button component={Link} href="/instructor/programs/" variant="outlined" startIcon={<SchoolIcon />}>
-                View Programs
-              </Button>
-              <Button component={Link} href="/instructor/practicum/" variant="contained" startIcon={<RateReviewIcon />}>
-                Review Submissions
-              </Button>
-            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Frequently used actions
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Button 
+                  component={Link} 
+                  href="/instructor/programs/" 
+                  variant="outlined" 
+                  startIcon={<SchoolIcon />}
+                  fullWidth
+                  size="large"
+                  sx={{ py: 2, height: '100%' }}
+                >
+                  Programs
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Button 
+                  component={Link} 
+                  href="/instructor/gradebook/" 
+                  variant="outlined" 
+                  startIcon={<AssignmentIcon />}
+                  fullWidth
+                  size="large"
+                  sx={{ py: 2, height: '100%' }}
+                >
+                  Gradebook
+                </Button>
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <Button 
+                  component={Link} 
+                  href="/instructor/practicum/" 
+                  variant="contained" 
+                  startIcon={<RateReviewIcon />}
+                  fullWidth
+                  size="large"
+                  sx={{ py: 2 }}
+                >
+                  Review Submissions
+                </Button>
+              </Grid>
+            </Grid>
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 4, height: '100%' }}>
             <Typography variant="h6" gutterBottom>Recent Submissions</Typography>
+             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Latest student work
+            </Typography>
             {recentSubmissions?.length > 0 ? (
               <List dense>
                 {recentSubmissions.map((sub) => (
-                  <ListItem key={sub.id}>
+                  <ListItem key={sub.id} divider>
                     <ListItemText primary={sub.studentName} secondary={`${sub.nodeTitle} • ${sub.programName}`} />
                     <Button component={Link} href={`/instructor/practicum/${sub.id}/review/`} size="small">Review</Button>
                   </ListItem>
                 ))}
               </List>
             ) : (
-              <Typography variant="body2" color="text.secondary">No pending submissions</Typography>
+              <Box sx={{ 
+                p: 4, 
+                textAlign: 'center', 
+                bgcolor: 'grey.50', 
+                borderRadius: 2,
+                border: '1px dashed',
+                borderColor: 'divider'
+              }}>
+                <Typography variant="body2" color="text.secondary">No pending submissions</Typography>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -288,7 +336,7 @@ function AdminContent({ stats, usage, recentActivity }) {
       </Box>
 
       {/* Stats */}
-      <Grid container spacing={3}>
+      <Grid container spacing={5}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard title="Total Students" value={stats?.totalStudents || 0} icon={PeopleIcon} color="primary" />
         </Grid>

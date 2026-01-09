@@ -44,6 +44,11 @@ class InertiaShareMiddleware:
         # Share platform branding from PlatformSettings
         try:
             settings = PlatformSettings.get_settings()
+            # Get features with defaults from deployment mode
+            features = settings.get_default_features_for_mode()
+            if settings.features:
+                features.update(settings.features)
+            
             share(
                 request,
                 platform={
@@ -55,6 +60,7 @@ class InertiaShareMiddleware:
                     "secondaryColor": settings.secondary_color,
                     "deploymentMode": settings.deployment_mode,
                     "isSetupComplete": settings.is_setup_complete,
+                    "features": features,
                 },
             )
         except Exception:

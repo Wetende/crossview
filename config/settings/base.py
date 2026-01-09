@@ -97,6 +97,11 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+# Login/Logout URLs
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/dashboard/"
+LOGOUT_REDIRECT_URL = "/"
+
 # Internationalization
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Africa/Nairobi"

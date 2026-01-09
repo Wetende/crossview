@@ -4,11 +4,12 @@
  * Roles: student, instructor, admin, superadmin
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import {
   Box,
   Drawer,
+  SwipeableDrawer,
   AppBar,
   Toolbar,
   Typography,
@@ -48,8 +49,12 @@ import BusinessIcon from '@mui/icons-material/Business';
 import HistoryIcon from '@mui/icons-material/History';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import HomeIcon from '@mui/icons-material/Home';
 
 const DRAWER_WIDTH = 260;
+
+// Minimum touch target size for mobile (48px recommended by Google, 44px by Apple)
+const MIN_TOUCH_TARGET = 48;
 
 // Navigation menus for each role
 const roleNavigation = {
@@ -77,7 +82,8 @@ const roleNavigation = {
         { label: 'My Programs', href: '/instructor/programs/', icon: SchoolIcon },
         { label: 'My Students', href: '/instructor/students/', icon: PeopleIcon },
         { label: 'Gradebook', href: '/instructor/gradebook/', icon: GradingIcon },
-        { label: 'Practicum Review', href: '/instructor/practicum/', icon: RateReviewIcon },
+        { label: 'Rubrics', href: '/rubrics/', icon: GradingIcon, requiresFeature: 'practicum' },
+        { label: 'Practicum Review', href: '/instructor/practicum/', icon: RateReviewIcon, requiresFeature: 'practicum' },
       ],
     },
     {
@@ -99,7 +105,7 @@ const roleNavigation = {
       items: [
         { label: 'Programs', href: '/admin/programs/', icon: SchoolIcon },
         { label: 'Curriculum', href: '/admin/curriculum/', icon: AccountTreeIcon },
-        { label: 'Rubrics', href: '/admin/rubrics/', icon: GradingIcon },
+        { label: 'Rubrics', href: '/rubrics/', icon: GradingIcon, requiresFeature: 'practicum' },
       ],
     },
     {
@@ -157,14 +163,43 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
 
+  const handleDrawerOpen = () => setMobileOpen(true);
+  const handleDrawerClose = () => setMobileOpen(false);
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
 
+  // Close drawer when navigating on mobile
+  const handleNavClick = (href) => {
+    if (isMobile) {
+      handleDrawerClose();
+    }
+  };
+
+  // iOS detection for SwipeableDrawer optimization
+  const iOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Logo/Brand */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+      {/* Logo/Brand - Links to Homepage */}
+      <Box 
+        component={Link}
+        href="/"
+        onClick={() => handleNavClick('/')}
+        sx={{ 
+          p: 2, 
+          borderBottom: 1, 
+          borderColor: 'divider',
+          textDecoration: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          minHeight: MIN_TOUCH_TARGET,
+          '&:hover': { bgcolor: 'action.hover' },
+          transition: 'background-color 0.2s',
+        }}
+      >
+        <HomeIcon color="primary" fontSize="small" />
         <Typography variant="h6" fontWeight="bold" color="primary">
           {platform?.institutionName || 'LMS'}
         </Typography>
@@ -172,57 +207,72 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
 
       {/* Navigation */}
       <Box sx={{ flex: 1, overflow: 'auto', py: 1 }}>
-        {navigation.map((section, sectionIndex) => (
-          <Box key={sectionIndex}>
-            {section.title && (
-              <Typography
-                variant="overline"
-                sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary' }}
-              >
-                {section.title}
-              </Typography>
-            )}
-            <List disablePadding>
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentPath === item.href ||
-                  (item.href !== '/dashboard/' && currentPath.startsWith(item.href));
+        {navigation.map((section, sectionIndex) => {
+          // Filter items based on feature flags
+          const filteredItems = section.items.filter((item) => {
+            if (!item.requiresFeature) return true;
+            return platform?.features?.[item.requiresFeature] === true;
+          });
+          
+          // Don't render empty sections
+          if (filteredItems.length === 0) return null;
+          
+          return (
+            <Box key={sectionIndex}>
+              {section.title && (
+                <Typography
+                  variant="overline"
+                  sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary' }}
+                >
+                  {section.title}
+                </Typography>
+              )}
+              <List disablePadding>
+                {filteredItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentPath === item.href ||
+                    (item.href !== '/dashboard/' && currentPath.startsWith(item.href));
 
-                return (
-                  <ListItem key={item.href} disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      href={item.href}
-                      selected={isActive}
-                      sx={{
-                        mx: 1,
-                        borderRadius: 1,
-                        '&.Mui-selected': {
-                          bgcolor: 'primary.main',
-                          color: 'primary.contrastText',
-                          '&:hover': { bgcolor: 'primary.dark' },
-                          '& .MuiListItemIcon-root': {
+                  return (
+                    <ListItem key={item.href} disablePadding>
+                      <ListItemButton
+                        component={Link}
+                        href={item.href}
+                        onClick={() => handleNavClick(item.href)}
+                        selected={isActive}
+                        sx={{
+                          mx: 1,
+                          borderRadius: 1,
+                          // Ensure minimum touch target height for mobile
+                          minHeight: MIN_TOUCH_TARGET,
+                          py: 1.5,
+                          '&.Mui-selected': {
+                            bgcolor: 'primary.main',
                             color: 'primary.contrastText',
+                            '&:hover': { bgcolor: 'primary.dark' },
+                            '& .MuiListItemIcon-root': {
+                              color: 'primary.contrastText',
+                            },
                           },
-                        },
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        <Icon fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={item.label} />
-                    </ListItemButton>
-                  </ListItem>
-                );
-              })}
-            </List>
-          </Box>
-        ))}
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 40 }}>
+                          <Icon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary={item.label} />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Box>
+          );
+        })}
       </Box>
 
       {/* User Info */}
       <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: MIN_TOUCH_TARGET }}>
           <Avatar sx={{ width: 32, height: 32, bgcolor: `${roleColors[role]}.main` }}>
             {auth?.user?.firstName?.[0] || 'U'}
           </Avatar>
@@ -254,11 +304,19 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
           borderColor: 'divider',
         }}
       >
-        <Toolbar sx={{ minHeight: { xs: 48, md: 48 } }}>
+        <Toolbar sx={{ minHeight: { xs: 56, md: 48 } }}>
+          {/* Hamburger Menu Button - Larger touch target on mobile */}
           <IconButton
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ 
+              mr: 2, 
+              display: { md: 'none' },
+              // Ensure minimum touch target size
+              width: MIN_TOUCH_TARGET,
+              height: MIN_TOUCH_TARGET,
+            }}
+            aria-label="open navigation menu"
           >
             <MenuIcon />
           </IconButton>
@@ -291,8 +349,15 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
           )}
           {breadcrumbs.length === 0 && <Box sx={{ flex: 1 }} />}
 
-          {/* User Menu */}
-          <IconButton onClick={handleMenuOpen}>
+          {/* User Menu - Larger touch target */}
+          <IconButton 
+            onClick={handleMenuOpen}
+            sx={{
+              width: MIN_TOUCH_TARGET,
+              height: MIN_TOUCH_TARGET,
+            }}
+            aria-label="user menu"
+          >
             <Avatar sx={{ width: 32, height: 32, bgcolor: `${roleColors[role]}.main` }}>
               {auth?.user?.firstName?.[0] || 'U'}
             </Avatar>
@@ -311,7 +376,11 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
             </MenuItem>
             <Divider />
             {role === 'student' && (
-              <MenuItem component={Link} href="/student/profile/">
+              <MenuItem 
+                component={Link} 
+                href="/student/profile/"
+                sx={{ minHeight: MIN_TOUCH_TARGET }}
+              >
                 <ListItemIcon>
                   <PersonIcon fontSize="small" />
                 </ListItemIcon>
@@ -319,7 +388,11 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
               </MenuItem>
             )}
             {(role === 'admin' || role === 'superadmin') && (
-              <MenuItem component={Link} href="/admin/settings/">
+              <MenuItem 
+                component={Link} 
+                href="/admin/settings/"
+                sx={{ minHeight: MIN_TOUCH_TARGET }}
+              >
                 <ListItemIcon>
                   <SettingsIcon fontSize="small" />
                 </ListItemIcon>
@@ -327,7 +400,10 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
               </MenuItem>
             )}
             <Divider />
-            <MenuItem onClick={() => router.post('/logout/')}>
+            <MenuItem 
+              onClick={() => router.post('/logout/')}
+              sx={{ minHeight: MIN_TOUCH_TARGET }}
+            >
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
@@ -342,19 +418,25 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
         component="nav"
         sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
       >
-        {/* Mobile Drawer */}
-        <Drawer
+        {/* Mobile Drawer - SwipeableDrawer for swipe gestures */}
+        <SwipeableDrawer
           variant="temporary"
           open={mobileOpen}
-          onClose={handleDrawerToggle}
+          onOpen={handleDrawerOpen}
+          onClose={handleDrawerClose}
+          disableBackdropTransition={!iOS}
+          disableDiscovery={iOS}
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH },
+            '& .MuiDrawer-paper': { 
+              width: DRAWER_WIDTH,
+              boxSizing: 'border-box',
+            },
           }}
         >
           {drawer}
-        </Drawer>
+        </SwipeableDrawer>
 
         {/* Desktop Drawer */}
         <Drawer
@@ -377,11 +459,11 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 2, md: 3 },
           width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          mt: '64px',
+          mt: { xs: '56px', md: '48px' },
           bgcolor: 'grey.50',
-          minHeight: 'calc(100vh - 64px)',
+          minHeight: { xs: 'calc(100vh - 56px)', md: 'calc(100vh - 48px)' },
         }}
       >
         <motion.div
@@ -395,3 +477,4 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
     </Box>
   );
 }
+
