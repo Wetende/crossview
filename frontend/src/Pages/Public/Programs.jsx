@@ -1,4 +1,4 @@
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -74,9 +74,17 @@ const fadeInUp = {
     transition: { duration: 0.5, ease: [0.215, 0.61, 0.355, 1] },
 };
 
-export default function Programs({ programs, filters }) {
+export default function Programs({ programs, filters, userEnrollments = [], userPendingRequests = [] }) {
     const theme = useTheme();
+    const { auth } = usePage().props;
     const [search, setSearch] = useState(filters.search || "");
+
+    // Check enrollment/pending status for a program
+    const getEnrollmentStatus = (programId) => {
+        if (userEnrollments.includes(programId)) return "enrolled";
+        if (userPendingRequests.includes(programId)) return "pending";
+        return null;
+    };
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -241,17 +249,66 @@ export default function Programs({ programs, filters }) {
                                                 </Stack>
                                             </CardContent>
                                             <Box sx={{ p: 3, pt: 0 }}>
-                                                <ButtonAnimationWrapper className="w-full">
-                                                    <Button 
-                                                        variant="outlined" 
-                                                        fullWidth 
-                                                        sx={{ borderRadius: 100 }}
-                                                        component={Link}
-                                                        href={`/register/?program=${program.id}`}
-                                                    >
-                                                        Apply Now
-                                                    </Button>
-                                                </ButtonAnimationWrapper>
+                                                {(() => {
+                                                    const status = getEnrollmentStatus(program.id);
+                                                    if (status === "enrolled") {
+                                                        return (
+                                                            <Button 
+                                                                variant="contained" 
+                                                                fullWidth 
+                                                                color="success"
+                                                                sx={{ borderRadius: 100 }}
+                                                                component={Link}
+                                                                href={`/dashboard/student/programs/${program.id}/`}
+                                                            >
+                                                                Continue Learning
+                                                            </Button>
+                                                        );
+                                                    }
+                                                    if (status === "pending") {
+                                                        return (
+                                                            <Button 
+                                                                variant="outlined" 
+                                                                fullWidth 
+                                                                disabled
+                                                                sx={{ borderRadius: 100 }}
+                                                            >
+                                                                Enrollment Pending
+                                                            </Button>
+                                                        );
+                                                    }
+                                                    // Not enrolled
+                                                    if (auth?.user) {
+                                                        return (
+                                                            <ButtonAnimationWrapper className="w-full">
+                                                                <Button 
+                                                                    variant="contained" 
+                                                                    fullWidth 
+                                                                    sx={{ borderRadius: 100 }}
+                                                                    component={Link}
+                                                                    href={`/dashboard/programs/${program.id}/enroll/`}
+                                                                    method="post"
+                                                                >
+                                                                    Enroll Now
+                                                                </Button>
+                                                            </ButtonAnimationWrapper>
+                                                        );
+                                                    }
+                                                    // Not logged in
+                                                    return (
+                                                        <ButtonAnimationWrapper className="w-full">
+                                                            <Button 
+                                                                variant="outlined" 
+                                                                fullWidth 
+                                                                sx={{ borderRadius: 100 }}
+                                                                component={Link}
+                                                                href={`/register/?program=${program.id}`}
+                                                            >
+                                                                Apply Now
+                                                            </Button>
+                                                        </ButtonAnimationWrapper>
+                                                    );
+                                                })()}
                                             </Box>
                                         </GraphicsCard>
                                     </motion.div>

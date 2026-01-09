@@ -126,19 +126,27 @@ export default function ProgramsIndex({
         {/* Filters */}
         <Card>
           <CardContent>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-end">
+            <Stack 
+              direction={{ xs: 'column', md: 'row' }} 
+              spacing={2} 
+              alignItems={{ xs: 'stretch', md: 'flex-end' }}
+            >
               <TextField
                 label="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 size="small"
-                sx={{ minWidth: 200 }}
+                fullWidth
+                sx={{ 
+                  minWidth: { xs: '100%', md: 200 },
+                  maxWidth: { md: 300 },
+                }}
                 InputProps={{
                   startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleFilter()}
               />
-              <FormControl size="small" sx={{ minWidth: 150 }}>
+              <FormControl size="small" fullWidth sx={{ minWidth: { xs: '100%', md: 150 }, maxWidth: { md: 180 } }}>
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={status}
@@ -150,7 +158,7 @@ export default function ProgramsIndex({
                   <MenuItem value="draft">Draft</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ minWidth: 200 }}>
+              <FormControl size="small" fullWidth sx={{ minWidth: { xs: '100%', md: 200 }, maxWidth: { md: 250 } }}>
                 <InputLabel>Blueprint</InputLabel>
                 <Select
                   value={blueprint}
@@ -169,6 +177,11 @@ export default function ProgramsIndex({
                 variant="outlined"
                 startIcon={<FilterListIcon />}
                 onClick={handleFilter}
+                fullWidth
+                sx={{ 
+                  minWidth: { xs: '100%', md: 'auto' },
+                  maxWidth: { md: 120 },
+                }}
               >
                 Filter
               </Button>

@@ -138,6 +138,7 @@ class PlatformSettings(models.Model):
                 'gamification': False,
                 'self_registration': False,
                 'payments': False,
+                'enrollment_mode': 'instructor_approval',  # open, instructor_approval, admin_approval
             },
             'theology': {
                 'certificates': True,
@@ -145,6 +146,7 @@ class PlatformSettings(models.Model):
                 'gamification': False,
                 'self_registration': True,
                 'payments': False,
+                'enrollment_mode': 'instructor_approval',
             },
             'online': {
                 'certificates': True,
@@ -152,6 +154,7 @@ class PlatformSettings(models.Model):
                 'gamification': True,
                 'self_registration': True,
                 'payments': True,
+                'enrollment_mode': 'open',
             },
             'driving': {
                 'certificates': True,
@@ -159,6 +162,23 @@ class PlatformSettings(models.Model):
                 'gamification': True,
                 'self_registration': False,
                 'payments': True,
+                'enrollment_mode': 'admin_approval',
+            },
+            'nita': {
+                'certificates': True,
+                'practicum': True,
+                'gamification': False,
+                'self_registration': False,
+                'payments': True,
+                'enrollment_mode': 'admin_approval',
+            },
+            'cbc': {
+                'certificates': True,
+                'practicum': False,
+                'gamification': True,
+                'self_registration': False,
+                'payments': False,
+                'enrollment_mode': 'admin_approval',
             },
             'custom': {
                 'certificates': True,
@@ -166,6 +186,7 @@ class PlatformSettings(models.Model):
                 'gamification': False,
                 'self_registration': True,
                 'payments': False,
+                'enrollment_mode': 'instructor_approval',
             },
         }
         return MODE_DEFAULTS.get(self.deployment_mode, MODE_DEFAULTS['custom'])

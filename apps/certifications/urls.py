@@ -14,4 +14,7 @@ urlpatterns = [
         views.certificate_download,
         name="student.certificate.download.api",
     ),
+    # Admin certificate management
+    path("admin/certificates/", views.admin_certificates, name="admin.certificates"),
 ]
+

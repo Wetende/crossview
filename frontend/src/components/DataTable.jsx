@@ -198,17 +198,24 @@ export default function DataTable({
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        {actions.map((action, index) => (
-          <MenuItem
-            key={index}
-            onClick={() => handleAction(action)}
-            disabled={action.disabled?.(activeRow)}
-            sx={action.color ? { color: `${action.color}.main` } : {}}
-          >
-            {action.icon && <Box sx={{ mr: 1, display: 'flex' }}>{action.icon}</Box>}
-            {action.label}
-          </MenuItem>
-        ))}
+        {activeRow && actions.map((action, index) => {
+          // Support dynamic label, icon, and color (can be functions)
+          const label = typeof action.label === 'function' ? action.label(activeRow) : action.label;
+          const icon = typeof action.icon === 'function' ? action.icon(activeRow) : action.icon;
+          const color = typeof action.color === 'function' ? action.color(activeRow) : action.color;
+          
+          return (
+            <MenuItem
+              key={index}
+              onClick={() => handleAction(action)}
+              disabled={action.disabled?.(activeRow)}
+              sx={color ? { color: `${color}.main` } : {}}
+            >
+              {icon && <Box sx={{ mr: 1, display: 'flex' }}>{icon}</Box>}
+              {label}
+            </MenuItem>
+          );
+        })}
       </Menu>
     </Box>
   );

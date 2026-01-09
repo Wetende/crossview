@@ -143,3 +143,53 @@ class Announcement(models.Model):
     def __str__(self):
         return f"{self.title} - {self.program}"
 
+
+class EnrollmentRequest(models.Model):
+    """
+    Represents a student's request to enroll in a program.
+    Used when enrollment_mode is 'instructor_approval' or 'admin_approval'.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    user = models.ForeignKey(
+        "core.User", on_delete=models.CASCADE, related_name="enrollment_requests"
+    )
+    program = models.ForeignKey(
+        "core.Program", on_delete=models.CASCADE, related_name="enrollment_requests"
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    message = models.TextField(
+        blank=True, default="",
+        help_text="Optional message from student explaining why they want to enroll"
+    )
+    reviewed_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_enrollment_requests"
+    )
+    reviewer_notes = models.TextField(
+        blank=True, default="",
+        help_text="Notes from reviewer (visible to student if rejected)"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "enrollment_requests"
+        unique_together = ["user", "program"]
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "-created_at"]),
+            models.Index(fields=["program", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.program} ({self.status})"

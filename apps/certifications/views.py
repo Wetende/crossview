@@ -117,9 +117,71 @@ def verify_certificate(request, serial_number):
     )
 
 
+def admin_certificates(request):
+    """
+    Admin page to manage all certificates.
+    Requirements: Certificate management for admins
+    
+    GET /admin/certificates/
+    """
+    from django.shortcuts import redirect
+    from django.contrib.auth.decorators import login_required
+    from django.db.models import Count, Q
+    from datetime import timedelta
+    
+    # Require authentication
+    if not request.user.is_authenticated:
+        return redirect('core:login')
+    
+    # Require admin or superadmin role
+    if not (request.user.is_superuser or request.user.role in ['admin', 'superadmin']):
+        return redirect('core:dashboard')
+    
+    # Get all certificates with related data
+    certificates = Certificate.objects.select_related(
+        'enrollment', 'enrollment__user', 'enrollment__program'
+    ).order_by('-issued_at')
+    
+    # Calculate stats
+    now = timezone.now()
+    thirty_days_ago = now - timedelta(days=30)
+    
+    total_certificates = certificates.count()
+    certificates_this_month = certificates.filter(issued_at__gte=thirty_days_ago).count()
+    revoked_count = certificates.filter(is_revoked=True).count()
+    
+    # Serialize certificates for frontend
+    serialized_certificates = []
+    for cert in certificates:
+        serialized_certificates.append({
+            'id': cert.id,
+            'serialNumber': cert.serial_number,
+            'studentName': cert.student_name,
+            'studentEmail': cert.enrollment.user.email if cert.enrollment else None,
+            'programTitle': cert.program_title,
+            'completionDate': cert.completion_date.isoformat() if cert.completion_date else None,
+            'issuedAt': cert.issued_at.isoformat() if cert.issued_at else None,
+            'isRevoked': cert.is_revoked,
+            'revocationReason': cert.revocation_reason,
+        })
+    
+    return render(
+        request,
+        "Admin/Certificates/Index",
+        {
+            'certificates': serialized_certificates,
+            'stats': {
+                'total': total_certificates,
+                'thisMonth': certificates_this_month,
+                'revoked': revoked_count,
+            },
+        },
+    )
+
 def _get_client_ip(request):
     """Get client IP address from request."""
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
         return x_forwarded_for.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR")
+

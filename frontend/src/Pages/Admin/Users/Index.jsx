@@ -27,6 +27,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import DataTable from '@/components/DataTable';
@@ -130,11 +131,25 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
     },
     {
       label: (row) => (row.isActive ? 'Deactivate' : 'Activate'),
-      icon: <BlockIcon fontSize="small" />,
+      icon: (row) => row.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />,
       onClick: (row) => {
         const action = row.isActive ? 'deactivate' : 'activate';
         if (confirm(`Are you sure you want to ${action} ${row.fullName}?`)) {
           router.post(`/admin/users/${row.id}/deactivate/`);
+        }
+      },
+      color: (row) => row.isActive ? 'warning' : 'success',
+    },
+    {
+      label: 'Delete',
+      icon: <DeleteIcon fontSize="small" />,
+      onClick: (row) => {
+        if (row.role === 'superadmin') {
+          alert('Cannot delete superadmin accounts');
+          return;
+        }
+        if (confirm(`Are you sure you want to PERMANENTLY DELETE ${row.fullName}? This action cannot be undone.`)) {
+          router.post(`/admin/users/${row.id}/delete/`);
         }
       },
       color: 'error',
@@ -169,19 +184,27 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
         {/* Filters */}
         <Card>
           <CardContent>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-end">
+            <Stack 
+              direction={{ xs: 'column', md: 'row' }} 
+              spacing={2} 
+              alignItems={{ xs: 'stretch', md: 'flex-end' }}
+            >
               <TextField
                 label="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 size="small"
-                sx={{ minWidth: 200 }}
+                fullWidth
+                sx={{ 
+                  minWidth: { xs: '100%', md: 200 },
+                  maxWidth: { md: 300 },
+                }}
                 InputProps={{
                   startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleFilter()}
               />
-              <FormControl size="small" sx={{ minWidth: 150 }}>
+              <FormControl size="small" fullWidth sx={{ minWidth: { xs: '100%', md: 150 }, maxWidth: { md: 180 } }}>
                 <InputLabel>Role</InputLabel>
                 <Select value={role} label="Role" onChange={(e) => setRole(e.target.value)}>
                   <MenuItem value="">All Roles</MenuItem>
@@ -190,7 +213,7 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
                   <MenuItem value="student">Student</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl size="small" sx={{ minWidth: 150 }}>
+              <FormControl size="small" fullWidth sx={{ minWidth: { xs: '100%', md: 150 }, maxWidth: { md: 180 } }}>
                 <InputLabel>Status</InputLabel>
                 <Select value={status} label="Status" onChange={(e) => setStatus(e.target.value)}>
                   <MenuItem value="">All</MenuItem>
@@ -198,7 +221,16 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
                   <MenuItem value="inactive">Inactive</MenuItem>
                 </Select>
               </FormControl>
-              <Button variant="outlined" startIcon={<FilterListIcon />} onClick={handleFilter}>
+              <Button 
+                variant="outlined" 
+                startIcon={<FilterListIcon />} 
+                onClick={handleFilter}
+                fullWidth
+                sx={{ 
+                  minWidth: { xs: '100%', md: 'auto' },
+                  maxWidth: { md: 120 },
+                }}
+              >
                 Filter
               </Button>
             </Stack>

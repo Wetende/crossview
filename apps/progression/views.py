@@ -1953,3 +1953,248 @@ def _get_students_for_enrollment() -> list:
         }
         for u in students
     ]
+
+
+# =============================================================================
+# Self-Enrollment Views
+# =============================================================================
+
+
+@login_required
+def student_enroll_request(request, pk: int):
+    """
+    Handle student self-enrollment request.
+    Behavior depends on enrollment_mode feature flag:
+    - 'open': Direct enrollment
+    - 'instructor_approval': Create pending request
+    - 'admin_approval': Create pending request
+    """
+    from apps.platform.models import PlatformSettings
+    from apps.progression.models import EnrollmentRequest
+    from django.contrib import messages
+    
+    user = request.user
+    program = get_object_or_404(Program, pk=pk, is_published=True)
+    
+    # Check if already enrolled
+    if Enrollment.objects.filter(user=user, program=program).exists():
+        messages.info(request, "You are already enrolled in this program.")
+        return redirect("progression:student.program", pk=pk)
+    
+    # Check if pending request exists
+    if EnrollmentRequest.objects.filter(user=user, program=program, status="pending").exists():
+        messages.info(request, "Your enrollment request is pending approval.")
+        return redirect("core:programs")
+    
+    # Get enrollment mode from platform settings
+    settings = PlatformSettings.get_settings()
+    enrollment_mode = settings.features.get(
+        "enrollment_mode",
+        settings.get_default_features_for_mode().get("enrollment_mode", "instructor_approval")
+    )
+    
+    if request.method == "POST":
+        import json
+        data = {}
+        if request.body:
+            try:
+                data = json.loads(request.body)
+            except (json.JSONDecodeError, ValueError):
+                data = request.POST.dict()
+        
+        message = data.get("message", "")
+        
+        if enrollment_mode == "open":
+            # Direct enrollment
+            Enrollment.objects.create(
+                user=user,
+                program=program,
+                status="active",
+                enrolled_at=timezone.now(),
+            )
+            messages.success(request, f"Successfully enrolled in {program.name}!")
+            return redirect("progression:student.program", pk=pk)
+        else:
+            # Create pending request
+            EnrollmentRequest.objects.create(
+                user=user,
+                program=program,
+                status="pending",
+                message=message,
+            )
+            messages.success(
+                request,
+                f"Your enrollment request for {program.name} has been submitted for approval."
+            )
+            return redirect("core:programs")
+    
+    # GET - show enrollment form (for approval modes)
+    return render(
+        request,
+        "Public/EnrollRequest",
+        {
+            "program": {
+                "id": program.id,
+                "name": program.name,
+                "code": program.code or "",
+                "description": program.description or "",
+            },
+            "enrollmentMode": enrollment_mode,
+        },
+    )
+
+
+@login_required
+def instructor_enrollment_requests(request, pk: int):
+    """
+    List pending enrollment requests for a program.
+    """
+    from apps.progression.models import EnrollmentRequest, InstructorAssignment
+    
+    user = request.user
+    
+    # Verify instructor has access
+    assignment = get_object_or_404(InstructorAssignment, instructor=user, program_id=pk)
+    program = assignment.program
+    
+    # Get filter params
+    status_filter = request.GET.get("status", "pending")
+    page = int(request.GET.get("page", 1))
+    per_page = 20
+    
+    # Query requests
+    requests_query = EnrollmentRequest.objects.filter(program=program).select_related("user")
+    
+    if status_filter:
+        requests_query = requests_query.filter(status=status_filter)
+    
+    requests_query = requests_query.order_by("-created_at")
+    
+    # Pagination
+    total_count = requests_query.count()
+    total_pages = (total_count + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+    requests = requests_query[offset : offset + per_page]
+    
+    requests_data = [
+        {
+            "id": r.id,
+            "studentName": r.user.get_full_name() or r.user.email,
+            "studentEmail": r.user.email,
+            "message": r.message,
+            "status": r.status,
+            "createdAt": r.created_at.isoformat(),
+            "reviewedAt": r.reviewed_at.isoformat() if r.reviewed_at else None,
+        }
+        for r in requests
+    ]
+    
+    return render(
+        request,
+        "Instructor/EnrollmentRequests/Index",
+        {
+            "program": {"id": program.id, "name": program.name},
+            "requests": {
+                "results": requests_data,
+                "pagination": {
+                    "page": page,
+                    "perPage": per_page,
+                    "totalCount": total_count,
+                    "totalPages": total_pages,
+                    "hasNext": page < total_pages,
+                    "hasPrev": page > 1,
+                },
+            },
+            "filters": {
+                "status": status_filter,
+            },
+        },
+    )
+
+
+@login_required
+def instructor_enrollment_request_approve(request, pk: int, request_id: int):
+    """
+    Approve an enrollment request.
+    """
+    from apps.progression.models import EnrollmentRequest, InstructorAssignment
+    from django.contrib import messages
+    
+    if request.method != "POST":
+        return redirect("progression:instructor.enrollment_requests", pk=pk)
+    
+    user = request.user
+    
+    # Verify instructor has access
+    assignment = get_object_or_404(InstructorAssignment, instructor=user, program_id=pk)
+    
+    # Get request
+    enrollment_request = get_object_or_404(
+        EnrollmentRequest,
+        pk=request_id,
+        program_id=pk,
+        status="pending"
+    )
+    
+    # Create enrollment
+    Enrollment.objects.create(
+        user=enrollment_request.user,
+        program=enrollment_request.program,
+        status="active",
+        enrolled_at=timezone.now(),
+    )
+    
+    # Update request
+    enrollment_request.status = "approved"
+    enrollment_request.reviewed_by = user
+    enrollment_request.reviewed_at = timezone.now()
+    enrollment_request.save()
+    
+    messages.success(request, f"Approved enrollment for {enrollment_request.user.get_full_name() or enrollment_request.user.email}")
+    
+    return redirect("progression:instructor.enrollment_requests", pk=pk)
+
+
+@login_required
+def instructor_enrollment_request_reject(request, pk: int, request_id: int):
+    """
+    Reject an enrollment request.
+    """
+    from apps.progression.models import EnrollmentRequest, InstructorAssignment
+    from django.contrib import messages
+    import json
+    
+    if request.method != "POST":
+        return redirect("progression:instructor.enrollment_requests", pk=pk)
+    
+    user = request.user
+    
+    # Verify instructor has access
+    assignment = get_object_or_404(InstructorAssignment, instructor=user, program_id=pk)
+    
+    # Get request
+    enrollment_request = get_object_or_404(
+        EnrollmentRequest,
+        pk=request_id,
+        program_id=pk,
+        status="pending"
+    )
+    
+    # Get rejection notes
+    data = {}
+    if request.body:
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            data = request.POST.dict()
+    
+    # Update request
+    enrollment_request.status = "rejected"
+    enrollment_request.reviewed_by = user
+    enrollment_request.reviewed_at = timezone.now()
+    enrollment_request.reviewer_notes = data.get("notes", "")
+    enrollment_request.save()
+    
+    messages.info(request, f"Rejected enrollment for {enrollment_request.user.get_full_name() or enrollment_request.user.email}")
+    
+    return redirect("progression:instructor.enrollment_requests", pk=pk)
