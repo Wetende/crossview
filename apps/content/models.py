@@ -1,5 +1,5 @@
 """
-Content models - PDF parsing and content optimization.
+Content models - PDF parsing, rich content blocks, and optimization.
 """
 from django.db import models
 
@@ -64,3 +64,53 @@ class ParsedImage(models.Model):
 
     def __str__(self):
         return f"Image from page {self.page_number} of {self.content_version}"
+
+
+class LessonBlock(models.Model):
+    """
+    Block-based content within a lesson/session.
+    Supports rich text, video, audio, and downloadable assets.
+    Enables instructors to build modular, multimedia lessons.
+    """
+    BLOCK_TYPE_CHOICES = [
+        ('text', 'Rich Text'),
+        ('video', 'Video'),
+        ('audio', 'Audio'),
+        ('file', 'Downloadable File'),
+        ('embed', 'Embed (YouTube/Vimeo)'),
+        ('image', 'Image'),
+    ]
+
+    node = models.ForeignKey(
+        'curriculum.CurriculumNode',
+        on_delete=models.CASCADE,
+        related_name='lesson_blocks'
+    )
+    block_type = models.CharField(max_length=20, choices=BLOCK_TYPE_CHOICES)
+    position = models.PositiveIntegerField(default=0)
+    
+    # Content based on type
+    # - text: HTML/markdown content in 'content' field
+    # - video/audio/file: path in 'file_path', name in 'file_name'
+    # - embed: embed URL in 'content' field
+    # - image: path in 'file_path', alt text in 'content'
+    content = models.TextField(blank=True, default='')
+    file_path = models.CharField(max_length=500, blank=True, null=True)
+    file_name = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Metadata: duration (video/audio), size, dimensions (image), etc.
+    metadata = models.JSONField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'lesson_blocks'
+        ordering = ['position']
+        indexes = [
+            models.Index(fields=['node', 'position']),
+        ]
+
+    def __str__(self):
+        return f"{self.block_type.title()} block #{self.position} in {self.node}"
+
