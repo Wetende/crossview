@@ -107,3 +107,44 @@ class CurriculumNode(models.Model):
         if not kwargs.pop('skip_validation', False):
             self.full_clean()
         super().save(*args, **kwargs)
+
+
+class CourseChangeRequest(models.Model):
+    """
+    Admin feedback on submitted course/program.
+    Used in the course vetting workflow to request specific changes.
+    """
+    program = models.ForeignKey(
+        'core.Program',
+        on_delete=models.CASCADE,
+        related_name='change_requests'
+    )
+    node = models.ForeignKey(
+        'CurriculumNode',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='change_requests',
+        help_text='Specific node the feedback relates to (optional)'
+    )
+    message = models.TextField()
+    is_resolved = models.BooleanField(default=False)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        'core.User',
+        on_delete=models.CASCADE,
+        related_name='created_change_requests'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'course_change_requests'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['program', 'is_resolved']),
+        ]
+
+    def __str__(self):
+        target = f"for {self.node}" if self.node else f"for {self.program}"
+        return f"Change Request {target}"
+
