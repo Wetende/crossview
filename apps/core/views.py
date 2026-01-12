@@ -1009,7 +1009,7 @@ def admin_program_edit(request, pk: int):
         return redirect("/dashboard/")
 
     from django.shortcuts import get_object_or_404
-    from apps.progression.models import InstructorAssignment
+    from apps.progression.models import InstructorAssignment, Enrollment
 
     program = get_object_or_404(Program, pk=pk)
 
@@ -1550,10 +1550,8 @@ def _require_instructor(user) -> bool:
 
 def _get_instructor_program_ids(user) -> list:
     """Get list of program IDs assigned to this instructor."""
-    from apps.progression.models import InstructorAssignment
-    return list(
-        InstructorAssignment.objects.filter(instructor=user).values_list("program_id", flat=True)
-    )
+    # Use the M2M relation defined in Program model
+    return list(user.assigned_programs.values_list("id", flat=True))
 
 
 @login_required
@@ -1723,6 +1721,34 @@ def instructor_student_detail(request, pk: int):
 
 
 @login_required
+def instructor_enrollment_status(request, enrollment_id: int):
+    """Update enrollment status (active, suspended, withdrawn, completed)."""
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    if request.method != "POST":
+        return redirect("core:instructor.students")
+    
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program_id__in=program_ids)
+    
+    data = _get_post_data(request)
+    new_status = data.get("status", "")
+    
+    valid_statuses = ["active", "suspended", "withdrawn", "completed"]
+    if new_status in valid_statuses:
+        enrollment.status = new_status
+        enrollment.save(update_fields=["status"])
+        messages.success(request, f"Enrollment status updated to {new_status}")
+    else:
+        messages.error(request, "Invalid status")
+    
+    return redirect("core:instructor.students")
+
+
 def instructor_gradebook(request):
     """Gradebook for instructor's programs."""
     if not _require_instructor(request.user):
@@ -1995,12 +2021,17 @@ def instructor_content_edit(request, node_id: int):
     
     from django.shortcuts import get_object_or_404
     from apps.curriculum.models import CurriculumNode
-    from apps.content.models import LessonBlock
+    from apps.content.models import ContentBlock
     import os
     import uuid
     
     program_ids = _get_instructor_program_ids(request.user)
     node = get_object_or_404(CurriculumNode, pk=node_id, program_id__in=program_ids)
+
+    # Check for submission status constraint
+    if node.program.submission_status == 'submitted':
+        messages.error(request, "Cannot edit content while program is submitted for review")
+        return redirect("core:instructor.program", pk=node.program.id)
     
     if request.method == "POST":
         data = _get_post_data(request)
@@ -2017,52 +2048,78 @@ def instructor_content_edit(request, node_id: int):
             messages.success(request, "Content updated")
         
         elif action == "add_block":
-            block_type = data.get("blockType", "text")
-            position = LessonBlock.objects.filter(node=node).count()
+            block_type_map = {
+                "text": "RICHTEXT",
+                "video": "VIDEO",
+                "image": "IMAGE",
+                "file": "DOCUMENT",
+                "audio": "AUDIO",
+                "embed": "EMBED"
+            }
+            raw_type = data.get("blockType", "text")
+            block_type = block_type_map.get(raw_type, "RICHTEXT")
             
-            block = LessonBlock.objects.create(
+            position = ContentBlock.objects.filter(node=node).count()
+            
+            block_data = {}
+            if block_type == "RICHTEXT":
+                block_data["html"] = data.get("content", "")
+            elif block_type == "EMBED":
+                block_data["url"] = data.get("content", "")
+            
+            block = ContentBlock.objects.create(
                 node=node,
                 block_type=block_type,
                 position=position,
-                content=data.get("content", ""),
+                data=block_data,
             )
-            messages.success(request, f"{block_type.title()} block added")
+            messages.success(request, f"{raw_type.title()} block added")
         
         elif action == "update_block":
             block_id = data.get("blockId")
             try:
-                block = LessonBlock.objects.get(pk=block_id, node=node)
-                block.content = data.get("content", block.content)
+                block = ContentBlock.objects.get(pk=block_id, node=node)
+                # Update specific fields based on type
+                if block.block_type == "RICHTEXT":
+                    block.data["html"] = data.get("content", block.data.get("html", ""))
+                elif block.block_type == "EMBED":
+                    block.data["url"] = data.get("content", block.data.get("url", ""))
+                elif block.block_type == "VIDEO":
+                    block.data["url"] = data.get("content", block.data.get("url", ""))
+                
                 block.save()
                 messages.success(request, "Block updated")
-            except LessonBlock.DoesNotExist:
+            except ContentBlock.DoesNotExist:
                 messages.error(request, "Block not found")
         
         elif action == "delete_block":
             block_id = data.get("blockId")
             try:
-                block = LessonBlock.objects.get(pk=block_id, node=node)
+                block = ContentBlock.objects.get(pk=block_id, node=node)
                 block.delete()
                 # Reorder remaining blocks
-                blocks = LessonBlock.objects.filter(node=node).order_by("position")
+                blocks = ContentBlock.objects.filter(node=node).order_by("position")
                 for i, b in enumerate(blocks):
                     b.position = i
                     b.save(update_fields=["position"])
                 messages.success(request, "Block deleted")
-            except LessonBlock.DoesNotExist:
+            except ContentBlock.DoesNotExist:
                 messages.error(request, "Block not found")
         
         elif action == "reorder_blocks":
             order = data.get("order", [])  # List of block IDs in new order
             for i, block_id in enumerate(order):
-                LessonBlock.objects.filter(pk=block_id, node=node).update(position=i)
+                ContentBlock.objects.filter(pk=block_id, node=node).update(position=i)
             messages.success(request, "Blocks reordered")
         
         return redirect("core:instructor.content_edit", node_id=node_id)
     
     # Handle file uploads via multipart form
     if request.FILES:
-        block_type = request.POST.get("blockType", "file")
+        raw_type = request.POST.get("blockType", "file")
+        block_map = {"file": "DOCUMENT", "image": "IMAGE", "audio": "AUDIO"}
+        block_type = block_map.get(raw_type, "DOCUMENT")
+        
         uploaded_file = request.FILES.get("file")
         
         if uploaded_file:
@@ -2076,21 +2133,40 @@ def instructor_content_edit(request, node_id: int):
                 for chunk in uploaded_file.chunks():
                     dest.write(chunk)
             
-            position = LessonBlock.objects.filter(node=node).count()
-            LessonBlock.objects.create(
+            position = ContentBlock.objects.filter(node=node).count()
+            
+            block_data = {
+                "file_path": file_path,
+                "file_name": uploaded_file.name,
+                "caption": request.POST.get("caption", "")
+            }
+            
+            ContentBlock.objects.create(
                 node=node,
                 block_type=block_type,
                 position=position,
-                file_path=file_path,
-                file_name=uploaded_file.name,
-                content=request.POST.get("caption", ""),
+                data=block_data
             )
-            messages.success(request, f"{block_type.title()} uploaded")
+            messages.success(request, f"{raw_type.title()} uploaded")
             return redirect("core:instructor.content_edit", node_id=node_id)
     
     # Get existing blocks
-    blocks = LessonBlock.objects.filter(node=node).order_by("position")
+    blocks = ContentBlock.objects.filter(node=node).order_by("position")
     props = node.properties or {}
+    
+    # Map back to legacy format for template
+    serialized_blocks = []
+    for b in blocks:
+        legacy_content = b.data.get("html", "") or b.data.get("caption", "") or b.data.get("url", "")
+        serialized_blocks.append({
+            "id": b.id,
+            "type": b.block_type,
+            "position": b.position,
+            "content": legacy_content,
+            "filePath": b.data.get("file_path"),
+            "fileName": b.data.get("file_name"),
+            "metadata": b.data,
+        })
     
     return render(
         request,
@@ -2105,18 +2181,7 @@ def instructor_content_edit(request, node_id: int):
                 "programId": node.program.id,
                 "programName": node.program.name,
             },
-            "blocks": [
-                {
-                    "id": b.id,
-                    "type": b.block_type,
-                    "position": b.position,
-                    "content": b.content,
-                    "filePath": b.file_path,
-                    "fileName": b.file_name,
-                    "metadata": b.metadata,
-                }
-                for b in blocks
-            ],
+            "blocks": serialized_blocks,
         },
     )
 
@@ -2685,7 +2750,10 @@ def instructor_quiz_edit(request, quiz_id: int):
     """
     Edit quiz settings and manage questions.
     """
-    from apps.assessments.models import Quiz, Question
+    from apps.assessments.models import (
+        Quiz, Question, QuestionOption, 
+        QuestionMatchingPair, QuestionGapAnswer
+    )
     from apps.progression.models import InstructorAssignment
     
     try:
@@ -2710,6 +2778,9 @@ def instructor_quiz_edit(request, quiz_id: int):
             quiz.time_limit_minutes = int(data.get("timeLimit")) if data.get("timeLimit") else None
             quiz.max_attempts = int(data.get("maxAttempts", 1))
             quiz.pass_threshold = int(data.get("passThreshold", 70))
+            quiz.randomize_questions = data.get("randomizeQuestions", False)
+            quiz.show_answers_after_submit = data.get("showAnswers", True)
+            quiz.retake_penalty_percent = int(data.get("retakePenalty", 0))
             quiz.save()
             messages.success(request, "Quiz settings updated")
         
@@ -2718,21 +2789,21 @@ def instructor_quiz_edit(request, quiz_id: int):
             text = data.get("text", "")
             points = int(data.get("points", 1))
             
-            # Build answer_data based on type
-            if question_type == "mcq":
-                options = data.get("options", [])
-                correct = int(data.get("correctAnswer", 0))
-                answer_data = {"options": options, "correct": correct}
-            elif question_type == "true_false":
+            position = quiz.questions.count()
+            answer_data = {}
+            
+            # Simple handling for legacy/simple types
+            if question_type == "true_false":
                 correct = data.get("correctAnswer") in (True, "true", "True")
                 answer_data = {"correct": correct}
-            else:  # short_answer
+            elif question_type == "short_answer":
                 keywords = data.get("keywords", [])
                 manual = data.get("manualGrading", True)
                 answer_data = {"keywords": keywords, "manual_grading": manual}
-            
-            position = quiz.questions.count()
-            Question.objects.create(
+            elif question_type == "ordering":
+                answer_data = {"correct_order": data.get("items", [])}
+
+            question = Question.objects.create(
                 quiz=quiz,
                 question_type=question_type,
                 text=text,
@@ -2740,6 +2811,38 @@ def instructor_quiz_edit(request, quiz_id: int):
                 position=position,
                 answer_data=answer_data,
             )
+
+            # Handle related models
+            if question_type == "mcq":
+                options = data.get("options", [])
+                correct_idx = int(data.get("correctAnswer", 0))
+                for idx, opt_text in enumerate(options):
+                    QuestionOption.objects.create(
+                        question=question,
+                        text=opt_text,
+                        is_correct=(idx == correct_idx),
+                        position=idx
+                    )
+            
+            elif question_type == "matching":
+                pairs = data.get("pairs", [])
+                for idx, pair in enumerate(pairs):
+                    QuestionMatchingPair.objects.create(
+                        question=question,
+                        left_text=pair.get("left_text"),
+                        right_text=pair.get("right_text"),
+                        position=idx
+                    )
+            
+            elif question_type == "fill_blank":
+                gaps = data.get("gaps", [])
+                for gap in gaps:
+                    QuestionGapAnswer.objects.create(
+                        question=question,
+                        gap_index=gap.get("gap_index"),
+                        accepted_answers=gap.get("accepted_answers", [])
+                    )
+
             messages.success(request, "Question added")
         
         elif action == "delete_question":
@@ -2762,8 +2865,48 @@ def instructor_quiz_edit(request, quiz_id: int):
         
         return redirect("core:instructor.quiz_edit", quiz_id=quiz.id)
     
-    questions = quiz.questions.all()
+    questions = quiz.questions.all().prefetch_related(
+        'options', 'matching_pairs', 'gap_answers'
+    )
     
+    questions_data = []
+    for q in questions:
+        q_data = {
+            "id": q.id,
+            "type": q.question_type,
+            "text": q.text,
+            "points": q.points,
+            "position": q.position,
+            "answerData": q.answer_data,
+        }
+        
+        if q.question_type == 'mcq':
+            # Enrich answerData for frontend compatibility or send new field
+            q_data['options'] = [o.text for o in q.options.all()]
+            try:
+                correct = q.options.get(is_correct=True).position
+                # Ensure answerData has what frontend expects
+                q_data['answerData'] = {'options': q_data['options'], 'correct': correct}
+            except:
+                pass
+                
+        elif q.question_type == 'matching':
+            q_data['pairs'] = [
+                {'left_text': p.left_text, 'right_text': p.right_text} 
+                for p in q.matching_pairs.all()
+            ]
+            
+        elif q.question_type == 'fill_blank':
+             q_data['gaps'] = [
+                 {'gap_index': g.gap_index, 'accepted_answers': g.accepted_answers}
+                 for g in q.gap_answers.all()
+             ]
+             
+        elif q.question_type == 'ordering':
+             q_data['items'] = q.answer_data.get('correct_order', [])
+
+        questions_data.append(q_data)
+
     return render(
         request,
         "Instructor/Quizzes/Edit",
@@ -2779,18 +2922,11 @@ def instructor_quiz_edit(request, quiz_id: int):
                 "nodeId": quiz.node.id,
                 "nodeTitle": quiz.node.title,
                 "programName": quiz.node.program.name,
+                "randomizeQuestions": quiz.randomize_questions,
+                "showAnswers": quiz.show_answers_after_submit,
+                "retakePenalty": quiz.retake_penalty_percent,
             },
-            "questions": [
-                {
-                    "id": q.id,
-                    "type": q.question_type,
-                    "text": q.text,
-                    "points": q.points,
-                    "position": q.position,
-                    "answerData": q.answer_data,
-                }
-                for q in questions
-            ],
+            "questions": questions_data,
         },
     )
 
@@ -2874,16 +3010,41 @@ def student_quiz_start(request, quiz_id: int):
         )
     
     # Serialize questions (without answers for student view)
-    questions = [
-        {
+    # Serialize questions (without answers for student view)
+    import random
+    quiz_questions = quiz.questions.all().prefetch_related(
+        'options', 'matching_pairs', 'gap_answers'
+    )
+    
+    questions = []
+    for q in quiz_questions:
+        q_data = {
             "id": q.id,
             "type": q.question_type,
             "text": q.text,
             "points": q.points,
-            "options": q.answer_data.get("options") if q.question_type == "mcq" else None,
         }
-        for q in quiz.questions.all()
-    ]
+        
+        if q.question_type in ["mcq", "mcq_multi"]:
+            opts = list(q.options.all())
+            if quiz.shuffle_options:
+                random.shuffle(opts)
+            else:
+                opts.sort(key=lambda x: x.position)
+            q_data["options"] = [o.text for o in opts]
+            
+        elif q.question_type == "matching":
+            q_data["pairs"] = [
+                {"left_text": p.left_text, "right_text": p.right_text}
+                for p in q.matching_pairs.all()
+            ]
+
+        elif q.question_type == "ordering":
+            items = list(q.answer_data.get("correct_order", []))
+            random.shuffle(items)
+            q_data["items"] = items
+            
+        questions.append(q_data)
     
     return render(
         request,
@@ -3273,9 +3434,8 @@ def instructor_assignment_grade(request, submission_id: int):
         return redirect("/dashboard/")
     
     # Verify instructor access
-    if not InstructorAssignment.objects.filter(
-        instructor=request.user, program=submission.assignment.program
-    ).exists() and not request.user.is_staff:
+    # Verify instructor access
+    if not (request.user.assigned_programs.filter(pk=submission.assignment.program.pk).exists() or request.user.is_staff):
         return redirect("/dashboard/")
     
     if request.method == "POST":
@@ -3286,7 +3446,13 @@ def instructor_assignment_grade(request, submission_id: int):
         submission.status = data.get("status", "graded")
         submission.graded_by = request.user
         submission.graded_at = timezone.now()
+        submission.graded_at = timezone.now()
         submission.save()
+        
+        # Trigger progression check
+        from apps.progression.services import ProgressionEngine
+        engine = ProgressionEngine()
+        engine.handle_assignment_grading(submission)
         
         messages.success(request, "Submission graded")
         return redirect("core:instructor.assignment_submissions", assignment_id=submission.assignment.id)
@@ -3546,9 +3712,7 @@ def instructor_program_submit_for_review(request, program_id: int):
         return redirect("/dashboard/")
     
     # Verify instructor access
-    if not InstructorAssignment.objects.filter(
-        instructor=request.user, program=program
-    ).exists() and not request.user.is_staff:
+    if not (request.user.assigned_programs.filter(pk=program.pk).exists() or request.user.is_staff):
         return redirect("/dashboard/")
     
     # Validate program can be submitted

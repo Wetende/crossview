@@ -110,6 +110,11 @@ class Program(models.Model):
         blank=True,
         related_name='programs'
     )
+    instructors = models.ManyToManyField(
+        'User',
+        related_name='assigned_programs',
+        blank=True
+    )
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=50, blank=True, null=True)
     description = models.TextField(blank=True, null=True)

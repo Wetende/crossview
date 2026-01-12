@@ -17,6 +17,7 @@ class InstructorAssignment(models.Model):
     program = models.ForeignKey(
         "core.Program", on_delete=models.CASCADE, related_name="instructor_assignments"
     )
+    role = models.CharField(max_length=50, default="Instructor")
     assigned_at = models.DateTimeField(auto_now_add=True)
     is_primary = models.BooleanField(default=False)
 

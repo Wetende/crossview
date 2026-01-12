@@ -283,6 +283,7 @@ export default function ProgramShow({ program, stats, instructors = [] }) {
                                 <Chip
                                   label={instructor.role}
                                   size="small"
+                                  color="primary"
                                   variant="outlined"
                                 />
                               </TableCell>

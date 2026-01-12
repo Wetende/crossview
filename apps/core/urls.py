@@ -113,6 +113,7 @@ urlpatterns = [
     path("instructor/change-requests/<int:change_request_id>/resolve/", views.instructor_resolve_change_request, name="instructor.resolve_change_request"),
     path("instructor/students/", views.instructor_students, name="instructor.students"),
     path("instructor/students/<int:pk>/", views.instructor_student_detail, name="instructor.student"),
+    path("instructor/enrollments/<int:enrollment_id>/status/", views.instructor_enrollment_status, name="instructor.enrollment_status"),
     path("instructor/gradebook/", views.instructor_gradebook, name="instructor.gradebook"),
     path("instructor/programs/<int:pk>/gradebook/", views.instructor_program_gradebook, name="instructor.program_gradebook"),
     path("instructor/programs/<int:pk>/gradebook/save/", views.instructor_program_gradebook_save, name="instructor.program_gradebook_save"),
