@@ -37,11 +37,17 @@ import {
   IconEye,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import MatchingPairsEditor from '../../../components/quiz/MatchingPairsEditor';
+import FillBlankEditor from '../../../components/quiz/FillBlankEditor';
+import OrderingEditor from '../../../components/quiz/OrderingEditor';
 
 const QUESTION_TYPES = [
   { value: 'mcq', label: 'Multiple Choice' },
   { value: 'true_false', label: 'True/False' },
   { value: 'short_answer', label: 'Short Answer' },
+  { value: 'matching', label: 'Matching Pairs' },
+  { value: 'fill_blank', label: 'Fill in the Blank' },
+  { value: 'ordering', label: 'Ordering / Sequence' },
 ];
 
 export default function Edit({ quiz, questions }) {
@@ -54,6 +60,9 @@ export default function Edit({ quiz, questions }) {
     correctAnswer: 0,
     keywords: [],
     manualGrading: true,
+    pairs: [], // For matching
+    gaps: [], // For fill_blank
+    items: ['', '', '', ''], // For ordering
   });
 
   const { data, setData, post, processing } = useForm({
@@ -62,6 +71,9 @@ export default function Edit({ quiz, questions }) {
     timeLimit: quiz.timeLimit || '',
     maxAttempts: quiz.maxAttempts,
     passThreshold: quiz.passThreshold,
+    randomizeQuestions: quiz.randomizeQuestions || false,
+    showAnswers: quiz.showAnswers !== false, // default true
+    retakePenalty: quiz.retakePenalty || 0,
     action: 'update_settings',
   });
 
@@ -85,6 +97,9 @@ export default function Edit({ quiz, questions }) {
         correctAnswer: newQuestion.correctAnswer,
         keywords: newQuestion.keywords,
         manualGrading: newQuestion.manualGrading,
+        pairs: newQuestion.pairs,
+        gaps: newQuestion.gaps,
+        items: newQuestion.items.filter(i => i && i.trim() !== ''),
       },
       {
         preserveScroll: true,
@@ -98,6 +113,9 @@ export default function Edit({ quiz, questions }) {
             correctAnswer: 0,
             keywords: [],
             manualGrading: true,
+            pairs: [],
+            gaps: [],
+            items: ['', '', '', ''],
           });
         },
       }
@@ -199,6 +217,7 @@ export default function Edit({ quiz, questions }) {
                     sx={{ width: 150 }}
                     inputProps={{ min: 1 }}
                   />
+
                   <TextField
                     label="Pass Threshold (%)"
                     type="number"
@@ -206,6 +225,33 @@ export default function Edit({ quiz, questions }) {
                     onChange={(e) => setData('passThreshold', parseInt(e.target.value))}
                     sx={{ width: 150 }}
                     inputProps={{ min: 0, max: 100 }}
+                  />
+                </Stack>
+                <Stack direction="row" spacing={3} alignItems="center">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={data.randomizeQuestions}
+                        onChange={(e) => setData('randomizeQuestions', e.target.checked)}
+                      />
+                    }
+                    label="Randomize Questions"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={data.showAnswers}
+                        onChange={(e) => setData('showAnswers', e.target.checked)}
+                      />
+                    }
+                    label="Show Answers After Submit"
+                  />
+                  <TextField 
+                    label="Retake Penalty (%)"
+                    type="number"
+                    value={data.retakePenalty}
+                    onChange={(e) => setData('retakePenalty', parseInt(e.target.value))}
+                    sx={{ width: 180 }}
                   />
                 </Stack>
                 <Box>
@@ -305,16 +351,42 @@ export default function Edit({ quiz, questions }) {
                 </Select>
               </FormControl>
 
-              <TextField
-                label="Question Text"
-                value={newQuestion.text}
-                onChange={(e) =>
-                  setNewQuestion({ ...newQuestion, text: e.target.value })
-                }
-                fullWidth
-                multiline
-                rows={2}
-              />
+              {newQuestion.questionType === 'matching' && (
+                <MatchingPairsEditor 
+                  pairs={newQuestion.pairs} 
+                  onChange={(pairs) => setNewQuestion({...newQuestion, pairs})} 
+                />
+              )}
+
+              {newQuestion.questionType === 'fill_blank' && (
+                <FillBlankEditor 
+                  text={newQuestion.text}
+                  gaps={newQuestion.gaps}
+                  onTextChange={(val) => setNewQuestion({...newQuestion, text: val})}
+                  onGapsChange={(gaps) => setNewQuestion({...newQuestion, gaps})}
+                />
+              )}
+
+              {newQuestion.questionType === 'ordering' && (
+                 <OrderingEditor
+                   items={newQuestion.items}
+                   onChange={(items) => setNewQuestion({...newQuestion, items})}
+                 />
+              )}
+              
+              {/* Only show default text input if NOT fill_blank (which has its own text editor) */}
+              {newQuestion.questionType !== 'fill_blank' && (
+                  <TextField
+                    label="Question Text"
+                    value={newQuestion.text}
+                    onChange={(e) =>
+                      setNewQuestion({ ...newQuestion, text: e.target.value })
+                    }
+                    fullWidth
+                    multiline
+                    rows={2}
+                  />
+              )}
 
               <TextField
                 label="Points"

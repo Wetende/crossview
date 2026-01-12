@@ -3,8 +3,13 @@ Assessment result serializers for export and API responses.
 """
 from typing import Dict, Any
 import json
+from rest_framework import serializers
 
-from apps.assessments.models import AssessmentResult
+from apps.assessments.models import (
+    AssessmentResult, Quiz, Question, 
+    QuestionOption, QuestionMatchingPair, 
+    QuestionGapAnswer, QuestionBankEntry
+)
 
 
 class AssessmentResultSerializer:
@@ -138,3 +143,108 @@ class AssessmentResultListSerializer:
             JSON string containing array of transcript entries
         """
         return json.dumps(self.to_transcript_list(), indent=2)
+
+
+class QuestionOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuestionOption
+        fields = ['id', 'text', 'is_correct', 'position']
+
+
+class QuestionMatchingPairSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuestionMatchingPair
+        fields = ['id', 'left_text', 'right_text', 'position']
+
+
+class QuestionGapAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuestionGapAnswer
+        fields = ['id', 'gap_index', 'accepted_answers']
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    options = QuestionOptionSerializer(many=True, required=False)
+    matching_pairs = QuestionMatchingPairSerializer(many=True, required=False)
+    gap_answers = QuestionGapAnswerSerializer(many=True, required=False)
+    
+    class Meta:
+        model = Question
+        fields = [
+            'id', 'quiz', 'question_type', 'text', 'points', 'position', 'answer_data',
+            'options', 'matching_pairs', 'gap_answers', 'created_at'
+        ]
+        
+    def create(self, validated_data):
+        options_data = validated_data.pop('options', [])
+        pairs_data = validated_data.pop('matching_pairs', [])
+        gaps_data = validated_data.pop('gap_answers', [])
+        
+        question = Question.objects.create(**validated_data)
+        
+        for opt in options_data:
+            QuestionOption.objects.create(question=question, **opt)
+            
+        for pair in pairs_data:
+            QuestionMatchingPair.objects.create(question=question, **pair)
+            
+        for gap in gaps_data:
+            QuestionGapAnswer.objects.create(question=question, **gap)
+            
+        return question
+
+    def update(self, instance, validated_data):
+        options_data = validated_data.pop('options', [])
+        pairs_data = validated_data.pop('matching_pairs', [])
+        gaps_data = validated_data.pop('gap_answers', [])
+        
+        # Update main fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # Re-create nested objects (simplest strategy for now)
+        if options_data:
+            instance.options.all().delete()
+            for opt in options_data:
+                QuestionOption.objects.create(question=instance, **opt)
+                
+        if pairs_data:
+            instance.matching_pairs.all().delete()
+            for pair in pairs_data:
+                QuestionMatchingPair.objects.create(question=instance, **pair)
+                
+        if gaps_data:
+            instance.gap_answers.all().delete()
+            for gap in gaps_data:
+                QuestionGapAnswer.objects.create(question=instance, **gap)
+                
+        return instance
+
+
+class QuizSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Quiz
+        fields = [
+            'id', 'node', 'title', 'description', 'time_limit_minutes',
+            'max_attempts', 'pass_threshold', 'randomize_questions',
+            'show_answers_after_submit', 'retake_penalty_percent',
+            'shuffle_options', 'is_published', 'questions',
+            'created_at', 'updated_at'
+        ]
+
+
+class QuestionBankEntrySerializer(serializers.ModelSerializer):
+    question_data = QuestionSerializer(source='question', read_only=True)
+    
+    class Meta:
+        model = QuestionBankEntry
+        fields = [
+            'id', 'owner', 'question', 'question_data',
+            'subject_area', 'difficulty', 'tags', 'usage_count',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['owner', 'usage_count']
+

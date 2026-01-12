@@ -81,6 +81,12 @@ class Quiz(models.Model):
     time_limit_minutes = models.PositiveIntegerField(null=True, blank=True)
     max_attempts = models.PositiveIntegerField(default=1)
     pass_threshold = models.PositiveIntegerField(default=70)  # Percentage
+    
+    # Enhanced Quiz Settings
+    randomize_questions = models.BooleanField(default=False)
+    show_answers_after_submit = models.BooleanField(default=True)
+    retake_penalty_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    shuffle_options = models.BooleanField(default=False)
     is_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -107,8 +113,12 @@ class Question(models.Model):
     """
     QUESTION_TYPE_CHOICES = [
         ('mcq', 'Multiple Choice'),
+        ('mcq_multi', 'Multiple Choice (Multi-Select)'),
         ('true_false', 'True/False'),
         ('short_answer', 'Short Answer'),
+        ('matching', 'Matching'),
+        ('fill_blank', 'Fill in the Blank'),
+        ('ordering', 'Ordering/Sequence'),
     ]
 
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='questions')
@@ -140,17 +150,91 @@ class Question(models.Model):
         """
         Check if student answer is correct.
         Returns (is_correct, points_earned).
+        
+        Refactored to support new question types.
         """
-        if self.question_type == 'mcq':
-            correct_idx = self.answer_data.get('correct')
-            is_correct = student_answer == correct_idx
+        # 1. Matching Questions
+        if self.question_type == 'matching':
+            # student_answer: {"LeftText": "RightText", ...}
+            pairs = list(self.matching_pairs.all())
+            if not pairs:
+                return False, 0
+            
+            correct_count = 0
+            for pair in pairs:
+                # Key is now left_text as sent by frontend
+                submitted = student_answer.get(pair.left_text)
+                if submitted == pair.right_text:
+                    correct_count += 1
+            
+            is_completely_correct = (correct_count == len(pairs))
+            points_earned = self.points if is_completely_correct else int(self.points * correct_count / len(pairs))
+            return is_completely_correct, points_earned
+
+        # 2. Fill in the Blank
+        elif self.question_type == 'fill_blank':
+            # student_answer: {"0": "answer1", "1": "answer2"}
+            gaps = list(self.gap_answers.all())
+            if not gaps:
+                return False, 0
+                
+            correct_count = 0
+            for gap in gaps:
+                submitted = str(student_answer.get(str(gap.gap_index), '')).lower().strip()
+                accepted = [a.lower().strip() for a in gap.accepted_answers]
+                if submitted in accepted:
+                    correct_count += 1
+            
+            is_completely_correct = (correct_count == len(gaps))
+            points_earned = self.points if is_completely_correct else int(self.points * correct_count / len(gaps))
+            return is_completely_correct, points_earned
+
+        # 3. Ordering / Sequence
+        elif self.question_type == 'ordering':
+            # student_answer: [2, 0, 1, 3] (indices in correct order)
+            correct_order = self.answer_data.get('correct_order', [])
+            is_correct = (student_answer == correct_order)
+            return is_correct, self.points if is_correct else 0
+
+        # 4. Multi-Select MCQ
+        elif self.question_type == 'mcq_multi':
+            # student_answer: [0, 2] (list of selected option positions)
+            # Use QuestionOption model if available, fallback to answer_data for legacy/migration
+            if self.options.exists():
+                correct_positions = set(
+                    opt.position for opt in self.options.filter(is_correct=True)
+                )
+            else:
+                # Fallback to answer_data
+                correct_positions = set(self.answer_data.get('correct_indices', []))
+                
+            submitted_set = set(student_answer) if isinstance(student_answer, list) else set()
+            is_correct = (submitted_set == correct_positions)
+            return is_correct, self.points if is_correct else 0
+
+        # 5. Standard MCQ
+        elif self.question_type == 'mcq':
+            if self.options.exists():
+                # select related is_correct option
+                try:
+                    correct_option = self.options.get(is_correct=True)
+                    # Assuming student answer sends position index
+                    is_correct = (int(student_answer) == correct_option.position)
+                except (self.options.model.DoesNotExist, ValueError, TypeError):
+                    is_correct = False
+            else:
+                # Fallback
+                correct_idx = self.answer_data.get('correct')
+                is_correct = (student_answer == correct_idx)
             return is_correct, self.points if is_correct else 0
         
+        # 6. True/False
         elif self.question_type == 'true_false':
             correct_val = self.answer_data.get('correct')
-            is_correct = student_answer == correct_val
+            is_correct = (student_answer == correct_val)
             return is_correct, self.points if is_correct else 0
         
+        # 7. Short Answer
         elif self.question_type == 'short_answer':
             if self.answer_data.get('manual_grading', True):
                 return None, None  # Needs manual grading
@@ -331,4 +415,88 @@ class AssignmentSubmission(models.Model):
             penalty = float(self.score) * (self.assignment.late_penalty_percent / 100)
             return float(self.score) - penalty
         return float(self.score)
+
+
+class QuestionOption(models.Model):
+    """
+    Individual option for MCQ/MCQ-Multi questions.
+    Replaces the JSON storage method for better querying.
+    """
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='options')
+    text = models.TextField()
+    is_correct = models.BooleanField(default=False)
+    position = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        db_table = 'question_options'
+        ordering = ['position']
+    
+    def __str__(self):
+        return f"{self.question.id} Option: {self.text[:30]}"
+
+
+class QuestionMatchingPair(models.Model):
+    """
+    Left-right paired items for Matching questions.
+    """
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='matching_pairs')
+    left_text = models.TextField()
+    right_text = models.TextField()
+    position = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        db_table = 'question_matching_pairs'
+        ordering = ['position']
+
+    def __str__(self):
+        return f"Pair {self.position} for Q{self.question.id}"
+
+
+class QuestionGapAnswer(models.Model):
+    """
+    Correct answers for fill-in-the-blank gaps.
+    """
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='gap_answers')
+    gap_index = models.PositiveIntegerField()  # Which blank (0, 1, 2, ...)
+    accepted_answers = models.JSONField(default=list)  # ["answer1", "answer2"] for flexibility
+    
+    class Meta:
+        db_table = 'question_gap_answers'
+        unique_together = ['question', 'gap_index']
+    
+    def __str__(self):
+        return f"Gap {self.gap_index} for Q{self.question.id}"
+
+
+class QuestionBankEntry(models.Model):
+    """
+    Reusable question library entry.
+    Allows instructors to save and reuse questions across different quizzes.
+    """
+    DIFFICULTY_CHOICES = [
+        ('easy', 'Easy'),
+        ('medium', 'Medium'),
+        ('hard', 'Hard'),
+    ]
+
+    owner = models.ForeignKey('core.User', on_delete=models.CASCADE, related_name='question_bank')
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='bank_entries')
+    
+    subject_area = models.CharField(max_length=100, blank=True, default='')
+    difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, default='medium')
+    tags = models.JSONField(default=list, blank=True)
+    
+    usage_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'question_bank_entries'
+        indexes = [
+            models.Index(fields=['owner', 'subject_area']),
+        ]
+
+    def __str__(self):
+        return f"Bank Entry: {self.question.text[:30]} ({self.owner})"
+
 

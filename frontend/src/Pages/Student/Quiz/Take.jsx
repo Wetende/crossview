@@ -25,6 +25,9 @@ import {
   IconSend,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import MatchingQuestion from '../../../components/quiz/MatchingQuestion';
+import OrderingQuestion from '../../../components/quiz/OrderingQuestion';
+import FillBlankQuestion from '../../../components/quiz/FillBlankQuestion';
 
 export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
   const [answers, setAnswers] = useState(attempt.answers || {});
@@ -219,6 +222,33 @@ export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
                   placeholder="Type your answer here..."
                 />
               )}
+
+              {/* Matching */}
+              {currentQuestion.type === 'matching' && (
+                  <MatchingQuestion
+                      question={currentQuestion}
+                      value={answers[currentQuestion.id]}
+                      onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                  />
+              )}
+              
+              {/* Ordering */}
+              {currentQuestion.type === 'ordering' && (
+                  <OrderingQuestion
+                      question={currentQuestion}
+                      value={answers[currentQuestion.id]}
+                      onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                  />
+               )}
+               
+               {/* Fill Blank */}
+               {currentQuestion.type === 'fill_blank' && (
+                   <FillBlankQuestion
+                       question={currentQuestion}
+                       value={answers[currentQuestion.id]}
+                       onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                   />
+               )}
             </CardContent>
           </Card>
 
