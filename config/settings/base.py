@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.blueprints",
     "apps.curriculum",
     "apps.assessments",
+    "apps.discussions",
     "apps.progression",
     "apps.practicum",
     "apps.certifications",
