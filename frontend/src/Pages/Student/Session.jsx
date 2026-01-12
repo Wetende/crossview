@@ -13,9 +13,14 @@ import {
     IconArrowRight,
     IconCheck,
     IconLock,
+    IconMessageCircle,
 } from '@tabler/icons-react';
+import { useState } from 'react';
+import DiscussionPanel from '../../components/Discussions/DiscussionPanel';
+import CoursePlayerLayout from '../../components/layouts/CoursePlayerLayout';
+import CurriculumTreeSidebar from '../../components/Student/CurriculumTreeSidebar';
+import BlockRenderer from '../../components/ContentBlocks/BlockRenderer';
 import { motion } from 'framer-motion';
-import DashboardLayout from '../../components/layouts/DashboardLayout';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -36,7 +41,10 @@ export default function Session({
     lockReason,
     breadcrumbs = [],
     siblings = {},
+    curriculumTree = [], // Added from backend
 }) {
+    const [showDiscussion, setShowDiscussion] = useState(false);
+
     const handleMarkComplete = () => {
         router.post(
             `/student/programs/${enrollment.id}/session/${node.id}/`,
@@ -57,124 +65,157 @@ export default function Session({
 
     if (isLocked) {
         return (
-            <DashboardLayout 
-                role="student"
-                breadcrumbs={[
-                    { label: enrollment.programName, href: `/student/programs/${enrollment.id}/` },
-                    { label: node.title }
-                ]}
+            <CoursePlayerLayout 
+                programTitle={enrollment.programName}
+                backLink={`/student/programs/${enrollment.id}/`}
             >
                 <Head title={node.title} />
-                <LockedState
-                    node={node}
-                    enrollment={enrollment}
-                    lockReason={lockReason}
-                />
-            </DashboardLayout>
+                 <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#f5f5f5' }}>
+                    <LockedState
+                        node={node}
+                        enrollment={enrollment}
+                        lockReason={lockReason}
+                    />
+                </Box>
+            </CoursePlayerLayout>
         );
     }
 
     return (
-        <DashboardLayout role="student" breadcrumbs={layoutBreadcrumbs}>
+        <CoursePlayerLayout 
+            programTitle={enrollment.programName}
+            backLink={`/student/programs/${enrollment.id}/`}
+        >
             <Head title={node.title} />
 
-            {/* Content Card */}
-            <motion.div {...fadeInUp}>
-                <Card sx={{ mb: 3 }}>
-                    <CardContent>
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
-                            <Box>
-                                <Typography variant="caption" color="text.secondary">
-                                    {node.nodeType}
-                                </Typography>
-                                <Typography variant="h4" fontWeight={700}>
-                                    {node.title}
-                                </Typography>
-                            </Box>
-                            {isCompleted && (
-                                <Stack direction="row" spacing={1} alignItems="center" color="success.main">
-                                    <IconCheck size={20} />
-                                    <Typography variant="body2" fontWeight={600}>
-                                        Completed
-                                    </Typography>
+            {/* Sidebar */}
+            <CurriculumTreeSidebar 
+                curriculumTree={curriculumTree} 
+                activeNodeId={node.id}
+                programName={enrollment.programName}
+                progress={enrollment.progressPercent || 0}
+            />
+
+            {/* Main Content Area */}
+            <Box sx={{ flexGrow: 1, height: '100%', overflowY: 'auto', bgcolor: '#f5f5f5', p: { xs: 2, md: 4 }, position: 'relative' }}>
+                <Box sx={{ maxWidth: 900, mx: 'auto', pb: 10 }}>
+                    
+                    {/* Content Card */}
+                    <motion.div {...fadeInUp}>
+                        <Card sx={{ mb: 3 }}>
+                            <CardContent>
+                                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 3 }}>
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {node.nodeType}
+                                        </Typography>
+                                        <Typography variant="h4" fontWeight={700}>
+                                            {node.title}
+                                        </Typography>
+                                    </Box>
+                                    {isCompleted && (
+                                        <Stack direction="row" spacing={1} alignItems="center" color="success.main">
+                                            <IconCheck size={20} />
+                                            <Typography variant="body2" fontWeight={600}>
+                                                Completed
+                                            </Typography>
+                                        </Stack>
+                                    )}
                                 </Stack>
+                                
+                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                                    <Button 
+                                        startIcon={<IconMessageCircle />} 
+                                        onClick={() => setShowDiscussion(true)}
+                                        variant="outlined" 
+                                        size="small"
+                                    >
+                                        Q&A / Discussion
+                                    </Button>
+                                </Box>
+
+                                {node.description && (
+                                    <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                                        {node.description}
+                                    </Typography>
+                                )}
+
+                                <Divider sx={{ my: 3 }} />
+
+                                {/* Content Blocks */}
+                                {node.blocks && node.blocks.length > 0 ? (
+                                    <BlockRenderer blocks={node.blocks} />
+                                ) : node.contentHtml ? (
+                                    <Box
+                                        sx={{
+                                            '& img': { maxWidth: '100%', height: 'auto' },
+                                            '& video': { maxWidth: '100%' },
+                                            '& iframe': { maxWidth: '100%' },
+                                            '& p': { mb: 2 },
+                                            '& h1, & h2, & h3, & h4': { mt: 3, mb: 2 },
+                                        }}
+                                        dangerouslySetInnerHTML={{ __html: node.contentHtml }}
+                                    />
+                                ) : (
+                                    <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                        No content available for this session.
+                                    </Typography>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+
+                    {/* Actions */}
+                    <motion.div {...fadeInUp}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Box>
+                                {siblings.prev && (
+                                    <Button
+                                        component={Link}
+                                        href={siblings.prev.url}
+                                        startIcon={<IconArrowLeft size={18} />}
+                                        variant="outlined"
+                                    >
+                                        Previous
+                                    </Button>
+                                )}
+                            </Box>
+
+                            {!isCompleted && (
+                                <Button
+                                    onClick={handleMarkComplete}
+                                    variant="contained"
+                                    color="primary"
+                                    startIcon={<IconCheck size={18} />}
+                                >
+                                    Mark as Complete
+                                </Button>
                             )}
+
+                            <Box>
+                                {siblings.next && (
+                                    <Button
+                                        component={Link}
+                                        href={siblings.next.url}
+                                        endIcon={<IconArrowRight size={18} />}
+                                        variant="outlined"
+                                    >
+                                        Next
+                                    </Button>
+                                )}
+                            </Box>
                         </Stack>
+                    </motion.div>
+                </Box>
+            </Box>
 
-                        {node.description && (
-                            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                                {node.description}
-                            </Typography>
-                        )}
-
-                        <Divider sx={{ my: 3 }} />
-
-                        {/* Content HTML */}
-                        {node.contentHtml ? (
-                            <Box
-                                sx={{
-                                    '& img': { maxWidth: '100%', height: 'auto' },
-                                    '& video': { maxWidth: '100%' },
-                                    '& iframe': { maxWidth: '100%' },
-                                    '& p': { mb: 2 },
-                                    '& h1, & h2, & h3, & h4': { mt: 3, mb: 2 },
-                                }}
-                                dangerouslySetInnerHTML={{ __html: node.contentHtml }}
-                            />
-                        ) : (
-                            <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                No content available for this session.
-                            </Typography>
-                        )}
-                    </CardContent>
-                </Card>
-            </motion.div>
-
-            {/* Actions */}
-            <motion.div {...fadeInUp}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    {/* Previous Navigation */}
-                    <Box>
-                        {siblings.prev && (
-                            <Button
-                                component={Link}
-                                href={siblings.prev.url}
-                                startIcon={<IconArrowLeft size={18} />}
-                                variant="outlined"
-                            >
-                                Previous
-                            </Button>
-                        )}
-                    </Box>
-
-                    {/* Mark Complete Button */}
-                    {!isCompleted && (
-                        <Button
-                            onClick={handleMarkComplete}
-                            variant="contained"
-                            color="primary"
-                            startIcon={<IconCheck size={18} />}
-                        >
-                            Mark as Complete
-                        </Button>
-                    )}
-
-                    {/* Next Navigation */}
-                    <Box>
-                        {siblings.next && (
-                            <Button
-                                component={Link}
-                                href={siblings.next.url}
-                                endIcon={<IconArrowRight size={18} />}
-                                variant="outlined"
-                            >
-                                Next
-                            </Button>
-                        )}
-                    </Box>
-                </Stack>
-            </motion.div>
-        </DashboardLayout>
+            {showDiscussion && (
+                <DiscussionPanel 
+                    nodeId={node.id} 
+                    onClose={() => setShowDiscussion(false)} 
+                />
+            )}
+        </CoursePlayerLayout>
     );
 }
 
