@@ -48,6 +48,9 @@ def _build_curriculum_tree(program_id: int) -> list:
             "completionRules": node.completion_rules or {},
             "position": node.position,
             "isPublished": node.is_published,
+            "unlockDate": node.unlock_date.isoformat() if node.unlock_date else None,
+            "unlockAfterDays": node.unlock_after_days,
+            "isPreview": node.is_preview,
             "children": [],
         }
 

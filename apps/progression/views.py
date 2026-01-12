@@ -13,9 +13,12 @@ from inertia import render
 from apps.core.models import Program, User
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment, NodeCompletion
+from apps.content.models import ContentBlock
 from apps.assessments.models import AssessmentResult
 from apps.practicum.models import PracticumSubmission, SubmissionReview, Rubric
+from apps.practicum.models import PracticumSubmission, SubmissionReview, Rubric
 from apps.certifications.models import Certificate
+from apps.progression.services import ProgressionEngine
 
 
 # =============================================================================
@@ -167,8 +170,13 @@ def program_view(request, pk: int):
     # Get all completions for this enrollment
     completions = list(enrollment.completions.values_list("node_id", flat=True))
 
+    # Get unlock status map
+    engine = ProgressionEngine()
+    unlock_statuses = engine.get_unlock_status(enrollment)
+    status_map = {s['node_id']: s for s in unlock_statuses}
+
     # Build curriculum tree
-    curriculum_tree = _build_curriculum_tree(root_nodes, completions, enrollment)
+    curriculum_tree = _build_curriculum_tree(root_nodes, completions, enrollment, status_map)
 
     # Get hierarchy labels from blueprint
     hierarchy_labels = []
@@ -246,6 +254,33 @@ def session_viewer(request, pk: int, node_id: int):
     # Get content from properties
     content_html = node.properties.get("content_html", "")
 
+    # Get curriculum tree for Sidebar
+    root_nodes = (
+        CurriculumNode.objects.filter(
+            program=enrollment.program, parent__isnull=True, is_published=True
+        )
+        .prefetch_related("children")
+        .order_by("position")
+    )
+    completions = list(enrollment.completions.values_list("node_id", flat=True))
+    # Get unlock status map for sidebar
+    engine = ProgressionEngine()
+    unlock_statuses = engine.get_unlock_status(enrollment)
+    status_map = {s['node_id']: s for s in unlock_statuses}
+    
+    curriculum_tree = _build_curriculum_tree(root_nodes, completions, enrollment, status_map)
+
+    # Get content blocks
+    blocks = ContentBlock.objects.filter(node=node).order_by('position')
+    blocks_data = [
+        {
+            "id": b.id,
+            "type": b.block_type,
+            "data": b.data
+        }
+        for b in blocks
+    ]
+
     return render(
         request,
         "Student/Session",
@@ -256,12 +291,14 @@ def session_viewer(request, pk: int, node_id: int):
                 "nodeType": node.node_type,
                 "contentHtml": content_html,
                 "description": node.description or "",
+                "blocks": blocks_data,
             },
             "enrollment": {
                 "id": enrollment.id,
                 "programId": enrollment.program.id,
                 "programName": enrollment.program.name,
             },
+            "curriculumTree": curriculum_tree,
             "isCompleted": is_completed,
             "isLocked": not unlock_status["is_unlocked"],
             "lockReason": unlock_status.get("reason"),
@@ -283,22 +320,40 @@ def _get_completable_nodes_count(program: Program) -> int:
     ).count()
 
 
-def _build_curriculum_tree(nodes, completions: list, enrollment: Enrollment) -> list:
-    """Build curriculum tree with completion status."""
+def _build_curriculum_tree(
+    nodes, 
+    completions: list, 
+    enrollment: Enrollment, 
+    status_map: dict = None
+) -> list:
+    """Build curriculum tree with completion and unlock status."""
     result = []
+    status_map = status_map or {}
+    
     for node in nodes:
         children = node.children.filter(is_published=True).order_by("position")
+        
+        node_status = status_map.get(node.id, {})
+        status_key = node_status.get('status', 'locked') # default locked if unknown
+        is_locked = status_key == 'locked'
+        
+        # Override isLocked if completed (safeguard)
+        is_completed = node.id in completions
+        if is_completed:
+            is_locked = False
 
         node_data = {
             "id": node.id,
             "title": node.title,
             "nodeType": node.node_type,
             "code": node.code or "",
-            "isCompleted": node.id in completions,
-            "isLocked": False,  # Simplified - would check prerequisites
+            "isCompleted": is_completed,
+            "isLocked": is_locked,
+            "lockReason": node_status.get('lock_reason'),
+            "unlocksAt": node_status.get('unlocks_at'),
             "hasChildren": children.exists(),
             "children": (
-                _build_curriculum_tree(children, completions, enrollment)
+                _build_curriculum_tree(children, completions, enrollment, status_map)
                 if children
                 else []
             ),

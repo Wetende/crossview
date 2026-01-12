@@ -31,6 +31,12 @@ class CurriculumNode(models.Model):
     completion_rules = models.JSONField(default=dict, blank=True)  # Rules for completion
     position = models.PositiveIntegerField(default=0)  # Order among siblings
     is_published = models.BooleanField(default=False)
+    
+    # Scheduling Fields (Phase 2)
+    unlock_date = models.DateTimeField(null=True, blank=True, help_text='Absolute date when content unlocks')
+    unlock_after_days = models.PositiveIntegerField(null=True, blank=True, help_text='Days after enrollment to unlock')
+    is_preview = models.BooleanField(default=False, help_text='Allow non-enrolled users to view')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

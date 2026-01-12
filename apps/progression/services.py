@@ -14,9 +14,10 @@ from apps.progression.models import NodeCompletion, Enrollment
 class AccessResult:
     """Result of an access check for a curriculum node."""
     can_access: bool
-    status: str  # 'unlocked', 'locked', 'completed'
-    lock_reason: Optional[str] = None  # 'sequential', 'prerequisite'
+    status: str  # 'unlocked', 'locked', 'completed', 'preview'
+    lock_reason: Optional[str] = None  # 'sequential', 'prerequisite', 'scheduled', 'drip', 'enrollment_required'
     blocking_nodes: Optional[List[int]] = None
+    unlocks_at: Optional[Any] = None  # datetime when it unlocks
 
 
 @dataclass
@@ -95,6 +96,58 @@ class SequentialLockChecker:
             if sibling.id not in completed_ids:
                 return sibling
         return None
+
+
+class ScheduleLockChecker:
+    """
+    Checks scheduling locking rules (unlock_date, unlock_after_days).
+    Requirements: Phase 2
+    """
+    
+    def is_unlocked(
+        self,
+        enrollment: Enrollment,
+        node: CurriculumNode
+    ) -> AccessResult:
+        """
+        Check if node is unlocked by schedule.
+        """
+        from datetime import timedelta
+        
+        # Preview access (Phase 2)
+        if hasattr(node, 'is_preview') and node.is_preview and not enrollment:
+             # Logic for preview access - simplified for now as service expects enrollment usually
+             return AccessResult(can_access=True, status='preview')
+
+        if not enrollment:
+             # Non-preview, no enrollment -> locked (handled by view usually but safety here)
+             return AccessResult(can_access=False, status='locked', lock_reason='enrollment_required')
+
+        now = timezone.now()
+        
+        # 1. Absolute unlock date
+        if node.unlock_date and node.unlock_date > now:
+            return AccessResult(
+                can_access=False,
+                status='locked',
+                lock_reason='scheduled',
+                blocking_nodes=[], 
+                unlocks_at=node.unlock_date
+            )
+            
+        # 2. Relative unlock days
+        if node.unlock_after_days:
+            unlock_at = enrollment.created_at + timedelta(days=node.unlock_after_days)
+            if unlock_at > now:
+                return AccessResult(
+                    can_access=False,
+                    status='locked',
+                    lock_reason='drip',
+                    blocking_nodes=[],
+                    unlocks_at=unlock_at
+                )
+                
+        return AccessResult(can_access=True, status='unlocked')
 
 
 class PrerequisiteLockChecker:
@@ -274,6 +327,9 @@ class CompletionTriggerHandler:
         
         if trigger_type == 'upload':
             return self._check_upload(trigger_data)
+
+        if trigger_type == 'assignment_pass':
+            return self._check_assignment_pass(node, trigger_data)
         
         return False
 
@@ -297,6 +353,20 @@ class CompletionTriggerHandler:
             return False
         
         return trigger_data.get('file_uploaded', False)
+
+    def _check_assignment_pass(
+        self,
+        node: CurriculumNode,
+        trigger_data: Optional[Dict[str, Any]]
+    ) -> bool:
+        """Check if assignment pass requirements are met."""
+        if not trigger_data:
+            return False
+            
+        min_score = node.completion_rules.get('min_score', 0)
+        actual_score = trigger_data.get('score', 0)
+        
+        return actual_score >= min_score
 
 
 class CompletionRulesValidator:
@@ -347,7 +417,7 @@ class CompletionRulesValidator:
 class ProgressionEngine:
     """
     Main service combining all progression checks.
-    Requirements: 1.3, 3.1, 5.1, 5.2
+    Requirements: 1.3, 3.1, 5.1, 5.2, Phase 2
     """
 
     def __init__(
@@ -355,12 +425,14 @@ class ProgressionEngine:
         sequential_checker: Optional[SequentialLockChecker] = None,
         prerequisite_checker: Optional[PrerequisiteLockChecker] = None,
         progress_calculator: Optional[ProgressCalculator] = None,
-        completion_handler: Optional[CompletionTriggerHandler] = None
+        completion_handler: Optional[CompletionTriggerHandler] = None,
+        schedule_checker: Optional[ScheduleLockChecker] = None
     ):
         self.sequential_checker = sequential_checker or SequentialLockChecker()
         self.prerequisite_checker = prerequisite_checker or PrerequisiteLockChecker()
         self.progress_calculator = progress_calculator or ProgressCalculator()
         self.completion_handler = completion_handler or CompletionTriggerHandler()
+        self.schedule_checker = schedule_checker or ScheduleLockChecker()
 
     def can_access(
         self,
@@ -369,7 +441,7 @@ class ProgressionEngine:
     ) -> AccessResult:
         """
         Check if a student can access a node.
-        Combines sequential and prerequisite checks.
+        Combines sequential, prerequisite, and scheduling checks.
         
         Args:
             enrollment: The student's enrollment
@@ -378,6 +450,11 @@ class ProgressionEngine:
         Returns:
             AccessResult indicating if access is allowed
         """
+        # Phase 2: Check schedule first (absolute lock)
+        schedule_result = self.schedule_checker.is_unlocked(enrollment, node)
+        if not schedule_result.can_access:
+            return schedule_result
+
         # Check if already completed
         if NodeCompletion.objects.filter(enrollment=enrollment, node=node).exists():
             return AccessResult(can_access=True, status='completed')
@@ -478,7 +555,8 @@ class ProgressionEngine:
                     'node_id': node.id,
                     'status': result.status,
                     'lock_reason': result.lock_reason,
-                    'blocking_nodes': result.blocking_nodes
+                    'blocking_nodes': result.blocking_nodes,
+                    'unlocks_at': result.unlocks_at.isoformat() if result.unlocks_at else None
                 })
         
         return statuses
@@ -511,3 +589,40 @@ class ProgressionEngine:
             True if program is complete
         """
         return self.calculate_progress(enrollment) >= 100.0
+
+    def handle_assignment_grading(self, submission) -> List[NodeCompletion]:
+        """
+        Handle assignment grading event.
+        Finds nodes that require this assignment and checks completion.
+        
+        Args:
+            submission: The graded AssignmentSubmission
+            
+        Returns:
+            List of newly created NodeCompletion records
+        """
+        # Find nodes that track this assignment
+        nodes = CurriculumNode.objects.filter(
+            program=submission.assignment.program,
+            completion_rules__assignment_id=submission.assignment.id
+        )
+        
+        completions = []
+        for node in nodes:
+            # Check if this grade satisfies the rule
+            can_complete = self.completion_handler.can_complete(
+                node, 
+                'assignment_pass',
+                {'score': submission.get_final_score()}
+            )
+            
+            if can_complete:
+                completion = self.mark_complete(
+                    submission.enrollment,
+                    node,
+                    'assignment_pass',
+                    {'submission_id': submission.id, 'score': submission.get_final_score()}
+                )
+                completions.append(completion)
+                
+        return completions
