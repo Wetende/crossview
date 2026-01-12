@@ -66,51 +66,49 @@ class ParsedImage(models.Model):
         return f"Image from page {self.page_number} of {self.content_version}"
 
 
-class LessonBlock(models.Model):
+
+class ContentBlock(models.Model):
     """
-    Block-based content within a lesson/session.
-    Supports rich text, video, audio, and downloadable assets.
-    Enables instructors to build modular, multimedia lessons.
+    Block-based content within a curriculum node (Lesson/Session).
+    Supports polymorphic content types via a JSON data field.
     """
     BLOCK_TYPE_CHOICES = [
-        ('text', 'Rich Text'),
-        ('video', 'Video'),
-        ('audio', 'Audio'),
-        ('file', 'Downloadable File'),
-        ('embed', 'Embed (YouTube/Vimeo)'),
-        ('image', 'Image'),
+        ('VIDEO', 'Video'),
+        ('RICHTEXT', 'Rich Text'),
+        ('QUIZ', 'Quiz'),
+        ('ASSIGNMENT', 'Assignment'),
+        ('DOCUMENT', 'Document'),
+        ('IMAGE', 'Image'),
+        ('AUDIO', 'Audio'),
+        ('EMBED', 'Embed'),
     ]
 
     node = models.ForeignKey(
         'curriculum.CurriculumNode',
         on_delete=models.CASCADE,
-        related_name='lesson_blocks'
+        related_name='content_blocks'
     )
     block_type = models.CharField(max_length=20, choices=BLOCK_TYPE_CHOICES)
     position = models.PositiveIntegerField(default=0)
     
-    # Content based on type
-    # - text: HTML/markdown content in 'content' field
-    # - video/audio/file: path in 'file_path', name in 'file_name'
-    # - embed: embed URL in 'content' field
-    # - image: path in 'file_path', alt text in 'content'
-    content = models.TextField(blank=True, default='')
-    file_path = models.CharField(max_length=500, blank=True, null=True)
-    file_name = models.CharField(max_length=255, blank=True, null=True)
-    
-    # Metadata: duration (video/audio), size, dimensions (image), etc.
-    metadata = models.JSONField(blank=True, null=True)
+    # Flexible data storage for all block types
+    # Video: { "provider": "youtube", "url": "...", "duration": 60 }
+    # RichText: { "html": "..." }
+    # Quiz: { "quiz_id": 123 }
+    # Assignment: { "assignment_id": 456 }
+    # Document: { "file_path": "...", "allow_download": true }
+    data = models.JSONField(default=dict, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'lesson_blocks'
+        db_table = 'content_blocks'
         ordering = ['position']
         indexes = [
             models.Index(fields=['node', 'position']),
         ]
 
     def __str__(self):
-        return f"{self.block_type.title()} block #{self.position} in {self.node}"
+        return f"{self.get_block_type_display()} block #{self.position} in {self.node}"
 

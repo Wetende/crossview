@@ -146,6 +146,16 @@ export default function Edit({ node, blocks: initialBlocks }) {
                 {node.programName} • {node.nodeType}
               </Typography>
             </Box>
+            <Stack direction="row" spacing={1}>
+              <Button
+                component={Link}
+                href={`/instructor/lesson/${node.id}/quizzes/`}
+                variant="contained"
+                color="secondary"
+              >
+                Manage Quizzes
+              </Button>
+            </Stack>
           </Stack>
 
           {/* Metadata Section */}

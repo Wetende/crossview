@@ -20,6 +20,8 @@ import {
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
+import BlockManager from './ContentBlocks/BlockManager';
+import axios from 'axios';
 
 export default function NodeEditor({
   mode = 'create',
@@ -45,6 +47,9 @@ export default function NodeEditor({
 
   const [saving, setSaving] = useState(false);
 
+  const [blocks, setBlocks] = useState([]);
+  const [blocksLoaded, setBlocksLoaded] = useState(false);
+
   // Initialize form data when node changes
   useEffect(() => {
     if (node) {
@@ -57,6 +62,9 @@ export default function NodeEditor({
         properties: node.properties || {},
         completionRules: node.completionRules || {},
       });
+      
+      // Fetch Content Blocks
+      fetchBlocks(node.id);
     } else {
       setFormData({
         title: '',
@@ -67,8 +75,27 @@ export default function NodeEditor({
         properties: {},
         completionRules: {},
       });
+      setBlocks([]);
     }
   }, [node, nodeType]);
+
+  const fetchBlocks = async (nodeId) => {
+    try {
+        // Assuming API endpoint exists from Phase 1
+        const response = await axios.get(`/api/content/blocks/?node_id=${nodeId}`);
+        // Backend returns generic blocks, map them to frontend expected format if needed
+        const mappedBlocks = response.data.map(b => ({
+            id: b.id,
+            type: b.block_type,
+            position: b.position,
+            metadata: b.data
+        }));
+        setBlocks(mappedBlocks);
+        setBlocksLoaded(true);
+    } catch (err) {
+        console.error("Failed to fetch blocks", err);
+    }
+  };
 
   const handleChange = (field) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -79,10 +106,47 @@ export default function NodeEditor({
     e.preventDefault();
     setSaving(true);
     try {
+      // 1. Save Node Metadata first
       await onSave(formData);
+      
+      // 2. Save Blocks (if node exists or was created)
+      // Since onSave usually returns the node or we have it, we might need the ID.
+      // For now, assuming editing existing node:
+      if (node) {
+          await saveBlocks(node.id, blocks);
+      }
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveBlocks = async (nodeId, currentBlocks) => {
+      // Logic: 
+      // 1. New blocks have temp IDs (string) -> POST
+      // 2. Existing blocks -> PATCH
+      // 3. Removed blocks -> DELETE (handled via immediate delete in BlockManager, or here by diffing)
+      
+      // For simplicity in this iteration:
+      // Loop and save/update each block. Ideally use a bulk endpoint.
+      for (const block of currentBlocks) {
+          const payload = {
+              node: nodeId,
+              block_type: block.type,
+              position: block.position, // Ensure position is updated
+              data: block.metadata
+          };
+
+          if (typeof block.id === 'string' && block.id.startsWith('temp-')) {
+              await axios.post(`/api/content/blocks/`, payload);
+          } else {
+              await axios.patch(`/api/content/blocks/${block.id}/`, payload);
+          }
+      }
+      // Reorder call
+      const order = currentBlocks.filter(b => !b.id.toString().startsWith('temp')).map(b => b.id);
+      if (order.length > 0) {
+          await axios.post(`/api/content/blocks/reorder/`, { node_id: nodeId, order });
+      }
   };
 
   return (
@@ -194,6 +258,18 @@ export default function NodeEditor({
             />
           </Stack>
         </Box>
+
+        <Divider />
+
+        {/* Content Blocks (Only for Session/Lesson types) */}
+        {(formData.nodeType === 'Session' || formData.nodeType === 'Lesson') && (
+            <Box>
+                <BlockManager 
+                    blocks={blocks} 
+                    onBlocksChange={setBlocks} 
+                />
+            </Box>
+        )}
 
         <Divider />
 
