@@ -31,7 +31,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
   const handleDelete = () => {

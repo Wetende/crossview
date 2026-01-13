@@ -25,7 +25,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function SettingsIndex({ platform, settings, subscription }) {
   const { data, setData, post, processing } = useForm({

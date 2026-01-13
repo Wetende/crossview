@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { Box, Card, CardContent, Chip, FormControl, InputLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@mui/material';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import DashboardLayout from '../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 const levelColors = {
   info: 'info',

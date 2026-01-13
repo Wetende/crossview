@@ -25,7 +25,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SendIcon from '@mui/icons-material/Send';
 import PushPinIcon from '@mui/icons-material/PushPin';
 
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function AnnouncementCreate({ programs = [], errors = {} }) {
   const { data, setData, post, processing } = useForm({

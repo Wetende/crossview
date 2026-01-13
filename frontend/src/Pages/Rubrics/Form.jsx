@@ -25,7 +25,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 const defaultDimension = { name: '', weight: 0.25, max_score: 100 };
 

@@ -31,7 +31,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 import GradingSchemaBuilder from '@/components/GradingSchemaBuilder';
 
 export default function BlueprintCreate({ presets = [], errors = {}, formData = {} }) {

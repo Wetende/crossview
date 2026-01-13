@@ -32,7 +32,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import FolderIcon from '@mui/icons-material/Folder';
 import ArticleIcon from '@mui/icons-material/Article';
 
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 // Recursive component to render curriculum tree
 function CurriculumTree({ nodes, searchTerm, level = 0 }) {

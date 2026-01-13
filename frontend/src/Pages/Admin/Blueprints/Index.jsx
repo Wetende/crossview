@@ -24,7 +24,7 @@ import SchoolIcon from '@mui/icons-material/School';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import VerifiedIcon from '@mui/icons-material/Verified';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
   return (

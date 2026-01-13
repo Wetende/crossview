@@ -26,7 +26,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import PublishIcon from '@mui/icons-material/Publish';
 import { IconCheck, IconX, IconClock, IconAlertTriangle } from '@tabler/icons-react';
 
-import InstructorLayout from '../../components/layouts/InstructorLayout';
+import InstructorLayout from '@/layouts/InstructorLayout';
 
 export default function Gradebook({ program, gradingConfig, quizzes = [], assignments = [], students }) {
   const [grades, setGrades] = useState(() => {

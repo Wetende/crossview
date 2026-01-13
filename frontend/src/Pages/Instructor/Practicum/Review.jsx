@@ -24,7 +24,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ReplayIcon from '@mui/icons-material/Replay';
 import CancelIcon from '@mui/icons-material/Cancel';
 
-import InstructorLayout from '../../../components/layouts/InstructorLayout';
+import InstructorLayout from '@/layouts/InstructorLayout';
 import MediaPlayer from '../../../components/MediaPlayer';
 import RubricGrader from '../../../components/RubricGrader';
 

@@ -29,7 +29,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 import DataTable from '@/components/DataTable';
 
 const roleColors = {

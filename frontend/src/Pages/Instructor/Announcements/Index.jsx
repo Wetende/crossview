@@ -35,7 +35,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PushPinIcon from '@mui/icons-material/PushPin';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function AnnouncementsIndex({ programs = [], announcements = [] }) {
   const [selectedProgram, setSelectedProgram] = useState('all');

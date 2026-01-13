@@ -27,7 +27,7 @@ import {
   CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import InstructorLayout from '../../../components/layouts/InstructorLayout';
+import InstructorLayout from '@/layouts/InstructorLayout';
 import CurriculumTree from '../../../components/CurriculumTree';
 import ProgressBar from '../../../components/ProgressBar';
 

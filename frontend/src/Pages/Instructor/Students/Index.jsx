@@ -34,7 +34,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import InstructorLayout from '../../../components/layouts/InstructorLayout';
+import InstructorLayout from '@/layouts/InstructorLayout';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },

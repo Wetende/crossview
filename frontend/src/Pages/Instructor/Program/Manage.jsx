@@ -7,7 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import { TouchApp as TouchAppIcon } from '@mui/icons-material';
-import CourseBuilderLayout from '../../../components/layouts/CourseBuilderLayout';
+import CourseBuilderLayout from '@/layouts/CourseBuilderLayout';
 import CurriculumBuilder, { flattenNodes } from './components/CurriculumBuilder';
 import NodeEditor from './components/NodeEditor';
 import SettingsPanel from './components/SettingsPanel';

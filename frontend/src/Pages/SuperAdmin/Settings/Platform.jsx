@@ -24,7 +24,7 @@ import {
   Alert,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 import SaveIcon from '@mui/icons-material/Save';
 
 const PRESET_COLORS = [

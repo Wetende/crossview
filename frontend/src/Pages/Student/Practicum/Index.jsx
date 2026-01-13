@@ -22,7 +22,7 @@ import {
 import { Download as DownloadIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },

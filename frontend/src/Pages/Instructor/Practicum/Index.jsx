@@ -26,7 +26,7 @@ import {
 import { motion } from 'framer-motion';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 
-import InstructorLayout from '../../../components/layouts/InstructorLayout';
+import InstructorLayout from '@/layouts/InstructorLayout';
 
 const statusColors = {
   pending: 'warning',

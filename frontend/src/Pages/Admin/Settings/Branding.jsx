@@ -18,7 +18,7 @@ import {
 import { motion } from 'framer-motion';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function BrandingSettings({ branding = {}, errors = {} }) {
   const { data, setData, post, processing } = useForm({

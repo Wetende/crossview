@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { Box, Button, Card, CardContent, Chip, Grid, Stack, Typography } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function PresetsIndex({ presets }) {
   return (

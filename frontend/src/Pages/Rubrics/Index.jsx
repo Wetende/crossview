@@ -19,7 +19,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import GradingIcon from '@mui/icons-material/Grading';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 import DataTable from '@/components/DataTable';
 
 export default function RubricsIndex({ 

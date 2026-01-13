@@ -3,7 +3,7 @@ import { Box, Button, Card, CardContent, Chip, FormControlLabel, Grid, IconButto
 import { Add as AddIcon, Delete as DeleteIcon, ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function PresetForm({ mode, preset, errors: serverErrors, formData }) {
   const isEdit = mode === 'edit';

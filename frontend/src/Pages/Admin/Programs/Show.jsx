@@ -32,7 +32,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function ProgramShow({ program, stats, instructors = [] }) {
   const handleDelete = () => {

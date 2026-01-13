@@ -35,7 +35,7 @@ import BlockIcon from '@mui/icons-material/Block';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DownloadIcon from '@mui/icons-material/Download';
 
-import DashboardLayout from '../../../components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 
 function StatCard({ title, value, icon: Icon, color = 'primary' }) {
   return (

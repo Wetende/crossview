@@ -28,7 +28,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
-import DashboardLayout from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/layouts/DashboardLayout';
 import DataTable from '@/components/DataTable';
 
 const statusColors = {
