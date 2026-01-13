@@ -3,6 +3,8 @@
 export { default as QuizIndex } from './pages/Index';
 export { default as QuizCreate } from './pages/Create';
 export { default as QuizEdit } from './pages/Edit';
+export { default as QuizTake } from './pages/Take';
+export { default as QuizResults } from './pages/Results';
 
 // Components
 export { default as FillBlankEditor } from './components/FillBlankEditor';

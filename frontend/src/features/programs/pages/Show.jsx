@@ -24,7 +24,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import InstructorLayout from '@/layouts/InstructorLayout';
-import CurriculumTree from '../../../components/CurriculumTree';
+import CurriculumTree from '@/components/CurriculumTree';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },

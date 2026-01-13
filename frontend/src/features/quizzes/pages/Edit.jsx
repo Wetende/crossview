@@ -37,9 +37,9 @@ import {
   IconEye,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
-import MatchingPairsEditor from '../../../components/quiz/MatchingPairsEditor';
-import FillBlankEditor from '../../../components/quiz/FillBlankEditor';
-import OrderingEditor from '../../../components/quiz/OrderingEditor';
+import MatchingPairsEditor from '@/features/quizzes/components/MatchingPairsEditor';
+import FillBlankEditor from '@/features/quizzes/components/FillBlankEditor';
+import OrderingEditor from '@/features/quizzes/components/OrderingEditor';
 
 const QUESTION_TYPES = [
   { value: 'mcq', label: 'Multiple Choice' },

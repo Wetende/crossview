@@ -16,10 +16,10 @@ import {
     IconMessageCircle,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import DiscussionPanel from '../../components/Discussions/DiscussionPanel';
+import DiscussionPanel from '@/components/Discussions/DiscussionPanel';
 import CoursePlayerLayout from '@/layouts/CoursePlayerLayout';
-import CurriculumTreeSidebar from '../../components/Student/CurriculumTreeSidebar';
-import BlockRenderer from '../../components/ContentBlocks/BlockRenderer';
+import CurriculumTreeSidebar from '@/components/Student/CurriculumTreeSidebar';
+import BlockRenderer from '@/components/ContentBlocks/BlockRenderer';
 import { motion } from 'framer-motion';
 
 const fadeInUp = {
