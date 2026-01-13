@@ -25,7 +25,11 @@ from .factories import (
 
 @pytest.fixture
 def instructor():
-    return UserFactory()
+    user = UserFactory()
+    from django.contrib.auth.models import Group
+    group, _ = Group.objects.get_or_create(name="Instructors")
+    user.groups.add(group)
+    return user
 
 
 @pytest.fixture

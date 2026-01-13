@@ -1550,8 +1550,8 @@ def _require_instructor(user) -> bool:
 
 def _get_instructor_program_ids(user) -> list:
     """Get list of program IDs assigned to this instructor."""
-    # Use the M2M relation defined in Program model
-    return list(user.assigned_programs.values_list("id", flat=True))
+    from apps.progression.models import InstructorAssignment
+    return list(InstructorAssignment.objects.filter(instructor=user).values_list("program_id", flat=True))
 
 
 @login_required
@@ -3435,7 +3435,7 @@ def instructor_assignment_grade(request, submission_id: int):
     
     # Verify instructor access
     # Verify instructor access
-    if not (request.user.assigned_programs.filter(pk=submission.assignment.program.pk).exists() or request.user.is_staff):
+    if not (InstructorAssignment.objects.filter(instructor=request.user, program=submission.assignment.program).exists() or request.user.is_staff):
         return redirect("/dashboard/")
     
     if request.method == "POST":
@@ -3712,7 +3712,7 @@ def instructor_program_submit_for_review(request, program_id: int):
         return redirect("/dashboard/")
     
     # Verify instructor access
-    if not (request.user.assigned_programs.filter(pk=program.pk).exists() or request.user.is_staff):
+    if not (InstructorAssignment.objects.filter(instructor=request.user, program=program).exists() or request.user.is_staff):
         return redirect("/dashboard/")
     
     # Validate program can be submitted
@@ -4039,3 +4039,217 @@ def admin_preview_as_student(request, program_id: int):
     
     # Redirect to public program detail (or student learning view)
     return redirect("core:programs")  # This would ideally go to a program detail page
+
+
+# =============================================================================
+# Instructor Course Manager (MasterStudy-style)
+# =============================================================================
+
+
+@login_required
+def instructor_program_manage(request, pk: int):
+    """
+    New MasterStudy-style Course Manager.
+    Entry point for Curriculum Builder, Settings, etc.
+    """
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import InstructorAssignment
+    from django.shortcuts import get_object_or_404
+    
+    # Verify access
+    if not (InstructorAssignment.objects.filter(instructor=request.user, program_id=pk).exists() or request.user.is_staff):
+        return redirect("/dashboard/")
+        
+    program = get_object_or_404(Program.objects.select_related('blueprint'), pk=pk)
+    
+    # Get full curriculum tree
+    def serialize_node(node):
+        children = node.children.all().order_by("position")
+        return {
+            "id": node.id,
+            "title": node.title,
+            "type": node.node_type,
+            "description": node.description,
+            "properties": node.properties,
+            "position": node.position,
+            "children": [serialize_node(child) for child in children],
+        }
+
+    root_nodes = CurriculumNode.objects.filter(
+        program=program, parent__isnull=True
+    ).prefetch_related("children").order_by("position")
+    
+    curriculum = [serialize_node(n) for n in root_nodes]
+    
+    return render(
+        request,
+        "Instructor/Program/Manage",
+        {
+            "program": {
+                "id": program.id,
+                "name": program.name,
+                "code": program.code,
+                "description": program.description,
+                "faq": program.faq,
+                "notices": program.notices,
+                "customPricing": program.custom_pricing,
+                "blueprint": {
+                   "name": program.blueprint.name if program.blueprint else "Default",
+                   "hierarchy": program.blueprint.hierarchy_structure if program.blueprint else ["Module", "Lesson", "Session"]
+                } if program.blueprint else None
+            },
+            "curriculum": curriculum,
+        }
+    )
+
+
+@login_required
+def instructor_node_create(request, program_id: int):
+    """Create a new curriculum node."""
+    if not _require_instructor(request.user) or request.method != "POST":
+        return redirect("/dashboard/")
+
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import InstructorAssignment
+    
+    # Verify access
+    if not (InstructorAssignment.objects.filter(instructor=request.user, program_id=program_id).exists() or request.user.is_staff):
+        messages.error(request, "Permission denied")
+        return redirect("/dashboard/")
+
+    data = _get_post_data(request)
+    parent_id = data.get("parent_id")
+    title = data.get("title", "New Item")
+    
+    program = Program.objects.get(pk=program_id)
+    blueprint_structure = program.blueprint.hierarchy_structure if program.blueprint else ["Module", "Lesson", "Session"]
+    
+    try:
+        parent = None
+        if parent_id:
+            parent = CurriculumNode.objects.filter(pk=parent_id, program_id=program_id).first()
+            if not parent:
+                raise ValueError("Invalid parent node")
+            
+            current_depth = parent.get_depth()
+            if current_depth + 1 >= len(blueprint_structure):
+                 raise ValueError("Maximum nesting depth reached")
+            node_type = blueprint_structure[current_depth + 1]
+        else:
+            node_type = blueprint_structure[0]
+            
+        position = CurriculumNode.objects.filter(program=program, parent=parent).count()
+        
+        node = CurriculumNode.objects.create(
+            program=program,
+            parent=parent,
+            title=title,
+            node_type=node_type,
+            position=position
+        )
+        
+        messages.success(request, f"{node_type} created")
+    except Exception as e:
+        messages.error(request, str(e))
+        
+    return redirect("core:instructor.program_manage", pk=program_id)
+
+
+@login_required
+def instructor_node_update(request, node_id: int):
+    """Update node details (title, description, properties)."""
+    if not _require_instructor(request.user) or request.method != "POST":
+        return redirect("/dashboard/")
+
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import InstructorAssignment
+    from django.shortcuts import get_object_or_404
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    node = get_object_or_404(CurriculumNode, pk=node_id, program_id__in=program_ids)
+    
+    data = _get_post_data(request)
+    node.title = data.get("title", node.title)
+    node.description = data.get("description", node.description)
+    
+    # Handle properties update (e.g. video URL, duration) if passed
+    if "properties" in data:
+        # Shallow merge
+        props = node.properties or {}
+        props.update(data["properties"])
+        node.properties = props
+        
+    node.save()
+    messages.success(request, "Node updated")
+    return redirect("core:instructor.program_manage", pk=node.program_id)
+
+
+@login_required
+def instructor_node_delete(request, node_id: int):
+    """Delete a node and its children."""
+    if not _require_instructor(request.user) or request.method != "POST":
+        return redirect("/dashboard/")
+
+    from apps.curriculum.models import CurriculumNode
+    from django.shortcuts import get_object_or_404
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    node = get_object_or_404(CurriculumNode, pk=node_id, program_id__in=program_ids)
+    
+    program_id = node.program_id
+    node.delete()
+    messages.success(request, "Item deleted")
+    return redirect("core:instructor.program_manage", pk=program_id)
+
+
+@login_required
+def instructor_node_reorder(request, program_id: int):
+    """Reorder siblings."""
+    if not _require_instructor(request.user) or request.method != "POST":
+        return redirect("/dashboard/")
+        
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import InstructorAssignment
+    
+    if not (InstructorAssignment.objects.filter(instructor=request.user, program_id=program_id).exists() or request.user.is_staff):
+        return redirect("/dashboard/")
+
+    # For MVP, maybe just "move up/down" or full list update? 
+    # Let's assume full list of IDs for a specific parent context
+    data = _get_post_data(request)
+    ordered_ids = data.get("ordered_ids", [])
+    
+    for idx, node_id in enumerate(ordered_ids):
+        # Bulk update would be better but keeping it safe for now
+        CurriculumNode.objects.filter(pk=node_id, program_id=program_id).update(position=idx)
+        
+    messages.success(request, "Order updated")
+    return redirect("core:instructor.program_manage", pk=program_id)
+
+
+@login_required
+def instructor_program_update_settings(request, pk: int):
+    """Update extended settings: FAQ, Pricing, Notices."""
+    if not _require_instructor(request.user) or request.method != "POST":
+        return redirect("/dashboard/")
+
+    from apps.progression.models import InstructorAssignment
+    if not (InstructorAssignment.objects.filter(instructor=request.user, program_id=pk).exists() or request.user.is_staff):
+        return redirect("/dashboard/")
+        
+    program = Program.objects.get(pk=pk)
+    data = _get_post_data(request)
+    
+    if "faq" in data:
+        program.faq = data["faq"]
+    if "notices" in data:
+        program.notices = data["notices"]
+    if "custom_pricing" in data:
+        program.custom_pricing = data["custom_pricing"]
+        
+    program.save()
+    messages.success(request, "Settings updated")
+    return redirect("core:instructor.program_manage", pk=pk)

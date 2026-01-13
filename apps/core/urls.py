@@ -107,6 +107,14 @@ urlpatterns = [
     path("instructor/apply/", views.instructor_apply, name="instructor.apply"),
     path("instructor/programs/", views.instructor_programs, name="instructor.programs"),
     path("instructor/programs/<int:pk>/", views.instructor_program_detail, name="instructor.program"),
+    # Course Manager (Builder)
+    path("instructor/programs/<int:pk>/manage/", views.instructor_program_manage, name="instructor.program_manage"),
+    path("instructor/programs/<int:pk>/manage/settings/", views.instructor_program_update_settings, name="instructor.program_update_settings"),
+    path("instructor/programs/<int:program_id>/nodes/create/", views.instructor_node_create, name="instructor.node_create"),
+    path("instructor/programs/<int:program_id>/nodes/reorder/", views.instructor_node_reorder, name="instructor.node_reorder"),
+    path("instructor/nodes/<int:node_id>/update/", views.instructor_node_update, name="instructor.node_update"),
+    path("instructor/nodes/<int:node_id>/delete/", views.instructor_node_delete, name="instructor.node_delete"),
+    
     path("instructor/programs/<int:program_id>/submit/", views.instructor_program_submit_for_review, name="instructor.program_submit"),
     path("instructor/programs/<int:program_id>/publish/", views.instructor_program_publish, name="instructor.program_publish"),
     path("instructor/programs/<int:program_id>/change-requests/", views.instructor_program_change_requests, name="instructor.program_change_requests"),

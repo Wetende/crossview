@@ -138,6 +138,11 @@ class Program(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Extended Course Manager Fields
+    faq = models.JSONField(default=list, blank=True)
+    notices = models.JSONField(default=list, blank=True)
+    custom_pricing = models.JSONField(default=dict, blank=True)
+
     class Meta:
         db_table = 'programs'
         indexes = [

@@ -14,6 +14,7 @@ import {
   Stack,
   Chip,
   LinearProgress,
+  Button,
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -37,15 +38,10 @@ function ProgramCard({ program, index }) {
       transition={{ delay: index * 0.1, duration: 0.5 }}
     >
       <Card sx={{ height: '100%' }}>
-        <CardActionArea
-          component={Link}
-          href={`/instructor/programs/${program.id}/`}
-          sx={{ height: '100%' }}
-        >
           <CardContent>
             <Stack spacing={2}>
               <Box>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" gutterBottom component={Link} href={`/instructor/programs/${program.id}/`} sx={{ textDecoration: 'none', color: 'inherit', '&:hover': { color: 'primary.main' } }}>
                   {program.name}
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -91,9 +87,29 @@ function ProgramCard({ program, index }) {
                   </Typography>
                 </Stack>
               </Stack>
+
+               <Stack direction="row" spacing={1} pt={1}>
+                  <Button 
+                      component={Link} 
+                      href={`/instructor/programs/${program.id}/manage/`} 
+                      variant="contained" 
+                      size="small"
+                      fullWidth
+                  >
+                      Manage
+                  </Button>
+                  <Button 
+                      component={Link} 
+                      href={`/instructor/programs/${program.id}/students/`} 
+                      variant="outlined" 
+                      size="small"
+                      fullWidth
+                  >
+                      Students
+                  </Button>
+              </Stack>
             </Stack>
           </CardContent>
-        </CardActionArea>
       </Card>
     </motion.div>
   );

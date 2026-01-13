@@ -20,6 +20,7 @@ import {
   Grading as GradingIcon,
   TrendingUp as TrendingIcon,
   CheckCircle as CheckIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import InstructorLayout from '../../../components/layouts/InstructorLayout';
@@ -78,7 +79,19 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                 />
               </Stack>
             </Box>
-            <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Button
+                component={Link}
+                href={`/instructor/programs/${program.id}/manage/`}
+                variant="contained"
+                color="primary"
+                size="large"
+                startIcon={<SettingsIcon />} // Settings/Manage icon
+                sx={{ px: 3, fontWeight: 'bold' }}
+              >
+                Course Builder & Manager
+              </Button>
+              <Divider orientation="vertical" flexItem />
               <Button
                 component={Link}
                 href={`/instructor/programs/${program.id}/students/`}
@@ -90,7 +103,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
               <Button
                 component={Link}
                 href={`/instructor/programs/${program.id}/gradebook/`}
-                variant="contained"
+                variant="outlined"
                 startIcon={<GradingIcon />}
               >
                 Gradebook
