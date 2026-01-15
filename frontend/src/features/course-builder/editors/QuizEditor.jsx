@@ -24,7 +24,10 @@ import {
   Radio,
   RadioGroup,
   Tab,
-  Tabs
+  Tabs,
+  Snackbar,
+  Alert,
+  FormHelperText
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -81,7 +84,70 @@ export default function QuizEditor({ node, onSave }) {
         items: ['', '', '', ''], // For ordering
     });
 
+    // Validation state
+    const [errors, setErrors] = useState({});
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    
+    // Touched state - track which fields have been interacted with
+    const [touched, setTouched] = useState({});
+    
+    // Detect if this is a new node (not yet saved to database)
+    const isNew = !node.id || node.id.toString().startsWith('temp_') || node.title === 'Untitled Quiz';
+    
+    // Mark a field as touched
+    const handleBlur = (fieldName) => {
+        setTouched(prev => ({ ...prev, [fieldName]: true }));
+    };
+    
+    // Mark all fields as touched (used on submit attempt)
+    const touchAllFields = () => {
+        setTouched({ title: true, passingGrade: true });
+    };
+    
+    // Get error for a field (only if touched)
+    const getFieldError = (fieldName) => {
+        return touched[fieldName] ? errors[fieldName] : undefined;
+    };
+
+    const validate = () => {
+        const newErrors = {};
+        
+        if (!title || title.trim().length < 5) {
+            newErrors.title = 'Title must be at least 5 characters';
+        } else if (title.length > 100) {
+            newErrors.title = 'Title must be 100 characters or less';
+        }
+        
+        if (!passingGrade || passingGrade < 1 || passingGrade > 100) {
+            newErrors.passingGrade = 'Passing grade must be between 1 and 100';
+        }
+        
+        if (questions.length === 0) {
+            newErrors.questions = 'Quiz must have at least 1 question';
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const isFormValid = () => {
+        if (!title || title.trim().length < 5 || title.length > 100) return false;
+        if (!passingGrade || passingGrade < 1 || passingGrade > 100) return false;
+        if (questions.length === 0) return false;
+        return true;
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
+
     const handleSave = () => {
+        touchAllFields();
+        if (!validate()) {
+            setSnackbar({ open: true, message: 'Please fix the validation errors', severity: 'error' });
+            return;
+        }
+        
         onSave(node.id, {
             title,
             description,
@@ -96,6 +162,8 @@ export default function QuizEditor({ node, onSave }) {
                 questions: questions, // Save the full array
             }
         });
+        
+        setSnackbar({ open: true, message: 'Quiz saved successfully!', severity: 'success' });
     };
 
     const handleAddQuestion = () => {
@@ -148,13 +216,18 @@ export default function QuizEditor({ node, onSave }) {
                 </Box>
                 <TextField 
                     variant="standard" 
-                    placeholder="Enter quiz title" 
+                    placeholder="Enter quiz title *" 
                     value={title} 
                     onChange={e => setTitle(e.target.value)}
+                    onBlur={() => handleBlur('title')}
                     fullWidth
+                    error={!!getFieldError('title')}
+                    helperText={getFieldError('title') || `${title.length}/100 characters`}
                     InputProps={{ sx: { fontSize: '1.2rem', fontWeight: 500 } }}
                 />
-                <Button variant="contained" onClick={handleSave} size="medium" startIcon={<SaveIcon />} sx={{ ml: 2 }}>Save</Button>
+                <Button variant="contained" onClick={handleSave} size="medium" startIcon={<SaveIcon />} sx={{ ml: 2 }} disabled={!isFormValid()}>
+                    {isNew ? 'Create' : 'Save'}
+                </Button>
             </Box>
 
             {/* Tabs */}
@@ -239,11 +312,15 @@ export default function QuizEditor({ node, onSave }) {
 
                     <Stack direction="row" spacing={2}>
                         <TextField 
-                            label="Passing Grade (%)" 
+                            label="Passing Grade (%) *" 
                             type="number"
                             value={passingGrade} 
                             onChange={e => setPassingGrade(e.target.value)}
+                            onBlur={() => handleBlur('passingGrade')}
                             size="small"
+                            error={!!getFieldError('passingGrade')}
+                            helperText={getFieldError('passingGrade')}
+                            required
                         />
                         <TextField 
                             label="Max Attempts" 
@@ -357,6 +434,18 @@ export default function QuizEditor({ node, onSave }) {
                     <Button variant="contained" onClick={handleAddQuestion} disabled={!newQuestion.text && newQuestion.questionType !== 'fill_blank'}>Add Question</Button>
                 </DialogActions>
             </Dialog>
+            
+            {/* Success/Error Snackbar */}
+            <Snackbar 
+                open={snackbar.open} 
+                autoHideDuration={4000} 
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

@@ -25,7 +25,10 @@ import {
     DialogContent,
     DialogActions,
     CircularProgress,
-    Chip
+    Chip,
+    Snackbar,
+    Alert,
+    FormHelperText
 } from '@mui/material';
 import RichTextEditor from '@/components/RichTextEditor';
 import FileUploader from '@/components/FileUploader';
@@ -73,9 +76,131 @@ export default function ContentEditor({ node, onSave, blueprint }) {
     // Gamification settings (only used when featureFlags.gamification is true)
     const [gamificationSettings, setGamificationSettings] = useState(node.properties?.gamification || {});
 
+    // Validation state
+    const [errors, setErrors] = useState({});
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    
+    // Touched state - track which fields have been interacted with
+    const [touched, setTouched] = useState({});
+    
+    // Detect if this is a new node (not yet saved to database)
+    const isNew = !node.id || node.id.toString().startsWith('temp_') || node.title === 'Untitled Lesson';
+
     const lessonType = node.properties?.lesson_type || 'text';
+    
+    // Mark a field as touched
+    const handleBlur = (fieldName) => {
+        setTouched(prev => ({ ...prev, [fieldName]: true }));
+    };
+    
+    // Mark all fields as touched (used on submit attempt)
+    const touchAllFields = () => {
+        setTouched({
+            title: true,
+            duration: true,
+            description: true,
+            content: true,
+            videoSource: true,
+            videoUrl: true,
+            meetingPassword: true,
+            startDate: true,
+            startTime: true,
+            timezone: true,
+        });
+    };
+    
+    // Get error for a field (only if touched)
+    const getFieldError = (fieldName) => {
+        return touched[fieldName] ? errors[fieldName] : undefined;
+    };
+
+    // Validation rules based on lesson type
+    const validate = () => {
+        const newErrors = {};
+        
+        // Common validations
+        if (!title || title.trim().length < 5) {
+            newErrors.title = 'Title must be at least 5 characters';
+        } else if (title.length > 100) {
+            newErrors.title = 'Title must be 100 characters or less';
+        }
+        
+        if (!duration || duration.trim() === '') {
+            newErrors.duration = 'Duration is required';
+        }
+        
+        // Strip HTML for character count
+        const descText = description.replace(/<[^>]*>/g, '');
+        if (!descText || descText.length < 50) {
+            newErrors.description = `Description must be at least 50 characters (${descText.length}/50)`;
+        }
+        
+        const contentText = content.replace(/<[^>]*>/g, '');
+        if (!contentText || contentText.length < 200) {
+            newErrors.content = `Content must be at least 200 characters (${contentText.length}/200)`;
+        }
+        
+        // Video-specific validations
+        if (lessonType === 'video') {
+            if (!videoSource) {
+                newErrors.videoSource = 'Please select a video source';
+            }
+            if (videoSource && (!videoUrl || videoUrl.trim() === '')) {
+                newErrors.videoUrl = 'Video URL is required';
+            } else if (videoUrl && !/^https?:\/\/.+/.test(videoUrl)) {
+                newErrors.videoUrl = 'Please enter a valid URL';
+            }
+        }
+        
+        // Live class-specific validations
+        if (lessonType === 'live_class') {
+            if (!meetingPassword || meetingPassword.length < 6) {
+                newErrors.meetingPassword = 'Password must be at least 6 characters';
+            }
+            if (!startDate) {
+                newErrors.startDate = 'Start date is required';
+            }
+            if (!startTime) {
+                newErrors.startTime = 'Start time is required';
+            }
+            if (!timezone) {
+                newErrors.timezone = 'Please select a timezone';
+            }
+        }
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const isFormValid = () => {
+        const descText = description.replace(/<[^>]*>/g, '');
+        const contentText = content.replace(/<[^>]*>/g, '');
+        
+        if (!title || title.trim().length < 5 || title.length > 100) return false;
+        if (!duration || duration.trim() === '') return false;
+        if (descText.length < 50) return false;
+        if (contentText.length < 200) return false;
+        
+        if (lessonType === 'video') {
+            if (!videoSource) return false;
+            if (!videoUrl || !/^https?:\/\/.+/.test(videoUrl)) return false;
+        }
+        
+        if (lessonType === 'live_class') {
+            if (!meetingPassword || meetingPassword.length < 6) return false;
+            if (!startDate || !startTime || !timezone) return false;
+        }
+        
+        return true;
+    };
 
     const handleSave = () => {
+        touchAllFields();
+        if (!validate()) {
+            setSnackbar({ open: true, message: 'Please fix the validation errors', severity: 'error' });
+            return;
+        }
+        
         onSave(node.id, {
             title,
             description,
@@ -98,6 +223,12 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                 ...(featureFlags.gamification && { gamification: gamificationSettings }),
             }
         });
+        
+        setSnackbar({ open: true, message: 'Lesson saved successfully!', severity: 'success' });
+    };
+    
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
     
     // Determine icon and label based on type
@@ -124,13 +255,18 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                </Box>
                <TextField 
                    variant="standard" 
-                   placeholder="Enter lesson name" 
+                   placeholder="Enter lesson name *" 
                    value={title} 
                    onChange={e => setTitle(e.target.value)}
+                   onBlur={() => handleBlur('title')}
                    fullWidth
+                   error={!!getFieldError('title')}
+                   helperText={getFieldError('title') || `${title.length}/100 characters`}
                    InputProps={{ sx: { fontSize: '1.2rem', fontWeight: 500 } }}
                />
-               <Button variant="contained" onClick={handleSave} size="medium" sx={{ ml: 2 }}>Create</Button>
+               <Button variant="contained" onClick={handleSave} size="medium" sx={{ ml: 2 }} disabled={!isFormValid()}>
+                   {isNew ? 'Create' : 'Save'}
+               </Button>
             </Box>
 
             {/* Tabs */}
@@ -147,11 +283,14 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     {/* --- Video Lesson Specifics --- */}
                     {lessonType === 'video' && (
                         <Box>
-                            <InputLabel shrink sx={{ mb: 1, fontWeight: 500 }}>Source type</InputLabel>
-                            <FormControl fullWidth size="small">
+                            <InputLabel shrink sx={{ mb: 1, fontWeight: 500, color: getFieldError('videoSource') ? 'error.main' : 'inherit' }}>
+                                Source type *
+                            </InputLabel>
+                            <FormControl fullWidth size="small" error={!!getFieldError('videoSource')}>
                                 <Select
                                     value={videoSource}
                                     onChange={e => setVideoSource(e.target.value)}
+                                    onBlur={() => handleBlur('videoSource')}
                                     displayEmpty
                                 >
                                     <MenuItem value="" disabled>Select source</MenuItem>
@@ -160,15 +299,20 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                                     <MenuItem value="vimeo">Vimeo</MenuItem>
                                     <MenuItem value="external">External Link</MenuItem>
                                 </Select>
+                                {getFieldError('videoSource') && <FormHelperText>{getFieldError('videoSource')}</FormHelperText>}
                             </FormControl>
                             {videoSource && (
                                 <TextField 
                                     sx={{ mt: 2 }}
-                                    label="Video URL" 
+                                    label="Video URL *" 
                                     fullWidth 
                                     size="small"
                                     value={videoUrl} 
-                                    onChange={e => setVideoUrl(e.target.value)} 
+                                    onChange={e => setVideoUrl(e.target.value)}
+                                    onBlur={() => handleBlur('videoUrl')}
+                                    error={!!getFieldError('videoUrl')}
+                                    helperText={getFieldError('videoUrl')}
+                                    required
                                 />
                             )}
                         </Box>
@@ -178,52 +322,69 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     {lessonType === 'live_class' && (
                         <Stack spacing={2}>
                              <TextField 
-                                label="Meeting password" 
-                                placeholder="Enter password"
+                                label="Meeting password *" 
+                                placeholder="Enter password (min 6 characters)"
                                 fullWidth
                                 size="small"
                                 value={meetingPassword}
                                 onChange={e => setMeetingPassword(e.target.value)}
+                                onBlur={() => handleBlur('meetingPassword')}
+                                error={!!getFieldError('meetingPassword')}
+                                helperText={getFieldError('meetingPassword')}
                                 InputLabelProps={{ shrink: true, sx: { fontWeight: 500 } }}
+                                required
                              />
                              
                              <Box sx={{ display: 'flex', gap: 2 }}>
                                  <TextField 
-                                    label="Select start date" 
+                                    label="Select start date *" 
                                     type="date"
                                     fullWidth
                                     size="small"
                                     InputLabelProps={{ shrink: true, sx: { fontWeight: 500 } }}
                                     value={startDate}
                                     onChange={e => setStartDate(e.target.value)}
+                                    onBlur={() => handleBlur('startDate')}
+                                    error={!!getFieldError('startDate')}
+                                    helperText={getFieldError('startDate')}
+                                    required
                                  />
                                  <TextField 
-                                    label="Select start time" 
+                                    label="Select start time *" 
                                     type="time"
                                     fullWidth
                                     size="small"
                                     InputLabelProps={{ shrink: true, sx: { fontWeight: 500 } }}
                                     value={startTime}
                                     onChange={e => setStartTime(e.target.value)}
+                                    onBlur={() => handleBlur('startTime')}
+                                    error={!!getFieldError('startTime')}
+                                    helperText={getFieldError('startTime')}
+                                    required
                                  />
                              </Box>
 
                              <TextField 
-                                label="Lesson duration" 
+                                label="Lesson duration *" 
                                 placeholder="Example: 2h 45m"
                                 fullWidth
                                 size="small"
                                 value={duration}
                                 onChange={e => setDuration(e.target.value)}
+                                onBlur={() => handleBlur('duration')}
+                                error={!!getFieldError('duration')}
+                                helperText={getFieldError('duration')}
                                 InputLabelProps={{ shrink: true, sx: { fontWeight: 500 } }}
+                                required
                              />
                              
-                             <FormControl fullWidth size="small">
-                                <InputLabel shrink sx={{ fontWeight: 500 }}>Timezone</InputLabel>
+                             <FormControl fullWidth size="small" error={!!getFieldError('timezone')}>
+                                <InputLabel shrink sx={{ fontWeight: 500 }}>Timezone *</InputLabel>
                                 <Select
                                     value={timezone}
                                     onChange={e => setTimezone(e.target.value)}
-                                    label="Timezone"
+                                    onBlur={() => handleBlur('timezone')}
+                                    label="Timezone *"
                                     displayEmpty
                                 >
                                     <MenuItem value="" disabled>Select timezone</MenuItem>
@@ -231,6 +392,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                                     <MenuItem value="PST">PST</MenuItem>
                                     <MenuItem value="EST">EST</MenuItem>
                                 </Select>
+                                {getFieldError('timezone') && <FormHelperText>{getFieldError('timezone')}</FormHelperText>}
                              </FormControl>
 
                              {/* Toggle Grid */}
@@ -263,13 +425,17 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     {lessonType !== 'live_class' && (
                         <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                              <TextField 
-                                label="Lesson duration" 
+                                label="Lesson duration *" 
                                 placeholder="Example: 2h 45m"
                                 size="small"
                                 value={duration}
                                 onChange={e => setDuration(e.target.value)}
+                                onBlur={() => handleBlur('duration')}
                                 sx={{ width: 250 }}
+                                error={!!getFieldError('duration')}
+                                helperText={getFieldError('duration')}
                                 InputLabelProps={{ shrink: true, sx: { fontWeight: 500 } }}
+                                required
                              />
                         </Box>
                     )}
@@ -320,25 +486,41 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     )}
 
                     {/* Rich Text Editor - Short Description */}
-                    <Box sx={{ mt: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 'bold' }}>Short description of the lesson</Typography>
+                    <Box sx={{ mt: 2 }} onBlur={() => handleBlur('description')}>
+                        <Typography variant="body2" color={getFieldError('description') ? 'error' : 'text.secondary'} sx={{ mb: 1, fontWeight: 'bold' }}>
+                            Short description of the lesson *
+                        </Typography>
                         <RichTextEditor
                             value={description}
                             onChange={setDescription}
-                            placeholder="Enter a brief description of the lesson..."
+                            placeholder="Enter a brief description of the lesson (min 50 characters)..."
                             minHeight={100}
                         />
+                        {getFieldError('description') && (
+                            <FormHelperText error>{getFieldError('description')}</FormHelperText>
+                        )}
+                        <Typography variant="caption" color="text.secondary">
+                            {description.replace(/<[^>]*>/g, '').length}/50 minimum characters
+                        </Typography>
                     </Box>
 
                     {/* Rich Text Editor - Lesson Content */}
-                    <Box sx={{ mt: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 'bold' }}>Lesson content</Typography>
+                    <Box sx={{ mt: 2 }} onBlur={() => handleBlur('content')}>
+                        <Typography variant="body2" color={getFieldError('content') ? 'error' : 'text.secondary'} sx={{ mb: 1, fontWeight: 'bold' }}>
+                            Lesson content *
+                        </Typography>
                         <RichTextEditor
                             value={content}
                             onChange={setContent}
-                            placeholder="Write your lesson content here..."
+                            placeholder="Write your lesson content here (min 200 characters)..."
                             minHeight={250}
                         />
+                        {getFieldError('content') && (
+                            <FormHelperText error>{getFieldError('content')}</FormHelperText>
+                        )}
+                        <Typography variant="caption" color="text.secondary">
+                            {content.replace(/<[^>]*>/g, '').length}/200 minimum characters
+                        </Typography>
                     </Box>
 
                     {/* Lesson Materials */}
@@ -361,7 +543,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     )}
                     
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
-                        <Button variant="contained" onClick={handleSave} size="large">Save</Button>
+                        <Button variant="contained" onClick={handleSave} size="large" disabled={!isFormValid()}>{isNew ? 'Create' : 'Save'}</Button>
                     </Box>
                 </Stack>
             )}
@@ -369,6 +551,18 @@ export default function ContentEditor({ node, onSave, blueprint }) {
             {activeTab === 'qa' && (
                 <QATab nodeId={node.id} />
             )}
+            
+            {/* Success/Error Snackbar */}
+            <Snackbar 
+                open={snackbar.open} 
+                autoHideDuration={4000} 
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }
