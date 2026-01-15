@@ -194,3 +194,123 @@ class EnrollmentRequest(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.program} ({self.status})"
+
+
+# =============================================================================
+# Gamification Models (Feature 4C)
+# =============================================================================
+
+
+class Badge(models.Model):
+    """
+    Badge definition for gamification system.
+    Badges can be awarded for various achievements (lesson completion, quiz scores, etc.)
+    """
+    
+    BADGE_TRIGGERS = [
+        ('lesson_complete', 'Lesson Complete'),
+        ('quiz_pass', 'Quiz Pass'),
+        ('quiz_perfect', 'Perfect Quiz Score'),
+        ('first_try_pass', 'First Try Pass'),
+        ('streak_7', '7-Day Streak'),
+        ('streak_30', '30-Day Streak'),
+        ('module_complete', 'Module Complete'),
+        ('course_complete', 'Course Complete'),
+    ]
+    
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default='')
+    icon = models.CharField(max_length=100, blank=True, default='', help_text='Icon name or URL')
+    xp_value = models.PositiveIntegerField(default=0, help_text='XP bonus when badge is earned')
+    trigger = models.CharField(max_length=50, choices=BADGE_TRIGGERS, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'badges'
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+
+
+class StudentBadge(models.Model):
+    """
+    Badge earned by a student.
+    Tracks when and why each badge was awarded.
+    """
+    
+    enrollment = models.ForeignKey(
+        'Enrollment',
+        on_delete=models.CASCADE,
+        related_name='earned_badges'
+    )
+    badge = models.ForeignKey(
+        Badge,
+        on_delete=models.CASCADE,
+        related_name='earned_by'
+    )
+    earned_at = models.DateTimeField(auto_now_add=True)
+    trigger_node = models.ForeignKey(
+        'curriculum.CurriculumNode',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='The curriculum node that triggered this badge'
+    )
+    
+    class Meta:
+        db_table = 'student_badges'
+        unique_together = ['enrollment', 'badge']
+        indexes = [
+            models.Index(fields=['enrollment', 'earned_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.enrollment.user} earned {self.badge.name}"
+
+
+class StudentXP(models.Model):
+    """
+    XP (experience points) earned by a student.
+    Tracks individual XP gains for leaderboards and progress display.
+    """
+    
+    XP_REASONS = [
+        ('lesson_complete', 'Lesson Complete'),
+        ('quiz_pass', 'Quiz Pass'),
+        ('quiz_perfect', 'Perfect Quiz Score'),
+        ('assignment_submit', 'Assignment Submitted'),
+        ('first_try', 'First Try Bonus'),
+        ('streak_bonus', 'Streak Bonus'),
+        ('badge_earned', 'Badge Earned'),
+        ('manual', 'Manual Award'),
+    ]
+    
+    enrollment = models.ForeignKey(
+        'Enrollment',
+        on_delete=models.CASCADE,
+        related_name='xp_logs'
+    )
+    source_node = models.ForeignKey(
+        'curriculum.CurriculumNode',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text='The curriculum node that generated this XP'
+    )
+    xp_amount = models.PositiveIntegerField()
+    reason = models.CharField(max_length=50, choices=XP_REASONS)
+    earned_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'student_xp'
+        indexes = [
+            models.Index(fields=['enrollment', 'earned_at']),
+            models.Index(fields=['source_node']),
+        ]
+    
+    def __str__(self):
+        return f"{self.enrollment.user}: +{self.xp_amount} XP ({self.reason})"
+

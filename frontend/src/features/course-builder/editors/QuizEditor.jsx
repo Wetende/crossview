@@ -101,19 +101,18 @@ export default function QuizEditor({ node, onSave }) {
     const handleAddQuestion = () => {
         const questionToAdd = {
             id: Date.now(), // Temporary ID for frontend key
+            db_id: null, // Will be populated by backend after sync
             type: newQuestion.questionType,
             text: newQuestion.text,
             points: newQuestion.points,
-            // Process specific fields based on type
-            answerData: {
-                options: newQuestion.options.filter(o => o.trim() !== ''),
-                correct: newQuestion.correctAnswer,
-                keywords: newQuestion.keywords,
-                manualGrading: newQuestion.manualGrading,
-                pairs: newQuestion.pairs,
-                gaps: newQuestion.gaps,
-                items: newQuestion.items.filter(i => i && i.trim() !== ''),
-            }
+            // Flattened fields for backend sync
+            options: newQuestion.options.filter(o => o.trim() !== ''),
+            correct: newQuestion.correctAnswer,
+            keywords: newQuestion.keywords,
+            manual_grading: newQuestion.manualGrading,
+            pairs: newQuestion.pairs,
+            gaps: newQuestion.gaps,
+            correct_order: newQuestion.items.filter(i => i && i.trim() !== '').map((_, idx) => idx),
         };
         
         setQuestions([...questions, questionToAdd]);

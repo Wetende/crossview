@@ -114,8 +114,20 @@ urlpatterns = [
     path("instructor/programs/<int:program_id>/nodes/reorder/", views.instructor_node_reorder, name="instructor.node_reorder"),
     path("instructor/nodes/<int:node_id>/update/", views.instructor_node_update, name="instructor.node_update"),
     path("instructor/nodes/<int:node_id>/delete/", views.instructor_node_delete, name="instructor.node_delete"),
+    path("instructor/nodes/<int:node_id>/files/upload/", views.instructor_lesson_file_upload, name="instructor.lesson_file_upload"),
+    path("instructor/nodes/<int:node_id>/files/delete/", views.instructor_lesson_file_delete, name="instructor.lesson_file_delete"),
+    # Material Import/Clone (Feature 3B)
+    path("instructor/programs/<int:program_id>/materials/search/", views.instructor_material_search, name="instructor.material_search"),
+    path("instructor/programs/<int:program_id>/materials/import/", views.instructor_material_import, name="instructor.material_import"),
+    # Q&A Tab Integration (Feature 3C)
+    path("instructor/nodes/<int:node_id>/discussions/", views.instructor_node_discussions, name="instructor.node_discussions"),
+    path("instructor/nodes/<int:node_id>/discussions/create/", views.instructor_discussion_create, name="instructor.discussion_create"),
+    path("instructor/discussions/<int:discussion_id>/toggle-pin/", views.instructor_discussion_toggle_pin, name="instructor.discussion_toggle_pin"),
+    path("instructor/discussions/<int:discussion_id>/toggle-lock/", views.instructor_discussion_toggle_lock, name="instructor.discussion_toggle_lock"),
     
+
     path("instructor/programs/<int:program_id>/submit/", views.instructor_program_submit_for_review, name="instructor.program_submit"),
+
     path("instructor/programs/<int:program_id>/publish/", views.instructor_program_publish, name="instructor.program_publish"),
     path("instructor/programs/<int:program_id>/change-requests/", views.instructor_program_change_requests, name="instructor.program_change_requests"),
     path("instructor/change-requests/<int:change_request_id>/resolve/", views.instructor_resolve_change_request, name="instructor.resolve_change_request"),
@@ -126,15 +138,9 @@ urlpatterns = [
     path("instructor/programs/<int:pk>/gradebook/", views.instructor_program_gradebook, name="instructor.program_gradebook"),
     path("instructor/programs/<int:pk>/gradebook/save/", views.instructor_program_gradebook_save, name="instructor.program_gradebook_save"),
     path("instructor/gradebook/<int:enrollment_id>/", views.instructor_grade_entry, name="instructor.grade_entry"),
-    path("instructor/content/", views.instructor_content, name="instructor.content"),
-    path("instructor/content/<int:node_id>/edit/", views.instructor_content_edit, name="instructor.content_edit"),
-    path("instructor/announcements/", views.instructor_announcements, name="instructor.announcements"),
-    path("instructor/announcements/create/", views.instructor_announcement_create, name="instructor.announcement_create"),
-    # Instructor Quiz Management
-    path("instructor/lesson/<int:node_id>/quizzes/", views.instructor_quizzes, name="instructor.quizzes"),
-    path("instructor/lesson/<int:node_id>/quizzes/create/", views.instructor_quiz_create, name="instructor.quiz_create"),
-    path("instructor/quizzes/<int:quiz_id>/edit/", views.instructor_quiz_edit, name="instructor.quiz_edit"),
-    path("instructor/quizzes/<int:quiz_id>/delete/", views.instructor_quiz_delete, name="instructor.quiz_delete"),
+    # Note: instructor/content/, instructor/quizzes/, and instructor/announcements/ routes removed
+    # Content, quiz, and announcement editing now handled via Course Builder (instructor.program_manage)
+    #
     # Instructor Assignment Management
     path("instructor/programs/<int:program_id>/assignments/", views.instructor_assignments, name="instructor.assignments"),
     path("instructor/programs/<int:program_id>/assignments/create/", views.instructor_assignment_create, name="instructor.assignment_create"),

@@ -86,13 +86,6 @@ const roleNavigation = {
         { label: 'Practicum Review', href: '/instructor/practicum/', icon: RateReviewIcon, requiresFeature: 'practicum' },
       ],
     },
-    {
-      title: 'Content',
-      items: [
-        { label: 'Course Content', href: '/instructor/content/', icon: MenuBookIcon },
-        { label: 'Announcements', href: '/instructor/announcements/', icon: NotificationsIcon },
-      ],
-    },
   ],
   admin: [
     {

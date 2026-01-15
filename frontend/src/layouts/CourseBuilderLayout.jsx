@@ -20,8 +20,8 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', bgcolor: '#f5f7fa' }}>
             {/* Header - Dark Theme to match inspiration */}
-            <AppBar position="fixed" elevation={0} sx={{ bgcolor: '#1a1f2c', color: 'white', zIndex: 1201 }}>
-                <Toolbar sx={{ minHeight: 64, justifyContent: 'space-between' }}>
+            <AppBar position="fixed" elevation={0} sx={{ bgcolor: '#1a1f2c', color: 'white', zIndex: 1201, borderRadius: 0 }}>
+                <Toolbar sx={{ minHeight: 48, justifyContent: 'space-between' }}>
                     <Stack direction="row" alignItems="center" spacing={2}>
                         <Button 
                             component={Link} 
@@ -89,7 +89,13 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                             variant="contained"
                             size="small"
                             color="primary"
-                            sx={{ textTransform: 'none', fontWeight: 600 }}
+                            sx={{ 
+                                textTransform: 'none', 
+                                fontWeight: 600, 
+                                borderRadius: '0 !important',
+                                py: 0.75,
+                                px: 2
+                            }}
                         >
                             Published
                         </Button>
@@ -101,6 +107,10 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                                 color: 'white',
                                 borderColor: 'rgba(255,255,255,0.3)',
                                 textTransform: 'none',
+                                borderRadius: '0 !important',
+                                borderWidth: '1px !important',
+                                py: 0.75,
+                                px: 2,
                                 '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.05)' }
                             }}
                         >
@@ -111,7 +121,7 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
             </AppBar>
             
             {/* Main Content Area */}
-            <Box sx={{ display: 'flex', flexGrow: 1, mt: '64px', overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', flexGrow: 1, mt: '48px', overflow: 'hidden' }}>
                 {children}
             </Box>
         </Box>

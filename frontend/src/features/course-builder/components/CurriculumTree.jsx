@@ -1,5 +1,22 @@
 import React, { useState } from 'react';
+import SearchMaterialsModal from './SearchMaterialsModal';
 import { router } from '@inertiajs/react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
     Box,
     Typography,
@@ -52,8 +69,37 @@ export const flattenNodes = (nodes) => {
     return result;
 };
 
-export default function CurriculumTree({ program, nodes, onNodeSelect }) {
+export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint }) {
+    // Get feature flags from blueprint (with defaults)
+    const featureFlags = blueprint?.featureFlags || {
+        quizzes: true, assignments: true, practicum: false, portfolio: false, gamification: false
+    };
     const [selectedNodeId, setSelectedNodeId] = useState(null);
+    const [localNodes, setLocalNodes] = useState(nodes);
+    
+    // Update local nodes when props change
+    React.useEffect(() => setLocalNodes(nodes), [nodes]);
+    
+    // Drag and drop sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+    
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+        if (active.id !== over?.id) {
+            const oldIndex = localNodes.findIndex((n) => n.id === active.id);
+            const newIndex = localNodes.findIndex((n) => n.id === over.id);
+            const reordered = arrayMove(localNodes, oldIndex, newIndex);
+            setLocalNodes(reordered);
+            
+            // Call backend to persist order
+            router.post(`/instructor/programs/${program.id}/nodes/reorder/`, {
+                ordered_ids: reordered.map(n => n.id)
+            }, { preserveScroll: true });
+        }
+    };
     
     // Create Modal State
     const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -65,6 +111,49 @@ export default function CurriculumTree({ program, nodes, onNodeSelect }) {
     
     // Expanded state for sections
     const [expandedSections, setExpandedSections] = useState({});
+    
+    // Inline editing state for section titles
+    const [editingSectionId, setEditingSectionId] = useState(null);
+    const [editingSectionTitle, setEditingSectionTitle] = useState('');
+    
+    const startEditingSection = (node, e) => {
+        e.stopPropagation();
+        setEditingSectionId(node.id);
+        setEditingSectionTitle(node.title);
+    };
+    
+    const saveSectionTitle = () => {
+        if (editingSectionId && editingSectionTitle.trim()) {
+            router.post(`/instructor/nodes/${editingSectionId}/update/`, {
+                title: editingSectionTitle.trim()
+            }, {
+                preserveScroll: true,
+                onSuccess: () => setEditingSectionId(null),
+            });
+        }
+        setEditingSectionId(null);
+    };
+    
+    const handleSectionTitleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveSectionTitle();
+        } else if (e.key === 'Escape') {
+            setEditingSectionId(null);
+        }
+    };
+    
+    // Search Modal State
+    const [searchModalOpen, setSearchModalOpen] = useState(false);
+    const [searchTargetSectionId, setSearchTargetSectionId] = useState(null);
+    const [searchTargetSectionName, setSearchTargetSectionName] = useState('');
+    
+    const openSearchModal = (sectionId, sectionName) => {
+        setSearchTargetSectionId(sectionId);
+        setSearchTargetSectionName(sectionName);
+        setSearchModalOpen(true);
+    };
+
 
     const toggleSection = (nodeId) => {
         setExpandedSections(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
@@ -202,7 +291,8 @@ export default function CurriculumTree({ program, nodes, onNodeSelect }) {
 
     // Render a toggleable Section
     const renderSection = (node) => {
-        const isExpanded = expandedSections[node.id] !== false; 
+        const isExpanded = expandedSections[node.id] !== false;
+        const isEditing = editingSectionId === node.id;
         
         return (
             <Paper 
@@ -223,14 +313,31 @@ export default function CurriculumTree({ program, nodes, onNodeSelect }) {
                         cursor: 'pointer',
                         '&:hover': { bgcolor: 'grey.100' }
                     }}
-                    onClick={() => toggleSection(node.id)}
+                    onClick={() => !isEditing && toggleSection(node.id)}
                 >
                     <Box component={DragIcon} sx={{ color: 'text.disabled', mr: 1, cursor: 'grab' }} />
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ flex: 1 }}>
-                        {node.title}
-                    </Typography>
+                    
+                    {isEditing ? (
+                        <TextField
+                            value={editingSectionTitle}
+                            onChange={(e) => setEditingSectionTitle(e.target.value)}
+                            onBlur={saveSectionTitle}
+                            onKeyDown={handleSectionTitleKeyDown}
+                            autoFocus
+                            size="small"
+                            variant="standard"
+                            onClick={(e) => e.stopPropagation()}
+                            InputProps={{ sx: { fontWeight: 'bold', fontSize: '0.875rem' } }}
+                            sx={{ flex: 1 }}
+                        />
+                    ) : (
+                        <Typography variant="subtitle2" fontWeight="bold" sx={{ flex: 1 }}>
+                            {node.title}
+                        </Typography>
+                    )}
+                    
                     <Box sx={{ display: 'flex' }}>
-                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleSelect(node); }}>
+                        <IconButton size="small" onClick={(e) => startEditingSection(node, e)}>
                             <EditIcon fontSize="small" />
                         </IconButton>
                         <IconButton size="small" onClick={(e) => { e.stopPropagation(); toggleSection(node.id); }}>
@@ -259,6 +366,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect }) {
                                 size="small" 
                                 startIcon={<SearchIcon />} 
                                 sx={{ bgcolor: '#f5f5f5', color: 'text.secondary', textTransform: 'none', px: 2, minWidth: 'auto' }}
+                                onClick={() => openSearchModal(node.id, node.title)}
                             >
                                 Search
                             </Button>
@@ -291,13 +399,17 @@ export default function CurriculumTree({ program, nodes, onNodeSelect }) {
                 </Box>
 
                 <Box sx={{ flex: 1, overflowY: 'auto', p: 2, bgcolor: '#fdfdfd' }}>
-                     {!nodes || nodes.length === 0 ? (
+                     {!localNodes || localNodes.length === 0 ? (
                          <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
                              <Typography variant="body2">No curriculum yet.</Typography>
                              <Typography variant="caption">Start by adding a section.</Typography>
                          </Box>
                      ) : (
-                         nodes.map(node => renderSection(node))
+                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                             <SortableContext items={localNodes.map(n => n.id)} strategy={verticalListSortingStrategy}>
+                                 {localNodes.map(node => renderSection(node))}
+                             </SortableContext>
+                         </DndContext>
                      )}
                 </Box>
                 {/* Footer Add Section Button */}
@@ -352,16 +464,46 @@ export default function CurriculumTree({ program, nodes, onNodeSelect }) {
                             <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                                 <Box sx={{ bgcolor: 'grey.100', px: 2, py: 1 }}><Typography variant="subtitle2" color="text.secondary">Exam Students</Typography></Box>
                                 <List disablePadding>
-                                     <ListItemButton onClick={() => handleLessonTypeSelect('quiz')}>
-                                        <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><QuizIcon /></Box>
-                                        <ListItemText primary="Quiz" />
-                                    </ListItemButton>
-                                     <ListItemButton onClick={() => handleLessonTypeSelect('assignment')}>
-                                        <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><AssignmentIcon /></Box>
-                                        <ListItemText primary="Assignment" />
-                                    </ListItemButton>
+                                     {featureFlags.quizzes && (
+                                         <ListItemButton onClick={() => handleLessonTypeSelect('quiz')}>
+                                            <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><QuizIcon /></Box>
+                                            <ListItemText primary="Quiz" />
+                                        </ListItemButton>
+                                     )}
+                                     {featureFlags.assignments && (
+                                         <ListItemButton onClick={() => handleLessonTypeSelect('assignment')}>
+                                            <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><AssignmentIcon /></Box>
+                                            <ListItemText primary="Assignment" />
+                                        </ListItemButton>
+                                     )}
+                                     {!featureFlags.quizzes && !featureFlags.assignments && (
+                                         <Box sx={{ p: 2, color: 'text.disabled', textAlign: 'center' }}>
+                                             <Typography variant="body2">No assessment types enabled</Typography>
+                                         </Box>
+                                     )}
                                 </List>
                             </Box>
+                            
+                            {/* Practical Skills - TVET/Theology modes */}
+                            {(featureFlags.portfolio || featureFlags.practicum) && (
+                                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                                    <Box sx={{ bgcolor: 'grey.100', px: 2, py: 1 }}><Typography variant="subtitle2" color="text.secondary">Practical Skills</Typography></Box>
+                                    <List disablePadding>
+                                         {featureFlags.portfolio && (
+                                             <ListItemButton onClick={() => handleLessonTypeSelect('portfolio')}>
+                                                <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><AssignmentIcon /></Box>
+                                                <ListItemText primary="Portfolio Entry" secondary="Evidence-based competency proof" />
+                                            </ListItemButton>
+                                         )}
+                                         {featureFlags.practicum && (
+                                             <ListItemButton onClick={() => handleLessonTypeSelect('practicum')}>
+                                                <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><ArticleIcon /></Box>
+                                                <ListItemText primary="Practicum Session" secondary="Supervised practical work" />
+                                            </ListItemButton>
+                                         )}
+                                    </List>
+                                </Box>
+                            )}
                         </Stack>
                     ) : createQuizModalOpen ? (
                         <TextField
@@ -396,6 +538,19 @@ export default function CurriculumTree({ program, nodes, onNodeSelect }) {
                     )}
                 </DialogActions>
             </Dialog>
+            
+            {/* Search Materials Modal */}
+            <SearchMaterialsModal
+                open={searchModalOpen}
+                onClose={() => setSearchModalOpen(false)}
+                sectionName={searchTargetSectionName}
+                sectionId={searchTargetSectionId}
+                programId={program.id}
+                onImportComplete={(count) => {
+                    // Refresh the curriculum after import
+                    router.reload({ only: ['curriculum'] });
+                }}
+            />
         </Box>
     );
 }

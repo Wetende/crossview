@@ -16,6 +16,8 @@ class AcademicBlueprint(models.Model):
     progression_rules = models.JSONField(blank=True, null=True)
     gamification_enabled = models.BooleanField(default=False)
     certificate_enabled = models.BooleanField(default=False)
+    feature_flags = models.JSONField(default=dict, blank=True, help_text='Mode-specific feature toggles')
+    # Schema: {"quizzes": bool, "assignments": bool, "practicum": bool, "portfolio": bool, "gamification": bool}
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(blank=True, null=True)
@@ -36,6 +38,32 @@ class AcademicBlueprint(models.Model):
         if self.hierarchy_structure and 0 <= depth < len(self.hierarchy_structure):
             return self.hierarchy_structure[depth]
         raise ValueError(f"Invalid depth {depth} for hierarchy with {self.get_hierarchy_depth()} levels")
+
+    def get_effective_feature_flags(self) -> dict:
+        """Return feature flags with defaults based on grading type."""
+        grading_type = (self.grading_logic or {}).get('type', 'weighted')
+        
+        # Mode-specific defaults
+        defaults = {
+            'competency': {  # TVET/CDACC
+                'quizzes': True, 'assignments': True, 'practicum': True,
+                'portfolio': True, 'gamification': False
+            },
+            'weighted': {  # Theology/Traditional
+                'quizzes': False, 'assignments': True, 'practicum': True,
+                'portfolio': False, 'gamification': False
+            },
+            'progress': {  # Online/Self-paced
+                'quizzes': True, 'assignments': False, 'practicum': False,
+                'portfolio': False, 'gamification': True
+            },
+        }.get(grading_type, {
+            'quizzes': True, 'assignments': True, 'practicum': False,
+            'portfolio': False, 'gamification': False
+        })
+        
+        # Merge stored flags over defaults
+        return {**defaults, **(self.feature_flags or {})}
 
     def clean(self):
         """Validate blueprint configuration."""

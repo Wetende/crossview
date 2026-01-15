@@ -25,7 +25,7 @@ createInertiaApp({
     resolve: (name) => {
         // Import from both old Pages and new features structure
         const pages = import.meta.glob("./Pages/**/*.jsx", { eager: true });
-        const features = import.meta.glob("./features/**/pages/*.jsx", { eager: true });
+        const features = import.meta.glob("./features/**/pages/**/*.jsx", { eager: true });
         const publicPages = import.meta.glob("./pages/public/*.jsx", { eager: true });
         
         // Map feature paths: "features/auth" -> "Auth"
@@ -56,9 +56,7 @@ createInertiaApp({
             'Instructor/Programs/Show': './features/programs/pages/Show.jsx',
             'Instructor/Program/ChangeRequests': './features/programs/pages/ChangeRequests.jsx',
             
-            'Instructor/Quizzes/Index': './features/quizzes/pages/Index.jsx',
-            'Instructor/Quizzes/Create': './features/quizzes/pages/Create.jsx',
-            'Instructor/Quizzes/Edit': './features/quizzes/pages/Edit.jsx',
+            // Note: Instructor Quiz pages removed - now handled by Course Builder
             
             'Instructor/Gradebook/Index': './features/gradebook/pages/Index.jsx',
             'Instructor/Gradebook': './features/gradebook/pages/Detail.jsx',
@@ -72,8 +70,7 @@ createInertiaApp({
             
             'Instructor/EnrollmentRequests/Index': './features/enrollments/pages/Index.jsx',
             
-            'Instructor/Content/Index': './features/content/pages/Index.jsx',
-            'Instructor/Content/Edit': './features/content/pages/Edit.jsx',
+            // Note: Instructor Content pages removed - now handled by Course Builder
             
             'Instructor/Assignments/Index': './features/assignments/pages/instructor/Index.jsx',
             'Instructor/Assignments/Grade': './features/assignments/pages/instructor/Grade.jsx',

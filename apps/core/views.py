@@ -1978,290 +1978,15 @@ def instructor_program_gradebook_save(request, pk: int):
     return redirect("core:instructor.program_gradebook", pk=pk)
 
 
-@login_required
-def instructor_content(request):
-    """List curriculum content for instructor's programs."""
-    if not _require_instructor(request.user):
-        return redirect("/dashboard/")
-    
-    from apps.curriculum.models import CurriculumNode
-    
-    def serialize_node(node):
-        """Recursively serialize node with children."""
-        children = node.children.all().order_by("position")
-        return {
-            "id": node.id,
-            "title": node.title,
-            "type": node.node_type,
-            "children": [serialize_node(child) for child in children],
-        }
-    
-    program_ids = _get_instructor_program_ids(request.user)
-    programs = Program.objects.filter(id__in=program_ids)
-    
-    programs_data = []
-    for p in programs:
-        root_nodes = CurriculumNode.objects.filter(
-            program=p, parent__isnull=True
-        ).prefetch_related("children").order_by("position")
-        programs_data.append({
-            "id": p.id,
-            "name": p.name,
-            "nodes": [serialize_node(n) for n in root_nodes],
-        })
-    
-    return render(request, "Instructor/Content/Index", {"programs": programs_data})
-
-
-@login_required
-def instructor_content_edit(request, node_id: int):
-    """Edit session content with block-based editor."""
-    if not _require_instructor(request.user):
-        return redirect("/dashboard/")
-    
-    from django.shortcuts import get_object_or_404
-    from apps.curriculum.models import CurriculumNode
-    from apps.content.models import ContentBlock
-    import os
-    import uuid
-    
-    program_ids = _get_instructor_program_ids(request.user)
-    node = get_object_or_404(CurriculumNode, pk=node_id, program_id__in=program_ids)
-
-    # Check for submission status constraint
-    if node.program.submission_status == 'submitted':
-        messages.error(request, "Cannot edit content while program is submitted for review")
-        return redirect("core:instructor.program", pk=node.program.id)
-    
-    if request.method == "POST":
-        data = _get_post_data(request)
-        action = data.get("action", "save")
-        
-        if action == "save_meta":
-            # Save node metadata
-            node.title = data.get("title", node.title)
-            node.description = data.get("description", node.description)
-            props = node.properties or {}
-            props["objectives"] = data.get("objectives", props.get("objectives", ""))
-            node.properties = props
-            node.save(skip_validation=True)
-            messages.success(request, "Content updated")
-        
-        elif action == "add_block":
-            block_type_map = {
-                "text": "RICHTEXT",
-                "video": "VIDEO",
-                "image": "IMAGE",
-                "file": "DOCUMENT",
-                "audio": "AUDIO",
-                "embed": "EMBED"
-            }
-            raw_type = data.get("blockType", "text")
-            block_type = block_type_map.get(raw_type, "RICHTEXT")
-            
-            position = ContentBlock.objects.filter(node=node).count()
-            
-            block_data = {}
-            if block_type == "RICHTEXT":
-                block_data["html"] = data.get("content", "")
-            elif block_type == "EMBED":
-                block_data["url"] = data.get("content", "")
-            
-            block = ContentBlock.objects.create(
-                node=node,
-                block_type=block_type,
-                position=position,
-                data=block_data,
-            )
-            messages.success(request, f"{raw_type.title()} block added")
-        
-        elif action == "update_block":
-            block_id = data.get("blockId")
-            try:
-                block = ContentBlock.objects.get(pk=block_id, node=node)
-                # Update specific fields based on type
-                if block.block_type == "RICHTEXT":
-                    block.data["html"] = data.get("content", block.data.get("html", ""))
-                elif block.block_type == "EMBED":
-                    block.data["url"] = data.get("content", block.data.get("url", ""))
-                elif block.block_type == "VIDEO":
-                    block.data["url"] = data.get("content", block.data.get("url", ""))
-                
-                block.save()
-                messages.success(request, "Block updated")
-            except ContentBlock.DoesNotExist:
-                messages.error(request, "Block not found")
-        
-        elif action == "delete_block":
-            block_id = data.get("blockId")
-            try:
-                block = ContentBlock.objects.get(pk=block_id, node=node)
-                block.delete()
-                # Reorder remaining blocks
-                blocks = ContentBlock.objects.filter(node=node).order_by("position")
-                for i, b in enumerate(blocks):
-                    b.position = i
-                    b.save(update_fields=["position"])
-                messages.success(request, "Block deleted")
-            except ContentBlock.DoesNotExist:
-                messages.error(request, "Block not found")
-        
-        elif action == "reorder_blocks":
-            order = data.get("order", [])  # List of block IDs in new order
-            for i, block_id in enumerate(order):
-                ContentBlock.objects.filter(pk=block_id, node=node).update(position=i)
-            messages.success(request, "Blocks reordered")
-        
-        return redirect("core:instructor.content_edit", node_id=node_id)
-    
-    # Handle file uploads via multipart form
-    if request.FILES:
-        raw_type = request.POST.get("blockType", "file")
-        block_map = {"file": "DOCUMENT", "image": "IMAGE", "audio": "AUDIO"}
-        block_type = block_map.get(raw_type, "DOCUMENT")
-        
-        uploaded_file = request.FILES.get("file")
-        
-        if uploaded_file:
-            from django.conf import settings
-            upload_dir = os.path.join(settings.MEDIA_ROOT, 'content', str(node_id))
-            os.makedirs(upload_dir, exist_ok=True)
-            unique_name = f"{uuid.uuid4().hex}_{uploaded_file.name}"
-            file_path = os.path.join(upload_dir, unique_name)
-            
-            with open(file_path, 'wb+') as dest:
-                for chunk in uploaded_file.chunks():
-                    dest.write(chunk)
-            
-            position = ContentBlock.objects.filter(node=node).count()
-            
-            block_data = {
-                "file_path": file_path,
-                "file_name": uploaded_file.name,
-                "caption": request.POST.get("caption", "")
-            }
-            
-            ContentBlock.objects.create(
-                node=node,
-                block_type=block_type,
-                position=position,
-                data=block_data
-            )
-            messages.success(request, f"{raw_type.title()} uploaded")
-            return redirect("core:instructor.content_edit", node_id=node_id)
-    
-    # Get existing blocks
-    blocks = ContentBlock.objects.filter(node=node).order_by("position")
-    props = node.properties or {}
-    
-    # Map back to legacy format for template
-    serialized_blocks = []
-    for b in blocks:
-        legacy_content = b.data.get("html", "") or b.data.get("caption", "") or b.data.get("url", "")
-        serialized_blocks.append({
-            "id": b.id,
-            "type": b.block_type,
-            "position": b.position,
-            "content": legacy_content,
-            "filePath": b.data.get("file_path"),
-            "fileName": b.data.get("file_name"),
-            "metadata": b.data,
-        })
-    
-    return render(
-        request,
-        "Instructor/Content/Edit",
-        {
-            "node": {
-                "id": node.id,
-                "title": node.title,
-                "description": node.description or "",
-                "objectives": props.get("objectives", ""),
-                "nodeType": node.node_type,
-                "programId": node.program.id,
-                "programName": node.program.name,
-            },
-            "blocks": serialized_blocks,
-        },
-    )
+# Note: instructor_content and instructor_content_edit functions removed
+# Content editing is now handled by Course Builder via instructor_node_update
 
 
 
 @login_required
-def instructor_announcements(request):
-    """List announcements for instructor's programs."""
-    if not _require_instructor(request.user):
-        return redirect("/dashboard/")
-    
-    from apps.progression.models import Announcement
-    from django.utils import timezone
-    from django.utils.timesince import timesince
-    
-    program_ids = _get_instructor_program_ids(request.user)
-    programs = Program.objects.filter(id__in=program_ids)
-    
-    announcements = Announcement.objects.filter(
-        program_id__in=program_ids
-    ).select_related("program", "author").order_by("-is_pinned", "-created_at")
-    
-    announcements_data = [
-        {
-            "id": a.id,
-            "title": a.title,
-            "content": a.content,
-            "programId": a.program_id,
-            "programName": a.program.name,
-            "isPinned": a.is_pinned,
-            "createdAt": timesince(a.created_at) + " ago",
-        }
-        for a in announcements
-    ]
-    
-    return render(
-        request,
-        "Instructor/Announcements/Index",
-        {
-            "programs": [{"id": p.id, "name": p.name} for p in programs],
-            "announcements": announcements_data,
-        },
-    )
+# Note: instructor_announcements and instructor_announcement_create functions removed.
+# Announcements are now managed via Course Builder.
 
-
-@login_required
-def instructor_announcement_create(request):
-    """Create a new announcement."""
-    if not _require_instructor(request.user):
-        return redirect("/dashboard/")
-    
-    from apps.progression.models import Announcement
-    
-    program_ids = _get_instructor_program_ids(request.user)
-    programs = Program.objects.filter(id__in=program_ids)
-    
-    if request.method == "POST":
-        data = _get_post_data(request)
-        program_id = data.get("programId")
-        
-        # Validate program belongs to instructor
-        if int(program_id) not in program_ids:
-            messages.error(request, "Invalid program selected")
-            return redirect("core:instructor.announcements")
-        
-        Announcement.objects.create(
-            program_id=program_id,
-            author=request.user,
-            title=data.get("title", ""),
-            content=data.get("content", ""),
-            is_pinned=data.get("isPinned", False),
-        )
-        messages.success(request, "Announcement posted successfully")
-        return redirect("core:instructor.announcements")
-    
-    return render(
-        request,
-        "Instructor/Announcements/Create",
-        {"programs": [{"id": p.id, "name": p.name} for p in programs]},
-    )
 
 
 # =============================================================================
@@ -2640,324 +2365,9 @@ def admin_instructor_application_unlock(request, pk: int):
     return redirect("core:admin.instructor_applications")
 
 
-# =============================================================================
-# Quiz Management Views (Instructor)
-# =============================================================================
-
-
-@login_required
-def instructor_quizzes(request, node_id: int):
-    """
-    List quizzes for a lesson/session node.
-    """
-    from apps.curriculum.models import CurriculumNode
-    from apps.assessments.models import Quiz
-    from apps.progression.models import InstructorAssignment
-    
-    try:
-        node = CurriculumNode.objects.select_related('program').get(pk=node_id)
-    except CurriculumNode.DoesNotExist:
-        messages.error(request, "Lesson not found")
-        return redirect("/dashboard/")
-    
-    # Verify instructor access
-    if not InstructorAssignment.objects.filter(
-        instructor=request.user, program=node.program
-    ).exists() and not request.user.is_staff:
-        messages.error(request, "You don't have access to this lesson")
-        return redirect("/dashboard/")
-    
-    quizzes = Quiz.objects.filter(node=node).order_by('-created_at')
-    
-    return render(
-        request,
-        "Instructor/Quizzes/Index",
-        {
-            "node": {
-                "id": node.id,
-                "title": node.title,
-                "programId": node.program.id,
-                "programName": node.program.name,
-            },
-            "quizzes": [
-                {
-                    "id": q.id,
-                    "title": q.title,
-                    "questionCount": q.questions.count(),
-                    "timeLimit": q.time_limit_minutes,
-                    "maxAttempts": q.max_attempts,
-                    "passThreshold": q.pass_threshold,
-                    "isPublished": q.is_published,
-                    "createdAt": q.created_at.isoformat(),
-                }
-                for q in quizzes
-            ],
-        },
-    )
-
-
-@login_required
-def instructor_quiz_create(request, node_id: int):
-    """
-    Create a new quiz for a lesson.
-    """
-    from apps.curriculum.models import CurriculumNode
-    from apps.assessments.models import Quiz
-    from apps.progression.models import InstructorAssignment
-    
-    try:
-        node = CurriculumNode.objects.select_related('program').get(pk=node_id)
-    except CurriculumNode.DoesNotExist:
-        messages.error(request, "Lesson not found")
-        return redirect("/dashboard/")
-    
-    # Verify instructor access
-    if not InstructorAssignment.objects.filter(
-        instructor=request.user, program=node.program
-    ).exists() and not request.user.is_staff:
-        return redirect("/dashboard/")
-    
-    if request.method == "POST":
-        data = _get_post_data(request)
-        
-        quiz = Quiz.objects.create(
-            node=node,
-            title=data.get("title", "Untitled Quiz"),
-            description=data.get("description", ""),
-            time_limit_minutes=int(data.get("timeLimit")) if data.get("timeLimit") else None,
-            max_attempts=int(data.get("maxAttempts", 1)),
-            pass_threshold=int(data.get("passThreshold", 70)),
-        )
-        
-        messages.success(request, "Quiz created! Now add questions.")
-        return redirect("core:instructor.quiz_edit", quiz_id=quiz.id)
-    
-    return render(
-        request,
-        "Instructor/Quizzes/Create",
-        {
-            "node": {
-                "id": node.id,
-                "title": node.title,
-                "programName": node.program.name,
-            },
-        },
-    )
-
-
-@login_required
-def instructor_quiz_edit(request, quiz_id: int):
-    """
-    Edit quiz settings and manage questions.
-    """
-    from apps.assessments.models import (
-        Quiz, Question, QuestionOption, 
-        QuestionMatchingPair, QuestionGapAnswer
-    )
-    from apps.progression.models import InstructorAssignment
-    
-    try:
-        quiz = Quiz.objects.select_related('node', 'node__program').get(pk=quiz_id)
-    except Quiz.DoesNotExist:
-        messages.error(request, "Quiz not found")
-        return redirect("/dashboard/")
-    
-    # Verify instructor access
-    if not InstructorAssignment.objects.filter(
-        instructor=request.user, program=quiz.node.program
-    ).exists() and not request.user.is_staff:
-        return redirect("/dashboard/")
-    
-    if request.method == "POST":
-        data = _get_post_data(request)
-        action = data.get("action", "save")
-        
-        if action == "update_settings":
-            quiz.title = data.get("title", quiz.title)
-            quiz.description = data.get("description", quiz.description)
-            quiz.time_limit_minutes = int(data.get("timeLimit")) if data.get("timeLimit") else None
-            quiz.max_attempts = int(data.get("maxAttempts", 1))
-            quiz.pass_threshold = int(data.get("passThreshold", 70))
-            quiz.randomize_questions = data.get("randomizeQuestions", False)
-            quiz.show_answers_after_submit = data.get("showAnswers", True)
-            quiz.retake_penalty_percent = int(data.get("retakePenalty", 0))
-            quiz.save()
-            messages.success(request, "Quiz settings updated")
-        
-        elif action == "add_question":
-            question_type = data.get("questionType", "mcq")
-            text = data.get("text", "")
-            points = int(data.get("points", 1))
-            
-            position = quiz.questions.count()
-            answer_data = {}
-            
-            # Simple handling for legacy/simple types
-            if question_type == "true_false":
-                correct = data.get("correctAnswer") in (True, "true", "True")
-                answer_data = {"correct": correct}
-            elif question_type == "short_answer":
-                keywords = data.get("keywords", [])
-                manual = data.get("manualGrading", True)
-                answer_data = {"keywords": keywords, "manual_grading": manual}
-            elif question_type == "ordering":
-                answer_data = {"correct_order": data.get("items", [])}
-
-            question = Question.objects.create(
-                quiz=quiz,
-                question_type=question_type,
-                text=text,
-                points=points,
-                position=position,
-                answer_data=answer_data,
-            )
-
-            # Handle related models
-            if question_type == "mcq":
-                options = data.get("options", [])
-                correct_idx = int(data.get("correctAnswer", 0))
-                for idx, opt_text in enumerate(options):
-                    QuestionOption.objects.create(
-                        question=question,
-                        text=opt_text,
-                        is_correct=(idx == correct_idx),
-                        position=idx
-                    )
-            
-            elif question_type == "matching":
-                pairs = data.get("pairs", [])
-                for idx, pair in enumerate(pairs):
-                    QuestionMatchingPair.objects.create(
-                        question=question,
-                        left_text=pair.get("left_text"),
-                        right_text=pair.get("right_text"),
-                        position=idx
-                    )
-            
-            elif question_type == "fill_blank":
-                gaps = data.get("gaps", [])
-                for gap in gaps:
-                    QuestionGapAnswer.objects.create(
-                        question=question,
-                        gap_index=gap.get("gap_index"),
-                        accepted_answers=gap.get("accepted_answers", [])
-                    )
-
-            messages.success(request, "Question added")
-        
-        elif action == "delete_question":
-            question_id = data.get("questionId")
-            Question.objects.filter(pk=question_id, quiz=quiz).delete()
-            messages.success(request, "Question deleted")
-        
-        elif action == "publish":
-            if quiz.questions.count() == 0:
-                messages.error(request, "Cannot publish a quiz with no questions")
-            else:
-                quiz.is_published = True
-                quiz.save()
-                messages.success(request, "Quiz published!")
-        
-        elif action == "unpublish":
-            quiz.is_published = False
-            quiz.save()
-            messages.info(request, "Quiz unpublished")
-        
-        return redirect("core:instructor.quiz_edit", quiz_id=quiz.id)
-    
-    questions = quiz.questions.all().prefetch_related(
-        'options', 'matching_pairs', 'gap_answers'
-    )
-    
-    questions_data = []
-    for q in questions:
-        q_data = {
-            "id": q.id,
-            "type": q.question_type,
-            "text": q.text,
-            "points": q.points,
-            "position": q.position,
-            "answerData": q.answer_data,
-        }
-        
-        if q.question_type == 'mcq':
-            # Enrich answerData for frontend compatibility or send new field
-            q_data['options'] = [o.text for o in q.options.all()]
-            try:
-                correct = q.options.get(is_correct=True).position
-                # Ensure answerData has what frontend expects
-                q_data['answerData'] = {'options': q_data['options'], 'correct': correct}
-            except:
-                pass
-                
-        elif q.question_type == 'matching':
-            q_data['pairs'] = [
-                {'left_text': p.left_text, 'right_text': p.right_text} 
-                for p in q.matching_pairs.all()
-            ]
-            
-        elif q.question_type == 'fill_blank':
-             q_data['gaps'] = [
-                 {'gap_index': g.gap_index, 'accepted_answers': g.accepted_answers}
-                 for g in q.gap_answers.all()
-             ]
-             
-        elif q.question_type == 'ordering':
-             q_data['items'] = q.answer_data.get('correct_order', [])
-
-        questions_data.append(q_data)
-
-    return render(
-        request,
-        "Instructor/Quizzes/Edit",
-        {
-            "quiz": {
-                "id": quiz.id,
-                "title": quiz.title,
-                "description": quiz.description,
-                "timeLimit": quiz.time_limit_minutes,
-                "maxAttempts": quiz.max_attempts,
-                "passThreshold": quiz.pass_threshold,
-                "isPublished": quiz.is_published,
-                "nodeId": quiz.node.id,
-                "nodeTitle": quiz.node.title,
-                "programName": quiz.node.program.name,
-                "randomizeQuestions": quiz.randomize_questions,
-                "showAnswers": quiz.show_answers_after_submit,
-                "retakePenalty": quiz.retake_penalty_percent,
-            },
-            "questions": questions_data,
-        },
-    )
-
-
-@login_required
-def instructor_quiz_delete(request, quiz_id: int):
-    """
-    Delete a quiz.
-    """
-    from apps.assessments.models import Quiz
-    from apps.progression.models import InstructorAssignment
-    
-    if request.method != "POST":
-        return redirect("/dashboard/")
-    
-    try:
-        quiz = Quiz.objects.select_related('node', 'node__program').get(pk=quiz_id)
-    except Quiz.DoesNotExist:
-        messages.error(request, "Quiz not found")
-        return redirect("/dashboard/")
-    
-    # Verify instructor access
-    if not InstructorAssignment.objects.filter(
-        instructor=request.user, program=quiz.node.program
-    ).exists() and not request.user.is_staff:
-        return redirect("/dashboard/")
-    
-    node_id = quiz.node.id
-    quiz.delete()
-    messages.success(request, "Quiz deleted")
-    return redirect("core:instructor.quizzes", node_id=node_id)
+# Note: instructor_quizzes, instructor_quiz_create, instructor_quiz_edit, and
+# instructor_quiz_delete functions removed. Quiz management is now handled by
+# Course Builder via QuizEditor component and instructor_node_update.
 
 
 # =============================================================================
@@ -4098,7 +3508,12 @@ def instructor_program_manage(request, pk: int):
                 "customPricing": program.custom_pricing,
                 "blueprint": {
                    "name": program.blueprint.name if program.blueprint else "Default",
-                   "hierarchy": program.blueprint.hierarchy_structure if program.blueprint else ["Module", "Lesson", "Session"]
+                   "hierarchy": program.blueprint.hierarchy_structure if program.blueprint else ["Module", "Lesson", "Session"],
+                   "featureFlags": program.blueprint.get_effective_feature_flags() if program.blueprint else {
+                       "quizzes": True, "assignments": True, "practicum": False,
+                       "portfolio": False, "gamification": False
+                   },
+                   "gradingType": (program.blueprint.grading_logic or {}).get("type", "weighted") if program.blueprint else "weighted"
                 } if program.blueprint else None
             },
             "curriculum": curriculum,
@@ -4123,6 +3538,7 @@ def instructor_node_create(request, program_id: int):
     data = _get_post_data(request)
     parent_id = data.get("parent_id")
     title = data.get("title", "New Item")
+    frontend_type = data.get("type")  # Frontend can specify: Lesson, Quiz, Assignment, etc.
     
     program = Program.objects.get(pk=program_id)
     blueprint_structure = program.blueprint.hierarchy_structure if program.blueprint else ["Module", "Lesson", "Session"]
@@ -4137,18 +3553,23 @@ def instructor_node_create(request, program_id: int):
             current_depth = parent.get_depth()
             if current_depth + 1 >= len(blueprint_structure):
                  raise ValueError("Maximum nesting depth reached")
-            node_type = blueprint_structure[current_depth + 1]
+            # Use frontend type if provided (for lessons, quizzes, assignments), else use blueprint
+            node_type = frontend_type if frontend_type else blueprint_structure[current_depth + 1]
         else:
-            node_type = blueprint_structure[0]
+            # Root level nodes (sections/modules) use blueprint structure
+            node_type = frontend_type if frontend_type else blueprint_structure[0]
             
         position = CurriculumNode.objects.filter(program=program, parent=parent).count()
         
+        node_properties = data.get("properties", {})
+
         node = CurriculumNode.objects.create(
             program=program,
             parent=parent,
             title=title,
             node_type=node_type,
-            position=position
+            position=position,
+            properties=node_properties
         )
         
         messages.success(request, f"{node_type} created")
@@ -4156,6 +3577,196 @@ def instructor_node_create(request, program_id: int):
         messages.error(request, str(e))
         
     return redirect("core:instructor.program_manage", pk=program_id)
+
+
+def _sync_quiz_questions(node, questions_data: list):
+    """
+    Sync quiz questions from frontend JSON to proper database tables.
+    
+    Frontend sends questions as:
+    [{"id": "temp_123", "db_id": null, "type": "mcq", "text": "...", "points": 1, 
+      "options": ["A", "B", "C"], "correct": 0}, ...]
+    
+    This function:
+    1. Creates/updates Quiz record for the node
+    2. Creates new Question records for items without db_id
+    3. Updates existing Question records for items with db_id
+    4. Deletes removed questions
+    5. Stores db_id mapping back in node properties
+    """
+    from apps.assessments.models import Quiz, Question, QuestionOption
+    
+    if not questions_data:
+        return
+    
+    # Get or create Quiz for this node
+    quiz, created = Quiz.objects.get_or_create(
+        node=node,
+        defaults={
+            'title': node.title,
+            'pass_threshold': node.properties.get('passing_grade', 70),
+            'time_limit_minutes': node.properties.get('quiz_duration'),
+            'max_attempts': node.properties.get('max_attempts', 1),
+            'randomize_questions': node.properties.get('randomize_questions', False),
+            'retake_penalty_percent': node.properties.get('retake_penalty', 0),
+        }
+    )
+    
+    # Update quiz settings if not created
+    if not created:
+        quiz.title = node.title
+        quiz.pass_threshold = node.properties.get('passing_grade', 70)
+        quiz.time_limit_minutes = node.properties.get('quiz_duration')
+        quiz.max_attempts = node.properties.get('max_attempts', 1)
+        quiz.randomize_questions = node.properties.get('randomize_questions', False)
+        quiz.retake_penalty_percent = node.properties.get('retake_penalty', 0)
+        quiz.save()
+    
+    # Track existing question IDs
+    existing_ids = set(quiz.questions.values_list('id', flat=True))
+    processed_ids = set()
+    updated_questions = []
+    
+    for idx, q_data in enumerate(questions_data):
+        db_id = q_data.get('db_id')
+        question_type = q_data.get('type', 'mcq')
+        
+        # Map frontend types to backend types
+        type_mapping = {
+            'multiple_choice': 'mcq',
+            'true_false': 'true_false',
+            'short_answer': 'short_answer',
+            'matching': 'matching',
+            'fill_blank': 'fill_blank',
+            'ordering': 'ordering',
+        }
+        backend_type = type_mapping.get(question_type, question_type)
+        
+        # Build answer_data based on question type
+        answer_data = {}
+        if backend_type == 'mcq':
+            answer_data = {
+                'options': q_data.get('options', []),
+                'correct': q_data.get('correct', 0)
+            }
+        elif backend_type == 'true_false':
+            answer_data = {'correct': q_data.get('correct', True)}
+        elif backend_type == 'short_answer':
+            answer_data = {
+                'keywords': q_data.get('keywords', []),
+                'manual_grading': q_data.get('manual_grading', True)
+            }
+        elif backend_type == 'ordering':
+            answer_data = {'correct_order': q_data.get('correct_order', [])}
+        
+        if db_id and db_id in existing_ids:
+            # Update existing question
+            Question.objects.filter(pk=db_id).update(
+                text=q_data.get('text', ''),
+                question_type=backend_type,
+                points=q_data.get('points', 1),
+                position=idx,
+                answer_data=answer_data
+            )
+            processed_ids.add(db_id)
+            
+            # Handle MCQ options update
+            if backend_type == 'mcq' and 'options' in q_data:
+                question = Question.objects.get(pk=db_id)
+                question.options.all().delete()
+                for opt_idx, opt_text in enumerate(q_data.get('options', [])):
+                    QuestionOption.objects.create(
+                        question=question,
+                        text=opt_text,
+                        is_correct=(opt_idx == q_data.get('correct', 0)),
+                        position=opt_idx
+                    )
+            
+            updated_questions.append({**q_data, 'db_id': db_id})
+        else:
+            # Create new question
+            new_question = Question.objects.create(
+                quiz=quiz,
+                text=q_data.get('text', ''),
+                question_type=backend_type,
+                points=q_data.get('points', 1),
+                position=idx,
+                answer_data=answer_data
+            )
+            processed_ids.add(new_question.id)
+            
+            # Create MCQ options
+            if backend_type == 'mcq' and 'options' in q_data:
+                for opt_idx, opt_text in enumerate(q_data.get('options', [])):
+                    QuestionOption.objects.create(
+                        question=new_question,
+                        text=opt_text,
+                        is_correct=(opt_idx == q_data.get('correct', 0)),
+                        position=opt_idx
+                    )
+            
+            updated_questions.append({**q_data, 'db_id': new_question.id})
+    
+    # Delete removed questions
+    removed_ids = existing_ids - processed_ids
+    if removed_ids:
+        Question.objects.filter(id__in=removed_ids).delete()
+    
+    # Update node properties with db_ids for frontend tracking
+    node.properties['questions'] = updated_questions
+    node.properties['quiz_id'] = quiz.id
+    node.save(update_fields=['properties'])
+
+
+def _sync_assignment(node):
+    """
+    Sync assignment data from node properties to the Assignment table.
+    
+    Assignment nodes store properties like:
+    - instructions: HTML text
+    - points: integer
+    - due_date: ISO date string
+    - submission_type: 'file', 'text', 'both'
+    - allowed_file_types: list of extensions
+    
+    This syncs to the Assignment model for proper submission handling.
+    """
+    from apps.assessments.models import Assignment
+    
+    props = node.properties or {}
+    
+    # Get or create Assignment for this node's program
+    assignment, created = Assignment.objects.get_or_create(
+        program=node.program,
+        title=node.title,
+        defaults={
+            'description': node.description or '',
+            'instructions': props.get('instructions', ''),
+            'weight': props.get('weight', 10),
+            'due_date': props.get('due_date'),
+            'allow_late_submission': props.get('allow_late_submission', False),
+            'late_penalty_percent': props.get('late_penalty', 0),
+            'submission_type': props.get('submission_type', 'file'),
+            'allowed_file_types': props.get('allowed_file_types', ['pdf', 'docx']),
+            'max_file_size_mb': props.get('max_file_size_mb', 10),
+        }
+    )
+    
+    if not created:
+        assignment.description = node.description or assignment.description
+        assignment.instructions = props.get('instructions', assignment.instructions)
+        assignment.weight = props.get('weight', assignment.weight)
+        assignment.due_date = props.get('due_date', assignment.due_date)
+        assignment.allow_late_submission = props.get('allow_late_submission', assignment.allow_late_submission)
+        assignment.late_penalty_percent = props.get('late_penalty', assignment.late_penalty_percent)
+        assignment.submission_type = props.get('submission_type', assignment.submission_type)
+        assignment.allowed_file_types = props.get('allowed_file_types', assignment.allowed_file_types)
+        assignment.max_file_size_mb = props.get('max_file_size_mb', assignment.max_file_size_mb)
+        assignment.save()
+    
+    # Store assignment_id in node properties for reference
+    node.properties['assignment_id'] = assignment.id
+    node.save(update_fields=['properties'])
 
 
 @login_required
@@ -4181,8 +3792,22 @@ def instructor_node_update(request, node_id: int):
         props = node.properties or {}
         props.update(data["properties"])
         node.properties = props
-        
+    
     node.save()
+    
+    # Sync quiz questions to proper database tables if this is a quiz node
+    node_type = (node.node_type or '').lower()
+    lesson_type = (node.properties.get('lesson_type') or '').lower()
+    
+    if node_type == 'quiz' or lesson_type == 'quiz':
+        questions_data = node.properties.get('questions', [])
+        if questions_data:
+            _sync_quiz_questions(node, questions_data)
+    
+    # Sync assignment data to Assignment table
+    if node_type == 'assignment' or lesson_type == 'assignment':
+        _sync_assignment(node)
+        
     messages.success(request, "Node updated")
     return redirect("core:instructor.program_manage", pk=node.program_id)
 
@@ -4253,3 +3878,470 @@ def instructor_program_update_settings(request, pk: int):
     program.save()
     messages.success(request, "Settings updated")
     return redirect("core:instructor.program_manage", pk=pk)
+
+
+@login_required
+def instructor_lesson_file_upload(request, node_id: int):
+    """
+    Upload a file attachment to a lesson node.
+    Returns JSON with file URL and metadata.
+    """
+    import os
+    import uuid
+    from django.conf import settings
+    from django.http import JsonResponse
+    
+    if not _require_instructor(request.user) or request.method != "POST":
+        return JsonResponse({"error": "Permission denied"}, status=403)
+    
+    from apps.curriculum.models import CurriculumNode
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    try:
+        node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
+    except CurriculumNode.DoesNotExist:
+        return JsonResponse({"error": "Node not found"}, status=404)
+    
+    if 'file' not in request.FILES:
+        return JsonResponse({"error": "No file provided"}, status=400)
+    
+    uploaded_file = request.FILES['file']
+    file_name = uploaded_file.name
+    
+    # Create upload directory
+    upload_dir = os.path.join(
+        settings.MEDIA_ROOT, 'lesson_files', 
+        str(node.program_id), str(node_id)
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Generate unique filename to prevent collisions
+    ext = file_name.rsplit('.', 1)[-1].lower() if '.' in file_name else ''
+    unique_name = f"{uuid.uuid4().hex}.{ext}" if ext else uuid.uuid4().hex
+    file_path = os.path.join(upload_dir, unique_name)
+    
+    # Save file
+    with open(file_path, 'wb+') as dest:
+        for chunk in uploaded_file.chunks():
+            dest.write(chunk)
+    
+    # Build file URL
+    relative_path = f"lesson_files/{node.program_id}/{node_id}/{unique_name}"
+    file_url = f"{settings.MEDIA_URL}{relative_path}"
+    
+    # Add to node's file list
+    files = node.properties.get('files', [])
+    file_entry = {
+        'id': uuid.uuid4().hex[:8],
+        'name': file_name,
+        'url': file_url,
+        'path': relative_path,
+        'size': uploaded_file.size,
+        'uploaded_at': timezone.now().isoformat(),
+    }
+    files.append(file_entry)
+    node.properties['files'] = files
+    node.save(update_fields=['properties'])
+    
+    return JsonResponse({
+        "success": True,
+        "file": file_entry
+    })
+
+
+@login_required
+def instructor_lesson_file_delete(request, node_id: int):
+    """Delete a file attachment from a lesson node."""
+    import os
+    from django.conf import settings
+    from django.http import JsonResponse
+    
+    if not _require_instructor(request.user) or request.method != "POST":
+        return JsonResponse({"error": "Permission denied"}, status=403)
+    
+    from apps.curriculum.models import CurriculumNode
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    try:
+        node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
+    except CurriculumNode.DoesNotExist:
+        return JsonResponse({"error": "Node not found"}, status=404)
+    
+    data = _get_post_data(request)
+    file_id = data.get('file_id')
+    
+    if not file_id:
+        return JsonResponse({"error": "No file_id provided"}, status=400)
+    
+    # Find and remove file from list
+    files = node.properties.get('files', [])
+    file_to_delete = None
+    updated_files = []
+    
+    for f in files:
+        if f.get('id') == file_id:
+            file_to_delete = f
+        else:
+            updated_files.append(f)
+    
+    if not file_to_delete:
+        return JsonResponse({"error": "File not found"}, status=404)
+    
+    # Delete physical file
+    file_path = os.path.join(settings.MEDIA_ROOT, file_to_delete.get('path', ''))
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    
+    # Update node
+    node.properties['files'] = updated_files
+    node.save(update_fields=['properties'])
+    
+    return JsonResponse({"success": True})
+
+
+# =============================================================================
+# Material Import/Clone (Feature 3B)
+# =============================================================================
+
+
+@login_required
+def instructor_material_search(request, program_id: int):
+    """
+    Search existing materials that can be imported into the current program.
+    Returns materials from all programs the instructor has access to.
+    """
+    from django.http import JsonResponse
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import InstructorAssignment
+    
+    if not _require_instructor(request.user):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+    
+    # Get all programs this instructor has access to
+    if request.user.is_staff:
+        accessible_program_ids = list(Program.objects.values_list('id', flat=True))
+    else:
+        accessible_program_ids = list(InstructorAssignment.objects.filter(
+            instructor=request.user
+        ).values_list('program_id', flat=True))
+    
+    q = request.GET.get('q', '')
+    type_filter = request.GET.get('type', '')
+    
+    # Only content nodes (with parent), exclude current program to avoid duplicates
+    nodes = CurriculumNode.objects.filter(
+        program_id__in=accessible_program_ids,
+        parent__isnull=False  # Only content nodes, not top-level sections
+    ).exclude(program_id=program_id).select_related('program')
+    
+    if q:
+        nodes = nodes.filter(title__icontains=q)
+    
+    if type_filter:
+        # Filter by node_type or lesson_type in properties
+        nodes = nodes.filter(
+            models.Q(node_type__iexact=type_filter) |
+            models.Q(properties__lesson_type=type_filter)
+        )
+    
+    results = [{
+        "id": n.id,
+        "title": n.title,
+        "type": n.node_type,
+        "properties": n.properties,
+        "program_name": n.program.name,
+        "program_id": n.program_id,
+    } for n in nodes[:50]]
+    
+    return JsonResponse({"materials": results})
+
+
+def _clone_quiz(source_quiz, new_node):
+    """Clone a quiz and all its questions to a new node."""
+    import copy
+    from apps.assessments.models import Quiz, Question, QuestionOption, QuestionMatchingPair, QuestionGapAnswer
+    
+    new_quiz = Quiz.objects.create(
+        node=new_node,
+        title=source_quiz.title,
+        description=source_quiz.description,
+        pass_threshold=source_quiz.pass_threshold,
+        time_limit_minutes=source_quiz.time_limit_minutes,
+        max_attempts=source_quiz.max_attempts,
+        randomize_questions=source_quiz.randomize_questions,
+        show_answers_after_submit=source_quiz.show_answers_after_submit,
+        retake_penalty_percent=source_quiz.retake_penalty_percent,
+        shuffle_options=source_quiz.shuffle_options,
+        is_published=False,  # Cloned quizzes start unpublished
+    )
+    
+    for q in source_quiz.questions.all():
+        new_question = Question.objects.create(
+            quiz=new_quiz,
+            text=q.text,
+            question_type=q.question_type,
+            points=q.points,
+            position=q.position,
+            answer_data=copy.deepcopy(q.answer_data),
+        )
+        
+        # Clone options for MCQ
+        for opt in q.options.all():
+            QuestionOption.objects.create(
+                question=new_question,
+                text=opt.text,
+                is_correct=opt.is_correct,
+                position=opt.position,
+            )
+        
+        # Clone matching pairs
+        for pair in q.matching_pairs.all():
+            QuestionMatchingPair.objects.create(
+                question=new_question,
+                left_text=pair.left_text,
+                right_text=pair.right_text,
+                position=pair.position,
+            )
+        
+        # Clone gap answers
+        for gap in q.gap_answers.all():
+            QuestionGapAnswer.objects.create(
+                question=new_question,
+                gap_index=gap.gap_index,
+                accepted_answers=copy.deepcopy(gap.accepted_answers),
+            )
+    
+    return new_quiz
+
+
+def _clone_node(source_node, target_parent, target_program):
+    """
+    Deep clone a curriculum node with all children and related data.
+    Returns the newly created node.
+    """
+    import copy
+    from apps.curriculum.models import CurriculumNode
+    
+    # Prepare properties - clear any IDs that reference the source
+    cloned_properties = copy.deepcopy(source_node.properties or {})
+    cloned_properties.pop('quiz_id', None)  # Will be regenerated if quiz is cloned
+    cloned_properties.pop('assignment_id', None)
+    
+    new_node = CurriculumNode.objects.create(
+        program=target_program,
+        parent=target_parent,
+        title=f"{source_node.title} (Copy)",
+        node_type=source_node.node_type,
+        description=source_node.description,
+        properties=cloned_properties,
+        position=target_parent.children.count() if target_parent else 0,
+        is_published=False,  # Cloned content starts unpublished
+    )
+    
+    # Clone Quiz if exists
+    if hasattr(source_node, 'quizzes') and source_node.quizzes.exists():
+        for quiz in source_node.quizzes.all():
+            new_quiz = _clone_quiz(quiz, new_node)
+            # Update properties with new quiz_id
+            new_node.properties['quiz_id'] = new_quiz.id
+            new_node.save(update_fields=['properties'])
+    
+    # Recursively clone children
+    for child in source_node.children.all():
+        _clone_node(child, new_node, target_program)
+    
+    return new_node
+
+
+@login_required
+def instructor_material_import(request, program_id: int):
+    """
+    Clone selected nodes into a target section.
+    POST: {source_node_ids: [1, 2, 3], target_section_id: 10}
+    """
+    from django.http import JsonResponse
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import InstructorAssignment
+    
+    if not _require_instructor(request.user) or request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    # Verify access to target program
+    if not (InstructorAssignment.objects.filter(
+        instructor=request.user, program_id=program_id
+    ).exists() or request.user.is_staff):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+    
+    data = _get_post_data(request)
+    source_ids = data.get('source_node_ids', [])
+    target_section_id = data.get('target_section_id')
+    
+    if not source_ids or not target_section_id:
+        return JsonResponse({"error": "Missing source_node_ids or target_section_id"}, status=400)
+    
+    try:
+        target_program = Program.objects.get(pk=program_id)
+        target_section = CurriculumNode.objects.get(pk=target_section_id, program=target_program)
+    except (Program.DoesNotExist, CurriculumNode.DoesNotExist):
+        return JsonResponse({"error": "Invalid target program or section"}, status=400)
+    
+    imported_count = 0
+    for source_id in source_ids:
+        try:
+            source_node = CurriculumNode.objects.get(pk=source_id)
+            _clone_node(source_node, target_section, target_program)
+            imported_count += 1
+        except CurriculumNode.DoesNotExist:
+            continue  # Skip invalid source nodes
+    
+    messages.success(request, f"Imported {imported_count} item(s)")
+    return JsonResponse({
+        "success": True,
+        "imported_count": imported_count
+    })
+
+
+# =============================================================================
+# Q&A Tab Integration (Feature 3C)
+# =============================================================================
+
+
+@login_required
+def instructor_node_discussions(request, node_id: int):
+    """
+    Get all discussion threads for a curriculum node.
+    Returns discussions with reply counts for the Q&A tab.
+    """
+    from django.http import JsonResponse
+    from apps.discussions.models import DiscussionThread
+    from apps.curriculum.models import CurriculumNode
+    
+    if not _require_instructor(request.user):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    
+    try:
+        node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
+    except CurriculumNode.DoesNotExist:
+        return JsonResponse({"error": "Node not found"}, status=404)
+    
+    threads = DiscussionThread.objects.filter(
+        node=node
+    ).select_related('user').order_by('-is_pinned', '-created_at')
+    
+    discussions = [{
+        "id": t.id,
+        "title": t.title,
+        "content": t.content,
+        "author": t.user.get_full_name() or t.user.email,
+        "author_id": t.user.id,
+        "is_pinned": t.is_pinned,
+        "is_locked": t.is_locked,
+        "replies_count": t.posts.count(),
+        "created_at": t.created_at.isoformat(),
+    } for t in threads]
+    
+    return JsonResponse({"discussions": discussions})
+
+
+@login_required
+def instructor_discussion_create(request, node_id: int):
+    """
+    Create a new discussion thread for a curriculum node.
+    POST: {title: "Discussion Title", content: "Initial post content", is_pinned: false}
+    """
+    from django.http import JsonResponse
+    from apps.discussions.models import DiscussionThread
+    from apps.curriculum.models import CurriculumNode
+    
+    if not _require_instructor(request.user) or request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    
+    try:
+        node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
+    except CurriculumNode.DoesNotExist:
+        return JsonResponse({"error": "Node not found"}, status=404)
+    
+    data = _get_post_data(request)
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    is_pinned = data.get('is_pinned', False)
+    
+    if not title:
+        return JsonResponse({"error": "Title is required"}, status=400)
+    
+    thread = DiscussionThread.objects.create(
+        node=node,
+        user=request.user,
+        title=title,
+        content=content,
+        is_pinned=is_pinned,
+    )
+    
+    return JsonResponse({
+        "success": True,
+        "discussion": {
+            "id": thread.id,
+            "title": thread.title,
+            "content": thread.content,
+            "author": request.user.get_full_name() or request.user.email,
+            "author_id": request.user.id,
+            "is_pinned": thread.is_pinned,
+            "is_locked": thread.is_locked,
+            "replies_count": 0,
+            "created_at": thread.created_at.isoformat(),
+        }
+    })
+
+
+@login_required
+def instructor_discussion_toggle_pin(request, discussion_id: int):
+    """Toggle the pinned status of a discussion thread."""
+    from django.http import JsonResponse
+    from apps.discussions.models import DiscussionThread
+    
+    if not _require_instructor(request.user) or request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    
+    try:
+        thread = DiscussionThread.objects.select_related('node').get(
+            pk=discussion_id,
+            node__program_id__in=program_ids
+        )
+    except DiscussionThread.DoesNotExist:
+        return JsonResponse({"error": "Discussion not found"}, status=404)
+    
+    thread.is_pinned = not thread.is_pinned
+    thread.save(update_fields=['is_pinned'])
+    
+    return JsonResponse({"success": True, "is_pinned": thread.is_pinned})
+
+
+@login_required
+def instructor_discussion_toggle_lock(request, discussion_id: int):
+    """Toggle the locked status of a discussion thread."""
+    from django.http import JsonResponse
+    from apps.discussions.models import DiscussionThread
+    
+    if not _require_instructor(request.user) or request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    
+    try:
+        thread = DiscussionThread.objects.select_related('node').get(
+            pk=discussion_id,
+            node__program_id__in=program_ids
+        )
+    except DiscussionThread.DoesNotExist:
+        return JsonResponse({"error": "Discussion not found"}, status=404)
+    
+    thread.is_locked = not thread.is_locked
+    thread.save(update_fields=['is_locked'])
+    
+    return JsonResponse({"success": True, "is_locked": thread.is_locked})

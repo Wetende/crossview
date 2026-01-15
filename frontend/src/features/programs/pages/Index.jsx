@@ -93,7 +93,6 @@ function ProgramCard({ program, index }) {
                       component={Link} 
                       href={`/instructor/programs/${program.id}/manage/`} 
                       variant="contained" 
-                      size="small"
                       fullWidth
                   >
                       Manage
@@ -102,7 +101,6 @@ function ProgramCard({ program, index }) {
                       component={Link} 
                       href={`/instructor/programs/${program.id}/students/`} 
                       variant="outlined" 
-                      size="small"
                       fullWidth
                   >
                       Students

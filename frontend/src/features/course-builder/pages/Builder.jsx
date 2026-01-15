@@ -47,7 +47,8 @@ export default function InstructorProgramBuilder({ program, curriculum }) {
                          <CurriculumTree 
                             program={program} 
                             nodes={curriculum} 
-                            onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)} 
+                            onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)}
+                            blueprint={program.blueprint}
                          />
                          
                          {/* Right Panel: Content Editor */}
@@ -56,7 +57,8 @@ export default function InstructorProgramBuilder({ program, curriculum }) {
                                 <EditorContainer 
                                     key={selectedNode.id} // Force remount on node change
                                     node={selectedNode} 
-                                    onSave={handleNodeSave} 
+                                    onSave={handleNodeSave}
+                                    blueprint={program.blueprint}
                                 />
                             ) : (
                                 <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', flexDirection: 'column' }}>

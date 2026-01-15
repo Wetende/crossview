@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     Box, 
     Typography, 
@@ -14,41 +14,48 @@ import {
     FormControlLabel, 
     Switch, 
     Paper, 
-    Divider 
+    Tooltip,
+    List,
+    ListItem,
+    ListItemText,
+    ListItemSecondaryAction,
+    IconButton,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    CircularProgress,
+    Chip
 } from '@mui/material';
+import RichTextEditor from '@/components/RichTextEditor';
+import FileUploader from '@/components/FileUploader';
+import GamificationSettings from '../components/GamificationSettings';
 import {
     Article as ArticleIcon,
     OndemandVideo as VideoIcon,
     VideoCameraFront as ZoomIcon,
     Assignment as AssignmentIcon,
-    Visibility as VisibilityIcon,
-    Undo as UndoIcon, 
-    Redo as RedoIcon,
-    FormatBold,
-    FormatItalic,
-    FormatUnderlined,
-    StrikethroughS,
-    FormatAlignLeft,
-    FormatAlignCenter, 
-    FormatAlignRight,
-    FormatListBulleted,
-    FormatListNumbered,
-    InsertLink,
-    InsertPhoto,
-    Movie as MovieIcon,
-    Code as CodeIcon
+    InfoOutlined as InfoIcon,
+    Add as AddIcon,
+    PushPin as PinIcon,
+    Lock as LockIcon,
+    LockOpen as LockOpenIcon,
+    ChatBubbleOutline as ChatIcon
 } from '@mui/icons-material';
 
-export default function ContentEditor({ node, onSave }) {
+export default function ContentEditor({ node, onSave, blueprint }) {
+    // Get feature flags from blueprint
+    const featureFlags = blueprint?.featureFlags || {};
     const [title, setTitle] = useState(node.title);
     const [activeTab, setActiveTab] = useState('lesson');
-    const [description, setDescription] = useState(node.description || ''); // Rich text content placeholder
-    const [content, setContent] = useState(node.properties?.content || ''); // Main lesson content
+    const [description, setDescription] = useState(node.description || '');
+    const [content, setContent] = useState(node.properties?.content || '');
     const [duration, setDuration] = useState(node.properties?.duration || '');
     const [isPreview, setIsPreview] = useState(node.properties?.is_preview || false);
-    const [isLocked, setIsLocked] = useState(false); // Example logical state
+    const [isLocked, setIsLocked] = useState(false);
     const [startDate, setStartDate] = useState('');
     const [startTime, setStartTime] = useState('');
+    const [files, setFiles] = useState(node.properties?.files || []);
     
     // Video specific
     const [videoSource, setVideoSource] = useState(node.properties?.video_source || '');
@@ -62,6 +69,9 @@ export default function ContentEditor({ node, onSave }) {
     const [participantVideo, setParticipantVideo] = useState(node.properties?.participant_video || false);
     const [muteUponEntry, setMuteUponEntry] = useState(node.properties?.mute_upon_entry || false);
     const [requireAuth, setRequireAuth] = useState(node.properties?.require_auth || false);
+    
+    // Gamification settings (only used when featureFlags.gamification is true)
+    const [gamificationSettings, setGamificationSettings] = useState(node.properties?.gamification || {});
 
     const lessonType = node.properties?.lesson_type || 'text';
 
@@ -85,6 +95,7 @@ export default function ContentEditor({ node, onSave }) {
                 participant_video: participantVideo,
                 mute_upon_entry: muteUponEntry,
                 require_auth: requireAuth,
+                ...(featureFlags.gamification && { gamification: gamificationSettings }),
             }
         });
     };
@@ -270,7 +281,9 @@ export default function ContentEditor({ node, onSave }) {
                             label={
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                     <Typography variant="body2">Lesson preview</Typography>
-                                    <VisibilityIcon fontSize="small" sx={{ ml: 1, color: 'text.secondary', fontSize: 16 }} />
+                                    <Tooltip title="Enable this to allow non-enrolled users to preview this lesson for free" arrow>
+                                        <InfoIcon fontSize="small" sx={{ ml: 1, color: 'primary.main', fontSize: 16, cursor: 'help' }} />
+                                    </Tooltip>
                                 </Box>
                             } 
                          />
@@ -306,117 +319,46 @@ export default function ContentEditor({ node, onSave }) {
                         </Box>
                     )}
 
-                    {/* Rich Text Editor Placeholder - Common */}
-                     <Box sx={{ mt: 2 }}>
-                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 'bold' }}>Short description of the lesson</Typography>
-                        <Paper variant="outlined" sx={{ minHeight: 150, bgcolor: '#fff', borderRadius: 1, overflow: 'hidden' }}>
-                            <Box sx={{ borderBottom: 1, borderColor: 'divider', p: 1, bgcolor: '#f8f9fa', display: 'flex', gap: 2, alignItems: 'center' }}>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>View</Typography>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>Format</Typography>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>Table</Typography>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>Tools</Typography>
-                            </Box>
-                            <Box sx={{ borderBottom: 1, borderColor: 'divider', p: 1, bgcolor: '#fff', display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
-                                <FormatBold fontSize="small" sx={{ cursor: 'pointer', color: 'text.secondary' }} />
-                                <FormatItalic fontSize="small" sx={{ cursor: 'pointer', color: 'text.secondary' }} />
-                                <FormatUnderlined fontSize="small" sx={{ cursor: 'pointer', color: 'text.secondary' }} />
-                                <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                                <Typography variant="body2" sx={{ cursor: 'pointer', fontSize: '0.875rem' }}>Paragraph</Typography>
-                            </Box>
-                            <TextField
-                                multiline
-                                fullWidth
-                                minRows={4}
-                                placeholder="..."
-                                variant="standard"
-                                InputProps={{ disableUnderline: true, sx: { p: 2 } }}
-                                value={description}
-                                onChange={e => setDescription(e.target.value)}
-                            />
-                        </Paper>
+                    {/* Rich Text Editor - Short Description */}
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 'bold' }}>Short description of the lesson</Typography>
+                        <RichTextEditor
+                            value={description}
+                            onChange={setDescription}
+                            placeholder="Enter a brief description of the lesson..."
+                            minHeight={100}
+                        />
                     </Box>
 
                     {/* Rich Text Editor - Lesson Content */}
-                     <Box sx={{ mt: 2 }}>
-                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 'bold' }}>Lesson content</Typography>
-                        <Paper variant="outlined" sx={{ minHeight: 300, bgcolor: '#fff', borderRadius: 1, overflow: 'hidden' }}>
-                            <Box sx={{ borderBottom: 1, borderColor: 'divider', p: 1, bgcolor: '#f8f9fa', display: 'flex', gap: 2, alignItems: 'center' }}>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>View</Typography>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>Format</Typography>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>Table</Typography>
-                                <Typography variant="caption" sx={{ cursor: 'pointer' }}>Tools</Typography>
-                            </Box>
-                            <Box sx={{ borderBottom: 1, borderColor: 'divider', p: 1, bgcolor: '#fff', display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', color: 'text.secondary' }}>
-                                <UndoIcon fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <RedoIcon fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                                <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#f0f0f0', px: 1, py: 0.5, borderRadius: 1, cursor: 'pointer' }}>
-                                    <Typography variant="caption" sx={{ mr: 1 }}>Paragraph</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mx: 1 }}>
-                                    <Typography variant="caption">System Font</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mx: 1 }}>
-                                    <Typography variant="caption">16px</Typography>
-                                </Box>
-                                <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                                <FormatBold fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <FormatItalic fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <FormatUnderlined fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <StrikethroughS fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                                <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 'bold', borderBottom: '2px solid black' }}>A</Typography>
-                                </Box>
-                                <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                                <FormatAlignLeft fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <FormatAlignCenter fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <FormatAlignRight fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                                <FormatListBulleted fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <FormatListNumbered fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
-                                <InsertLink fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <InsertPhoto fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <MovieIcon fontSize="small" sx={{ cursor: 'pointer' }} />
-                                <CodeIcon fontSize="small" sx={{ cursor: 'pointer' }} />
-                            </Box>
-                            <TextField
-                                multiline
-                                fullWidth
-                                minRows={12}
-                                placeholder=""
-                                variant="standard"
-                                InputProps={{ disableUnderline: true, sx: { p: 2 } }}
-                                value={content}
-                                onChange={e => setContent(e.target.value)}
-                            />
-                        </Paper>
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 'bold' }}>Lesson content</Typography>
+                        <RichTextEditor
+                            value={content}
+                            onChange={setContent}
+                            placeholder="Write your lesson content here..."
+                            minHeight={250}
+                        />
                     </Box>
 
                     {/* Lesson Materials */}
                     <Box sx={{ mt: 3 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Lesson materials</Typography>
-                        <Paper variant="outlined" sx={{ 
-                            p: 4, 
-                            borderStyle: 'dashed', 
-                            borderColor: 'divider', 
-                            bgcolor: '#f8f9fa',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            '&:hover': { bgcolor: '#f0f0f0' }
-                        }}>
-                             <Typography variant="body2" color="text.secondary" gutterBottom>
-                                Drag & drop files here or browse files from your computer
-                             </Typography>
-                             <Button variant="contained" size="small" sx={{ mt: 1, textTransform: 'none' }}>
-                                 Browse files
-                             </Button>
-                        </Paper>
+                        <FileUploader
+                            nodeId={node.id}
+                            files={files}
+                            onUploadComplete={(newFile) => setFiles([...files, newFile])}
+                            onDeleteComplete={(fileId) => setFiles(files.filter(f => f.id !== fileId))}
+                        />
                     </Box>
+                    
+                    {/* Gamification Settings - Only show when enabled */}
+                    {featureFlags.gamification && (
+                        <GamificationSettings
+                            properties={{ gamification: gamificationSettings }}
+                            onChange={(props) => setGamificationSettings(props.gamification)}
+                        />
+                    )}
                     
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
                         <Button variant="contained" onClick={handleSave} size="large">Save</Button>
@@ -425,10 +367,233 @@ export default function ContentEditor({ node, onSave }) {
             )}
             
             {activeTab === 'qa' && (
-                <Box py={8} textAlign="center" color="text.secondary">
-                    <Typography>Q&A settings and threads will appear here.</Typography>
-                </Box>
+                <QATab nodeId={node.id} />
             )}
+        </Box>
+    );
+}
+
+// Q&A Tab Component
+function QATab({ nodeId }) {
+    const [discussions, setDiscussions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [newTitle, setNewTitle] = useState('');
+    const [newContent, setNewContent] = useState('');
+    const [creating, setCreating] = useState(false);
+
+    // Fetch discussions when component mounts
+    useEffect(() => {
+        fetchDiscussions();
+    }, [nodeId]);
+
+    const fetchDiscussions = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(`/instructor/nodes/${nodeId}/discussions/`);
+            const data = await response.json();
+            if (data.error) {
+                setError(data.error);
+            } else {
+                setDiscussions(data.discussions || []);
+            }
+        } catch (err) {
+            setError('Failed to load discussions');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreate = async () => {
+        if (!newTitle.trim()) return;
+        setCreating(true);
+        try {
+            const response = await fetch(`/instructor/nodes/${nodeId}/discussions/create/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle, content: newContent }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setDiscussions([data.discussion, ...discussions]);
+                setCreateOpen(false);
+                setNewTitle('');
+                setNewContent('');
+            }
+        } catch (err) {
+            console.error('Failed to create discussion:', err);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    const handleTogglePin = async (discussionId) => {
+        try {
+            const response = await fetch(`/instructor/discussions/${discussionId}/toggle-pin/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+            if (data.success) {
+                setDiscussions(discussions.map(d => 
+                    d.id === discussionId ? { ...d, is_pinned: data.is_pinned } : d
+                ));
+            }
+        } catch (err) {
+            console.error('Failed to toggle pin:', err);
+        }
+    };
+
+    const handleToggleLock = async (discussionId) => {
+        try {
+            const response = await fetch(`/instructor/discussions/${discussionId}/toggle-lock/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+            if (data.success) {
+                setDiscussions(discussions.map(d => 
+                    d.id === discussionId ? { ...d, is_locked: data.is_locked } : d
+                ));
+            }
+        } catch (err) {
+            console.error('Failed to toggle lock:', err);
+        }
+    };
+
+    const formatDate = (isoString) => {
+        const date = new Date(isoString);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
+    if (loading) {
+        return (
+            <Box sx={{ py: 8, textAlign: 'center' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    return (
+        <Box>
+            {/* Header */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6">Discussions</Typography>
+                <Button 
+                    variant="contained" 
+                    startIcon={<AddIcon />}
+                    onClick={() => setCreateOpen(true)}
+                    size="small"
+                >
+                    New Discussion
+                </Button>
+            </Box>
+
+            {error && (
+                <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>
+            )}
+
+            {/* Discussion List */}
+            {discussions.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
+                    <ChatIcon sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
+                    <Typography>No discussions yet for this lesson.</Typography>
+                    <Typography variant="body2">Start a discussion to engage with students.</Typography>
+                </Box>
+            ) : (
+                <List disablePadding>
+                    {discussions.map((d) => (
+                        <ListItem 
+                            key={d.id} 
+                            divider
+                            sx={{ 
+                                bgcolor: d.is_pinned ? 'action.hover' : 'transparent',
+                                borderRadius: 1,
+                            }}
+                        >
+                            <ListItemText
+                                primary={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {d.is_pinned && <PinIcon sx={{ fontSize: 16, color: 'warning.main' }} />}
+                                        {d.is_locked && <LockIcon sx={{ fontSize: 16, color: 'text.secondary' }} />}
+                                        <Typography variant="subtitle2">{d.title}</Typography>
+                                    </Box>
+                                }
+                                secondary={
+                                    <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {d.author}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {formatDate(d.created_at)}
+                                        </Typography>
+                                        <Chip 
+                                            label={`${d.replies_count} replies`} 
+                                            size="small" 
+                                            variant="outlined"
+                                            sx={{ height: 18, fontSize: '0.7rem' }}
+                                        />
+                                    </Box>
+                                }
+                            />
+                            <ListItemSecondaryAction>
+                                <Tooltip title={d.is_pinned ? 'Unpin' : 'Pin'}>
+                                    <IconButton size="small" onClick={() => handleTogglePin(d.id)}>
+                                        <PinIcon sx={{ fontSize: 18, color: d.is_pinned ? 'warning.main' : 'text.disabled' }} />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title={d.is_locked ? 'Unlock' : 'Lock'}>
+                                    <IconButton size="small" onClick={() => handleToggleLock(d.id)}>
+                                        {d.is_locked ? 
+                                            <LockIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> : 
+                                            <LockOpenIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                                        }
+                                    </IconButton>
+                                </Tooltip>
+                            </ListItemSecondaryAction>
+                        </ListItem>
+                    ))}
+                </List>
+            )}
+
+            {/* Create Discussion Dialog */}
+            <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Start a Discussion</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Title"
+                        fullWidth
+                        variant="outlined"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        sx={{ mb: 2 }}
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Content (optional)"
+                        fullWidth
+                        multiline
+                        rows={4}
+                        variant="outlined"
+                        value={newContent}
+                        onChange={(e) => setNewContent(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
+                    <Button 
+                        variant="contained" 
+                        onClick={handleCreate} 
+                        disabled={!newTitle.trim() || creating}
+                    >
+                        {creating ? <CircularProgress size={20} /> : 'Create'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

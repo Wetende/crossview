@@ -8,20 +8,21 @@ export default function componentsOverride(theme) {
         MuiButton: {
             styleOverrides: {
                 root: {
-                    borderRadius: 8,
-                    padding: "10px 20px",
+                    borderRadius: 4,
+                    padding: "6px 12px",
                     fontWeight: 600,
+                    textTransform: "none",
                 },
                 contained: {
                     boxShadow: "none",
                     "&:hover": {
-                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
                     },
                 },
                 outlined: {
-                    borderWidth: 2,
+                    borderWidth: 1,
                     "&:hover": {
-                        borderWidth: 2,
+                        borderWidth: 1,
                     },
                 },
             },
@@ -81,8 +82,9 @@ export default function componentsOverride(theme) {
         MuiListItemButton: {
             styleOverrides: {
                 root: {
-                    borderRadius: 8,
+                    borderRadius: 4,
                     marginBottom: 4,
+                    padding: "8px 12px", // Added explicit padding for consistency
                     "&.Mui-selected": {
                         backgroundColor: theme.palette.primary.lighter,
                         "&:hover": {

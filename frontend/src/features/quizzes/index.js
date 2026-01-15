@@ -1,8 +1,5 @@
 // Quizzes Feature - Barrel Export
-// Pages
-export { default as QuizIndex } from './pages/Index';
-export { default as QuizCreate } from './pages/Create';
-export { default as QuizEdit } from './pages/Edit';
+// Pages (Student-facing only - Instructor editing now in Course Builder)
 export { default as QuizTake } from './pages/Take';
 export { default as QuizResults } from './pages/Results';
 
