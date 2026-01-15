@@ -148,7 +148,7 @@ def program_list(request):
 @login_required
 def program_view(request, pk: int):
     """
-    View program with curriculum tree.
+    View program - redirects to course player with first available lesson.
     Requirements: 3.1, 3.2, 3.3
     """
     enrollment = get_object_or_404(
@@ -158,7 +158,49 @@ def program_view(request, pk: int):
     )
     program = enrollment.program
 
-    # Get curriculum tree
+    # Get all completions for this enrollment
+    completions = list(enrollment.completions.values_list("node_id", flat=True))
+    completions_set = set(completions)
+
+    # Get unlock status map
+    engine = ProgressionEngine()
+    unlock_statuses = engine.get_unlock_status(enrollment)
+    status_map = {s['node_id']: s for s in unlock_statuses}
+
+    # Find the first available lesson (incomplete and unlocked leaf node)
+    def find_first_available_node(nodes):
+        """Recursively find first incomplete, unlocked leaf node."""
+        for node in nodes:
+            children = node.children.filter(is_published=True).order_by("position")
+            if children.exists():
+                # It's a section, recurse into children
+                result = find_first_available_node(children)
+                if result:
+                    return result
+            else:
+                # It's a leaf node (lesson/quiz/assignment)
+                node_status = status_map.get(node.id, {})
+                is_locked = node_status.get('status') == 'locked'
+                is_completed = node.id in completions_set
+                
+                # Return first unlocked node (preferring incomplete)
+                if not is_locked and not is_completed:
+                    return node
+        return None
+
+    def find_first_leaf_node(nodes):
+        """Recursively find the first leaf node regardless of status."""
+        for node in nodes:
+            children = node.children.filter(is_published=True).order_by("position")
+            if children.exists():
+                result = find_first_leaf_node(children)
+                if result:
+                    return result
+            else:
+                return node
+        return None
+
+    # Get root nodes
     root_nodes = (
         CurriculumNode.objects.filter(
             program=program, parent__isnull=True, is_published=True
@@ -167,45 +209,119 @@ def program_view(request, pk: int):
         .order_by("position")
     )
 
-    # Get all completions for this enrollment
-    completions = list(enrollment.completions.values_list("node_id", flat=True))
+    # Find target node: first incomplete unlocked, or first leaf if all complete
+    target_node = find_first_available_node(root_nodes)
+    if not target_node:
+        target_node = find_first_leaf_node(root_nodes)
 
-    # Get unlock status map
-    engine = ProgressionEngine()
-    unlock_statuses = engine.get_unlock_status(enrollment)
-    status_map = {s['node_id']: s for s in unlock_statuses}
-
-    # Build curriculum tree
+    # If we found a lesson, render the course player
+    if target_node:
+        # Reuse session_viewer logic to render course player
+        return _render_course_player(request, enrollment, target_node, completions, status_map)
+    
+    # Fallback: If no lessons exist, show an empty state in course player
     curriculum_tree = _build_curriculum_tree(root_nodes, completions, enrollment, status_map)
-
-    # Get hierarchy labels from blueprint
-    hierarchy_labels = []
-    if program.blueprint:
-        hierarchy_labels = program.blueprint.hierarchy_structure or []
-
-    # Calculate progress
+    
     total_nodes = _get_completable_nodes_count(program)
-    completed_count = len(completions)
-    progress = (completed_count / total_nodes * 100) if total_nodes > 0 else 0
+    progress = (len(completions) / total_nodes * 100) if total_nodes > 0 else 0
 
     return render(
         request,
-        "Student/Programs/Show",
+        "Student/CoursePlayer",
         {
+            "node": None,
             "program": {
                 "id": program.id,
                 "name": program.name,
-                "code": program.code or "",
-                "description": program.description or "",
             },
             "enrollment": {
                 "id": enrollment.id,
-                "status": enrollment.status,
                 "progressPercent": round(progress, 1),
             },
-            "curriculumTree": curriculum_tree,
-            "completions": completions,
-            "hierarchyLabels": hierarchy_labels,
+            "curriculum": curriculum_tree,
+            "prevNode": None,
+            "nextNode": None,
+            "progress": round(progress, 1),
+            "isCompleted": False,
+            "isLocked": False,
+            "lockReason": None,
+        },
+    )
+
+
+def _render_course_player(request, enrollment, node, completions, status_map):
+    """
+    Helper to render the course player with a specific node.
+    Extracted to share logic between program_view and session_viewer.
+    """
+    program = enrollment.program
+    
+    # Check if completed
+    is_completed = node.id in completions
+
+    # Check unlock status
+    unlock_status = _check_unlock_status(enrollment, node)
+
+    # Get content from properties
+    content_html = node.properties.get("content_html", "")
+
+    # Get curriculum tree for Sidebar
+    root_nodes = (
+        CurriculumNode.objects.filter(
+            program=program, parent__isnull=True, is_published=True
+        )
+        .prefetch_related("children")
+        .order_by("position")
+    )
+    
+    curriculum_tree = _build_curriculum_tree(root_nodes, completions, enrollment, status_map)
+
+    # Get content blocks
+    blocks = ContentBlock.objects.filter(node=node).order_by('position')
+    blocks_data = [
+        {
+            "id": b.id,
+            "type": b.block_type,
+            "data": b.data
+        }
+        for b in blocks
+    ]
+
+    # Get siblings for navigation
+    siblings = _get_sibling_navigation(node, enrollment.id)
+
+    # Calculate progress
+    total_nodes = _get_completable_nodes_count(program)
+    progress = (len(completions) / total_nodes * 100) if total_nodes > 0 else 0
+
+    return render(
+        request,
+        "Student/CoursePlayer",
+        {
+            "node": {
+                "id": node.id,
+                "title": node.title,
+                "type": node.node_type,
+                "properties": node.properties,
+                "contentHtml": content_html,
+                "description": node.description or "",
+                "blocks": blocks_data,
+            },
+            "program": {
+                "id": program.id,
+                "name": program.name,
+            },
+            "enrollment": {
+                "id": enrollment.id,
+                "progressPercent": round(progress, 1),
+            },
+            "curriculum": curriculum_tree,
+            "prevNode": siblings.get("prev"),
+            "nextNode": siblings.get("next"),
+            "progress": round(progress, 1),
+            "isCompleted": is_completed,
+            "isLocked": not unlock_status["is_unlocked"],
+            "lockReason": unlock_status.get("reason"),
         },
     )
 
@@ -270,6 +386,11 @@ def session_viewer(request, pk: int, node_id: int):
     
     curriculum_tree = _build_curriculum_tree(root_nodes, completions, enrollment, status_map)
 
+    # Calculate progress
+    total_nodes = _get_completable_nodes_count(enrollment.program)
+    completed_count = len(completions)
+    progress = (completed_count / total_nodes * 100) if total_nodes > 0 else 0
+
     # Get content blocks
     blocks = ContentBlock.objects.filter(node=node).order_by('position')
     blocks_data = [
@@ -283,29 +404,35 @@ def session_viewer(request, pk: int, node_id: int):
 
     return render(
         request,
-        "Student/Session",
+        "Student/CoursePlayer",
         {
             "node": {
                 "id": node.id,
                 "title": node.title,
-                "nodeType": node.node_type,
+                "type": node.node_type,
+                "properties": node.properties,
                 "contentHtml": content_html,
                 "description": node.description or "",
                 "blocks": blocks_data,
             },
+            "program": {
+                "id": enrollment.program.id,
+                "name": enrollment.program.name,
+            },
             "enrollment": {
                 "id": enrollment.id,
-                "programId": enrollment.program.id,
-                "programName": enrollment.program.name,
+                "progressPercent": round(progress, 1),
             },
-            "curriculumTree": curriculum_tree,
+            "curriculum": curriculum_tree,
+            "prevNode": siblings.get("prev"),
+            "nextNode": siblings.get("next"),
+            "progress": round(progress, 1),
             "isCompleted": is_completed,
             "isLocked": not unlock_status["is_unlocked"],
             "lockReason": unlock_status.get("reason"),
-            "breadcrumbs": breadcrumbs,
-            "siblings": siblings,
         },
     )
+
 
 
 # =============================================================================

@@ -36,95 +36,42 @@ export default defineConfig(({ command }) => ({
         assetsDir: "",
         manifest: true,
         emptyOutDir: true,
-        chunkSizeWarningLimit: 500,
+        // Main bundle will be large but that's better than broken circular deps
+        chunkSizeWarningLimit: 1500,
         rollupOptions: {
             input: resolve("./frontend/src/main.jsx"),
             output: {
                 manualChunks(id) {
-                    // Node modules chunking
-                    if (id.includes('node_modules')) {
-                        // React core
-                        if (id.includes('react-dom')) {
-                            return 'vendor-react-dom';
-                        }
-                        if (id.includes('/react/') || id.includes('react-is') || id.includes('scheduler')) {
-                            return 'vendor-react';
-                        }
-                        
-                        // MUI - split icons from core (icons are huge)
-                        if (id.includes('@mui/icons-material')) {
-                            return 'vendor-mui-icons';
-                        }
-                        if (id.includes('@mui/material') || id.includes('@mui/system') || id.includes('@mui/styled-engine')) {
-                            return 'vendor-mui';
-                        }
-                        if (id.includes('@mui/base') || id.includes('@mui/utils')) {
-                            return 'vendor-mui-base';
-                        }
-                        
-                        // Animation
-                        if (id.includes('framer-motion')) {
-                            return 'vendor-motion';
-                        }
-                        
-                        // Charts
-                        if (id.includes('recharts') || id.includes('d3-')) {
-                            return 'vendor-charts';
-                        }
-                        
-                        // Inertia
-                        if (id.includes('@inertiajs')) {
-                            return 'vendor-inertia';
-                        }
-                        
-                        // DnD Kit
-                        if (id.includes('@dnd-kit')) {
-                            return 'vendor-dnd';
-                        }
-                        
-                        // Rich text editor
-                        if (id.includes('tiptap') || id.includes('prosemirror')) {
-                            return 'vendor-editor';
-                        }
-                        
-                        // Video players - lazy load these
-                        if (id.includes('hls.js')) {
-                            return 'vendor-hls';
-                        }
-                        if (id.includes('dashjs')) {
-                            return 'vendor-dash';
-                        }
-                        
-                        // Lodash
-                        if (id.includes('lodash')) {
-                            return 'vendor-lodash';
-                        }
-                        
-                        // Emotion (CSS-in-JS for MUI)
-                        if (id.includes('@emotion')) {
-                            return 'vendor-emotion';
-                        }
+                    if (!id.includes('node_modules')) {
+                        return; // Let Rollup handle app code
                     }
                     
-                    // App code chunking - split by feature
-                    if (id.includes('/features/course-builder/')) {
-                        return 'feature-course-builder';
+                    // Only split truly independent large libraries
+                    // Video players don't depend on React/MUI at all
+                    if (id.includes('hls.js')) {
+                        return 'vendor-hls';
                     }
-                    if (id.includes('/features/quizzes/')) {
-                        return 'feature-quizzes';
+                    if (id.includes('dashjs')) {
+                        return 'vendor-dash';
                     }
-                    if (id.includes('/pages/dashboard/')) {
-                        return 'pages-dashboard';
+                    
+                    // Rich text editor is also fairly independent
+                    if (id.includes('tiptap') || id.includes('prosemirror')) {
+                        return 'vendor-editor';
                     }
-                    if (id.includes('/pages/student/')) {
-                        return 'pages-student';
+                    
+                    // Charts are independent
+                    if (id.includes('recharts') || id.includes('d3-')) {
+                        return 'vendor-charts';
                     }
-                    if (id.includes('/pages/instructor/')) {
-                        return 'pages-instructor';
+                    
+                    // Framer motion is independent
+                    if (id.includes('framer-motion')) {
+                        return 'vendor-motion';
                     }
-                    if (id.includes('/pages/admin/')) {
-                        return 'pages-admin';
-                    }
+                    
+                    // Let everything else (React, MUI, Inertia, etc.) stay together
+                    // to avoid circular dependency issues
                 },
             },
         },

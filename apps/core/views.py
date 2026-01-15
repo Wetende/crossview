@@ -1117,10 +1117,16 @@ def admin_program_publish(request, pk: int):
         return redirect("core:admin.programs")
 
     from django.shortcuts import get_object_or_404
+    from apps.curriculum.models import CurriculumNode
 
     program = get_object_or_404(Program, pk=pk)
+    was_published = program.is_published
     program.is_published = not program.is_published
     program.save()
+    
+    # Cascade unpublish: when program becomes unpublished, unpublish all child nodes
+    if was_published and not program.is_published:
+        CurriculumNode.objects.filter(program=program).update(is_published=False)
 
     return redirect("core:admin.program", pk=pk)
 
@@ -3562,6 +3568,9 @@ def instructor_node_create(request, program_id: int):
         position = CurriculumNode.objects.filter(program=program, parent=parent).count()
         
         node_properties = data.get("properties", {})
+        
+        # Auto-publish: if program is published, new content is also published
+        auto_publish = program.is_published
 
         node = CurriculumNode.objects.create(
             program=program,
@@ -3569,7 +3578,8 @@ def instructor_node_create(request, program_id: int):
             title=title,
             node_type=node_type,
             position=position,
-            properties=node_properties
+            properties=node_properties,
+            is_published=auto_publish
         )
         
         messages.success(request, f"{node_type} created")

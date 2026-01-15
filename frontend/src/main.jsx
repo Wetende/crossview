@@ -42,11 +42,11 @@ createInertiaApp({
             // Course Builder
             'Instructor/Program/Manage': './features/course-builder/pages/Builder.jsx',
             
-            // Learning Player / Student
-            'Student/Session': './features/learning-player/pages/Session.jsx',
-            'Student/Assessments': './features/learning-player/pages/Assessments.jsx',
-            'Student/Certificates': './features/learning-player/pages/Certificates.jsx',
-            'Student/Profile': './features/learning-player/pages/Profile.jsx',
+            // Learning Player / Student (Course Player)
+            'Student/CoursePlayer': './features/course-player/pages/LectureView.jsx', // Main Course Player
+            'Student/Assessments': './features/course-player/pages/Assessments.jsx',
+            'Student/Certificates': './features/course-player/pages/Certificates.jsx',
+            'Student/Profile': './features/course-player/pages/Profile.jsx',
             'Student/Quiz/Take': './features/quizzes/pages/Take.jsx',
             'Student/Quiz/Results': './features/quizzes/pages/Results.jsx',
             
@@ -85,8 +85,8 @@ createInertiaApp({
             'Student/Assignments/View': './features/assignments/pages/student/View.jsx',
             'Student/Practicum/Index': './features/practicum/pages/student/Index.jsx',
             'Student/Practicum/Upload': './features/practicum/pages/student/Upload.jsx',
-            'Student/Programs/Index': './features/learning-player/pages/Programs/Index.jsx',
-            'Student/Programs/Show': './features/learning-player/pages/Programs/Show.jsx',
+            'Student/Programs/Index': './features/course-player/pages/Programs/Index.jsx',
+            // Note: Student/Programs/Show removed - backend now renders CoursePlayer directly
             
             // Rubrics
             'Rubrics/Index': './features/rubrics/pages/Index.jsx',
