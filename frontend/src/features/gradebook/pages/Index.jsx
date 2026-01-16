@@ -1,51 +1,94 @@
 /**
  * Instructor Gradebook Index
- * Lists all programs with links to individual gradebooks
+ * Lists all programs with expandable statistics and student progress
  */
 
-import { Head, Link } from '@inertiajs/react';
+import { useState, useMemo, useCallback } from 'react';
+import { Head, router } from '@inertiajs/react';
 import {
   Box,
-  Card,
-  CardContent,
-  CardActionArea,
   Typography,
-  Grid,
-  Chip,
-  Stack,
+  Button,
   Alert,
+  Paper,
+  Divider,
+  CircularProgress,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import GradingIcon from '@mui/icons-material/Grading';
-import PeopleIcon from '@mui/icons-material/People';
-import SchoolIcon from '@mui/icons-material/School';
 
 import DashboardLayout from '@/layouts/DashboardLayout';
-
-const gradingTypeLabels = {
-  summative: 'Weighted',
-  weighted: 'Weighted',
-  cbet: 'Competency',
-  competency: 'Competency',
-  rubric: 'Rubric',
-  percentage: 'Percentage',
-  checklist: 'Checklist',
-  pass_fail: 'Pass/Fail',
-};
-
-const gradingTypeColors = {
-  summative: 'primary',
-  weighted: 'primary',
-  cbet: 'success',
-  competency: 'success',
-  rubric: 'warning',
-  percentage: 'info',
-  checklist: 'secondary',
-  pass_fail: 'default',
-};
+import { CourseRow, CourseSearch } from '../components';
 
 export default function GradebookIndex({ programs = [] }) {
+  const [expandedCourseId, setExpandedCourseId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loadedStudents, setLoadedStudents] = useState({}); // courseId -> students[]
+  const [loadingStudents, setLoadingStudents] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(10);
+
   const breadcrumbs = [{ label: 'Gradebook' }];
+
+  // Filter courses by search term
+  const filteredPrograms = useMemo(() => {
+    if (!searchTerm.trim()) return programs;
+    const term = searchTerm.toLowerCase();
+    return programs.filter((p) =>
+      p.name?.toLowerCase().includes(term)
+    );
+  }, [programs, searchTerm]);
+
+  // Visible programs (with pagination)
+  const visiblePrograms = useMemo(() => {
+    return filteredPrograms.slice(0, visibleCount);
+  }, [filteredPrograms, visibleCount]);
+
+  // Toggle course expansion
+  const handleToggle = useCallback((courseId) => {
+    setExpandedCourseId((prev) => (prev === courseId ? null : courseId));
+  }, []);
+
+  // Load students for a course
+  const handleLoadStudents = useCallback(async (courseId) => {
+    // Skip if already loaded
+    if (loadedStudents[courseId]) return;
+
+    setLoadingStudents(courseId);
+    
+    // Fetch students via Inertia or API call
+    // For now, we'll simulate with a partial reload
+    try {
+      const response = await fetch(`/api/instructor/programs/${courseId}/students/`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setLoadedStudents((prev) => ({
+          ...prev,
+          [courseId]: data.students || [],
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load students:', error);
+      // Fallback: set empty array to show "loaded" state
+      setLoadedStudents((prev) => ({
+        ...prev,
+        [courseId]: [],
+      }));
+    } finally {
+      setLoadingStudents(null);
+    }
+  }, [loadedStudents]);
+
+  // Load more courses
+  const handleLoadMore = useCallback(() => {
+    setVisibleCount((prev) => prev + 10);
+  }, []);
+
+  const hasMore = visibleCount < filteredPrograms.length;
 
   return (
     <DashboardLayout breadcrumbs={breadcrumbs} role="instructor">
@@ -56,67 +99,99 @@ export default function GradebookIndex({ programs = [] }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.215, 0.61, 0.355, 1] }}
       >
-        <Stack spacing={3}>
-          <Box>
-            <Typography variant="h4" component="h1" gutterBottom>
-              <GradingIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-              Gradebook
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Select a program to view and manage student grades
-            </Typography>
+        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
+          {/* Header */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 2,
+              p: 3,
+            }}
+          >
+            <Box>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+                The Gradebook
+              </Typography>
+              <Divider
+                sx={{
+                  width: 40,
+                  height: 3,
+                  bgcolor: 'primary.main',
+                  mt: 1,
+                }}
+              />
+            </Box>
+
+            <CourseSearch
+              value={searchTerm}
+              onChange={setSearchTerm}
+            />
           </Box>
 
+          <Divider />
+
+          {/* Course List */}
           {programs.length === 0 ? (
-            <Alert severity="info">
-              No programs assigned. Contact your administrator to be assigned to programs.
-            </Alert>
+            <Box sx={{ p: 4 }}>
+              <Alert severity="info">
+                No programs assigned. Contact your administrator to be assigned to programs.
+              </Alert>
+            </Box>
+          ) : filteredPrograms.length === 0 ? (
+            <Box sx={{ p: 4 }}>
+              <Alert severity="info">
+                No courses match your search. Try a different keyword.
+              </Alert>
+            </Box>
           ) : (
-            <Grid container spacing={3}>
-              {programs.map((program) => (
-                <Grid item xs={12} sm={6} md={4} key={program.id}>
-                  <Card
-                    component={motion.div}
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CardActionArea
-                      component={Link}
-                      href={`/instructor/programs/${program.id}/gradebook/`}
-                    >
-                      <CardContent>
-                        <Stack spacing={2}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <SchoolIcon color="primary" />
-                            <Typography variant="h6" component="div" noWrap>
-                              {program.name}
-                            </Typography>
-                          </Box>
-
-                          <Stack direction="row" spacing={1} flexWrap="wrap">
-                            <Chip
-                              label={gradingTypeLabels[program.gradingType] || 'Standard'}
-                              size="small"
-                              color={gradingTypeColors[program.gradingType] || 'default'}
-                              variant="outlined"
-                            />
-                          </Stack>
-
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <PeopleIcon fontSize="small" color="action" />
-                            <Typography variant="body2" color="text.secondary">
-                              {program.studentCount} {program.studentCount === 1 ? 'student' : 'students'}
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </CardContent>
-                    </CardActionArea>
-                  </Card>
-                </Grid>
+            <>
+              {visiblePrograms.map((program) => (
+                <CourseRow
+                  key={program.id}
+                  course={{
+                    id: program.id,
+                    name: program.name,
+                    thumbnailUrl: program.thumbnailUrl,
+                    stats: {
+                      totalStudents: program.studentCount || 0,
+                      averageProgress: program.averageProgress || 0,
+                      passedQuizzes: program.passedQuizzes || 0,
+                      passedLessons: program.passedLessons || 0,
+                      enrolledBySubscription: program.subscriptionEnrollments || 0,
+                      passedAssignments: program.passedAssignments || 0,
+                    },
+                  }}
+                  expanded={expandedCourseId === program.id}
+                  onToggle={handleToggle}
+                  students={loadedStudents[program.id] || []}
+                  studentsLoaded={!!loadedStudents[program.id]}
+                  onLoadStudents={handleLoadStudents}
+                />
               ))}
-            </Grid>
+
+              {/* Load More Button */}
+              {hasMore && (
+                <Box sx={{ p: 3 }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleLoadMore}
+                    sx={{
+                      textTransform: 'uppercase',
+                      fontWeight: 600,
+                      borderRadius: 20,
+                      px: 4,
+                    }}
+                  >
+                    Load More
+                  </Button>
+                </Box>
+              )}
+            </>
           )}
-        </Stack>
+        </Paper>
       </motion.div>
     </DashboardLayout>
   );

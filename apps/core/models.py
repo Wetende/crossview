@@ -143,6 +143,25 @@ class Program(models.Model):
     notices = models.JSONField(default=list, blank=True)
     custom_pricing = models.JSONField(default=dict, blank=True)
 
+    # Course Display Fields (for public listing/detail pages)
+    thumbnail = models.ImageField(upload_to='programs/thumbnails/', blank=True, null=True)
+    category = models.CharField(max_length=100, blank=True, null=True)
+    LEVEL_CHOICES = [
+        ('beginner', 'Beginner'),
+        ('intermediate', 'Intermediate'),
+        ('advanced', 'Advanced'),
+    ]
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='beginner')
+    duration_hours = models.PositiveIntegerField(default=0, help_text="Total duration in hours")
+    video_hours = models.PositiveIntegerField(default=0, help_text="Video content duration in hours")
+    BADGE_CHOICES = [
+        ('hot', 'Hot'),
+        ('new', 'New'),
+        ('special', 'Special'),
+    ]
+    badge_type = models.CharField(max_length=20, blank=True, null=True, choices=BADGE_CHOICES)
+    what_you_learn = models.JSONField(default=list, blank=True, help_text="List of learning outcomes")
+
     class Meta:
         db_table = 'programs'
         indexes = [

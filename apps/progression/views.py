@@ -115,6 +115,9 @@ def program_list(request):
         total_nodes = _get_completable_nodes_count(enrollment.program)
         completed_nodes = enrollment.completions.count()
         progress = (completed_nodes / total_nodes * 100) if total_nodes > 0 else 0
+        
+        # Get thumbnail URL
+        thumbnail_url = enrollment.program.thumbnail.url if enrollment.program.thumbnail else None
 
         enrollment_data.append(
             {
@@ -126,6 +129,11 @@ def program_list(request):
                 "progressPercent": round(progress, 1),
                 "status": enrollment.status,
                 "enrolledAt": enrollment.enrolled_at.isoformat(),
+                # New display fields
+                "thumbnail": thumbnail_url,
+                "category": enrollment.program.category or "",
+                "durationHours": enrollment.program.duration_hours or 0,
+                "badgeType": enrollment.program.badge_type,
             }
         )
 
@@ -402,6 +410,50 @@ def session_viewer(request, pk: int, node_id: int):
         for b in blocks
     ]
 
+    # Get discussions for this node
+    from apps.discussions.models import DiscussionThread
+    discussions_qs = DiscussionThread.objects.filter(node=node).select_related('user').prefetch_related('posts__user').order_by('-is_pinned', '-created_at')
+    discussions_data = [
+        {
+            "id": thread.id,
+            "title": thread.title,
+            "content": thread.content,
+            "isPinned": thread.is_pinned,
+            "isLocked": thread.is_locked,
+            "createdAt": thread.created_at.isoformat(),
+            "user": {
+                "id": thread.user.id,
+                "name": thread.user.get_full_name() or thread.user.email,
+            },
+            "posts": [
+                {
+                    "id": post.id,
+                    "content": post.content,
+                    "createdAt": post.created_at.isoformat(),
+                    "user": {
+                        "id": post.user.id,
+                        "name": post.user.get_full_name() or post.user.email,
+                    },
+                }
+                for post in thread.posts.all()
+            ],
+        }
+        for thread in discussions_qs
+    ]
+
+    # Get notes for this student/node
+    from .models import StudentNote
+    notes_qs = StudentNote.objects.filter(enrollment=enrollment, node=node).order_by('-created_at')
+    notes_data = [
+        {
+            "id": note.id,
+            "content": note.content,
+            "videoTimestamp": note.video_timestamp,
+            "createdAt": note.created_at.isoformat(),
+        }
+        for note in notes_qs
+    ]
+
     return render(
         request,
         "Student/CoursePlayer",
@@ -430,14 +482,126 @@ def session_viewer(request, pk: int, node_id: int):
             "isCompleted": is_completed,
             "isLocked": not unlock_status["is_unlocked"],
             "lockReason": unlock_status.get("reason"),
+            "discussions": discussions_data,
+            "notes": notes_data,
         },
     )
 
 
 
+
+@login_required
+def session_discussion_post(request, pk: int, node_id: int):
+    """
+    POST: Create a new discussion thread or post for a node.
+    Creates a new thread with the content as the initial post.
+    """
+    if request.method != "POST":
+        return redirect("progression:student.session", pk=pk, node_id=node_id)
+    
+    from apps.discussions.models import DiscussionThread
+    
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("program"),
+        id=pk,
+        user=request.user,
+        status="active",
+    )
+    
+    node = get_object_or_404(
+        CurriculumNode,
+        id=node_id,
+        program=enrollment.program,
+        is_published=True,
+    )
+    
+    content = request.POST.get("content", "").strip()
+    if not content:
+        return redirect("progression:student.session", pk=pk, node_id=node_id)
+    
+    # Create a new discussion thread
+    DiscussionThread.objects.create(
+        node=node,
+        user=request.user,
+        title="",  # No title for simple comments
+        content=content,
+    )
+    
+    return redirect("progression:student.session", pk=pk, node_id=node_id)
+
+
+@login_required
+def session_note_create(request, pk: int, node_id: int):
+    """
+    POST: Create a new student note for a node.
+    """
+    if request.method != "POST":
+        return redirect("progression:student.session", pk=pk, node_id=node_id)
+    
+    from .models import StudentNote
+    
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("program"),
+        id=pk,
+        user=request.user,
+        status="active",
+    )
+    
+    node = get_object_or_404(
+        CurriculumNode,
+        id=node_id,
+        program=enrollment.program,
+        is_published=True,
+    )
+    
+    content = request.POST.get("content", "").strip()
+    if not content:
+        return redirect("progression:student.session", pk=pk, node_id=node_id)
+    
+    # Get optional video timestamp
+    timestamp = request.POST.get("video_timestamp")
+    video_timestamp = int(timestamp) if timestamp and timestamp.isdigit() else None
+    
+    StudentNote.objects.create(
+        enrollment=enrollment,
+        node=node,
+        content=content,
+        video_timestamp=video_timestamp,
+    )
+    
+    return redirect("progression:student.session", pk=pk, node_id=node_id)
+
+
+@login_required
+def session_note_delete(request, pk: int, node_id: int, note_id: int):
+    """
+    POST/DELETE: Delete a student note.
+    """
+    from .models import StudentNote
+    
+    enrollment = get_object_or_404(
+        Enrollment,
+        id=pk,
+        user=request.user,
+        status="active",
+    )
+    
+    note = get_object_or_404(
+        StudentNote,
+        id=note_id,
+        enrollment=enrollment,
+        node_id=node_id,
+    )
+    
+    note.delete()
+    
+    return redirect("progression:student.session", pk=pk, node_id=node_id)
+
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 
 def _get_completable_nodes_count(program: Program) -> int:
@@ -1144,6 +1308,12 @@ def instructor_programs(request):
         active = enrollments.filter(status="active").count()
         completed = enrollments.filter(status="completed").count()
         completion_rate = (completed / total * 100) if total > 0 else 0
+        
+        # Get thumbnail URL
+        thumbnail_url = program.thumbnail.url if program.thumbnail else None
+        
+        # Get price from custom_pricing
+        price_data = program.custom_pricing or {}
 
         programs_data.append(
             {
@@ -1156,14 +1326,29 @@ def instructor_programs(request):
                 "enrollmentCount": total,
                 "activeStudents": active,
                 "completionRate": round(completion_rate, 1),
+                # New display fields for ProgramManageCard
+                "thumbnail": thumbnail_url,
+                "category": program.category or "",
+                "isPublished": program.is_published,
+                "price": price_data.get("price", 0),
+                "originalPrice": price_data.get("original_price"),
+                "rating": 4.5,  # TODO: Calculate from reviews
+                "reviewCount": 0,  # TODO: Count reviews
+                "viewCount": total,  # Using enrollment count as views
+                "badgeType": program.badge_type,
+                "updatedAt": program.updated_at.isoformat() if program.updated_at else None,
             }
         )
+
+    # Get status filter
+    status_filter = request.GET.get("status", "")
 
     return render(
         request,
         "Instructor/Programs/Index",
         {
             "programs": programs_data,
+            "filters": {"status": status_filter},
         },
     )
 

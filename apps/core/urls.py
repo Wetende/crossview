@@ -17,6 +17,7 @@ urlpatterns = [
     path("about/", views.about_page, name="about"),
     path("contact/", views.contact_page, name="contact"),
     path("programs/", views.public_programs_list, name="programs"),
+    path("programs/<int:pk>/", views.public_program_detail, name="program_detail"),
     # Authentication
     path("login/", views.login_page, name="login"),
     path("register/", views.register_page, name="register"),
@@ -138,10 +139,13 @@ urlpatterns = [
     path("instructor/programs/<int:pk>/gradebook/", views.instructor_program_gradebook, name="instructor.program_gradebook"),
     path("instructor/programs/<int:pk>/gradebook/save/", views.instructor_program_gradebook_save, name="instructor.program_gradebook_save"),
     path("instructor/gradebook/<int:enrollment_id>/", views.instructor_grade_entry, name="instructor.grade_entry"),
+    # API endpoints
+    path("api/instructor/programs/<int:pk>/students/", views.api_instructor_program_students, name="api.instructor.program_students"),
     # Note: instructor/content/, instructor/quizzes/, and instructor/announcements/ routes removed
     # Content, quiz, and announcement editing now handled via Course Builder (instructor.program_manage)
     #
     # Instructor Assignment Management
+    path("instructor/assignments/", views.instructor_assignments_global, name="instructor.assignments_global"),
     path("instructor/programs/<int:program_id>/assignments/", views.instructor_assignments, name="instructor.assignments"),
     path("instructor/programs/<int:program_id>/assignments/create/", views.instructor_assignment_create, name="instructor.assignment_create"),
     path("instructor/assignments/<int:assignment_id>/edit/", views.instructor_assignment_edit, name="instructor.assignment_edit"),

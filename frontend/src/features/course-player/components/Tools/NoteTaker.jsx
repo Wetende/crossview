@@ -1,39 +1,44 @@
 import React, { useState } from 'react';
-import { Box, Typography, TextField, Button, List, ListItem, IconButton, Paper, Divider } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, AccessTime as TimeIcon, Save as SaveIcon } from '@mui/icons-material';
+import { router } from '@inertiajs/react';
+import { Box, Typography, TextField, Button, List, IconButton, Paper } from '@mui/material';
+import { Delete as DeleteIcon, AccessTime as TimeIcon, Save as SaveIcon } from '@mui/icons-material';
 
-const NoteTaker = ({ nodeId, currentTime = 0, onSeek }) => {
+const NoteTaker = ({ nodeId, enrollmentId, notes = [], currentTime = 0, onSeek }) => {
     const [noteText, setNoteText] = useState('');
-    const [notes, setNotes] = useState([
-        // Mock Data
-        { id: 1, text: 'Remember this concept for the exam', timestamp: 125, timestampLabel: '02:05' },
-        { id: 2, text: 'Great example of lighting', timestamp: 340, timestampLabel: '05:40' }
-    ]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const formatTime = (seconds) => {
+        if (seconds === null || seconds === undefined) return '';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
     const handleSaveNote = () => {
-        if (!noteText.trim()) return;
+        if (!noteText.trim() || isSubmitting) return;
         
-        const newNote = {
-            id: Date.now(),
-            text: noteText,
-            timestamp: currentTime,
-            timestampLabel: formatTime(currentTime)
-        };
-
-        setNotes(prev => [newNote, ...prev]);
-        setNoteText('');
-        // TODO: Persist to backend
+        setIsSubmitting(true);
+        
+        router.post(`/student/programs/${enrollmentId}/session/${nodeId}/notes/`, {
+            content: noteText.trim(),
+            video_timestamp: Math.floor(currentTime) || null
+        }, {
+            preserveScroll: true,
+            only: ['notes'],
+            onSuccess: () => {
+                setNoteText('');
+            },
+            onFinish: () => {
+                setIsSubmitting(false);
+            }
+        });
     };
 
-    const handleDelete = (id) => {
-        setNotes(prev => prev.filter(n => n.id !== id));
-        // TODO: Delete from backend
+    const handleDelete = (noteId) => {
+        router.post(`/student/programs/${enrollmentId}/session/${nodeId}/notes/${noteId}/delete/`, {}, {
+            preserveScroll: true,
+            only: ['notes']
+        });
     };
 
     return (
@@ -50,6 +55,7 @@ const NoteTaker = ({ nodeId, currentTime = 0, onSeek }) => {
                     onChange={(e) => setNoteText(e.target.value)}
                     variant="outlined"
                     size="small"
+                    disabled={isSubmitting}
                     sx={{ mb: 1, bgcolor: 'grey.50' }}
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -66,16 +72,16 @@ const NoteTaker = ({ nodeId, currentTime = 0, onSeek }) => {
                         size="small" 
                         startIcon={<SaveIcon />}
                         onClick={handleSaveNote}
-                        disabled={!noteText.trim()}
+                        disabled={!noteText.trim() || isSubmitting}
                     >
-                        Save Note
+                        {isSubmitting ? 'Saving...' : 'Save Note'}
                     </Button>
                 </Box>
             </Box>
 
             {/* Notes List */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
-                {notes.length === 0 ? (
+                {(!notes || notes.length === 0) ? (
                     <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
                         No notes yet. Start typing above to add one!
                     </Typography>
@@ -89,29 +95,31 @@ const NoteTaker = ({ nodeId, currentTime = 0, onSeek }) => {
                                 sx={{ mb: 2, p: 1.5, borderRadius: 2, position: 'relative' }}
                             >
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                    <Button
-                                        size="small"
-                                        startIcon={<TimeIcon fontSize="inherit" />}
-                                        onClick={() => onSeek && onSeek(note.timestamp)}
-                                        sx={{ 
-                                            minWidth: 'auto', 
-                                            p: 0.5, 
-                                            mr: 1, 
-                                            fontSize: '0.75rem',
-                                            bgcolor: 'primary.lighter',
-                                            color: 'primary.main',
-                                            '&:hover': { bgcolor: 'primary.light' }
-                                        }}
-                                    >
-                                        {note.timestampLabel}
-                                    </Button>
+                                    {note.videoTimestamp !== null && note.videoTimestamp !== undefined && (
+                                        <Button
+                                            size="small"
+                                            startIcon={<TimeIcon fontSize="inherit" />}
+                                            onClick={() => onSeek && onSeek(note.videoTimestamp)}
+                                            sx={{ 
+                                                minWidth: 'auto', 
+                                                p: 0.5, 
+                                                mr: 1, 
+                                                fontSize: '0.75rem',
+                                                bgcolor: 'primary.lighter',
+                                                color: 'primary.main',
+                                                '&:hover': { bgcolor: 'primary.light' }
+                                            }}
+                                        >
+                                            {formatTime(note.videoTimestamp)}
+                                        </Button>
+                                    )}
                                     <Box sx={{ flexGrow: 1 }} />
                                     <IconButton size="small" onClick={() => handleDelete(note.id)} sx={{ p: 0.5 }}>
                                         <DeleteIcon fontSize="small" />
                                     </IconButton>
                                 </Box>
                                 <Typography variant="body2" sx={{ lineHeight: 1.5 }}>
-                                    {note.text}
+                                    {note.content}
                                 </Typography>
                             </Paper>
                         ))}

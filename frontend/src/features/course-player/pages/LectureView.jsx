@@ -6,11 +6,21 @@ import StudyPanel from '../components/Tools/StudyPanel';
 import Whiteboard from '../components/Stage/Whiteboard';
 import { Box, Typography } from '@mui/material';
 
-const LectureView = ({ program, enrollment, node, curriculum, progress, prevNode, nextNode, isCompleted }) => {
+const LectureView = ({ 
+    program, 
+    enrollment, 
+    node, 
+    curriculum, 
+    progress, 
+    prevNode, 
+    nextNode, 
+    isCompleted,
+    discussions = [],
+    notes = []
+}) => {
     // Local State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isDiscussionsOpen, setIsDiscussionsOpen] = useState(false);
-    const [activeStudyTab, setActiveStudyTab] = useState('discussions');
 
     // Left Panel - Curriculum Sidebar
     const LeftPanel = (
@@ -19,15 +29,16 @@ const LectureView = ({ program, enrollment, node, curriculum, progress, prevNode
             progress={enrollment?.progressPercent || 0}
             curriculum={curriculum || []}
             activeNodeId={node?.id}
+            enrollmentId={enrollment?.id}
         />
     );
 
     // Right Panel - Discussions/Notes
     const RightPanel = (
         <StudyPanel 
-            nodeId={node?.id} 
-            activeTab={activeStudyTab}
-            onTabChange={setActiveStudyTab}
+            nodeId={node?.id}
+            enrollmentId={enrollment?.id}
+            discussions={discussions}
             onClose={() => setIsDiscussionsOpen(false)}
         />
     );

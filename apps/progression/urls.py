@@ -17,6 +17,24 @@ urlpatterns = [
         views.session_viewer,
         name="student.session",
     ),
+    # Discussion endpoint within session
+    path(
+        "student/programs/<int:pk>/session/<int:node_id>/discussion/",
+        views.session_discussion_post,
+        name="student.session.discussion",
+    ),
+    # Notes CRUD endpoints
+    path(
+        "student/programs/<int:pk>/session/<int:node_id>/notes/",
+        views.session_note_create,
+        name="student.session.note.create",
+    ),
+    path(
+        "student/programs/<int:pk>/session/<int:node_id>/notes/<int:note_id>/delete/",
+        views.session_note_delete,
+        name="student.session.note.delete",
+    ),
+
     # Assessment Results
     path(
         "student/assessments/",

@@ -1,21 +1,19 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Box,
-    Card,
-    CardContent,
     FormControl,
     Grid,
     InputLabel,
-    LinearProgress,
     MenuItem,
     Select,
     Stack,
     Typography,
-    Chip,
+    Button,
 } from '@mui/material';
 import { IconSchool } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '@/layouts/DashboardLayout';
+import { EnrolledCourseCard } from '@/components/cards';
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -44,14 +42,14 @@ export default function ProgramList({
     return (
         <DashboardLayout role="student">
             <Head title="My Programs" />
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
+            
+            {/* Header */}
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 4 }}>
                 <Box>
                     <Typography variant="h4" fontWeight={700} gutterBottom>
-                        My Programs
+                        Enrolled Courses
                     </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                        View and continue your enrolled programs
-                    </Typography>
+                    <Box sx={{ width: 40, height: 4, bgcolor: 'primary.main', borderRadius: 2 }} />
                 </Box>
 
                 <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -75,96 +73,18 @@ export default function ProgramList({
             ) : (
                 <Grid container spacing={3}>
                     {enrollments.map((enrollment, index) => (
-                        <Grid item xs={12} md={6} lg={4} key={enrollment.id}>
+                        <Grid item xs={12} sm={6} md={4} lg={3} key={enrollment.id}>
                             <motion.div
                                 {...fadeInUp}
-                                transition={{ ...fadeInUp.transition, delay: index * 0.1 }}
+                                transition={{ ...fadeInUp.transition, delay: index * 0.05 }}
                             >
-                                <ProgramCard enrollment={enrollment} />
+                                <EnrolledCourseCard enrollment={enrollment} />
                             </motion.div>
                         </Grid>
                     ))}
                 </Grid>
             )}
         </DashboardLayout>
-    );
-}
-
-function ProgramCard({ enrollment }) {
-    const statusColors = {
-        active: 'primary',
-        completed: 'success',
-        withdrawn: 'default',
-    };
-
-    return (
-        <Card
-            component={Link}
-            href={`/student/programs/${enrollment.id}/`}
-            sx={{
-                height: '100%',
-                textDecoration: 'none',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-                '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: 6,
-                },
-            }}
-        >
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
-                    <IconSchool size={32} />
-                    <Chip
-                        label={enrollment.status}
-                        color={statusColors[enrollment.status] || 'default'}
-                        size="small"
-                    />
-                </Stack>
-
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                    {enrollment.programName}
-                </Typography>
-
-                {enrollment.programCode && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        {enrollment.programCode}
-                    </Typography>
-                )}
-
-                {enrollment.description && (
-                    <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{
-                            mb: 2,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                        }}
-                    >
-                        {enrollment.description}
-                    </Typography>
-                )}
-
-                <Box sx={{ mt: 'auto' }}>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Progress
-                        </Typography>
-                        <Typography variant="body2" fontWeight={600}>
-                            {enrollment.progressPercent}%
-                        </Typography>
-                    </Stack>
-                    <LinearProgress
-                        variant="determinate"
-                        value={enrollment.progressPercent}
-                        sx={{ height: 8, borderRadius: 4 }}
-                    />
-                </Box>
-            </CardContent>
-        </Card>
     );
 }
 
@@ -175,11 +95,20 @@ function EmptyState({ hasFilter }) {
             <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
                 {hasFilter ? 'No Programs Found' : 'No Enrollments Yet'}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                 {hasFilter
                     ? 'Try changing the filter to see more programs.'
                     : 'You haven\'t enrolled in any programs yet.'}
             </Typography>
+            {!hasFilter && (
+                <Button
+                    component={Link}
+                    href="/programs/"
+                    variant="contained"
+                >
+                    Browse Courses
+                </Button>
+            )}
         </Box>
     );
 }

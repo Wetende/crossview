@@ -1,35 +1,30 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, Radio, RadioGroup, FormControlLabel, FormControl, Paper, LinearProgress, Alert } from '@mui/material';
-import { CheckCircleOutline, HighlightOff } from '@mui/icons-material';
+import { router } from '@inertiajs/react';
+import { Box, Typography, Button, Radio, RadioGroup, FormControlLabel, FormControl, Paper, LinearProgress } from '@mui/material';
 
-const QuizRenderer = ({ quiz, onComplete }) => {
+const QuizRenderer = ({ node, enrollmentId, onComplete }) => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [answers, setAnswers] = useState({}); // { questionId: optionId }
+    const [answers, setAnswers] = useState({}); // { questionId: selectedOptionId }
     const [showResults, setShowResults] = useState(false);
+    const [score, setScore] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // Mock Questions if not provided (for dev/testing)
-    const questions = quiz?.questions || [
-        { 
-            id: 1, 
-            text: "What is the primary rule of composition in photography?", 
-            options: [
-                { id: 'a', text: "Rule of Thirds" },
-                { id: 'b', text: "Golden Ratio" },
-                { id: 'c', text: "Center Everything" }
-            ],
-            correctOptionId: 'a'
-        },
-        { 
-            id: 2, 
-            text: "Which ISO setting is best for bright daylight?", 
-            options: [
-                { id: 'a', text: "ISO 3200" },
-                { id: 'b', text: "ISO 100" },
-                { id: 'c', text: "ISO 800" }
-            ],
-            correctOptionId: 'b'
-        }
-    ];
+    // Get questions from node properties
+    const questions = node?.properties?.questions || [];
+    
+    // If no questions, show empty state
+    if (!questions || questions.length === 0) {
+        return (
+            <Paper elevation={0} sx={{ p: 5, textAlign: 'center', borderRadius: 2, bgcolor: 'background.paper' }}>
+                <Typography variant="h5" fontWeight={600} gutterBottom>
+                    Quiz
+                </Typography>
+                <Typography color="text.secondary">
+                    No questions have been added to this quiz yet.
+                </Typography>
+            </Paper>
+        );
+    }
 
     const currentQuestion = questions[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
@@ -45,21 +40,55 @@ const QuizRenderer = ({ quiz, onComplete }) => {
         if (currentQuestionIndex < questions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
         } else {
-            setShowResults(true);
+            // Submit quiz
+            handleSubmitQuiz();
+        }
+    };
+
+    const handleSubmitQuiz = () => {
+        setIsSubmitting(true);
+        
+        // Calculate score locally for immediate feedback
+        let correctCount = 0;
+        questions.forEach(q => {
+            const selectedOptionId = answers[q.id];
+            const correctOption = q.options?.find(opt => opt.isCorrect);
+            if (correctOption && selectedOptionId === String(correctOption.id)) {
+                correctCount++;
+            }
+        });
+        const calculatedScore = Math.round((correctCount / questions.length) * 100);
+        setScore(calculatedScore);
+        setShowResults(true);
+        
+        // Submit to backend
+        if (node?.id && enrollmentId) {
+            router.post(`/student/programs/${enrollmentId}/session/${node.id}/`, {
+                mark_complete: true,
+                quiz_answers: answers,
+                quiz_score: calculatedScore
+            }, {
+                preserveScroll: true,
+                only: ['isCompleted', 'curriculum'],
+                onFinish: () => {
+                    setIsSubmitting(false);
+                    if (onComplete) onComplete();
+                }
+            });
+        } else {
+            setIsSubmitting(false);
             if (onComplete) onComplete();
         }
     };
 
-    const calculateScore = () => {
-        let score = 0;
-        questions.forEach(q => {
-            if (answers[q.id] === q.correctOptionId) score++;
-        });
-        return Math.round((score / questions.length) * 100);
+    const handleRetake = () => {
+        setShowResults(false);
+        setCurrentQuestionIndex(0);
+        setAnswers({});
+        setScore(null);
     };
 
     if (showResults) {
-        const score = calculateScore();
         return (
             <Paper elevation={0} sx={{ p: 5, textAlign: 'center', borderRadius: 2, bgcolor: 'background.paper' }}>
                 <Typography variant="h4" fontWeight={700} gutterBottom>
@@ -67,22 +96,18 @@ const QuizRenderer = ({ quiz, onComplete }) => {
                 </Typography>
                 
                 <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
-                    <Box sx={{ position: 'relative' }}>
-                        <Typography variant="h2" color={score >= 70 ? 'success.main' : 'warning.main'} fontWeight={800}>
-                            {score}%
-                        </Typography>
-                    </Box>
+                    <Typography variant="h2" color={score >= 70 ? 'success.main' : 'warning.main'} fontWeight={800}>
+                        {score}%
+                    </Typography>
                 </Box>
 
                 <Typography color="text.secondary" paragraph>
-                    {score >= 70 ? "Great job! You've mastered this topic." : "Review the material and try again to improve your score."}
+                    {score >= 70 
+                        ? "Great job! You've mastered this topic." 
+                        : "Review the material and try again to improve your score."}
                 </Typography>
                 
-                <Button variant="contained" onClick={() => {
-                    setShowResults(false);
-                    setCurrentQuestionIndex(0);
-                    setAnswers({});
-                }}>
+                <Button variant="contained" onClick={handleRetake}>
                     Retake Quiz
                 </Button>
             </Paper>
@@ -106,7 +131,7 @@ const QuizRenderer = ({ quiz, onComplete }) => {
 
             {/* Question */}
             <Typography variant="h5" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
-                {currentQuestion.text}
+                {currentQuestion.text || currentQuestion.question}
             </Typography>
 
             {/* Options */}
@@ -117,21 +142,21 @@ const QuizRenderer = ({ quiz, onComplete }) => {
                     value={answers[currentQuestion.id] || ''}
                     onChange={handleOptionChange}
                 >
-                    {currentQuestion.options.map((option) => (
+                    {(currentQuestion.options || []).map((option) => (
                         <Paper 
                             key={option.id} 
                             variant="outlined" 
                             sx={{ 
                                 mb: 2, 
                                 borderRadius: 2,
-                                border: answers[currentQuestion.id] === option.id ? '2px solid' : '1px solid',
-                                borderColor: answers[currentQuestion.id] === option.id ? 'primary.main' : 'divider',
-                                bgcolor: answers[currentQuestion.id] === option.id ? 'primary.lighter' : 'transparent',
+                                border: answers[currentQuestion.id] === String(option.id) ? '2px solid' : '1px solid',
+                                borderColor: answers[currentQuestion.id] === String(option.id) ? 'primary.main' : 'divider',
+                                bgcolor: answers[currentQuestion.id] === String(option.id) ? 'primary.lighter' : 'transparent',
                                 transition: 'all 0.2s ease'
                             }}
                         >
                             <FormControlLabel
-                                value={option.id}
+                                value={String(option.id)}
                                 control={<Radio />}
                                 label={option.text}
                                 sx={{ p: 2, width: '100%', m: 0 }}
@@ -147,10 +172,12 @@ const QuizRenderer = ({ quiz, onComplete }) => {
                     variant="contained" 
                     size="large"
                     onClick={handleNext}
-                    disabled={!answers[currentQuestion.id]}
+                    disabled={!answers[currentQuestion.id] || isSubmitting}
                     sx={{ px: 4, borderRadius: 8 }}
                 >
-                    {currentQuestionIndex === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
+                    {currentQuestionIndex === questions.length - 1 
+                        ? (isSubmitting ? 'Submitting...' : 'Finish Quiz') 
+                        : 'Next Question'}
                 </Button>
             </Box>
         </Paper>

@@ -72,6 +72,7 @@ createInertiaApp({
             
             // Note: Instructor Content pages removed - now handled by Course Builder
             
+            'Instructor/Assignments/Global': './features/assignments/pages/instructor/Global.jsx',
             'Instructor/Assignments/Index': './features/assignments/pages/instructor/Index.jsx',
             'Instructor/Assignments/Grade': './features/assignments/pages/instructor/Grade.jsx',
             'Instructor/Assignments/Submissions': './features/assignments/pages/instructor/Submissions.jsx',
@@ -99,6 +100,7 @@ createInertiaApp({
             'Public/About': './pages/public/About.jsx',
             'Public/Contact': './pages/public/Contact.jsx',
             'Public/Programs': './pages/public/Programs.jsx',
+            'Public/ProgramDetail': './pages/public/ProgramDetail.jsx',
             'Public/CertificateVerify': './pages/public/CertificateVerify.jsx',
             'Public/VerifyCertificate': './pages/public/VerifyCertificate.jsx',
             'Home': './pages/public/Home.jsx',

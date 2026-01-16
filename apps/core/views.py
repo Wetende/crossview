@@ -133,6 +133,8 @@ def public_programs_list(request):
     Public catalog of published programs.
     """
     from apps.progression.models import Enrollment, EnrollmentRequest
+    from apps.curriculum.models import CurriculumNode
+    from django.db.models import Count
     
     # Base query
     programs_query = Program.objects.filter(is_published=True)
@@ -141,10 +143,63 @@ def public_programs_list(request):
     search = request.GET.get("search", "")
     if search:
         programs_query = programs_query.filter(name__icontains=search)
+    
+    # Category filtering
+    category = request.GET.get("category", "")
+    if category:
+        programs_query = programs_query.filter(category__iexact=category)
 
-    programs = programs_query.values(
-        "id", "name", "code", "description", "created_at"
-    ).order_by("name")
+    programs = list(programs_query.order_by("name"))
+    
+    # Get lecture counts per program
+    lecture_counts = dict(
+        CurriculumNode.objects.filter(
+            program__in=programs,
+            is_published=True,
+            node_type='lesson',
+            children__isnull=True
+        )
+        .values("program_id")
+        .annotate(count=Count("id"))
+        .values_list("program_id", "count")
+    )
+
+    # Build programs data with new fields
+    programs_data = []
+    for p in programs:
+        # Get thumbnail URL
+        thumbnail_url = p.thumbnail.url if p.thumbnail else None
+        
+        # Calculate price display
+        price_data = p.custom_pricing or {}
+        price = price_data.get("price", 0)
+        original_price = price_data.get("original_price")
+        
+        programs_data.append({
+            "id": p.id,
+            "name": p.name,
+            "code": p.code or "",
+            "description": p.description or "",
+            "created_at": p.created_at.isoformat(),
+            "thumbnail": thumbnail_url,
+            "category": p.category or "",
+            "level": p.level or "beginner",
+            "badge_type": p.badge_type,
+            "duration_hours": p.duration_hours,
+            "video_hours": p.video_hours,
+            "lecture_count": lecture_counts.get(p.id, 0),
+            "price": price,
+            "original_price": original_price,
+            "rating": 4.5,  # TODO: Calculate from reviews when implemented
+        })
+
+    # Get unique categories for filtering
+    categories = list(
+        Program.objects.filter(is_published=True, category__isnull=False)
+        .exclude(category="")
+        .values_list("category", flat=True)
+        .distinct()
+    )
 
     # Get user enrollment data if authenticated
     user_enrollments = []
@@ -163,10 +218,166 @@ def public_programs_list(request):
         request,
         "Public/Programs",
         {
-            "programs": list(programs),
-            "filters": {"search": search},
+            "programs": programs_data,
+            "filters": {"search": search, "category": category},
+            "categories": categories,
             "userEnrollments": user_enrollments,
             "userPendingRequests": user_pending_requests,
+        },
+    )
+
+
+def public_program_detail(request, pk: int):
+    """
+    Public course detail page with full course information.
+    Adapts CTAs based on enrollment status and school mode (Chameleon engine).
+    """
+    from apps.progression.models import Enrollment, EnrollmentRequest, NodeCompletion
+    from apps.curriculum.models import CurriculumNode
+    from django.shortcuts import get_object_or_404
+    from django.db.models import Count
+    
+    # Get published program
+    program = get_object_or_404(Program, pk=pk, is_published=True)
+    
+    # Build curriculum tree for display
+    def build_tree(nodes):
+        result = []
+        for node in nodes:
+            children = node.children.filter(is_published=True).order_by("position")
+            result.append({
+                "id": node.id,
+                "title": node.title,
+                "type": node.node_type,
+                "duration": node.properties.get("duration_minutes", 0),
+                "isPreview": node.properties.get("is_preview", False),
+                "children": build_tree(children) if children.exists() else [],
+            })
+        return result
+    
+    root_nodes = CurriculumNode.objects.filter(
+        program=program, parent__isnull=True, is_published=True
+    ).prefetch_related("children").order_by("position")
+    
+    curriculum = build_tree(root_nodes)
+    
+    # Get lecture/lesson count
+    lecture_count = CurriculumNode.objects.filter(
+        program=program,
+        is_published=True,
+        node_type='lesson',
+        children__isnull=True
+    ).count()
+    
+    # Get total completable nodes count
+    total_nodes = CurriculumNode.objects.filter(
+        program=program,
+        is_published=True,
+        node_type__in=['lesson', 'quiz', 'assignment']
+    ).count()
+    
+    # Get instructor info
+    instructors_data = []
+    for instructor in program.instructors.all():
+        instructors_data.append({
+            "id": instructor.id,
+            "name": instructor.get_full_name() or instructor.email,
+            "avatar": None,  # TODO: Add avatar field
+        })
+    
+    # Get related/popular programs
+    related_programs = []
+    if program.category:
+        related_qs = Program.objects.filter(
+            is_published=True, 
+            category=program.category
+        ).exclude(pk=pk)[:4]
+        
+        for p in related_qs:
+            price_data = p.custom_pricing or {}
+            related_programs.append({
+                "id": p.id,
+                "name": p.name,
+                "thumbnail": p.thumbnail.url if p.thumbnail else None,
+                "category": p.category or "",
+                "rating": 4.5,
+                "price": price_data.get("price", 0),
+            })
+    
+    # Get user enrollment status and progress
+    enrollment_status = None
+    enrollment_data = None
+    progress_percent = 0
+    is_completed = False
+    completed_nodes = 0
+    
+    if request.user.is_authenticated:
+        enrollment = Enrollment.objects.filter(user=request.user, program=program).first()
+        if enrollment:
+            enrollment_status = "enrolled"
+            # Calculate progress
+            completed_nodes = enrollment.completions.count()
+            progress_percent = round((completed_nodes / total_nodes * 100) if total_nodes > 0 else 0, 1)
+            is_completed = enrollment.status == "completed" or progress_percent >= 100
+            
+            enrollment_data = {
+                "id": enrollment.id,
+                "enrolledAt": enrollment.enrolled_at.isoformat(),
+                "progressPercent": progress_percent,
+                "isCompleted": is_completed,
+                "completedNodes": completed_nodes,
+                "totalNodes": total_nodes,
+            }
+        elif EnrollmentRequest.objects.filter(
+            user=request.user, program=program, status="pending"
+        ).exists():
+            enrollment_status = "pending"
+    
+    # Calculate price display and enrollment mode
+    price_data = program.custom_pricing or {}
+    price = price_data.get("price", 0)
+    
+    # Determine enrollment mode based on pricing
+    if price > 0:
+        enrollment_mode = "paid"
+    elif price_data.get("requires_approval", False):
+        enrollment_mode = "approval"
+    else:
+        enrollment_mode = "free"
+    
+    # Build program data
+    program_data = {
+        "id": program.id,
+        "name": program.name,
+        "code": program.code or "",
+        "description": program.description or "",
+        "thumbnail": program.thumbnail.url if program.thumbnail else None,
+        "category": program.category or "",
+        "level": program.level or "beginner",
+        "duration_hours": program.duration_hours,
+        "video_hours": program.video_hours,
+        "lecture_count": lecture_count,
+        "badge_type": program.badge_type,
+        "price": price,
+        "original_price": price_data.get("original_price"),
+        "faq": program.faq or [],
+        "notices": program.notices or [],
+        "what_you_learn": program.what_you_learn or [],
+        "rating": 4.5,  # TODO: Calculate from reviews
+        "review_count": 0,  # TODO: Count reviews
+    }
+    
+    return render(
+        request,
+        "Public/ProgramDetail",
+        {
+            "program": program_data,
+            "curriculum": curriculum,
+            "instructors": instructors_data,
+            "popularPrograms": related_programs,
+            "enrollmentStatus": enrollment_status,
+            "enrollmentData": enrollment_data,
+            "enrollmentMode": enrollment_mode,
         },
     )
 
@@ -1783,6 +1994,106 @@ def instructor_gradebook(request):
 
 
 @login_required
+def api_instructor_program_students(request, pk: int):
+    """
+    JSON API endpoint to fetch student statistics for a program.
+    Used by the gradebook "Load Students Statistics" feature.
+    """
+    from django.http import JsonResponse
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment, NodeCompletion
+    from apps.curriculum.models import CurriculumNode
+    from apps.assessments.models import Quiz, QuizAttempt, Assignment, AssignmentSubmission
+    
+    if not _require_instructor(request.user):
+        return JsonResponse({"error": "Unauthorized"}, status=403)
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    program = get_object_or_404(Program, pk=pk, id__in=program_ids)
+    
+    # Get enrolled students
+    enrollments = Enrollment.objects.filter(
+        program=program, status="active"
+    ).select_related("user").order_by("user__last_name", "user__first_name")
+    
+    # Get curriculum counts for progress calculation
+    total_lessons = CurriculumNode.objects.filter(
+        program=program, node_type="lesson", is_published=True
+    ).count()
+    total_quizzes = Quiz.objects.filter(
+        node__program=program, is_published=True
+    ).count()
+    total_assignments = Assignment.objects.filter(
+        program=program, is_published=True
+    ).count()
+    
+    # Prefetch completions and attempts
+    enrollment_ids = [e.id for e in enrollments]
+    
+    # Node completions by enrollment
+    completions = NodeCompletion.objects.filter(
+        enrollment_id__in=enrollment_ids
+    ).select_related("node")
+    
+    completions_by_enrollment = {}
+    for c in completions:
+        if c.enrollment_id not in completions_by_enrollment:
+            completions_by_enrollment[c.enrollment_id] = {"lessons": 0}
+        if c.node.node_type == "lesson":
+            completions_by_enrollment[c.enrollment_id]["lessons"] += 1
+    
+    # Quiz attempts by enrollment
+    quiz_attempts = QuizAttempt.objects.filter(
+        enrollment_id__in=enrollment_ids, passed=True
+    )
+    quizzes_passed_by_enrollment = {}
+    for attempt in quiz_attempts:
+        if attempt.enrollment_id not in quizzes_passed_by_enrollment:
+            quizzes_passed_by_enrollment[attempt.enrollment_id] = set()
+        quizzes_passed_by_enrollment[attempt.enrollment_id].add(attempt.quiz_id)
+    
+    # Assignment submissions by enrollment
+    assignment_subs = AssignmentSubmission.objects.filter(
+        enrollment_id__in=enrollment_ids, status="graded"
+    )
+    assignments_passed_by_enrollment = {}
+    for sub in assignment_subs:
+        if sub.enrollment_id not in assignments_passed_by_enrollment:
+            assignments_passed_by_enrollment[sub.enrollment_id] = set()
+        # Consider passed if final score >= 50%
+        if sub.score and sub.score >= 50:
+            assignments_passed_by_enrollment[sub.enrollment_id].add(sub.assignment_id)
+    
+    students_data = []
+    for e in enrollments:
+        lessons_passed = completions_by_enrollment.get(e.id, {}).get("lessons", 0)
+        quizzes_passed = len(quizzes_passed_by_enrollment.get(e.id, set()))
+        assignments_passed = len(assignments_passed_by_enrollment.get(e.id, set()))
+        
+        # Calculate overall progress
+        total_items = total_lessons + total_quizzes + total_assignments
+        completed_items = lessons_passed + quizzes_passed + assignments_passed
+        overall_progress = round((completed_items / total_items * 100) if total_items > 0 else 0)
+        
+        students_data.append({
+            "id": e.id,
+            "name": e.user.get_full_name() or e.user.email,
+            "email": e.user.email,
+            "avatarUrl": None,  # Could add profile avatar if available
+            "startedAt": e.enrolled_at.isoformat() if e.enrolled_at else None,
+            "lessonsPassed": lessons_passed,
+            "lessonsTotal": total_lessons,
+            "quizzesPassed": quizzes_passed,
+            "quizzesTotal": total_quizzes,
+            "assignmentsPassed": assignments_passed,
+            "assignmentsTotal": total_assignments,
+            "overallProgress": overall_progress,
+        })
+    
+    return JsonResponse({"students": students_data})
+
+
+@login_required
 def instructor_grade_entry(request, enrollment_id: int):
     """Enter grades for a specific enrollment."""
     if not _require_instructor(request.user):
@@ -2593,6 +2904,79 @@ def student_quiz_results(request, quiz_id: int):
 # =============================================================================
 # Assignment Management Views (Instructor)
 # =============================================================================
+
+
+@login_required
+def instructor_assignments_global(request):
+    """
+    Global assignments list across all instructor programs.
+    Shows all assignments with passed/non-passed/pending counts.
+    """
+    from apps.assessments.models import Assignment, AssignmentSubmission
+    from apps.progression.models import InstructorAssignment
+    from django.db.models import Count, Q
+    
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    
+    # Get search and filter params
+    search = request.GET.get("search", "").strip()
+    status_filter = request.GET.get("status", "all")
+    
+    # Build query with counts
+    assignments = Assignment.objects.filter(
+        program_id__in=program_ids, is_published=True
+    ).select_related('program').annotate(
+        total_count=Count('submissions'),
+        passed_count=Count(
+            'submissions',
+            filter=Q(submissions__status='graded', submissions__score__gte=50)
+        ),
+        failed_count=Count(
+            'submissions',
+            filter=Q(submissions__status='graded', submissions__score__lt=50)
+        ),
+        pending_count=Count(
+            'submissions',
+            filter=Q(submissions__status='submitted')
+        ),
+    ).order_by('-created_at')
+    
+    # Apply search filter
+    if search:
+        assignments = assignments.filter(title__icontains=search)
+    
+    # Apply status filter (assignments with at least one submission of that status)
+    if status_filter == "pending":
+        assignments = assignments.filter(pending_count__gt=0)
+    elif status_filter == "passed":
+        assignments = assignments.filter(passed_count__gt=0)
+    elif status_filter == "failed":
+        assignments = assignments.filter(failed_count__gt=0)
+    
+    return render(
+        request,
+        "Instructor/Assignments/Global",
+        {
+            "assignments": [
+                {
+                    "id": a.id,
+                    "title": a.title,
+                    "programId": a.program.id,
+                    "programName": a.program.name,
+                    "totalCount": a.total_count,
+                    "passedCount": a.passed_count,
+                    "failedCount": a.failed_count,
+                    "pendingCount": a.pending_count,
+                }
+                for a in assignments
+            ],
+            "search": search,
+            "filter": status_filter,
+        },
+    )
 
 
 @login_required

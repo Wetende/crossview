@@ -32,12 +32,24 @@ const Whiteboard = ({ node, prevNode, nextNode, courseId, isCompleted = false })
 
         // 1. Quiz
         if (type === 'quiz' || lessonType === 'quiz') {
-            return <QuizRenderer node={node} onComplete={handleComplete} />;
+            return (
+                <QuizRenderer 
+                    node={node} 
+                    enrollmentId={courseId}
+                    onComplete={handleComplete} 
+                />
+            );
         }
 
         // 2. Assignment
         if (type === 'assignment' || lessonType === 'assignment') {
-            return <AssignmentRenderer node={node} onSubmit={handleComplete} />;
+            return (
+                <AssignmentRenderer 
+                    node={node} 
+                    enrollmentId={courseId}
+                    onSubmit={handleComplete} 
+                />
+            );
         }
 
         // 3. Video

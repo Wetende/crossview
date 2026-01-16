@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, Paper, Chip, Divider, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { router } from '@inertiajs/react';
+import { Box, Typography, Button, Paper, Chip, Divider } from '@mui/material';
 import { CloudUpload as UploadIcon, InsertDriveFile as FileIcon, CheckCircle as CheckIcon, AccessTime as TimeIcon } from '@mui/icons-material';
 
-const AssignmentRenderer = ({ assignment, onSubmit }) => {
+const AssignmentRenderer = ({ node, enrollmentId, onSubmit }) => {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [uploadedFile, setUploadedFile] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Get assignment details from node properties
+    const assignment = {
+        title: node?.title || 'Assignment',
+        description: node?.description || node?.properties?.description || '',
+        dueDate: node?.properties?.due_date,
+        maxFileSize: node?.properties?.max_file_size || 10, // MB
+        acceptedTypes: node?.properties?.accepted_types || '.pdf,.doc,.docx,.zip'
+    };
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
@@ -14,9 +25,33 @@ const AssignmentRenderer = ({ assignment, onSubmit }) => {
     };
 
     const handleSubmit = () => {
-        // Mock API call
-        setIsSubmitted(true);
-        if (onSubmit) onSubmit({ file: uploadedFile });
+        if (!uploadedFile || isSubmitting) return;
+        
+        setIsSubmitting(true);
+        
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+        formData.append('mark_complete', 'true');
+        
+        if (node?.id && enrollmentId) {
+            router.post(`/student/programs/${enrollmentId}/session/${node.id}/`, formData, {
+                preserveScroll: true,
+                only: ['isCompleted', 'curriculum'],
+                onSuccess: () => {
+                    setIsSubmitted(true);
+                    if (onSubmit) onSubmit({ file: uploadedFile });
+                },
+                onFinish: () => {
+                    setIsSubmitting(false);
+                }
+            });
+        } else {
+            // Fallback for mock/demo
+            setIsSubmitted(true);
+            setIsSubmitting(false);
+            if (onSubmit) onSubmit({ file: uploadedFile });
+        }
     };
 
     if (isSubmitted) {
@@ -32,7 +67,7 @@ const AssignmentRenderer = ({ assignment, onSubmit }) => {
                     Your assignment has been successfully uploaded and is pending review by the instructor. You will be notified once it is graded.
                 </Typography>
                 <Button variant="outlined" onClick={() => setIsSubmitted(false)}>
-                    View Submission
+                    Submit Another
                 </Button>
             </Paper>
         );
@@ -44,14 +79,23 @@ const AssignmentRenderer = ({ assignment, onSubmit }) => {
             <Box sx={{ mb: 4 }}>
                 <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                     <Chip label="Assignment" size="small" color="primary" variant="outlined" />
-                    <Chip icon={<TimeIcon />} label="Due: 3 Days" size="small" variant="outlined" />
+                    {assignment.dueDate && (
+                        <Chip 
+                            icon={<TimeIcon />} 
+                            label={`Due: ${new Date(assignment.dueDate).toLocaleDateString()}`} 
+                            size="small" 
+                            variant="outlined" 
+                        />
+                    )}
                 </Box>
                 <Typography variant="h4" fontWeight={700} gutterBottom>
-                    {assignment?.title || "Practical Assignment"}
+                    {assignment.title}
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    {assignment?.description || "Read concepts text carefully and download the attached file. Fill it out and upload your solution below."}
-                </Typography>
+                {assignment.description && (
+                    <Typography variant="body1" color="text.secondary">
+                        {assignment.description}
+                    </Typography>
+                )}
             </Box>
 
             <Divider sx={{ mb: 4 }} />
@@ -73,9 +117,9 @@ const AssignmentRenderer = ({ assignment, onSubmit }) => {
                 }}
             >
                 <input
-                    accept=".pdf,.doc,.docx,.zip"
+                    accept={assignment.acceptedTypes}
                     style={{ display: 'none' }}
-                    id="raised-button-file"
+                    id="assignment-file-upload"
                     type="file"
                     onChange={handleFileChange}
                 />
@@ -84,20 +128,22 @@ const AssignmentRenderer = ({ assignment, onSubmit }) => {
                     <Box sx={{ mb: 2 }}>
                         <FileIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
                         <Typography variant="h6">{uploadedFile.name}</Typography>
-                        <Typography variant="body2" color="text.secondary">{(uploadedFile.size / 1024 / 1024).toFixed(2)} MB</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </Typography>
                         <Button color="error" size="small" onClick={() => setUploadedFile(null)} sx={{ mt: 1 }}>
                             Remove
                         </Button>
                     </Box>
                 ) : (
-                    <label htmlFor="raised-button-file">
+                    <label htmlFor="assignment-file-upload">
                         <Box sx={{ cursor: 'pointer' }}>
                             <UploadIcon color="action" sx={{ fontSize: 48, mb: 2 }} />
                             <Typography variant="h6" gutterBottom>
                                 Drag and drop your file here
                             </Typography>
                             <Typography variant="body2" color="text.secondary" paragraph>
-                                or click to browse
+                                or click to browse (max {assignment.maxFileSize}MB)
                             </Typography>
                             <Button variant="outlined" component="span">
                                 Browse Files
@@ -112,11 +158,11 @@ const AssignmentRenderer = ({ assignment, onSubmit }) => {
                 <Button 
                     variant="contained" 
                     size="large"
-                    disabled={!uploadedFile}
+                    disabled={!uploadedFile || isSubmitting}
                     onClick={handleSubmit}
                     sx={{ px: 4, borderRadius: 8 }}
                 >
-                    Submit Assignment
+                    {isSubmitting ? 'Submitting...' : 'Submit Assignment'}
                 </Button>
             </Box>
         </Paper>

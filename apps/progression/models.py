@@ -314,3 +314,40 @@ class StudentXP(models.Model):
     def __str__(self):
         return f"{self.enrollment.user}: +{self.xp_amount} XP ({self.reason})"
 
+
+class StudentNote(models.Model):
+    """
+    Notes taken by students while viewing course content.
+    Can optionally include a video timestamp for easy navigation.
+    """
+
+    enrollment = models.ForeignKey(
+        'Enrollment',
+        on_delete=models.CASCADE,
+        related_name='notes'
+    )
+    node = models.ForeignKey(
+        'curriculum.CurriculumNode',
+        on_delete=models.CASCADE,
+        related_name='student_notes'
+    )
+    content = models.TextField()
+    video_timestamp = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text='Video position in seconds when note was taken'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'student_notes'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['enrollment', 'node']),
+            models.Index(fields=['enrollment', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"Note by {self.enrollment.user} on {self.node.title}"
+

@@ -7,6 +7,7 @@ import {
     Stack,
     Card,
     CardContent,
+    CardMedia,
     useTheme,
     Button,
     AppBar,
@@ -15,18 +16,20 @@ import {
     TextField,
     InputAdornment,
     Chip,
+    Rating,
+    FormControl,
+    Select,
+    MenuItem,
 } from "@mui/material";
 import {
     IconBrandTabler,
     IconSearch,
     IconBook,
-    IconCalendar,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { getBackgroundDots } from "../../utils/getBackgroundDots";
 import { cloneElement, useState } from "react";
 import ButtonAnimationWrapper from "../../components/common/ButtonAnimationWrapper";
-import { format } from "date-fns";
 
 // --- Helper Components ---
 function ElevationScroll({ children }) {
@@ -44,29 +47,6 @@ function ElevationScroll({ children }) {
     });
 }
 
-function GraphicsCard({ children, sx = {} }) {
-    return (
-        <Card
-            sx={{
-                borderRadius: { xs: 4, sm: 6 }, // Slightly smaller radius for program cards
-                border: "1px solid",
-                borderColor: "grey.200",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                overflow: "hidden",
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 12px 24px -4px rgba(0,0,0,0.1)",
-                    borderColor: "primary.light",
-                },
-                ...sx,
-            }}
-        >
-            {children}
-        </Card>
-    );
-}
-
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
     whileInView: { opacity: 1, y: 0 },
@@ -74,12 +54,166 @@ const fadeInUp = {
     transition: { duration: 0.5, ease: [0.215, 0.61, 0.355, 1] },
 };
 
-export default function Programs({ programs, filters, userEnrollments = [], userPendingRequests = [] }) {
+// Badge colors
+const getBadgeColor = (type) => {
+    switch (type) {
+        case 'hot': return '#FF4444';
+        case 'new': return '#4CAF50';
+        case 'special': return '#FF9800';
+        default: return '#1976d2';
+    }
+};
+
+// Program Card Component
+function ProgramCard({ program, enrollmentStatus, isAuthenticated }) {
+    const theme = useTheme();
+    
+    return (
+        <Card
+            sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 2,
+                overflow: 'hidden',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 12px 24px -4px rgba(0,0,0,0.15)',
+                },
+            }}
+        >
+            {/* Thumbnail with badge */}
+            <Box sx={{ position: 'relative' }}>
+                <CardMedia
+                    component="img"
+                    height="160"
+                    image={program.thumbnail || '/static/images/course-placeholder.jpg'}
+                    alt={program.name}
+                    sx={{ objectFit: 'cover' }}
+                />
+                {program.badge_type && (
+                    <Chip
+                        label={program.badge_type.charAt(0).toUpperCase() + program.badge_type.slice(1)}
+                        size="small"
+                        sx={{
+                            position: 'absolute',
+                            top: 12,
+                            right: 12,
+                            bgcolor: getBadgeColor(program.badge_type),
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '0.7rem',
+                            height: 24,
+                        }}
+                    />
+                )}
+            </Box>
+
+            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2.5 }}>
+                {/* Category */}
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                    {program.category || 'General'}
+                </Typography>
+
+                {/* Title */}
+                <Typography
+                    component={Link}
+                    href={`/programs/${program.id}/`}
+                    variant="subtitle1"
+                    fontWeight={600}
+                    sx={{
+                        mb: 1,
+                        textDecoration: 'none',
+                        color: 'text.primary',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        '&:hover': { color: 'primary.main' },
+                    }}
+                >
+                    {program.name}
+                </Typography>
+
+                {/* Rating */}
+                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1.5 }}>
+                    <Rating value={program.rating || 0} precision={0.1} size="small" readOnly />
+                    <Typography variant="caption" color="text.secondary">
+                        {program.rating?.toFixed(1) || '0.0'}
+                    </Typography>
+                </Stack>
+
+                {/* Price */}
+                <Box sx={{ mt: 'auto' }}>
+                    {program.price > 0 ? (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="body1" fontWeight={700} color="primary.main">
+                                ${program.price}
+                            </Typography>
+                            {program.original_price && program.original_price > program.price && (
+                                <Typography
+                                    variant="body2"
+                                    sx={{ textDecoration: 'line-through', color: 'text.disabled' }}
+                                >
+                                    ${program.original_price}
+                                </Typography>
+                            )}
+                        </Stack>
+                    ) : (
+                        <Typography variant="body1" fontWeight={700} color="success.main">
+                            Free
+                        </Typography>
+                    )}
+                </Box>
+
+                {/* Action Button */}
+                <Box sx={{ mt: 2 }}>
+                    {enrollmentStatus === "enrolled" ? (
+                        <Button
+                            component={Link}
+                            href={`/programs/${program.id}/`}
+                            variant="contained"
+                            color="success"
+                            fullWidth
+                            size="small"
+                        >
+                            Continue Learning
+                        </Button>
+                    ) : enrollmentStatus === "pending" ? (
+                        <Button variant="outlined" fullWidth size="small" disabled>
+                            Enrollment Pending
+                        </Button>
+                    ) : (
+                        <Button
+                            component={Link}
+                            href={`/programs/${program.id}/`}
+                            variant="contained"
+                            fullWidth
+                            size="small"
+                            sx={{ bgcolor: isAuthenticated ? 'primary.main' : 'primary.main' }}
+                        >
+                            {isAuthenticated ? 'Enroll Now' : 'View Details'}
+                        </Button>
+                    )}
+                </Box>
+            </CardContent>
+        </Card>
+    );
+}
+
+export default function Programs({ 
+    programs, 
+    filters, 
+    categories = [],
+    userEnrollments = [], 
+    userPendingRequests = [] 
+}) {
     const theme = useTheme();
     const { auth } = usePage().props;
     const [search, setSearch] = useState(filters.search || "");
+    const [selectedCategory, setSelectedCategory] = useState(filters.category || "");
 
-    // Check enrollment/pending status for a program
     const getEnrollmentStatus = (programId) => {
         if (userEnrollments.includes(programId)) return "enrolled";
         if (userPendingRequests.includes(programId)) return "pending";
@@ -88,14 +222,25 @@ export default function Programs({ programs, filters, userEnrollments = [], user
 
     const handleSearch = (e) => {
         e.preventDefault();
-        router.get("/programs/", { search }, { preserveState: true, replace: true });
+        const params = new URLSearchParams();
+        if (search) params.set("search", search);
+        if (selectedCategory) params.set("category", selectedCategory);
+        router.get(`/programs/?${params.toString()}`, {}, { preserveState: true, replace: true });
+    };
+
+    const handleCategoryChange = (category) => {
+        setSelectedCategory(category);
+        const params = new URLSearchParams();
+        if (search) params.set("search", search);
+        if (category) params.set("category", category);
+        router.get(`/programs/?${params.toString()}`, {}, { preserveState: true, replace: true });
     };
 
     return (
         <>
             <Head title="Academic Programs - Crossview LMS" />
 
-            <Box sx={{ minHeight: "100vh", bgcolor: "background.default", overflowX: "hidden" }}>
+            <Box sx={{ minHeight: "100vh", bgcolor: "#f5f7fa", overflowX: "hidden" }}>
                 {/* Navbar */}
                 <ElevationScroll>
                     <AppBar position="fixed" color="transparent" sx={{ py: 2 }}>
@@ -137,14 +282,22 @@ export default function Programs({ programs, filters, userEnrollments = [], user
                                 </Stack>
 
                                 <Stack direction="row" spacing={2}>
-                                    <Button component={Link} href="/login/" color="inherit" sx={{ fontWeight: 600 }}>
-                                        Sign In
-                                    </Button>
-                                    <ButtonAnimationWrapper>
-                                        <Button component={Link} href="/register/" variant="contained" sx={{ borderRadius: 100, px: 3 }}>
-                                            Get Started
+                                    {auth?.user ? (
+                                        <Button component={Link} href="/dashboard/" variant="contained" sx={{ borderRadius: 100, px: 3 }}>
+                                            Dashboard
                                         </Button>
-                                    </ButtonAnimationWrapper>
+                                    ) : (
+                                        <>
+                                            <Button component={Link} href="/login/" color="inherit" sx={{ fontWeight: 600 }}>
+                                                Sign In
+                                            </Button>
+                                            <ButtonAnimationWrapper>
+                                                <Button component={Link} href="/register/" variant="contained" sx={{ borderRadius: 100, px: 3 }}>
+                                                    Get Started
+                                                </Button>
+                                            </ButtonAnimationWrapper>
+                                        </>
+                                    )}
                                 </Stack>
                             </Toolbar>
                         </Container>
@@ -152,7 +305,7 @@ export default function Programs({ programs, filters, userEnrollments = [], user
                 </ElevationScroll>
 
                 {/* Hero Section */}
-                <Box sx={{ position: "relative", pt: { xs: 16, md: 24 }, pb: { xs: 8, md: 12 } }}>
+                <Box sx={{ position: "relative", pt: { xs: 16, md: 20 }, pb: { xs: 4, md: 6 } }}>
                     <Box
                         sx={{
                             position: "absolute",
@@ -167,150 +320,91 @@ export default function Programs({ programs, filters, userEnrollments = [], user
                     />
                     <Container maxWidth="lg">
                         <motion.div {...fadeInUp}>
-                            <Typography variant="h1" gutterBottom>
-                                Academic Programs
+                            <Typography variant="h3" fontWeight={700} gutterBottom>
+                                Explore Courses
                             </Typography>
-                            <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 600, mb: 6, fontWeight: 400 }}>
-                                Explore our diverse range of programs designed to equip you with the skills for the future.
+                            <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mb: 4, fontWeight: 400 }}>
+                                Discover our diverse range of programs designed to equip you with skills for the future.
                             </Typography>
 
-                            {/* Search Bar */}
-                            <Box component="form" onSubmit={handleSearch} sx={{ maxWidth: 500 }}>
-                                <TextField
-                                    fullWidth
-                                    placeholder="Search programs..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconSearch size={20} color={theme.palette.text.secondary} />
-                                            </InputAdornment>
-                                        ),
-                                        sx: {
-                                            bgcolor: "background.paper",
-                                            borderRadius: 100,
-                                            boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                                            "& fieldset": { border: "1px solid", borderColor: "grey.200" },
-                                            "&:hover fieldset": { borderColor: "primary.main" },
-                                        }
-                                    }}
-                                />
-                            </Box>
+                            {/* Search & Filter Row */}
+                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ maxWidth: 700 }}>
+                                <Box component="form" onSubmit={handleSearch} sx={{ flex: 1 }}>
+                                    <TextField
+                                        fullWidth
+                                        placeholder="Search courses..."
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        size="small"
+                                        InputProps={{
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconSearch size={20} color={theme.palette.text.secondary} />
+                                                </InputAdornment>
+                                            ),
+                                            sx: {
+                                                bgcolor: "background.paper",
+                                                borderRadius: 2,
+                                            }
+                                        }}
+                                    />
+                                </Box>
+                                {categories.length > 0 && (
+                                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                                        <Select
+                                            displayEmpty
+                                            value={selectedCategory}
+                                            onChange={(e) => handleCategoryChange(e.target.value)}
+                                            sx={{ bgcolor: 'background.paper', borderRadius: 2 }}
+                                        >
+                                            <MenuItem value="">All Categories</MenuItem>
+                                            {categories.map((cat) => (
+                                                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
+                            </Stack>
                         </motion.div>
                     </Container>
                 </Box>
 
                 {/* Programs Grid */}
-                <Container maxWidth="lg" sx={{ pb: 16 }}>
+                <Container maxWidth="lg" sx={{ pb: 12 }}>
                     {programs.length === 0 ? (
                         <Box sx={{ textAlign: "center", py: 10 }}>
                             <IconBook size={48} color={theme.palette.grey[400]} />
                             <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
                                 No programs found matching your search.
                             </Typography>
-                            {search && (
-                                <Button onClick={() => { setSearch(""); router.get("/programs/"); }} sx={{ mt: 2 }}>
-                                    Clear Search
+                            {(search || selectedCategory) && (
+                                <Button 
+                                    onClick={() => { 
+                                        setSearch(""); 
+                                        setSelectedCategory("");
+                                        router.get("/programs/"); 
+                                    }} 
+                                    sx={{ mt: 2 }}
+                                >
+                                    Clear Filters
                                 </Button>
                             )}
                         </Box>
                     ) : (
-                        <Grid container spacing={4}>
+                        <Grid container spacing={3}>
                             {programs.map((program, idx) => (
-                                <Grid item xs={12} md={6} lg={4} key={program.id}>
+                                <Grid item xs={12} sm={6} md={4} lg={3} key={program.id}>
                                     <motion.div
                                         initial={{ opacity: 0, y: 20 }}
                                         whileInView={{ opacity: 1, y: 0 }}
                                         viewport={{ once: true }}
                                         transition={{ delay: idx * 0.05, duration: 0.5 }}
                                     >
-                                        <GraphicsCard sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-                                            <CardContent sx={{ p: 4, flexGrow: 1 }}>
-                                                <Box sx={{ mb: 2 }}>
-                                                    <Chip 
-                                                        label={program.code || "PROGRAM"} 
-                                                        size="small" 
-                                                        sx={{ bgcolor: "primary.lighter", color: "primary.main", fontWeight: 700, borderRadius: 1 }} 
-                                                    />
-                                                </Box>
-                                                <Typography variant="h5" fontWeight={700} gutterBottom>
-                                                    {program.name}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                                    {program.description || "No description available."}
-                                                </Typography>
-                                                
-                                                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: "auto", color: "text.secondary" }}>
-                                                    <IconCalendar size={16} />
-                                                    <Typography variant="caption">
-                                                        Added {format(new Date(program.created_at), "MMM d, yyyy")}
-                                                    </Typography>
-                                                </Stack>
-                                            </CardContent>
-                                            <Box sx={{ p: 3, pt: 0 }}>
-                                                {(() => {
-                                                    const status = getEnrollmentStatus(program.id);
-                                                    if (status === "enrolled") {
-                                                        return (
-                                                            <Button 
-                                                                variant="contained" 
-                                                                fullWidth 
-                                                                color="success"
-                                                                sx={{ borderRadius: 100 }}
-                                                                component={Link}
-                                                                href={`/dashboard/student/programs/${program.id}/`}
-                                                            >
-                                                                Continue Learning
-                                                            </Button>
-                                                        );
-                                                    }
-                                                    if (status === "pending") {
-                                                        return (
-                                                            <Button 
-                                                                variant="outlined" 
-                                                                fullWidth 
-                                                                disabled
-                                                                sx={{ borderRadius: 100 }}
-                                                            >
-                                                                Enrollment Pending
-                                                            </Button>
-                                                        );
-                                                    }
-                                                    // Not enrolled
-                                                    if (auth?.user) {
-                                                        return (
-                                                            <ButtonAnimationWrapper className="w-full">
-                                                                <Button 
-                                                                    variant="contained" 
-                                                                    fullWidth 
-                                                                    sx={{ borderRadius: 100 }}
-                                                                    component={Link}
-                                                                    href={`/dashboard/programs/${program.id}/enroll/`}
-                                                                    method="post"
-                                                                >
-                                                                    Enroll Now
-                                                                </Button>
-                                                            </ButtonAnimationWrapper>
-                                                        );
-                                                    }
-                                                    // Not logged in
-                                                    return (
-                                                        <ButtonAnimationWrapper className="w-full">
-                                                            <Button 
-                                                                variant="outlined" 
-                                                                fullWidth 
-                                                                sx={{ borderRadius: 100 }}
-                                                                component={Link}
-                                                                href={`/register/?program=${program.id}`}
-                                                            >
-                                                                Apply Now
-                                                            </Button>
-                                                        </ButtonAnimationWrapper>
-                                                    );
-                                                })()}
-                                            </Box>
-                                        </GraphicsCard>
+                                        <ProgramCard
+                                            program={program}
+                                            enrollmentStatus={getEnrollmentStatus(program.id)}
+                                            isAuthenticated={!!auth?.user}
+                                        />
                                     </motion.div>
                                 </Grid>
                             ))}
@@ -318,7 +412,7 @@ export default function Programs({ programs, filters, userEnrollments = [], user
                     )}
                 </Container>
 
-                {/* Footer (Consistent) */}
+                {/* Footer */}
                 <Box sx={{ bgcolor: "grey.900", color: "grey.400", py: 8 }}>
                     <Container maxWidth="lg">
                         <Grid container spacing={8}>
@@ -328,7 +422,7 @@ export default function Programs({ programs, filters, userEnrollments = [], user
                                     <Typography variant="h5" fontWeight={700}>Crossview</Typography>
                                 </Stack>
                                 <Typography variant="body2" sx={{ maxWidth: 300 }}>
-                                    Empowering Kenyan institutions with modern, flexible, and reliable educational technology.
+                                    Empowering institutions with modern, flexible, and reliable educational technology.
                                 </Typography>
                             </Grid>
                             <Grid item xs={6} md={2}>
@@ -338,7 +432,7 @@ export default function Programs({ programs, filters, userEnrollments = [], user
                                     <Link href="/about/" style={{ color: "inherit", textDecoration: "none" }}>About</Link>
                                 </Stack>
                             </Grid>
-                             <Grid item xs={6} md={2}>
+                            <Grid item xs={6} md={2}>
                                 <Typography variant="subtitle2" color="white" gutterBottom>Support</Typography>
                                 <Stack spacing={1}>
                                     <Link href="/contact/" style={{ color: "inherit", textDecoration: "none" }}>Contact</Link>
