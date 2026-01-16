@@ -1,9 +1,10 @@
 /**
- * Unified Dashboard Layout - Clipped Drawer Pattern
- * Full-width AppBar above sidebar, minimalist navigation
+ * Unified Dashboard Layout - Non-Clipped Sidebar Pattern
+ * Full-height sidebar with collapsible functionality
+ * Uses global ThemeContext for dark/light mode
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import {
   Box,
@@ -25,6 +26,7 @@ import {
   useMediaQuery,
   useTheme,
   Breadcrumbs,
+  Tooltip,
 } from '@mui/material';
 
 // Icons
@@ -43,10 +45,18 @@ import ArchitectureIcon from '@mui/icons-material/Architecture';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import PersonIcon from '@mui/icons-material/Person';
 import HistoryIcon from '@mui/icons-material/History';
-import HomeIcon from '@mui/icons-material/Home';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
-const DRAWER_WIDTH = 240;
-const APPBAR_HEIGHT = 56;
+// Theme hook
+import { useThemeMode } from '@/theme';
+
+const DRAWER_WIDTH_EXPANDED = 240;
+const DRAWER_WIDTH_COLLAPSED = 72;
+const SIDEBAR_HEADER_HEIGHT = 56;
 
 // Navigation menus for each role
 const roleNavigation = {
@@ -74,6 +84,7 @@ const roleNavigation = {
         { label: 'My Programs', href: '/instructor/programs/', icon: SchoolIcon },
         { label: 'My Students', href: '/instructor/students/', icon: PeopleIcon },
         { label: 'Assignments', href: '/instructor/assignments/', icon: AssignmentIcon },
+        { label: 'Announcements', href: '/instructor/announcements/', icon: AssignmentIcon },
         { label: 'Gradebook', href: '/instructor/gradebook/', icon: GradingIcon },
         { label: 'Rubrics', href: '/rubrics/', icon: GradingIcon, requiresFeature: 'practicum' },
         { label: 'Practicum Review', href: '/instructor/practicum/', icon: RateReviewIcon, requiresFeature: 'practicum' },
@@ -129,36 +140,123 @@ const roleColors = {
   superadmin: 'error',
 };
 
+const STORAGE_KEY_COLLAPSED = 'dashboard_sidebar_collapsed';
+
 export default function DashboardLayout({ children, breadcrumbs = [], role: propRole }) {
   const theme = useTheme();
+  const { isDark, toggleMode } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(STORAGE_KEY_COLLAPSED) === 'true';
+    }
+    return false;
+  });
   const [anchorEl, setAnchorEl] = useState(null);
   const { auth, platform } = usePage().props;
 
   const role = propRole || auth?.user?.role || 'student';
   const navigation = roleNavigation[role] || roleNavigation.student;
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+  const drawerWidth = collapsed && !isMobile ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
+
+  // Persist collapse state
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_COLLAPSED, collapsed.toString());
+    }
+  }, [collapsed]);
 
   const handleDrawerOpen = () => setMobileOpen(true);
   const handleDrawerClose = () => setMobileOpen(false);
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
+  const handleCollapseToggle = () => setCollapsed(!collapsed);
 
   const handleNavClick = () => {
     if (isMobile) handleDrawerClose();
   };
 
+  const handleLogout = () => {
+    router.post('/logout/');
+  };
+
   const iOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   const drawerContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Spacer for AppBar */}
-      <Toolbar sx={{ minHeight: APPBAR_HEIGHT }} />
+    <Box 
+      sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        bgcolor: 'background.paper',
+        color: 'text.primary',
+        transition: 'width 0.2s ease-in-out',
+      }}
+    >
+      {/* Sidebar Header - Logo & Collapse Toggle */}
+      <Box
+        sx={{
+          height: SIDEBAR_HEADER_HEIGHT,
+          minHeight: SIDEBAR_HEADER_HEIGHT,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
+          px: collapsed && !isMobile ? 1.5 : 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+          gap: 1,
+          borderRadius: 0,
+        }}
+      >
+        {/* Logo */}
+        <IconButton
+          component={Link}
+          href="/"
+          sx={{ 
+            color: 'primary.main',
+            borderRadius: 0,
+          }}
+          aria-label="home"
+        >
+          <SchoolIcon sx={{ fontSize: 28 }} />
+        </IconButton>
+        
+        {/* Institution Name - only when expanded */}
+        {(!collapsed || isMobile) && (
+          <Typography 
+            variant="subtitle1" 
+            fontWeight="bold" 
+            color="primary"
+            sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {platform?.institutionName || 'Crossview'}
+          </Typography>
+        )}
+
+        {/* Spacer when collapsed */}
+        {collapsed && !isMobile && <Box sx={{ flex: 1 }} />}
+
+        {/* Collapse Toggle - Desktop only */}
+        {!isMobile && (
+          <IconButton
+            onClick={handleCollapseToggle}
+            size="small"
+            sx={{ 
+              color: 'text.secondary',
+              borderRadius: 0,
+            }}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          </IconButton>
+        )}
+      </Box>
       
       {/* Navigation */}
-      <Box sx={{ flex: 1, overflow: 'auto', py: 0.5 }}>
+      <Box sx={{ flex: 1, overflow: 'auto', py: 1 }}>
         {navigation.map((section, sectionIndex) => {
           const filteredItems = section.items.filter((item) => {
             if (!item.requiresFeature) return true;
@@ -169,7 +267,7 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
           
           return (
             <Box key={sectionIndex}>
-              {section.title && (
+              {section.title && (!collapsed || isMobile) && (
                 <Typography
                   variant="overline"
                   sx={{ 
@@ -190,38 +288,57 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
                   const isActive = currentPath === item.href ||
                     (item.href !== '/dashboard/' && currentPath.startsWith(item.href));
 
-                  return (
-                    <ListItem key={item.href} disablePadding sx={{ px: 1 }}>
-                      <ListItemButton
-                        component={Link}
-                        href={item.href}
-                        onClick={handleNavClick}
-                        selected={isActive}
-                        sx={{
-                          borderRadius: 1,
-                          minHeight: 32,
-                          py: 0,
-                          '&.Mui-selected': {
-                            bgcolor: 'primary.main',
+                  const listItemButton = (
+                    <ListItemButton
+                      component={Link}
+                      href={item.href}
+                      onClick={handleNavClick}
+                      selected={isActive}
+                      sx={{
+                        borderRadius: 1,
+                        minHeight: 40,
+                        justifyContent: collapsed && !isMobile ? 'center' : 'flex-start',
+                        px: collapsed && !isMobile ? 1.5 : 2,
+                        '&.Mui-selected': {
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '&:hover': { bgcolor: 'primary.dark' },
+                          '& .MuiListItemIcon-root': {
                             color: 'primary.contrastText',
-                            '&:hover': { bgcolor: 'primary.dark' },
-                            '& .MuiListItemIcon-root': {
-                              color: 'primary.contrastText',
-                            },
                           },
+                        },
+                      }}
+                    >
+                      <ListItemIcon 
+                        sx={{ 
+                          minWidth: collapsed && !isMobile ? 0 : 36,
+                          color: isActive ? 'inherit' : 'text.secondary',
+                          justifyContent: 'center',
                         }}
                       >
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          <Icon sx={{ fontSize: 18 }} />
-                        </ListItemIcon>
+                        <Icon sx={{ fontSize: 20 }} />
+                      </ListItemIcon>
+                      {(!collapsed || isMobile) && (
                         <ListItemText 
                           primary={item.label} 
                           primaryTypographyProps={{ 
-                            fontSize: '0.85rem',
+                            fontSize: '0.875rem',
                             fontWeight: isActive ? 600 : 400,
                           }}
                         />
-                      </ListItemButton>
+                      )}
+                    </ListItemButton>
+                  );
+
+                  return (
+                    <ListItem key={item.href} disablePadding sx={{ px: 1, py: 0.25 }}>
+                      {collapsed && !isMobile ? (
+                        <Tooltip title={item.label} placement="right" arrow>
+                          {listItemButton}
+                        </Tooltip>
+                      ) : (
+                        listItemButton
+                      )}
                     </ListItem>
                   );
                 })}
@@ -230,124 +347,20 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
           );
         })}
       </Box>
-
-      {/* User Info */}
-      <Box sx={{ p: 1.5, borderTop: 1, borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar sx={{ width: 28, height: 28, bgcolor: `${roleColors[role]}.main`, fontSize: 12 }}>
-            {auth?.user?.firstName?.[0] || 'U'}
-          </Avatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" noWrap fontWeight="medium" fontSize="0.8rem">
-              {auth?.user?.fullName || auth?.user?.email || 'User'}
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Full-Width AppBar (Clipped Drawer Pattern) */}
-      <AppBar
-        position="fixed"
-        sx={{
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: 'background.paper',
-          color: 'text.primary',
-          boxShadow: 'none',
-          borderBottom: 1,
-          borderColor: 'divider',
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* Sidebar - Full Height (Non-Clipped) */}
+      <Box 
+        component="nav" 
+        sx={{ 
+          width: { md: drawerWidth }, 
+          flexShrink: { md: 0 },
+          transition: 'width 0.2s ease-in-out',
         }}
       >
-        <Toolbar sx={{ minHeight: APPBAR_HEIGHT, px: { xs: 1.5, sm: 2 } }}>
-          {/* Left: Logo + Hamburger */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton
-              component={Link}
-              href="/"
-              edge="start"
-              sx={{ color: 'primary.main' }}
-              aria-label="home"
-            >
-              <HomeIcon />
-            </IconButton>
-            <Typography 
-              variant="h6" 
-              fontWeight="bold" 
-              color="primary"
-              sx={{ display: { xs: 'none', sm: 'block' } }}
-            >
-              {platform?.institutionName || 'Crossview'}
-            </Typography>
-            <IconButton
-              onClick={handleDrawerToggle}
-              sx={{ display: { md: 'none' }, ml: 1 }}
-              aria-label="toggle menu"
-            >
-              <MenuIcon />
-            </IconButton>
-          </Box>
-
-          {/* Breadcrumbs */}
-          <Box sx={{ flex: 1, mx: 2 }}>
-            {breadcrumbs.length > 0 && (
-              <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
-                {breadcrumbs.map((crumb, index) => {
-                  const isLast = index === breadcrumbs.length - 1;
-                  return crumb.href && !isLast ? (
-                    <Link key={index} href={crumb.href} style={{ textDecoration: 'none' }}>
-                      <Typography color="text.secondary" variant="body2">{crumb.label}</Typography>
-                    </Link>
-                  ) : (
-                    <Typography key={index} color="text.primary" variant="body2">{crumb.label}</Typography>
-                  );
-                })}
-              </Breadcrumbs>
-            )}
-          </Box>
-
-          {/* Right: User Menu */}
-          <IconButton onClick={handleMenuOpen} aria-label="user menu">
-            <Avatar sx={{ width: 32, height: 32, bgcolor: `${roleColors[role]}.main` }}>
-              {auth?.user?.firstName?.[0] || 'U'}
-            </Avatar>
-          </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          >
-            <MenuItem disabled>
-              <Typography variant="body2" color="text.secondary">{auth?.user?.email}</Typography>
-            </MenuItem>
-            <Divider />
-            {role === 'student' && (
-              <MenuItem component={Link} href="/student/profile/">
-                <ListItemIcon><PersonIcon fontSize="small" /></ListItemIcon>
-                Profile
-              </MenuItem>
-            )}
-            {(role === 'admin' || role === 'superadmin') && (
-              <MenuItem component={Link} href="/admin/settings/">
-                <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
-                Settings
-              </MenuItem>
-            )}
-            <Divider />
-            <MenuItem onClick={() => router.post('/logout/')}>
-              <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
-              Logout
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
-
-      {/* Sidebar */}
-      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
         {/* Mobile Drawer */}
         <SwipeableDrawer
           variant="temporary"
@@ -359,7 +372,11 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+            '& .MuiDrawer-paper': { 
+              width: DRAWER_WIDTH_EXPANDED, 
+              boxSizing: 'border-box',
+              borderRadius: 0,
+            },
           }}
         >
           {drawerContent}
@@ -370,7 +387,15 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
           variant="permanent"
           sx={{
             display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+            '& .MuiDrawer-paper': { 
+              width: drawerWidth, 
+              boxSizing: 'border-box',
+              borderRight: 1,
+              borderColor: 'divider',
+              transition: 'width 0.2s ease-in-out',
+              overflowX: 'hidden',
+              borderRadius: 0,
+            },
           }}
           open
         >
@@ -378,19 +403,166 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
         </Drawer>
       </Box>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <Box
-        component="main"
         sx={{
+          display: 'flex',
+          flexDirection: 'column',
           flexGrow: 1,
-          p: { xs: 2, md: 3 },
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          mt: `${APPBAR_HEIGHT}px`,
-          bgcolor: 'grey.50',
-          minHeight: `calc(100vh - ${APPBAR_HEIGHT}px)`,
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          transition: 'width 0.2s ease-in-out',
         }}
       >
-        {children}
+        {/* AppBar - Content Width Only */}
+        <AppBar
+          position="sticky"
+          elevation={0}
+          sx={{
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+            boxShadow: 'none',
+            borderBottom: 1,
+            borderColor: 'divider',
+            borderRadius: 0,
+          }}
+        >
+          <Toolbar 
+            sx={{ 
+              minHeight: `${SIDEBAR_HEADER_HEIGHT}px !important`,
+              height: SIDEBAR_HEADER_HEIGHT,
+              px: 2,
+            }}
+          >
+            {/* Mobile Menu Button */}
+            <IconButton
+              onClick={handleDrawerToggle}
+              sx={{ 
+                display: { md: 'none' }, 
+                mr: 1,
+                color: 'text.primary',
+              }}
+              aria-label="toggle menu"
+            >
+              <MenuIcon />
+            </IconButton>
+
+            {/* Breadcrumbs */}
+            <Box sx={{ flex: 1 }}>
+              {breadcrumbs.length > 0 && (
+                <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
+                  {breadcrumbs.map((crumb, index) => {
+                    const isLast = index === breadcrumbs.length - 1;
+                    return crumb.href && !isLast ? (
+                      <Link key={index} href={crumb.href} style={{ textDecoration: 'none' }}>
+                        <Typography 
+                          color="text.secondary" 
+                          variant="body2"
+                        >
+                          {crumb.label}
+                        </Typography>
+                      </Link>
+                    ) : (
+                      <Typography 
+                        key={index} 
+                        color="text.primary" 
+                        variant="body2"
+                      >
+                        {crumb.label}
+                      </Typography>
+                    );
+                  })}
+                </Breadcrumbs>
+              )}
+            </Box>
+
+            {/* Right Side Controls */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {/* Dark/Light Mode Toggle */}
+              <Tooltip title={isDark ? 'Light mode' : 'Dark mode'}>
+                <IconButton 
+                  onClick={toggleMode}
+                  sx={{ color: 'text.secondary' }}
+                  aria-label="toggle dark mode"
+                >
+                  {isDark ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Tooltip>
+
+              {/* Notifications Button */}
+              <Tooltip title="Notifications">
+                <IconButton 
+                  sx={{ color: 'text.secondary' }}
+                  aria-label="notifications"
+                >
+                  <NotificationsIcon />
+                </IconButton>
+              </Tooltip>
+
+              {/* User Avatar & Menu */}
+              <IconButton onClick={handleMenuOpen} aria-label="user menu">
+                <Avatar sx={{ width: 32, height: 32, bgcolor: `${roleColors[role]}.main` }}>
+                  {auth?.user?.firstName?.[0] || 'U'}
+                </Avatar>
+              </IconButton>
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleMenuClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              >
+                <MenuItem disabled>
+                  <Typography variant="body2" color="text.secondary">
+                    {auth?.user?.email}
+                  </Typography>
+                </MenuItem>
+                <Divider />
+                {role === 'student' && (
+                  <MenuItem 
+                    component={Link} 
+                    href="/student/profile/"
+                  >
+                    <ListItemIcon>
+                      <PersonIcon fontSize="small" />
+                    </ListItemIcon>
+                    Profile
+                  </MenuItem>
+                )}
+                {(role === 'admin' || role === 'superadmin') && (
+                  <MenuItem 
+                    component={Link} 
+                    href="/admin/settings/"
+                  >
+                    <ListItemIcon>
+                      <SettingsIcon fontSize="small" />
+                    </ListItemIcon>
+                    Settings
+                  </MenuItem>
+                )}
+                <Divider />
+                <MenuItem onClick={handleLogout}>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" />
+                  </ListItemIcon>
+                  Logout
+                </MenuItem>
+              </Menu>
+            </Box>
+          </Toolbar>
+        </AppBar>
+
+        {/* Main Content */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, md: 3 },
+            bgcolor: 'background.default',
+            minHeight: `calc(100vh - ${SIDEBAR_HEADER_HEIGHT}px)`,
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );

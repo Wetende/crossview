@@ -67,11 +67,18 @@ function CourseDetailsSidebar({
     enrollmentMode,
     isAuthenticated,
     onShowDetails,
+    courseLevels = [],
 }) {
     const theme = useTheme();
     const isEnrolled = enrollmentStatus === "enrolled";
     const isCompleted = enrollmentData?.isCompleted;
     const progressPercent = enrollmentData?.progressPercent || 0;
+
+    // Get level label from courseLevels
+    const getLevelLabel = () => {
+        const level = courseLevels.find(l => l.value === program.level);
+        return level?.label || program.level || 'Beginner';
+    };
 
     // Determine CTA button text based on enrollment mode
     const getCtaText = () => {
@@ -256,8 +263,8 @@ function CourseDetailsSidebar({
                             <IconChartBar size={18} color={theme.palette.text.secondary} />
                             <Typography variant="body2" color="text.secondary">Level</Typography>
                         </Stack>
-                        <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
-                            {program.level}
+                        <Typography variant="body2" fontWeight={600}>
+                            {getLevelLabel()}
                         </Typography>
                     </Stack>
                 </Stack>
@@ -357,6 +364,7 @@ export default function ProgramDetail({
     enrollmentStatus,
     enrollmentData,
     enrollmentMode = "free",
+    courseLevels = [],
 }) {
     const theme = useTheme();
     const { auth } = usePage().props;
@@ -455,6 +463,7 @@ export default function ProgramDetail({
                                 enrollmentMode={enrollmentMode}
                                 isAuthenticated={!!auth?.user}
                                 onShowDetails={handleShowDetails}
+                                courseLevels={courseLevels}
                             />
                             <PopularCourses courses={popularPrograms} />
                         </Grid>

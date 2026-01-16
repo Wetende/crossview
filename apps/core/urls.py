@@ -141,9 +141,9 @@ urlpatterns = [
     path("instructor/gradebook/<int:enrollment_id>/", views.instructor_grade_entry, name="instructor.grade_entry"),
     # API endpoints
     path("api/instructor/programs/<int:pk>/students/", views.api_instructor_program_students, name="api.instructor.program_students"),
-    # Note: instructor/content/, instructor/quizzes/, and instructor/announcements/ routes removed
-    # Content, quiz, and announcement editing now handled via Course Builder (instructor.program_manage)
-    #
+    # Instructor Announcements
+    path("instructor/announcements/", views.instructor_announcements_index, name="instructor.announcements"),
+    path("instructor/announcements/create/", views.instructor_announcement_create, name="instructor.announcement_create"),
     # Instructor Assignment Management
     path("instructor/assignments/", views.instructor_assignments_global, name="instructor.assignments_global"),
     path("instructor/programs/<int:program_id>/assignments/", views.instructor_assignments, name="instructor.assignments"),

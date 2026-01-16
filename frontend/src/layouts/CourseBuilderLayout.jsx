@@ -18,20 +18,29 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
     ];
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', bgcolor: '#f5f7fa' }}>
-            {/* Header - Dark Theme to match inspiration */}
-            <AppBar position="fixed" elevation={0} sx={{ bgcolor: '#1a1f2c', color: 'white', zIndex: 1201, borderRadius: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', bgcolor: 'background.default' }}>
+            {/* Header - Uses theme-aware dark colors */}
+            <AppBar 
+                position="fixed" 
+                elevation={0} 
+                sx={{ 
+                    bgcolor: 'grey.900', 
+                    color: 'grey.50', 
+                    zIndex: 1201, 
+                    borderRadius: 0 
+                }}
+            >
                 <Toolbar sx={{ minHeight: 48, justifyContent: 'space-between' }}>
                     <Stack direction="row" alignItems="center" spacing={2}>
                         <Button 
                             component={Link} 
                             href="/instructor/programs/"
                             startIcon={<IconArrowLeft size={20} />}
-                            sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}
+                            sx={{ color: 'grey.400', '&:hover': { color: 'grey.50' } }}
                         >
                             Back to programs
                         </Button>
-                        <Typography variant="h6" fontWeight={600} sx={{ borderLeft: '1px solid rgba(255,255,255,0.2)', pl: 2, ml: 2 }}>
+                        <Typography variant="h6" fontWeight={600} sx={{ borderLeft: '1px solid', borderColor: 'grey.700', pl: 2, ml: 2 }}>
                             {program.name}
                         </Typography>
                     </Stack>
@@ -55,10 +64,10 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                                     fontSize: '0.95rem',
                                     minWidth: 'auto',
                                     px: 2,
-                                    color: 'rgba(255,255,255,0.6)',
-                                    '&.Mui-selected': { color: 'white' }
+                                    color: 'grey.500',
+                                    '&.Mui-selected': { color: 'grey.50' }
                                 },
-                                '& .MuiTabs-indicator': { backgroundColor: '#3b82f6', height: 3 }
+                                '& .MuiTabs-indicator': { backgroundColor: 'primary.main', height: 3 }
                             }}
                         >
                             {tabs.map((tab) => (
@@ -104,14 +113,14 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                             size="small"
                             startIcon={<IconEye size={18} />}
                             sx={{
-                                color: 'white',
-                                borderColor: 'rgba(255,255,255,0.3)',
+                                color: 'grey.50',
+                                borderColor: 'grey.700',
                                 textTransform: 'none',
                                 borderRadius: '0 !important',
                                 borderWidth: '1px !important',
                                 py: 0.75,
                                 px: 2,
-                                '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.05)' }
+                                '&:hover': { borderColor: 'grey.50', bgcolor: 'action.hover' }
                             }}
                         >
                             View

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Box, IconButton, useTheme, Typography, Button, AppBar, Toolbar, Drawer } from '@mui/material';
+import React from 'react';
+import { Box, IconButton, useTheme, Typography, Button, AppBar, Toolbar } from '@mui/material';
 import { Link } from '@inertiajs/react';
 import { 
     Menu as MenuIcon, 
@@ -9,6 +9,7 @@ import {
     LightMode,
     ChatBubbleOutline
 } from '@mui/icons-material';
+import { useThemeMode } from '@/theme';
 
 const ClassroomLayout = ({ 
     children, 
@@ -22,7 +23,7 @@ const ClassroomLayout = ({
     onToggleDiscussions
 }) => {
     const theme = useTheme();
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const { isDark, toggleMode } = useThemeMode();
     
     const discussionsWidth = 320;
 
@@ -64,7 +65,7 @@ const ClassroomLayout = ({
                                 alignItems: 'center', 
                                 gap: 0.5,
                                 bgcolor: 'primary.main',
-                                color: 'white',
+                                color: 'primary.contrastText',
                                 px: 1.5,
                                 py: 0.5,
                                 borderRadius: 1,
@@ -83,7 +84,7 @@ const ClassroomLayout = ({
                             <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
                                 Course
                             </Typography>
-                            <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 300 }}>
+                            <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 300, color: 'text.primary' }}>
                                 {programTitle}
                             </Typography>
                         </Box>
@@ -93,10 +94,10 @@ const ClassroomLayout = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <IconButton 
                             size="small" 
-                            onClick={() => setIsDarkMode(!isDarkMode)}
+                            onClick={toggleMode}
                             sx={{ color: 'text.secondary' }}
                         >
-                            {isDarkMode ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
+                            {isDark ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
                         </IconButton>
                         
                         <Button

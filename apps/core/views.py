@@ -367,6 +367,11 @@ def public_program_detail(request, pk: int):
         "review_count": 0,  # TODO: Count reviews
     }
     
+    # Get course levels for displaying label
+    from apps.platform.models import PlatformSettings
+    platform_settings = PlatformSettings.get_settings()
+    course_levels = platform_settings.get_course_levels()
+    
     return render(
         request,
         "Public/ProgramDetail",
@@ -378,6 +383,7 @@ def public_program_detail(request, pk: int):
             "enrollmentStatus": enrollment_status,
             "enrollmentData": enrollment_data,
             "enrollmentMode": enrollment_mode,
+            "courseLevels": course_levels,
         },
     )
 
@@ -2301,8 +2307,92 @@ def instructor_program_gradebook_save(request, pk: int):
 
 
 @login_required
-# Note: instructor_announcements and instructor_announcement_create functions removed.
-# Announcements are now managed via Course Builder.
+def instructor_announcements_index(request):
+    """
+    List all announcements across instructor's programs.
+    Announcements are stored in Program.notices JSONField.
+    """
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    programs = Program.objects.filter(id__in=program_ids)
+    
+    # Gather all notices from all programs
+    announcements = []
+    for p in programs:
+        notices = p.notices or []
+        for idx, notice in enumerate(notices):
+            announcements.append({
+                "programId": p.id,
+                "programName": p.name,
+                "message": notice.get("message", ""),
+                "createdAt": notice.get("createdAt"),
+                "index": idx,
+            })
+    
+    # Sort by date descending
+    announcements.sort(key=lambda x: x.get("createdAt") or "", reverse=True)
+    
+    return render(
+        request,
+        "Instructor/Announcements/Index",
+        {
+            "announcements": announcements,
+            "programs": [{"id": p.id, "name": p.name} for p in programs],
+        },
+    )
+
+
+@login_required
+def instructor_announcement_create(request):
+    """
+    Create a new announcement for a program.
+    Appends to Program.notices JSONField.
+    """
+    if not _require_instructor(request.user):
+        return redirect("/dashboard/")
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    programs = Program.objects.filter(id__in=program_ids)
+    
+    if request.method == "POST":
+        data = _get_post_data(request)
+        program_id = data.get("programId")
+        message = data.get("message", "").strip()
+        
+        if not program_id or not message:
+            messages.error(request, "Please select a course and enter a message")
+            return render(
+                request,
+                "Instructor/Announcements/Create",
+                {"programs": [{"id": p.id, "name": p.name} for p in programs]},
+            )
+        
+        try:
+            program = Program.objects.get(pk=program_id, id__in=program_ids)
+        except Program.DoesNotExist:
+            messages.error(request, "Program not found")
+            return redirect("core:instructor.announcements")
+        
+        # Append new notice
+        notices = program.notices or []
+        notices.append({
+            "message": message,
+            "createdAt": timezone.now().isoformat(),
+            "createdBy": request.user.id,
+        })
+        program.notices = notices
+        program.save(update_fields=["notices"])
+        
+        messages.success(request, "Announcement created successfully")
+        return redirect("core:instructor.announcements")
+    
+    return render(
+        request,
+        "Instructor/Announcements/Create",
+        {"programs": [{"id": p.id, "name": p.name} for p in programs]},
+    )
 
 
 
@@ -3884,6 +3974,11 @@ def instructor_program_manage(request, pk: int):
     
     curriculum = [serialize_node(n) for n in root_nodes]
     
+    # Get admin-configured course levels
+    from apps.platform.models import PlatformSettings
+    platform_settings = PlatformSettings.get_settings()
+    course_levels = platform_settings.get_course_levels()
+    
     return render(
         request,
         "Instructor/Program/Manage",
@@ -3893,6 +3988,9 @@ def instructor_program_manage(request, pk: int):
                 "name": program.name,
                 "code": program.code,
                 "description": program.description,
+                "level": program.level,
+                "category": program.category,
+                "thumbnail": program.thumbnail.url if program.thumbnail else None,
                 "faq": program.faq,
                 "notices": program.notices,
                 "customPricing": program.custom_pricing,
@@ -3907,6 +4005,7 @@ def instructor_program_manage(request, pk: int):
                 } if program.blueprint else None
             },
             "curriculum": curriculum,
+            "courseLevels": course_levels,
         }
     )
 

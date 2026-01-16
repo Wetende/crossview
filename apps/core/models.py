@@ -146,12 +146,8 @@ class Program(models.Model):
     # Course Display Fields (for public listing/detail pages)
     thumbnail = models.ImageField(upload_to='programs/thumbnails/', blank=True, null=True)
     category = models.CharField(max_length=100, blank=True, null=True)
-    LEVEL_CHOICES = [
-        ('beginner', 'Beginner'),
-        ('intermediate', 'Intermediate'),
-        ('advanced', 'Advanced'),
-    ]
-    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='beginner')
+    # Level is now admin-configurable via PlatformSettings.course_levels
+    level = models.CharField(max_length=50, blank=True, default='beginner')
     duration_hours = models.PositiveIntegerField(default=0, help_text="Total duration in hours")
     video_hours = models.PositiveIntegerField(default=0, help_text="Video content duration in hours")
     BADGE_CHOICES = [

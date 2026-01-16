@@ -90,6 +90,13 @@ class PlatformSettings(models.Model):
         help_text="Feature toggles: {'certificates': true, 'gamification': false, ...}"
     )
 
+    # Course Levels (admin-configurable via Chameleon engine)
+    course_levels = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Course difficulty levels: [{"value": "beginner", "label": "Beginner"}, ...]'
+    )
+
     # Setup Status
     is_setup_complete = models.BooleanField(
         default=False,
@@ -190,3 +197,43 @@ class PlatformSettings(models.Model):
             },
         }
         return MODE_DEFAULTS.get(self.deployment_mode, MODE_DEFAULTS['custom'])
+
+    def get_course_levels(self) -> list:
+        """Get course levels - admin-defined or mode-based defaults."""
+        if self.course_levels:
+            return self.course_levels
+        
+        # Default levels based on deployment mode (Kenya KNQF)
+        MODE_LEVEL_DEFAULTS = {
+            'tvet': [
+                # Kenya CDACC/KNQF Levels 2-6
+                {"value": "level_2", "label": "Level 2 - Basic Certificate"},
+                {"value": "level_3", "label": "Level 3 - Artisan Certificate"},
+                {"value": "level_4", "label": "Level 4 - Craft Certificate"},
+                {"value": "level_5", "label": "Level 5 - Technician Certificate"},
+                {"value": "level_6", "label": "Level 6 - Diploma"},
+            ],
+            'theology': [
+                {"value": "foundation", "label": "Foundation"},
+                {"value": "certificate", "label": "Certificate"},
+                {"value": "diploma", "label": "Diploma"},
+                {"value": "degree", "label": "Degree"},
+            ],
+            'online': [
+                {"value": "beginner", "label": "Beginner"},
+                {"value": "intermediate", "label": "Intermediate"},
+                {"value": "advanced", "label": "Advanced"},
+            ],
+            'cbc': [
+                {"value": "grade_1_3", "label": "Lower Primary (1-3)"},
+                {"value": "grade_4_6", "label": "Upper Primary (4-6)"},
+                {"value": "grade_7_9", "label": "Junior Secondary (7-9)"},
+                {"value": "grade_10_12", "label": "Senior Secondary (10-12)"},
+            ],
+        }
+        return MODE_LEVEL_DEFAULTS.get(self.deployment_mode, [
+            {"value": "beginner", "label": "Beginner"},
+            {"value": "intermediate", "label": "Intermediate"},
+            {"value": "advanced", "label": "Advanced"},
+        ])
+
