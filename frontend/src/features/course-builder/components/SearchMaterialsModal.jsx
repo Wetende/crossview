@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { router } from '@inertiajs/react';
+import axios from 'axios';
 import {
     Dialog,
     DialogTitle,
@@ -32,6 +33,11 @@ import {
     Quiz as QuizIcon,
     Assignment as AssignmentIcon,
 } from '@mui/icons-material';
+
+// Configure axios for CSRF (required when mixing with session auth)
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
 
 // Helper to get icon by type
 const getIconForType = (type, lessonType) => {
@@ -76,8 +82,9 @@ export default function SearchMaterialsModal({
                 if (searchQuery) params.append('q', searchQuery);
                 if (typeFilter && typeFilter !== 'all') params.append('type', typeFilter);
                 
-                const response = await fetch(`/instructor/programs/${programId}/materials/search/?${params}`);
-                const data = await response.json();
+                // Use axios with automatic CSRF handling
+                const response = await axios.get(`/instructor/programs/${programId}/materials/search/?${params}`);
+                const data = response.data;
                 
                 if (data.error) {
                     setError(data.error);
@@ -86,7 +93,7 @@ export default function SearchMaterialsModal({
                     setMaterials(data.materials || []);
                 }
             } catch (err) {
-                setError('Failed to fetch materials');
+                setError(err.response?.data?.error || 'Failed to fetch materials');
                 setMaterials([]);
             } finally {
                 setLoading(false);
@@ -135,19 +142,13 @@ export default function SearchMaterialsModal({
         setError(null);
         
         try {
-            const response = await fetch(`/instructor/programs/${programId}/materials/import/`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrftoken]')?.value || '',
-                },
-                body: JSON.stringify({
-                    source_node_ids: selectedIds,
-                    target_section_id: sectionId
-                }),
+            // Use axios with automatic CSRF handling
+            const response = await axios.post(`/instructor/programs/${programId}/materials/import/`, {
+                source_node_ids: selectedIds,
+                target_section_id: sectionId
             });
             
-            const data = await response.json();
+            const data = response.data;
             
             if (data.success) {
                 handleClose();
@@ -161,7 +162,7 @@ export default function SearchMaterialsModal({
                 setError(data.error || 'Import failed');
             }
         } catch (err) {
-            setError('Failed to import materials');
+            setError(err.response?.data?.error || 'Failed to import materials');
         } finally {
             setImporting(false);
         }

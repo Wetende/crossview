@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { 
     Box, 
     Typography, 
@@ -45,6 +46,11 @@ import {
     LockOpen as LockOpenIcon,
     ChatBubbleOutline as ChatIcon
 } from '@mui/icons-material';
+
+// Configure axios for CSRF (required when mixing with session auth)
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
 
 export default function ContentEditor({ node, onSave, blueprint }) {
     // Get feature flags from blueprint
@@ -586,15 +592,16 @@ function QATab({ nodeId }) {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`/instructor/nodes/${nodeId}/discussions/`);
-            const data = await response.json();
+            // Use axios with automatic CSRF handling
+            const response = await axios.get(`/instructor/nodes/${nodeId}/discussions/`);
+            const data = response.data;
             if (data.error) {
                 setError(data.error);
             } else {
                 setDiscussions(data.discussions || []);
             }
         } catch (err) {
-            setError('Failed to load discussions');
+            setError(err.response?.data?.error || 'Failed to load discussions');
         } finally {
             setLoading(false);
         }
@@ -604,12 +611,12 @@ function QATab({ nodeId }) {
         if (!newTitle.trim()) return;
         setCreating(true);
         try {
-            const response = await fetch(`/instructor/nodes/${nodeId}/discussions/create/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: newTitle, content: newContent }),
+            // Use axios with automatic CSRF handling
+            const response = await axios.post(`/instructor/nodes/${nodeId}/discussions/create/`, {
+                title: newTitle,
+                content: newContent
             });
-            const data = await response.json();
+            const data = response.data;
             if (data.success) {
                 setDiscussions([data.discussion, ...discussions]);
                 setCreateOpen(false);
@@ -625,11 +632,9 @@ function QATab({ nodeId }) {
 
     const handleTogglePin = async (discussionId) => {
         try {
-            const response = await fetch(`/instructor/discussions/${discussionId}/toggle-pin/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            // Use axios with automatic CSRF handling
+            const response = await axios.post(`/instructor/discussions/${discussionId}/toggle-pin/`);
+            const data = response.data;
             if (data.success) {
                 setDiscussions(discussions.map(d => 
                     d.id === discussionId ? { ...d, is_pinned: data.is_pinned } : d
@@ -642,11 +647,9 @@ function QATab({ nodeId }) {
 
     const handleToggleLock = async (discussionId) => {
         try {
-            const response = await fetch(`/instructor/discussions/${discussionId}/toggle-lock/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const data = await response.json();
+            // Use axios with automatic CSRF handling
+            const response = await axios.post(`/instructor/discussions/${discussionId}/toggle-lock/`);
+            const data = response.data;
             if (data.success) {
                 setDiscussions(discussions.map(d => 
                     d.id === discussionId ? { ...d, is_locked: data.is_locked } : d

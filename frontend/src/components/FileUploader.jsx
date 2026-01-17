@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import axios from 'axios';
 import {
     Box,
     Typography,
@@ -22,6 +23,11 @@ import {
     Image as ImageIcon,
     VideoFile as VideoFileIcon
 } from '@mui/icons-material';
+
+// Configure axios for CSRF (required when mixing with session auth)
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
 
 const getFileIcon = (fileName) => {
     const ext = fileName.split('.').pop()?.toLowerCase();
@@ -71,27 +77,20 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
         formData.append('file', file);
 
         try {
-            const response = await fetch(`/instructor/nodes/${nodeId}/files/upload/`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
-                                   document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+            // Use axios with automatic CSRF handling and progress tracking
+            const response = await axios.post(`/instructor/nodes/${nodeId}/files/upload/`, formData, {
+                onUploadProgress: (progressEvent) => {
+                    const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setUploadProgress(percent);
                 }
             });
 
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Upload failed');
-            }
-
-            const data = await response.json();
             if (onUploadComplete) {
-                onUploadComplete(data.file);
+                onUploadComplete(response.data.file);
             }
             setUploadProgress(100);
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.error || err.message || 'Upload failed');
         } finally {
             setUploading(false);
         }
@@ -119,26 +118,14 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
         if (!confirm('Delete this file?')) return;
 
         try {
-            const response = await fetch(`/instructor/nodes/${nodeId}/files/delete/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-                                   document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
-                },
-                body: JSON.stringify({ file_id: fileId })
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Delete failed');
-            }
+            // Use axios with automatic CSRF handling
+            await axios.post(`/instructor/nodes/${nodeId}/files/delete/`, { file_id: fileId });
 
             if (onDeleteComplete) {
                 onDeleteComplete(fileId);
             }
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.error || err.message || 'Delete failed');
         }
     };
 

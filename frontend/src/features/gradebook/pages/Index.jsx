@@ -5,6 +5,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { Head, router } from '@inertiajs/react';
+import axios from 'axios';
 import {
   Box,
   Typography,
@@ -18,6 +19,12 @@ import { motion } from 'framer-motion';
 
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { CourseRow, CourseSearch } from '../components';
+
+// Configure axios for CSRF (required when mixing with session auth)
+// Following Inertia architecture hybrid pattern for lazy-loaded data
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
 
 export default function GradebookIndex({ programs = [] }) {
   const [expandedCourseId, setExpandedCourseId] = useState(null);
@@ -47,30 +54,21 @@ export default function GradebookIndex({ programs = [] }) {
     setExpandedCourseId((prev) => (prev === courseId ? null : courseId));
   }, []);
 
-  // Load students for a course
+  // Load students for a course using axios with CSRF configuration
   const handleLoadStudents = useCallback(async (courseId) => {
     // Skip if already loaded
     if (loadedStudents[courseId]) return;
 
     setLoadingStudents(courseId);
     
-    // Fetch students via Inertia or API call
-    // For now, we'll simulate with a partial reload
     try {
-      const response = await fetch(`/api/instructor/programs/${courseId}/students/`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      });
+      // Use axios with CSRF configuration for hybrid REST/Inertia pattern
+      const response = await axios.get(`/api/instructor/programs/${courseId}/students/`);
       
-      if (response.ok) {
-        const data = await response.json();
-        setLoadedStudents((prev) => ({
-          ...prev,
-          [courseId]: data.students || [],
-        }));
-      }
+      setLoadedStudents((prev) => ({
+        ...prev,
+        [courseId]: response.data.students || [],
+      }));
     } catch (error) {
       console.error('Failed to load students:', error);
       // Fallback: set empty array to show "loaded" state

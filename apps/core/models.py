@@ -168,3 +168,40 @@ class Program(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ContactInquiry(models.Model):
+    """
+    Stores contact form submissions from the hero section.
+    Admins can view and manage these inquiries.
+    """
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(max_length=50, blank=True, default='')
+    program = models.ForeignKey(
+        'Program',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inquiries'
+    )
+    message = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_resolved = models.BooleanField(default=False)
+    resolved_by = models.ForeignKey(
+        'User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_inquiries'
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'contact_inquiries'
+        ordering = ['-created_at']
+        verbose_name_plural = "Contact Inquiries"
+
+    def __str__(self):
+        return f"Inquiry from {self.name} ({self.email})"
+

@@ -51,7 +51,8 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 
-// Theme hook
+// Custom Components
+import NotificationPanel from '@/components/NotificationPanel';
 import { useThemeMode } from '@/theme';
 
 const DRAWER_WIDTH_EXPANDED = 240;
@@ -488,15 +489,8 @@ export default function DashboardLayout({ children, breadcrumbs = [], role: prop
                 </IconButton>
               </Tooltip>
 
-              {/* Notifications Button */}
-              <Tooltip title="Notifications">
-                <IconButton 
-                  sx={{ color: 'text.secondary' }}
-                  aria-label="notifications"
-                >
-                  <NotificationsIcon />
-                </IconButton>
-              </Tooltip>
+              {/* Notifications Panel */}
+              <NotificationPanel />
 
               {/* User Avatar & Menu */}
               <IconButton onClick={handleMenuOpen} aria-label="user menu">

@@ -7,6 +7,7 @@ from django.contrib import messages
 from inertia import share
 
 from apps.platform.models import PlatformSettings
+from apps.notifications.services import NotificationService
 
 
 class InertiaShareMiddleware:
@@ -38,8 +39,19 @@ class InertiaShareMiddleware:
                     },
                 },
             )
+            
+            # Share notifications data (lazy evaluated)
+            user = request.user
+            share(
+                request,
+                notifications=lambda: {
+                    "unread_count": NotificationService.get_unread_count(user),
+                    "items": NotificationService.get_recent(user, limit=10),
+                },
+            )
         else:
             share(request, auth={"user": None})
+            share(request, notifications=None)
 
         # Share platform branding from PlatformSettings
         try:

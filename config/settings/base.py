@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.practicum",
     "apps.certifications",
     "apps.content",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [

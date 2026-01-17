@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { Head, Link } from '@inertiajs/react';
+import axios from 'axios';
 import {
   Box,
   Typography,
@@ -26,6 +27,12 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 import CurriculumTree from '@/components/CurriculumTree';
 import NodeEditor from '@/components/NodeEditor';
 
+// Configure axios for CSRF (required when mixing with session auth)
+// Following Inertia architecture hybrid pattern - client-side tree updates for performance
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
+
 export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }) {
   const [nodes, setNodes] = useState(tree);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -33,14 +40,6 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
   const [parentForNew, setParentForNew] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-
-  // Get CSRF token
-  const getCsrfToken = () => {
-    const cookie = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('csrftoken='));
-    return cookie ? cookie.split('=')[1] : '';
-  };
 
   const handleSelectNode = useCallback((node) => {
     setSelectedNode(node);
@@ -63,27 +62,16 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
   const handleCreateNode = async (nodeData) => {
     setError(null);
     try {
-      const response = await fetch('/admin/curriculum/nodes/create/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCsrfToken(),
-        },
-        body: JSON.stringify({
-          programId: program.id,
-          parentId: parentForNew?.id || null,
-          ...nodeData,
-        }),
+      // Use axios with automatic CSRF token handling
+      const response = await axios.post('/admin/curriculum/nodes/create/', {
+        programId: program.id,
+        parentId: parentForNew?.id || null,
+        ...nodeData,
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create node');
-      }
+      const newNode = response.data;
 
-      const newNode = await response.json();
-
-      // Add to tree
+      // Client-side tree update for performance
       if (parentForNew) {
         setNodes((prev) => addNodeToTree(prev, parentForNew.id, newNode));
       } else {
@@ -95,36 +83,25 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
       setSelectedNode(newNode);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message || 'Failed to create node');
     }
   };
 
   const handleUpdateNode = async (nodeData) => {
     setError(null);
     try {
-      const response = await fetch(`/admin/curriculum/nodes/${selectedNode.id}/update/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCsrfToken(),
-        },
-        body: JSON.stringify(nodeData),
-      });
+      // Use axios with automatic CSRF token handling
+      const response = await axios.post(`/admin/curriculum/nodes/${selectedNode.id}/update/`, nodeData);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update node');
-      }
+      const updatedNode = response.data;
 
-      const updatedNode = await response.json();
-
-      // Update in tree
+      // Client-side tree update for performance
       setNodes((prev) => updateNodeInTree(prev, updatedNode));
       setSelectedNode(updatedNode);
       setSuccess('Node updated successfully');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message || 'Failed to update node');
     }
   };
 
@@ -135,26 +112,16 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
 
     setError(null);
     try {
-      const response = await fetch(`/admin/curriculum/nodes/${nodeId}/delete/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCsrfToken(),
-        },
-      });
+      // Use axios with automatic CSRF token handling
+      await axios.post(`/admin/curriculum/nodes/${nodeId}/delete/`);
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete node');
-      }
-
-      // Remove from tree
+      // Client-side tree update for performance
       setNodes((prev) => removeNodeFromTree(prev, nodeId));
       setSelectedNode(null);
       setSuccess('Node deleted successfully');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message || 'Failed to delete node');
     }
   };
 

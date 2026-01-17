@@ -70,7 +70,27 @@ export default defineConfig(({ command }) => ({
                         return 'vendor-motion';
                     }
                     
-                    // Let everything else (React, MUI, Inertia, etc.) stay together
+                    // MUI components - large UI library
+                    if (id.includes('@mui/material') || id.includes('@mui/system')) {
+                        return 'vendor-mui';
+                    }
+                    
+                    // MUI icons - very large, keep separate
+                    if (id.includes('@mui/icons-material') || id.includes('@tabler/icons')) {
+                        return 'vendor-icons';
+                    }
+                    
+                    // Emotion (MUI's styling engine)
+                    if (id.includes('@emotion')) {
+                        return 'vendor-emotion';
+                    }
+                    
+                    // Swiper carousel
+                    if (id.includes('swiper')) {
+                        return 'vendor-swiper';
+                    }
+                    
+                    // Let everything else (React, Inertia, etc.) stay together
                     // to avoid circular dependency issues
                 },
             },

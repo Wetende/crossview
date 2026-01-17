@@ -19,6 +19,7 @@ urlpatterns = [
     path("", include("apps.platform.urls")),  # Platform settings routes
     path("assessments/", include("apps.assessments.urls")),
     path("content/", include("apps.content.urls")),
+    path("notifications/", include("apps.notifications.urls")),  # Inertia-based notifications
 ]
 
 if settings.DEBUG:

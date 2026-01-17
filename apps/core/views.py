@@ -92,6 +92,10 @@ def landing_page(request):
         for p in programs
     ]
     
+    # Get ALL published programs for contact form dropdown
+    all_programs = Program.objects.filter(is_published=True).order_by('name')
+    all_programs_data = [{"id": p.id, "name": p.name} for p in all_programs]
+    
     # Get stats for the stats section
     total_programs = Program.objects.filter(is_published=True).count()
     total_students = Enrollment.objects.values('user').distinct().count()
@@ -101,6 +105,7 @@ def landing_page(request):
         "Public/Landing",
         {
             "programs": programs_data,
+            "allPrograms": all_programs_data,  # For contact form dropdown
             "stats": {
                 "programCount": total_programs,
                 "studentCount": total_students,
@@ -115,11 +120,30 @@ def about_page(request):
 
 
 def contact_page(request):
-    """Contact page with inquiry form."""
+    """Contact page with inquiry form. Also handles hero section form submissions."""
     if request.method == "POST":
-        # Handle contact form submission
+        from apps.core.models import ContactInquiry, Program
+        
         data = _get_post_data(request)
-        # In a real app, send email or save inquiry
+        
+        # Get program if specified (from course dropdown)
+        program = None
+        program_id = data.get("course") or data.get("program_id")
+        if program_id:
+            try:
+                program = Program.objects.get(pk=program_id)
+            except (Program.DoesNotExist, ValueError):
+                pass
+        
+        # Save inquiry
+        ContactInquiry.objects.create(
+            name=data.get("name", ""),
+            email=data.get("email", ""),
+            phone=data.get("phone", ""),
+            program=program,
+            message=data.get("message", ""),
+        )
+        
         messages.success(
             request, "Thank you for your message. We will contact you shortly."
         )
