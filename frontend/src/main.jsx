@@ -128,6 +128,8 @@ createInertiaApp({
             "Public/ProgramDetail": "./pages/public/ProgramDetail.jsx",
             "Public/CertificateVerify": "./pages/public/CertificateVerify.jsx",
             "Public/VerifyCertificate": "./pages/public/VerifyCertificate.jsx",
+            "Public/Events": "./pages/public/Events.jsx",
+            "Public/EventDetail": "./pages/public/EventDetail.jsx",
             Home: "./pages/public/Home.jsx",
         };
 

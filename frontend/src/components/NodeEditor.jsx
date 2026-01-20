@@ -141,14 +141,14 @@ export default function NodeEditor({
                 ) {
                     // Create new block
                     const response = await axios.post(
-                        "/api/content/blocks/",
+                        "/content/blocks/create/",
                         payload,
                     );
                     savedBlockIds.push(response.data.id);
                 } else {
                     // Update existing block
-                    await axios.patch(
-                        `/api/content/blocks/${block.id}/`,
+                    await axios.post(
+                        `/content/blocks/${block.id}/update/`,
                         payload,
                     );
                     savedBlockIds.push(block.id);
@@ -161,7 +161,7 @@ export default function NodeEditor({
         // Reorder all saved blocks
         if (savedBlockIds.length > 0) {
             try {
-                await axios.post("/api/content/blocks/reorder/", {
+                await axios.post("/content/blocks/reorder/", {
                     node_id: nodeId,
                     order: savedBlockIds,
                 });
