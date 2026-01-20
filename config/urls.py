@@ -20,8 +20,8 @@ urlpatterns = [
     path("assessments/", include("apps.assessments.urls")),
     path("content/", include("apps.content.urls")),
     path("notifications/", include("apps.notifications.urls")),  # Inertia-based notifications
+    path("events/", include("apps.events.urls")),  # Events app routes
 ]
-
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

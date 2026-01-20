@@ -1,23 +1,23 @@
-"""Content app URLs - Inertia patterns + DRF for transition."""
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+"""Content app URLs - Inertia patterns + API for Course Builder."""
+from django.urls import path
 from . import views
 
 app_name = 'content'
 
-# New Inertia-style URLs
+# JSON endpoints for Course Builder
 urlpatterns = [
-    # Inertia endpoints (use these from browser)
+    # Retrieve blocks for a node (GET)
     path('blocks/', views.content_blocks_list, name='blocks.list'),
+    
+    # Create block (POST)
     path('blocks/create/', views.content_block_create, name='blocks.create'),
+    
+    # Update block (POST)
     path('blocks/<int:pk>/update/', views.content_block_update, name='blocks.update'),
+    
+    # Delete block (POST)
     path('blocks/<int:pk>/delete/', views.content_block_delete, name='blocks.delete'),
+    
+    # Reorder blocks (POST)
     path('blocks/reorder/', views.content_blocks_reorder, name='blocks.reorder'),
-]
-
-# DRF router kept for backward compatibility - TODO: remove after migration
-router = DefaultRouter()
-router.register(r'blocks', views.ContentBlockViewSet, basename='contentblock')
-urlpatterns += [
-    path('api/', include(router.urls)),  # /content/api/blocks/
 ]

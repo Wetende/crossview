@@ -140,8 +140,6 @@ urlpatterns = [
     path("instructor/programs/<int:pk>/gradebook/", views.instructor_program_gradebook, name="instructor.program_gradebook"),
     path("instructor/programs/<int:pk>/gradebook/save/", views.instructor_program_gradebook_save, name="instructor.program_gradebook_save"),
     path("instructor/gradebook/<int:enrollment_id>/", views.instructor_grade_entry, name="instructor.grade_entry"),
-    # API endpoints
-    path("api/instructor/programs/<int:pk>/students/", views.api_instructor_program_students, name="api.instructor.program_students"),
     # Instructor Announcements
     path("instructor/announcements/", views.instructor_announcements_index, name="instructor.announcements"),
     path("instructor/announcements/create/", views.instructor_announcement_create, name="instructor.announcement_create"),

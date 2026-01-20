@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.certifications",
     "apps.content",
     "apps.notifications",
+    "apps.events",
 ]
 
 MIDDLEWARE = [
