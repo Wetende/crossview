@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useRef } from 'react';
-import axios from 'axios';
+import React, { useState, useCallback, useRef } from "react";
+import axios from "axios";
+import { router } from "@inertiajs/react";
 import {
     Box,
     Typography,
@@ -12,8 +13,8 @@ import {
     ListItemSecondaryAction,
     IconButton,
     LinearProgress,
-    Alert
-} from '@mui/material';
+    Alert,
+} from "@mui/material";
 import {
     CloudUpload as UploadIcon,
     InsertDriveFile as FileIcon,
@@ -21,20 +22,18 @@ import {
     Description as DocIcon,
     PictureAsPdf as PdfIcon,
     Image as ImageIcon,
-    VideoFile as VideoFileIcon
-} from '@mui/icons-material';
-
-// Configure axios for CSRF (required when mixing with session auth)
-axios.defaults.xsrfCookieName = 'csrftoken';
-axios.defaults.xsrfHeaderName = 'X-CSRFToken';
-axios.defaults.withCredentials = true;
+    VideoFile as VideoFileIcon,
+} from "@mui/icons-material";
 
 const getFileIcon = (fileName) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (['pdf'].includes(ext)) return <PdfIcon color="error" />;
-    if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) return <DocIcon color="primary" />;
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return <ImageIcon color="success" />;
-    if (['mp4', 'webm', 'mov', 'avi'].includes(ext)) return <VideoFileIcon color="secondary" />;
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    if (["pdf"].includes(ext)) return <PdfIcon color="error" />;
+    if (["doc", "docx", "txt", "rtf"].includes(ext))
+        return <DocIcon color="primary" />;
+    if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext))
+        return <ImageIcon color="success" />;
+    if (["mp4", "webm", "mov", "avi"].includes(ext))
+        return <VideoFileIcon color="secondary" />;
     return <FileIcon color="action" />;
 };
 
@@ -44,7 +43,12 @@ const formatFileSize = (bytes) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-export default function FileUploader({ nodeId, files = [], onUploadComplete, onDeleteComplete }) {
+export default function FileUploader({
+    nodeId,
+    files = [],
+    onUploadComplete,
+    onDeleteComplete,
+}) {
     const [isDragging, setIsDragging] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -74,38 +78,49 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
         setUploadProgress(0);
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append("file", file);
 
         try {
             // Use axios with automatic CSRF handling and progress tracking
-            const response = await axios.post(`/instructor/nodes/${nodeId}/files/upload/`, formData, {
-                onUploadProgress: (progressEvent) => {
-                    const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    setUploadProgress(percent);
-                }
-            });
+            const response = await axios.post(
+                `/instructor/nodes/${nodeId}/files/upload/`,
+                formData,
+                {
+                    onUploadProgress: (progressEvent) => {
+                        const percent = Math.round(
+                            (progressEvent.loaded * 100) / progressEvent.total,
+                        );
+                        setUploadProgress(percent);
+                    },
+                },
+            );
 
             if (onUploadComplete) {
                 onUploadComplete(response.data.file);
             }
             setUploadProgress(100);
         } catch (err) {
-            setError(err.response?.data?.error || err.message || 'Upload failed');
+            setError(
+                err.response?.data?.error || err.message || "Upload failed",
+            );
         } finally {
             setUploading(false);
         }
     };
 
-    const handleDrop = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
+    const handleDrop = useCallback(
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
 
-        const droppedFiles = e.dataTransfer.files;
-        if (droppedFiles.length > 0) {
-            uploadFile(droppedFiles[0]);
-        }
-    }, [nodeId]);
+            const droppedFiles = e.dataTransfer.files;
+            if (droppedFiles.length > 0) {
+                uploadFile(droppedFiles[0]);
+            }
+        },
+        [nodeId],
+    );
 
     const handleFileSelect = (e) => {
         const selectedFile = e.target.files?.[0];
@@ -114,19 +129,27 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
         }
     };
 
-    const handleDelete = async (fileId) => {
-        if (!confirm('Delete this file?')) return;
+    const handleDelete = (fileId) => {
+        if (!confirm("Delete this file?")) return;
 
-        try {
-            // Use axios with automatic CSRF handling
-            await axios.post(`/instructor/nodes/${nodeId}/files/delete/`, { file_id: fileId });
+        setError(null);
 
-            if (onDeleteComplete) {
-                onDeleteComplete(fileId);
-            }
-        } catch (err) {
-            setError(err.response?.data?.error || err.message || 'Delete failed');
-        }
+        // Use Inertia router.post() for delete mutation
+        router.post(
+            `/instructor/nodes/${nodeId}/files/delete/`,
+            { file_id: fileId },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    if (onDeleteComplete) {
+                        onDeleteComplete(fileId);
+                    }
+                },
+                onError: (errors) => {
+                    setError(errors?.error || "Delete failed");
+                },
+            },
+        );
     };
 
     return (
@@ -141,26 +164,31 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
                 onClick={() => fileInputRef.current?.click()}
                 sx={{
                     p: 4,
-                    borderStyle: 'dashed',
-                    borderColor: isDragging ? 'primary.main' : 'divider',
-                    bgcolor: isDragging ? 'primary.lighter' : '#f8f9fa',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    '&:hover': { bgcolor: '#f0f0f0', borderColor: 'primary.light' }
+                    borderStyle: "dashed",
+                    borderColor: isDragging ? "primary.main" : "divider",
+                    bgcolor: isDragging ? "primary.lighter" : "#f8f9fa",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    "&:hover": {
+                        bgcolor: "#f0f0f0",
+                        borderColor: "primary.light",
+                    },
                 }}
             >
-                <UploadIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                <UploadIcon
+                    sx={{ fontSize: 40, color: "text.secondary", mb: 1 }}
+                />
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                     Drag & drop files here or click to browse
                 </Typography>
-                <Button 
-                    variant="contained" 
-                    size="small" 
-                    sx={{ mt: 1, textTransform: 'none' }}
+                <Button
+                    variant="contained"
+                    size="small"
+                    sx={{ mt: 1, textTransform: "none" }}
                     onClick={(e) => {
                         e.stopPropagation();
                         fileInputRef.current?.click();
@@ -179,7 +207,10 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
             {/* Upload Progress */}
             {uploading && (
                 <Box sx={{ mt: 2 }}>
-                    <LinearProgress variant="determinate" value={uploadProgress} />
+                    <LinearProgress
+                        variant="determinate"
+                        value={uploadProgress}
+                    />
                     <Typography variant="caption" color="text.secondary">
                         Uploading...
                     </Typography>
@@ -188,7 +219,11 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
 
             {/* Error Message */}
             {error && (
-                <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError(null)}>
+                <Alert
+                    severity="error"
+                    sx={{ mt: 2 }}
+                    onClose={() => setError(null)}
+                >
                     {error}
                 </Alert>
             )}
@@ -201,10 +236,10 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
                             key={file.id}
                             sx={{
                                 border: 1,
-                                borderColor: 'divider',
+                                borderColor: "divider",
                                 borderRadius: 1,
                                 mb: 1,
-                                bgcolor: 'background.paper'
+                                bgcolor: "background.paper",
                             }}
                         >
                             <ListItemIcon sx={{ minWidth: 40 }}>
@@ -216,8 +251,8 @@ export default function FileUploader({ nodeId, files = [], onUploadComplete, onD
                                 primaryTypographyProps={{ noWrap: true }}
                             />
                             <ListItemSecondaryAction>
-                                <IconButton 
-                                    edge="end" 
+                                <IconButton
+                                    edge="end"
                                     size="small"
                                     onClick={() => handleDelete(file.id)}
                                 >

@@ -3,9 +3,10 @@ Platform settings models - Single-tenant configuration.
 """
 
 from django.db import models
+from apps.core.models import TimeStampedModel
 
 
-class PresetBlueprint(models.Model):
+class PresetBlueprint(TimeStampedModel):
     """Preset blueprints for regulatory compliance."""
 
     name = models.CharField(max_length=255)
@@ -16,8 +17,6 @@ class PresetBlueprint(models.Model):
     grading_config = models.JSONField()  # Grading logic configuration
     structure_rules = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "preset_blueprints"
@@ -30,7 +29,7 @@ class PresetBlueprint(models.Model):
         return self.name
 
 
-class PlatformSettings(models.Model):
+class PlatformSettings(TimeStampedModel):
     """
     Single-tenant platform configuration.
     
@@ -102,9 +101,6 @@ class PlatformSettings(models.Model):
         default=False,
         help_text="Has the initial setup wizard been completed?"
     )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "platform_settings"

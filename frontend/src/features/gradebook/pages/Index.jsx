@@ -1,11 +1,11 @@
 /**
  * Instructor Gradebook Index
  * Lists all programs with expandable statistics and student progress
+ * Uses Inertia partial reload for loading students on expand
  */
 
 import { useState, useMemo, useCallback } from 'react';
 import { Head, router } from '@inertiajs/react';
-import axios from 'axios';
 import {
   Box,
   Typography,
@@ -20,18 +20,15 @@ import { motion } from 'framer-motion';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { CourseRow, CourseSearch } from '../components';
 
-// Configure axios for CSRF (required when mixing with session auth)
-// Following Inertia architecture hybrid pattern for lazy-loaded data
-axios.defaults.xsrfCookieName = 'csrftoken';
-axios.defaults.xsrfHeaderName = 'X-CSRFToken';
-axios.defaults.withCredentials = true;
-
-export default function GradebookIndex({ programs = [] }) {
-  const [expandedCourseId, setExpandedCourseId] = useState(null);
+export default function GradebookIndex({ 
+  programs = [], 
+  expandedStudents = null, 
+  expandedProgramId = null 
+}) {
+  const [expandedCourseId, setExpandedCourseId] = useState(expandedProgramId);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loadedStudents, setLoadedStudents] = useState({}); // courseId -> students[]
-  const [loadingStudents, setLoadingStudents] = useState(null);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
 
   const breadcrumbs = [{ label: 'Gradebook' }];
 
@@ -54,32 +51,22 @@ export default function GradebookIndex({ programs = [] }) {
     setExpandedCourseId((prev) => (prev === courseId ? null : courseId));
   }, []);
 
-  // Load students for a course using axios with CSRF configuration
-  const handleLoadStudents = useCallback(async (courseId) => {
-    // Skip if already loaded
-    if (loadedStudents[courseId]) return;
+  // Load students for a course using Inertia partial reload
+  const handleLoadStudents = useCallback((courseId) => {
+    // Skip if already loaded for this program
+    if (expandedProgramId === courseId && expandedStudents) return;
 
-    setLoadingStudents(courseId);
+    setIsLoadingStudents(true);
     
-    try {
-      // Use axios with CSRF configuration for hybrid REST/Inertia pattern
-      const response = await axios.get(`/api/instructor/programs/${courseId}/students/`);
-      
-      setLoadedStudents((prev) => ({
-        ...prev,
-        [courseId]: response.data.students || [],
-      }));
-    } catch (error) {
-      console.error('Failed to load students:', error);
-      // Fallback: set empty array to show "loaded" state
-      setLoadedStudents((prev) => ({
-        ...prev,
-        [courseId]: [],
-      }));
-    } finally {
-      setLoadingStudents(null);
-    }
-  }, [loadedStudents]);
+    // Use Inertia partial reload - only fetch expandedStudents and expandedProgramId
+    router.reload({
+      data: { expand_program: courseId },
+      only: ['expandedStudents', 'expandedProgramId'],
+      preserveState: true,
+      preserveScroll: true,
+      onFinish: () => setIsLoadingStudents(false),
+    });
+  }, [expandedProgramId, expandedStudents]);
 
   // Load more courses
   const handleLoadMore = useCallback(() => {
@@ -164,8 +151,9 @@ export default function GradebookIndex({ programs = [] }) {
                   }}
                   expanded={expandedCourseId === program.id}
                   onToggle={handleToggle}
-                  students={loadedStudents[program.id] || []}
-                  studentsLoaded={!!loadedStudents[program.id]}
+                  students={expandedProgramId === program.id ? (expandedStudents || []) : []}
+                  studentsLoaded={expandedProgramId === program.id && expandedStudents !== null}
+                  studentsLoading={isLoadingStudents && expandedCourseId === program.id}
                   onLoadStudents={handleLoadStudents}
                 />
               ))}

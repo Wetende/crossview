@@ -3,7 +3,6 @@ Core views - Public pages and authentication.
 Requirements: 1.1-1.4, 2.1-2.6, 3.1-3.6, 4.1-4.5, 5.1-5.6, 6.1-6.6
 """
 
-import json
 from datetime import datetime
 from typing import Optional
 
@@ -11,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.core.mail import send_mail
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -20,25 +20,7 @@ from inertia import render
 
 from apps.core.models import User, Program
 from apps.certifications.models import Certificate, VerificationLog
-
-
-def _get_post_data(request) -> dict:
-    """
-    Get POST data from request, handling both form-encoded and JSON data.
-    Inertia.js sends data as JSON, so we need to parse request.body.
-    """
-    # First try request.POST (form-encoded data)
-    if request.POST:
-        return request.POST.dict()
-
-    # If empty, try parsing JSON from request.body (Inertia sends JSON)
-    if request.body:
-        try:
-            return json.loads(request.body)
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    return {}
+from apps.core.utils import get_post_data
 
 
 def get_dashboard_url(role: str) -> str:
@@ -124,7 +106,7 @@ def contact_page(request):
     if request.method == "POST":
         from apps.core.models import ContactInquiry, Program
         
-        data = _get_post_data(request)
+        data = get_post_data(request)
         
         # Get program if specified (from course dropdown)
         program = None
@@ -420,7 +402,7 @@ def verify_certificate_page(request):
 
     if request.method == "POST":
         # Get POST data (handles both form-encoded and JSON from Inertia)
-        data = _get_post_data(request)
+        data = get_post_data(request)
         serial_number = data.get("serial_number", "").strip().upper()
 
         if serial_number:
@@ -486,6 +468,7 @@ def _get_client_ip(request) -> Optional[str]:
 # =============================================================================
 
 
+@ensure_csrf_cookie
 def login_page(request):
     """
     Login page with form handling.
@@ -497,7 +480,7 @@ def login_page(request):
 
     if request.method == "POST":
         # Get POST data (handles both form-encoded and JSON from Inertia)
-        data = _get_post_data(request)
+        data = get_post_data(request)
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
         remember = data.get("remember") in (True, "true", "True", "1")
@@ -573,7 +556,7 @@ def register_page(request):
 
     if request.method == "POST":
         # Get POST data (handles both form-encoded and JSON from Inertia)
-        data = _get_post_data(request)
+        data = get_post_data(request)
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
         password_confirm = data.get("password_confirm", "")
@@ -660,7 +643,7 @@ def forgot_password_page(request):
 
     if request.method == "POST":
         # Get POST data (handles both form-encoded and JSON from Inertia)
-        data = _get_post_data(request)
+        data = get_post_data(request)
         email = data.get("email", "").strip().lower()
 
         # Always show success message to prevent email enumeration (Requirement: 4.2)
@@ -720,7 +703,7 @@ def reset_password_page(request, uidb64: str, token: str):
 
     if request.method == "POST":
         # Get POST data (handles both form-encoded and JSON from Inertia)
-        data = _get_post_data(request)
+        data = get_post_data(request)
         password = data.get("password", "")
         password_confirm = data.get("password_confirm", "")
 
@@ -1182,7 +1165,7 @@ def admin_program_create(request):
     from apps.progression.models import InstructorAssignment
 
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         errors = {}
 
         name = data.get("name", "").strip()
@@ -1255,7 +1238,7 @@ def admin_program_edit(request, pk: int):
     program = get_object_or_404(Program, pk=pk)
 
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         errors = {}
 
         name = data.get("name", "").strip()
@@ -1525,7 +1508,7 @@ def admin_user_create(request):
     from django.contrib.auth.models import Group
 
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         errors = {}
 
         email = data.get("email", "").strip().lower()
@@ -1601,7 +1584,7 @@ def admin_user_edit(request, pk: int):
     user = get_object_or_404(User, pk=pk)
 
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         errors = {}
 
         email = data.get("email", "").strip().lower()
@@ -1996,8 +1979,103 @@ def instructor_enrollment_status(request, enrollment_id: int):
     return redirect("core:instructor.students")
 
 
+def _get_students_for_program(program_id: int, user) -> list:
+    """
+    Get student statistics for a program.
+    Extracted from api_instructor_program_students for use with Inertia partial reload.
+    """
+    from django.shortcuts import get_object_or_404
+    from apps.progression.models import Enrollment, NodeCompletion
+    from apps.curriculum.models import CurriculumNode
+    from apps.assessments.models import Quiz, QuizAttempt, Assignment, AssignmentSubmission
+    
+    program_ids = _get_instructor_program_ids(user)
+    program = get_object_or_404(Program, pk=program_id, id__in=program_ids)
+    
+    # Get enrolled students
+    enrollments = Enrollment.objects.filter(
+        program=program, status="active"
+    ).select_related("user").order_by("user__last_name", "user__first_name")
+    
+    # Get curriculum counts for progress calculation
+    total_lessons = CurriculumNode.objects.filter(
+        program=program, node_type="lesson", is_published=True
+    ).count()
+    total_quizzes = Quiz.objects.filter(
+        node__program=program, is_published=True
+    ).count()
+    total_assignments = Assignment.objects.filter(
+        program=program, is_published=True
+    ).count()
+    
+    # Prefetch completions and attempts
+    enrollment_ids = [e.id for e in enrollments]
+    
+    # Node completions by enrollment
+    completions = NodeCompletion.objects.filter(
+        enrollment_id__in=enrollment_ids
+    ).select_related("node")
+    
+    completions_by_enrollment = {}
+    for c in completions:
+        if c.enrollment_id not in completions_by_enrollment:
+            completions_by_enrollment[c.enrollment_id] = {"lessons": 0}
+        if c.node.node_type == "lesson":
+            completions_by_enrollment[c.enrollment_id]["lessons"] += 1
+    
+    # Quiz attempts by enrollment
+    quiz_attempts = QuizAttempt.objects.filter(
+        enrollment_id__in=enrollment_ids, passed=True
+    )
+    quizzes_passed_by_enrollment = {}
+    for attempt in quiz_attempts:
+        if attempt.enrollment_id not in quizzes_passed_by_enrollment:
+            quizzes_passed_by_enrollment[attempt.enrollment_id] = set()
+        quizzes_passed_by_enrollment[attempt.enrollment_id].add(attempt.quiz_id)
+    
+    # Assignment submissions by enrollment
+    assignment_subs = AssignmentSubmission.objects.filter(
+        enrollment_id__in=enrollment_ids, status="graded"
+    )
+    assignments_passed_by_enrollment = {}
+    for sub in assignment_subs:
+        if sub.enrollment_id not in assignments_passed_by_enrollment:
+            assignments_passed_by_enrollment[sub.enrollment_id] = set()
+        # Consider passed if final score >= 50%
+        if sub.score and sub.score >= 50:
+            assignments_passed_by_enrollment[sub.enrollment_id].add(sub.assignment_id)
+    
+    students_data = []
+    for e in enrollments:
+        lessons_passed = completions_by_enrollment.get(e.id, {}).get("lessons", 0)
+        quizzes_passed = len(quizzes_passed_by_enrollment.get(e.id, set()))
+        assignments_passed = len(assignments_passed_by_enrollment.get(e.id, set()))
+        
+        # Calculate overall progress
+        total_items = total_lessons + total_quizzes + total_assignments
+        completed_items = lessons_passed + quizzes_passed + assignments_passed
+        overall_progress = round((completed_items / total_items * 100) if total_items > 0 else 0)
+        
+        students_data.append({
+            "id": e.id,
+            "name": e.user.get_full_name() or e.user.email,
+            "email": e.user.email,
+            "avatarUrl": None,
+            "startedAt": e.enrolled_at.isoformat() if e.enrolled_at else None,
+            "lessonsPassed": lessons_passed,
+            "lessonsTotal": total_lessons,
+            "quizzesPassed": quizzes_passed,
+            "quizzesTotal": total_quizzes,
+            "assignmentsPassed": assignments_passed,
+            "assignmentsTotal": total_assignments,
+            "overallProgress": overall_progress,
+        })
+    
+    return students_data
+
+
 def instructor_gradebook(request):
-    """Gradebook for instructor's programs."""
+    """Gradebook for instructor's programs with partial reload for students."""
     if not _require_instructor(request.user):
         return redirect("/dashboard/")
     
@@ -2020,7 +2098,25 @@ def instructor_gradebook(request):
             "studentCount": enrollments.count(),
         })
     
-    return render(request, "Instructor/Gradebook/Index", {"programs": programs_data})
+    # Handle partial reload for expanded program students
+    expand_program_id = request.GET.get('expand_program')
+    expanded_students = None
+    expanded_program_id = None
+    
+    if expand_program_id:
+        try:
+            pid = int(expand_program_id)
+            if pid in program_ids:
+                expanded_students = _get_students_for_program(pid, request.user)
+                expanded_program_id = pid
+        except (ValueError, TypeError):
+            pass
+    
+    return render(request, "Instructor/Gradebook/Index", {
+        "programs": programs_data,
+        "expandedStudents": expanded_students,
+        "expandedProgramId": expanded_program_id,
+    })
 
 
 @login_required
@@ -2136,7 +2232,7 @@ def instructor_grade_entry(request, enrollment_id: int):
     enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program_id__in=program_ids)
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         # TODO: Save grades based on blueprint grading_type
         messages.success(request, "Grades saved successfully")
         return redirect("core:instructor.gradebook")
@@ -2381,7 +2477,7 @@ def instructor_announcement_create(request):
     programs = Program.objects.filter(id__in=program_ids)
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         program_id = data.get("programId")
         message = data.get("message", "").strip()
         
@@ -2457,7 +2553,7 @@ def instructor_apply(request):
         )
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         action = data.get("action", "save")
         
         # Update profile fields
@@ -3161,7 +3257,7 @@ def instructor_assignment_create(request, program_id: int):
         return redirect("/dashboard/")
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         
         due_date = None
         if data.get("dueDate"):
@@ -3217,7 +3313,7 @@ def instructor_assignment_edit(request, assignment_id: int):
         return redirect("/dashboard/")
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         action = data.get("action", "save")
         
         if action == "save":
@@ -3353,7 +3449,7 @@ def instructor_assignment_grade(request, submission_id: int):
         return redirect("/dashboard/")
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         
         submission.score = float(data.get("score", 0))
         submission.feedback = data.get("feedback", "")
@@ -4675,32 +4771,36 @@ def instructor_material_import(request, program_id: int):
     """
     Clone selected nodes into a target section.
     POST: {source_node_ids: [1, 2, 3], target_section_id: 10}
+    Uses Inertia redirect pattern.
     """
-    from django.http import JsonResponse
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import InstructorAssignment
     
     if not _require_instructor(request.user) or request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        messages.error(request, "Method not allowed")
+        return redirect(f"/instructor/course-builder/{program_id}/")
     
     # Verify access to target program
     if not (InstructorAssignment.objects.filter(
         instructor=request.user, program_id=program_id
     ).exists() or request.user.is_staff):
-        return JsonResponse({"error": "Permission denied"}, status=403)
+        messages.error(request, "Permission denied")
+        return redirect(f"/instructor/course-builder/{program_id}/")
     
     data = _get_post_data(request)
     source_ids = data.get('source_node_ids', [])
     target_section_id = data.get('target_section_id')
     
     if not source_ids or not target_section_id:
-        return JsonResponse({"error": "Missing source_node_ids or target_section_id"}, status=400)
+        messages.error(request, "Missing source_node_ids or target_section_id")
+        return redirect(f"/instructor/course-builder/{program_id}/")
     
     try:
         target_program = Program.objects.get(pk=program_id)
         target_section = CurriculumNode.objects.get(pk=target_section_id, program=target_program)
     except (Program.DoesNotExist, CurriculumNode.DoesNotExist):
-        return JsonResponse({"error": "Invalid target program or section"}, status=400)
+        messages.error(request, "Invalid target program or section")
+        return redirect(f"/instructor/course-builder/{program_id}/")
     
     imported_count = 0
     for source_id in source_ids:
@@ -4712,10 +4812,7 @@ def instructor_material_import(request, program_id: int):
             continue  # Skip invalid source nodes
     
     messages.success(request, f"Imported {imported_count} item(s)")
-    return JsonResponse({
-        "success": True,
-        "imported_count": imported_count
-    })
+    return redirect(f"/instructor/course-builder/{program_id}/")
 
 
 # =============================================================================
@@ -4767,20 +4864,24 @@ def instructor_discussion_create(request, node_id: int):
     """
     Create a new discussion thread for a curriculum node.
     POST: {title: "Discussion Title", content: "Initial post content", is_pinned: false}
+    Uses Inertia redirect pattern.
     """
-    from django.http import JsonResponse
     from apps.discussions.models import DiscussionThread
     from apps.curriculum.models import CurriculumNode
     
+    referer = request.META.get('HTTP_REFERER', '/instructor/')
+    
     if not _require_instructor(request.user) or request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        messages.error(request, "Method not allowed")
+        return redirect(referer)
     
     program_ids = _get_instructor_program_ids(request.user)
     
     try:
         node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
     except CurriculumNode.DoesNotExist:
-        return JsonResponse({"error": "Node not found"}, status=404)
+        messages.error(request, "Node not found")
+        return redirect(referer)
     
     data = _get_post_data(request)
     title = data.get('title', '').strip()
@@ -4788,7 +4889,8 @@ def instructor_discussion_create(request, node_id: int):
     is_pinned = data.get('is_pinned', False)
     
     if not title:
-        return JsonResponse({"error": "Title is required"}, status=400)
+        messages.error(request, "Title is required")
+        return redirect(referer)
     
     thread = DiscussionThread.objects.create(
         node=node,
@@ -4798,30 +4900,20 @@ def instructor_discussion_create(request, node_id: int):
         is_pinned=is_pinned,
     )
     
-    return JsonResponse({
-        "success": True,
-        "discussion": {
-            "id": thread.id,
-            "title": thread.title,
-            "content": thread.content,
-            "author": request.user.get_full_name() or request.user.email,
-            "author_id": request.user.id,
-            "is_pinned": thread.is_pinned,
-            "is_locked": thread.is_locked,
-            "replies_count": 0,
-            "created_at": thread.created_at.isoformat(),
-        }
-    })
+    messages.success(request, f"Discussion created: {thread.title}")
+    return redirect(referer)
 
 
 @login_required
 def instructor_discussion_toggle_pin(request, discussion_id: int):
-    """Toggle the pinned status of a discussion thread."""
-    from django.http import JsonResponse
+    """Toggle the pinned status of a discussion thread. Uses Inertia redirect."""
     from apps.discussions.models import DiscussionThread
     
+    referer = request.META.get('HTTP_REFERER', '/instructor/')
+    
     if not _require_instructor(request.user) or request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        messages.error(request, "Method not allowed")
+        return redirect(referer)
     
     program_ids = _get_instructor_program_ids(request.user)
     
@@ -4831,22 +4923,27 @@ def instructor_discussion_toggle_pin(request, discussion_id: int):
             node__program_id__in=program_ids
         )
     except DiscussionThread.DoesNotExist:
-        return JsonResponse({"error": "Discussion not found"}, status=404)
+        messages.error(request, "Discussion not found")
+        return redirect(referer)
     
     thread.is_pinned = not thread.is_pinned
     thread.save(update_fields=['is_pinned'])
     
-    return JsonResponse({"success": True, "is_pinned": thread.is_pinned})
+    status = "pinned" if thread.is_pinned else "unpinned"
+    messages.success(request, f"Discussion {status}")
+    return redirect(referer)
 
 
 @login_required
 def instructor_discussion_toggle_lock(request, discussion_id: int):
-    """Toggle the locked status of a discussion thread."""
-    from django.http import JsonResponse
+    """Toggle the locked status of a discussion thread. Uses Inertia redirect."""
     from apps.discussions.models import DiscussionThread
     
+    referer = request.META.get('HTTP_REFERER', '/instructor/')
+    
     if not _require_instructor(request.user) or request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        messages.error(request, "Method not allowed")
+        return redirect(referer)
     
     program_ids = _get_instructor_program_ids(request.user)
     
@@ -4856,9 +4953,60 @@ def instructor_discussion_toggle_lock(request, discussion_id: int):
             node__program_id__in=program_ids
         )
     except DiscussionThread.DoesNotExist:
-        return JsonResponse({"error": "Discussion not found"}, status=404)
+        messages.error(request, "Discussion not found")
+        return redirect(referer)
     
     thread.is_locked = not thread.is_locked
     thread.save(update_fields=['is_locked'])
     
-    return JsonResponse({"success": True, "is_locked": thread.is_locked})
+    status = "locked" if thread.is_locked else "unlocked"
+    messages.success(request, f"Discussion {status}")
+    return redirect(referer)
+
+
+@login_required
+def instructor_discussion_reply(request):
+    """
+    Create a reply post for a discussion thread.
+    POST: {thread: 123, content: "Reply content"}
+    Uses Inertia redirect pattern.
+    """
+    from apps.discussions.models import DiscussionThread, DiscussionPost
+    
+    referer = request.META.get('HTTP_REFERER', '/instructor/')
+    
+    if not _require_instructor(request.user) or request.method != "POST":
+        messages.error(request, "Method not allowed")
+        return redirect(referer)
+    
+    data = _get_post_data(request)
+    thread_id = data.get('thread')
+    content = data.get('content', '').strip()
+    
+    if not thread_id or not content:
+        messages.error(request, "Thread ID and content are required")
+        return redirect(referer)
+    
+    program_ids = _get_instructor_program_ids(request.user)
+    
+    try:
+        thread = DiscussionThread.objects.select_related('node').get(
+            pk=thread_id,
+            node__program_id__in=program_ids
+        )
+    except DiscussionThread.DoesNotExist:
+        messages.error(request, "Discussion not found")
+        return redirect(referer)
+    
+    if thread.is_locked:
+        messages.error(request, "This discussion is locked")
+        return redirect(referer)
+    
+    DiscussionPost.objects.create(
+        thread=thread,
+        user=request.user,
+        content=content,
+    )
+    
+    messages.success(request, "Reply posted")
+    return redirect(referer)

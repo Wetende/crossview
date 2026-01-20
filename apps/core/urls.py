@@ -125,6 +125,7 @@ urlpatterns = [
     path("instructor/nodes/<int:node_id>/discussions/create/", views.instructor_discussion_create, name="instructor.discussion_create"),
     path("instructor/discussions/<int:discussion_id>/toggle-pin/", views.instructor_discussion_toggle_pin, name="instructor.discussion_toggle_pin"),
     path("instructor/discussions/<int:discussion_id>/toggle-lock/", views.instructor_discussion_toggle_lock, name="instructor.discussion_toggle_lock"),
+    path("instructor/discussions/reply/", views.instructor_discussion_reply, name="instructor.discussion_reply"),
     
 
     path("instructor/programs/<int:program_id>/submit/", views.instructor_program_submit_for_review, name="instructor.program_submit"),

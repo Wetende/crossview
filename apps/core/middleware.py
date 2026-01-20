@@ -4,10 +4,26 @@ Core middleware - Inertia shared data.
 
 from django.http import HttpRequest, HttpResponse
 from django.contrib import messages
+from django.middleware.csrf import get_token
 from inertia import share
 
 from apps.platform.models import PlatformSettings
 from apps.notifications.services import NotificationService
+
+
+class CSRFHeaderMiddleware:
+    """
+    Middleware to ensure CSRF token header is found even if sent as X-XSRF-TOKEN.
+    Inertia.js/Axios often sends 'X-XSRF-TOKEN' which Django doesn't read by default.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if "HTTP_X_CSRFTOKEN" not in request.META:
+            if "HTTP_X_XSRF_TOKEN" in request.META:
+                request.META["HTTP_X_CSRFTOKEN"] = request.META["HTTP_X_XSRF_TOKEN"]
+        return self.get_response(request)
 
 
 class InertiaShareMiddleware:
@@ -24,6 +40,10 @@ class InertiaShareMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
+        # Share CSRF token with frontend (ensures token is available for Inertia requests)
+        csrf_token = get_token(request)
+        share(request, csrfToken=csrf_token)
+        
         # Share auth data
         if request.user.is_authenticated:
             share(

@@ -78,6 +78,7 @@ export default function Landing() {
                 platform={platform}
                 programs={programs}
                 stats={stats}
+                allPrograms={allPrograms}
             />
         );
     }
@@ -123,7 +124,7 @@ export default function Landing() {
 
 // --- Platform Landing (Premium Design) ---
 
-function PlatformLanding({ platform, programs = [], stats = {} }) {
+function PlatformLanding({ platform, programs = [], stats = {}, allPrograms = [] }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     // Dynamic colors from platform settings

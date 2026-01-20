@@ -3,6 +3,7 @@ Blueprint views - Admin blueprint management.
 Requirements: FR-2.1, FR-2.2, FR-2.3, FR-2.4
 """
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models import Count
@@ -11,25 +12,7 @@ from inertia import render
 from apps.blueprints.models import AcademicBlueprint
 from apps.platform.models import PresetBlueprint
 from apps.core.models import Program
-
-
-def _require_admin(user):
-    """Check if user is admin or superadmin."""
-    return user.is_staff or user.is_superuser
-
-
-def _get_post_data(request) -> dict:
-    """Get POST data from request, handling both form-encoded and JSON."""
-    import json
-
-    if request.POST:
-        return request.POST
-    if request.body:
-        try:
-            return json.loads(request.body)
-        except (json.JSONDecodeError, ValueError):
-            pass
-    return {}
+from apps.core.utils import get_post_data, is_admin
 
 
 # =============================================================================
@@ -43,15 +26,34 @@ def admin_blueprints(request):
     List all blueprints.
     Requirements: FR-2.1
     """
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return redirect("/dashboard/")
 
-    # Get all blueprints with program counts
-    blueprints = (
-        AcademicBlueprint.objects.all()
-        .annotate(program_count=Count("programs"))
-        .order_by("-created_at")
-    )
+    # Get filter params
+    search = request.GET.get("search", "")
+    page = int(request.GET.get("page", 1))
+    per_page = 20
+
+    # Build query
+    blueprints_query = AcademicBlueprint.objects.all()
+
+    if search:
+        blueprints_query = blueprints_query.filter(name__icontains=search)
+
+    # Count and paginate
+    total = blueprints_query.count()
+    blueprints_query = blueprints_query.order_by("-created_at")
+    blueprints = blueprints_query[(page - 1) * per_page : page * per_page]
+
+    # Get program counts
+    # Note: Using manual annotation or separate query if annotate(Count("programs")) fails
+    # But AcademicBlueprint.programs related_name exists, so simple annotation works
+    blueprints = AcademicBlueprint.objects.annotate(program_count=Count("programs")).order_by("-created_at")
+    
+    # Re-apply filters and pagination on the annotated queryset
+    if search:
+        blueprints = blueprints.filter(name__icontains=search)
+    blueprints = blueprints[(page - 1) * per_page : page * per_page]
 
     blueprints_data = [
         {
@@ -97,6 +99,15 @@ def admin_blueprints(request):
         {
             "blueprints": blueprints_data,
             "presets": presets_data,
+            "filters": {
+                "search": search,
+            },
+            "pagination": {
+                "page": page,
+                "perPage": per_page,
+                "total": total,
+                "totalPages": (total + per_page - 1) // per_page,
+            },
         },
     )
 
@@ -112,7 +123,7 @@ def admin_blueprint_detail(request, pk: int):
     View blueprint details.
     Requirements: FR-2.2
     """
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return redirect("/dashboard/")
 
     blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
@@ -124,17 +135,7 @@ def admin_blueprint_detail(request, pk: int):
         request,
         "Admin/Blueprints/Show",
         {
-            "blueprint": {
-                "id": blueprint.id,
-                "name": blueprint.name,
-                "description": blueprint.description or "",
-                "hierarchyLabels": blueprint.hierarchy_structure or [],
-                "gradingConfig": blueprint.grading_logic or {},
-                "progressionRules": blueprint.progression_rules or {},
-                "certificateEnabled": blueprint.certificate_enabled,
-                "gamificationEnabled": blueprint.gamification_enabled,
-                "createdAt": blueprint.created_at.isoformat(),
-            },
+            "blueprint": _serialize_blueprint(blueprint),
             "programs": list(programs),
             "canEdit": not blueprint.programs.exists(),
         },
@@ -152,11 +153,11 @@ def admin_blueprint_create(request):
     Create a new blueprint.
     Requirements: US-2.2
     """
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return redirect("/dashboard/")
 
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         errors = {}
 
         name = data.get("name", "").strip()
@@ -191,8 +192,10 @@ def admin_blueprint_create(request):
             progression_rules=data.get("progressionRules", {}),
             certificate_enabled=data.get("certificateEnabled", False),
             gamification_enabled=data.get("gamificationEnabled", False),
+            feature_flags=data.get("featureFlags", {}),
         )
 
+        messages.success(request, f"Blueprint '{name}' created successfully")
         return redirect("blueprints:admin.blueprint", pk=blueprint.id)
 
     # GET - show create form
@@ -216,7 +219,7 @@ def admin_blueprint_edit(request, pk: int):
     Edit a blueprint.
     Requirements: FR-2.4
     """
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return redirect("/dashboard/")
 
     blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
@@ -238,7 +241,7 @@ def admin_blueprint_edit(request, pk: int):
                 },
             )
 
-        data = _get_post_data(request)
+        data = get_post_data(request)
         errors = {}
 
         name = data.get("name", "").strip()
@@ -270,8 +273,10 @@ def admin_blueprint_edit(request, pk: int):
         )
         blueprint.certificate_enabled = data.get("certificateEnabled", False)
         blueprint.gamification_enabled = data.get("gamificationEnabled", False)
+        blueprint.feature_flags = data.get("featureFlags", {})
         blueprint.save()
 
+        messages.success(request, f"Blueprint updated successfully")
         return redirect("blueprints:admin.blueprint", pk=blueprint.id)
 
     # GET - show edit form
@@ -292,10 +297,8 @@ def admin_blueprint_edit(request, pk: int):
 
 @login_required
 def admin_blueprint_delete(request, pk: int):
-    """
-    Delete a blueprint.
-    """
-    if not _require_admin(request.user):
+    """Delete a blueprint."""
+    if not is_admin(request.user):
         return redirect("/dashboard/")
 
     if request.method != "POST":
@@ -304,10 +307,15 @@ def admin_blueprint_delete(request, pk: int):
     blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
 
     if blueprint.programs.exists():
-        # Can't delete - has programs
+        messages.error(request, "Cannot delete blueprint with associated programs")
         return redirect("blueprints:admin.blueprint", pk=pk)
 
-    blueprint.delete()
+    try:
+        blueprint.delete()
+        messages.success(request, "Blueprint deleted successfully")
+    except Exception as e:
+        messages.error(request, str(e))
+
     return redirect("blueprints:admin.blueprints")
 
 
@@ -344,4 +352,5 @@ def _serialize_blueprint(blueprint: AcademicBlueprint) -> dict:
         "progressionRules": blueprint.progression_rules or {},
         "certificateEnabled": blueprint.certificate_enabled,
         "gamificationEnabled": blueprint.gamification_enabled,
+        "featureFlags": blueprint.feature_flags or {},
     }

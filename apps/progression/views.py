@@ -12,13 +12,13 @@ from inertia import render
 
 from apps.core.models import Program, User
 from apps.curriculum.models import CurriculumNode
-from apps.progression.models import Enrollment, NodeCompletion
+from apps.progression.models import Enrollment, NodeCompletion, InstructorAssignment
 from apps.content.models import ContentBlock
 from apps.assessments.models import AssessmentResult
 from apps.practicum.models import PracticumSubmission, SubmissionReview, Rubric
-from apps.practicum.models import PracticumSubmission, SubmissionReview, Rubric
 from apps.certifications.models import Certificate
 from apps.progression.services import ProgressionEngine
+from apps.core.utils import serialize_user
 
 
 # =============================================================================
@@ -1136,7 +1136,7 @@ def profile_settings(request):
                     request,
                     "Student/Profile",
                     {
-                        "user": _serialize_user(user),
+                        "user": serialize_user(user),
                         "success": "Profile updated successfully",
                     },
                 )
@@ -1162,7 +1162,7 @@ def profile_settings(request):
                     request,
                     "Student/Profile",
                     {
-                        "user": _serialize_user(user),
+                        "user": serialize_user(user),
                         "success": "Password changed successfully",
                     },
                 )
@@ -1171,21 +1171,10 @@ def profile_settings(request):
         request,
         "Student/Profile",
         {
-            "user": _serialize_user(user),
+            "user": serialize_user(user),
             "errors": errors,
         },
     )
-
-
-def _serialize_user(user: User) -> dict:
-    """Serialize user for Inertia props."""
-    return {
-        "id": user.id,
-        "email": user.email,
-        "firstName": user.first_name,
-        "lastName": user.last_name,
-        "phone": getattr(user, "phone", ""),
-    }
 
 
 # _serialize_tenant removed - no longer needed in single-tenant mode
@@ -1194,16 +1183,6 @@ def _serialize_user(user: User) -> dict:
 # =============================================================================
 # Instructor Dashboard Views
 # =============================================================================
-
-from apps.progression.models import InstructorAssignment
-import json
-
-
-def _is_instructor(user) -> bool:
-    """Check if user is an instructor."""
-    return (
-        hasattr(user, "groups") and user.groups.filter(name="Instructors").exists()
-    ) or user.instructor_assignments.exists()
 
 
 def _get_instructor_programs(user):
@@ -1568,6 +1547,57 @@ def instructor_student_detail(request, pk: int, enrollment_id: int):
         Enrollment.objects.select_related("user", "program"),
         pk=enrollment_id,
         program=program,
+    )
+
+    # Get curriculum tree with completion status
+    root_nodes = (
+        CurriculumNode.objects.filter(
+            program=program, parent__isnull=True, is_published=True
+        )
+        .prefetch_related("children")
+        .order_by("position")
+    )
+
+    completions = list(enrollment.completions.values_list("node_id", flat=True))
+    
+    # Using the standard curriculum tree builder for detailed view
+    # This might need a specialized builder if instructor needs to see more details
+    # For now, reusing the student-facing one but could be adapted
+    status_map = {} # Instructors see everything as accessible
+    curriculum_tree = _build_curriculum_tree(root_nodes, completions, enrollment, status_map)
+
+    # Get activity log
+    activity_log = (
+        NodeCompletion.objects.filter(enrollment=enrollment)
+        .select_related("node")
+        .order_by("-completed_at")
+    )
+
+    activity_data = [
+        {
+            "id": log.id,
+            "nodeTitle": log.node.title,
+            "type": log.completion_type,
+            "completedAt": log.completed_at.isoformat(),
+        }
+        for log in activity_log
+    ]
+
+    return render(
+        request,
+        "Instructor/Students/Detail",
+        {
+            "program": {"id": program.id, "name": program.name},
+            "student": {
+                "id": enrollment.user.id,
+                "name": enrollment.user.get_full_name() or enrollment.user.email,
+                "email": enrollment.user.email,
+                "status": enrollment.status,
+                "enrolledAt": enrollment.enrolled_at.isoformat(),
+            },
+            "curriculum": curriculum_tree,
+            "activity": activity_data,
+        },
     )
 
     # Get curriculum tree with completion status

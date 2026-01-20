@@ -1,49 +1,32 @@
 """Platform views - Admin settings, branding, and Super Admin management."""
 
-import json
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
-from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from inertia import render
 
-from apps.platform.models import PresetBlueprint, PlatformSettings
+from apps.platform.models import PresetBlueprint
 from apps.platform.services import (
-    PlatformStatsService,
     PresetBlueprintService,
 )
-
-
-def _require_admin(user) -> bool:
-    return user.is_staff or user.is_superuser
+from apps.core.utils import get_post_data, is_admin
 
 
 def _require_superadmin(user) -> bool:
     return user.is_superuser
 
 
-def _get_post_data(request) -> dict:
-    if request.POST:
-        return request.POST.dict()
-    if request.body:
-        try:
-            return json.loads(request.body)
-        except (json.JSONDecodeError, ValueError):
-            pass
-    return {}
-
-
 @login_required
 def admin_settings(request):
     """Admin settings page - uses PlatformSettings for single-tenant mode."""
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return redirect("/dashboard/")
     
     from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         features = {"self_registration": data.get("registrationEnabled", True)}
         PlatformSettingsService.update_features(features)
         messages.success(request, "Settings updated successfully")
@@ -70,13 +53,13 @@ def admin_settings(request):
 @login_required
 def admin_branding(request):
     """Admin branding page - uses PlatformSettings for single-tenant mode."""
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return redirect("/dashboard/")
     
     from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         logo = request.FILES.get("logo")
         favicon = request.FILES.get("favicon")
         
@@ -159,7 +142,7 @@ def superadmin_preset_create(request):
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         try:
             PresetBlueprintService.create_preset(
                 name=data.get("name", "").strip(),
@@ -192,7 +175,7 @@ def superadmin_preset_edit(request, pk: int):
         return redirect("/dashboard/")
     preset = get_object_or_404(PresetBlueprint, pk=pk)
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         try:
             PresetBlueprintService.update_preset(
                 preset_id=pk,
@@ -311,7 +294,7 @@ def setup_institution(request):
     from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         PlatformSettingsService.update_institution_info(
             institution_name=data.get("institutionName", "").strip(),
             tagline=data.get("tagline", "").strip(),
@@ -344,7 +327,7 @@ def setup_mode(request):
     from apps.blueprints.models import AcademicBlueprint
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         PlatformSettingsService.update_deployment_mode(
             deployment_mode=data.get("deploymentMode", "custom"),
             blueprint_id=data.get("blueprintId"),
@@ -381,7 +364,7 @@ def setup_branding(request):
     from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         logo = request.FILES.get("logo")
         favicon = request.FILES.get("favicon")
         
@@ -416,7 +399,7 @@ def setup_features(request):
     from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         features = {
             "certificates": data.get("certificates", False),
             "practicum": data.get("practicum", False),
@@ -451,7 +434,7 @@ def platform_settings(request):
     from apps.blueprints.models import AcademicBlueprint
     
     if request.method == "POST":
-        data = _get_post_data(request)
+        data = get_post_data(request)
         logo = request.FILES.get("logo")
         favicon = request.FILES.get("favicon")
         

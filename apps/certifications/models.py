@@ -5,9 +5,10 @@ Requirements: 1.1, 1.2, 1.3, 1.4, 2.4, 3.2, 4.4, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3
 from django.db import models
 from django.core.signing import TimestampSigner
 from django.urls import reverse
+from apps.core.models import TimeStampedModel
 
 
-class CertificateTemplate(models.Model):
+class CertificateTemplate(TimeStampedModel):
     """
     Configurable PDF template with placeholders for certificate generation.
     Requirements: 1.1, 1.2, 1.3, 1.4
@@ -30,8 +31,6 @@ class CertificateTemplate(models.Model):
     template_html = models.TextField()
     is_default = models.BooleanField(default=False)
     metadata = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'certificate_templates'
@@ -55,7 +54,7 @@ class CertificateTemplate(models.Model):
         return [p for p in self.REQUIRED_PLACEHOLDERS if p not in self.template_html]
 
 
-class Certificate(models.Model):
+class Certificate(TimeStampedModel):
     """
     Generated PDF certificate awarded to a student upon program completion.
     Requirements: 2.4, 3.2, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3
@@ -80,7 +79,6 @@ class Certificate(models.Model):
     revoked_at = models.DateTimeField(blank=True, null=True)
     revocation_reason = models.TextField(blank=True, null=True)
     metadata = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'certificates'
@@ -113,7 +111,7 @@ class Certificate(models.Model):
         return reverse('certifications:verify', kwargs={'serial_number': self.serial_number})
 
 
-class VerificationLog(models.Model):
+class VerificationLog(TimeStampedModel):
     """
     Log of certificate verification attempts for audit purposes.
     Requirements: 4.4
@@ -136,7 +134,6 @@ class VerificationLog(models.Model):
     user_agent = models.TextField(blank=True, null=True)
     result = models.CharField(max_length=20, choices=RESULT_CHOICES)
     verified_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'verification_logs'

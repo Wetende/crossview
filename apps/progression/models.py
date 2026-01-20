@@ -3,6 +3,7 @@ Progression models - Enrollment and progress tracking.
 """
 
 from django.db import models
+from apps.core.models import TimeStampedModel
 
 
 class InstructorAssignment(models.Model):
@@ -76,7 +77,7 @@ class NodeCompletion(models.Model):
         return f"{self.enrollment} - {self.node} ({self.completion_type})"
 
 
-class Enrollment(models.Model):
+class Enrollment(TimeStampedModel):
     """
     Represents a student's enrollment in a program.
     Links user to program for tracking progress and assessments.
@@ -102,8 +103,6 @@ class Enrollment(models.Model):
     grades = models.JSONField(blank=True, null=True)  # Stores grade components
     grades_published = models.BooleanField(default=False)
     completed_at = models.DateTimeField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "enrollments"
@@ -117,7 +116,7 @@ class Enrollment(models.Model):
         return f"{self.user} - {self.program}"
 
 
-class Announcement(models.Model):
+class Announcement(TimeStampedModel):
     """
     Instructor announcements to program students.
     """
@@ -131,8 +130,6 @@ class Announcement(models.Model):
     title = models.CharField(max_length=255)
     content = models.TextField()
     is_pinned = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = "announcements"
@@ -145,7 +142,7 @@ class Announcement(models.Model):
         return f"{self.title} - {self.program}"
 
 
-class EnrollmentRequest(models.Model):
+class EnrollmentRequest(TimeStampedModel):
     """
     Represents a student's request to enroll in a program.
     Used when enrollment_mode is 'instructor_approval' or 'admin_approval'.
@@ -180,8 +177,6 @@ class EnrollmentRequest(models.Model):
         help_text="Notes from reviewer (visible to student if rejected)"
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "enrollment_requests"
@@ -315,7 +310,7 @@ class StudentXP(models.Model):
         return f"{self.enrollment.user}: +{self.xp_amount} XP ({self.reason})"
 
 
-class StudentNote(models.Model):
+class StudentNote(TimeStampedModel):
     """
     Notes taken by students while viewing course content.
     Can optionally include a video timestamp for easy navigation.
@@ -337,8 +332,6 @@ class StudentNote(models.Model):
         blank=True,
         help_text='Video position in seconds when note was taken'
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'student_notes'

@@ -33,8 +33,8 @@ function getBadgeColor(type) {
     }
 }
 
-export default function PublicProgramCard({ 
-    program, 
+export default function PublicProgramCard({
+    program,
     enrollmentStatus = null,
     showEnrollButton = false,
 }) {
@@ -62,13 +62,19 @@ export default function PublicProgramCard({
                 <CardMedia
                     component="img"
                     height="160"
-                    image={program.thumbnail || "/static/images/course-placeholder.jpg"}
+                    image={
+                        program.thumbnail ||
+                        "/static/images/course-placeholder.svg"
+                    }
                     alt={program.name}
                     sx={{ objectFit: "cover" }}
                 />
                 {program.badge_type && (
                     <Chip
-                        label={program.badge_type.charAt(0).toUpperCase() + program.badge_type.slice(1)}
+                        label={
+                            program.badge_type.charAt(0).toUpperCase() +
+                            program.badge_type.slice(1)
+                        }
                         size="small"
                         sx={{
                             position: "absolute",
@@ -84,10 +90,20 @@ export default function PublicProgramCard({
                 )}
             </Box>
 
-            <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column", p: 2.5 }}>
+            <CardContent
+                sx={{
+                    flexGrow: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    p: 2.5,
+                }}
+            >
                 {/* Category */}
                 {program.category && (
-                    <Typography variant="caption" sx={{ mb: 0.5, color: "#6B7280" }}>
+                    <Typography
+                        variant="caption"
+                        sx={{ mb: 0.5, color: "#6B7280" }}
+                    >
                         {program.category}
                     </Typography>
                 )}
@@ -114,10 +130,10 @@ export default function PublicProgramCard({
 
                 {/* Description (short) */}
                 {program.description && (
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
-                            mb: 1.5, 
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            mb: 1.5,
                             color: "#6B7280",
                             display: "-webkit-box",
                             WebkitLineClamp: 2,
@@ -130,8 +146,18 @@ export default function PublicProgramCard({
                 )}
 
                 {/* Rating */}
-                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 1.5 }}>
-                    <Rating value={program.rating || 0} precision={0.1} size="small" readOnly />
+                <Stack
+                    direction="row"
+                    spacing={0.5}
+                    alignItems="center"
+                    sx={{ mb: 1.5 }}
+                >
+                    <Rating
+                        value={program.rating || 0}
+                        precision={0.1}
+                        size="small"
+                        readOnly
+                    />
                     <Typography variant="caption" sx={{ color: "#6B7280" }}>
                         {program.rating?.toFixed(1) || "0.0"}
                     </Typography>
@@ -141,20 +167,32 @@ export default function PublicProgramCard({
                 <Box sx={{ mt: "auto" }}>
                     {program.price > 0 ? (
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="body1" fontWeight={700} color="primary.main">
+                            <Typography
+                                variant="body1"
+                                fontWeight={700}
+                                color="primary.main"
+                            >
                                 ${program.price}
                             </Typography>
-                            {program.original_price && program.original_price > program.price && (
-                                <Typography
-                                    variant="body2"
-                                    sx={{ textDecoration: "line-through", color: "#9CA3AF" }}
-                                >
-                                    ${program.original_price}
-                                </Typography>
-                            )}
+                            {program.original_price &&
+                                program.original_price > program.price && (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            textDecoration: "line-through",
+                                            color: "#9CA3AF",
+                                        }}
+                                    >
+                                        ${program.original_price}
+                                    </Typography>
+                                )}
                         </Stack>
                     ) : (
-                        <Typography variant="body1" fontWeight={700} color="success.main">
+                        <Typography
+                            variant="body1"
+                            fontWeight={700}
+                            color="success.main"
+                        >
                             Free
                         </Typography>
                     )}
@@ -175,7 +213,12 @@ export default function PublicProgramCard({
                                 Continue Learning
                             </Button>
                         ) : enrollmentStatus === "pending" ? (
-                            <Button variant="outlined" fullWidth size="small" disabled>
+                            <Button
+                                variant="outlined"
+                                fullWidth
+                                size="small"
+                                disabled
+                            >
                                 Enrollment Pending
                             </Button>
                         ) : (

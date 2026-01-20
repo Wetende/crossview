@@ -2,9 +2,10 @@
 Content models - PDF parsing, rich content blocks, and optimization.
 """
 from django.db import models
+from apps.core.models import TimeStampedModel
 
 
-class ContentVersion(models.Model):
+class ContentVersion(TimeStampedModel):
     """
     Represents a version of parsed content from a PDF upload.
     Tracks source file, parsing status, and versioning for curriculum nodes.
@@ -23,8 +24,6 @@ class ContentVersion(models.Model):
     parsed_at = models.DateTimeField(blank=True, null=True)
     published_at = models.DateTimeField(blank=True, null=True)
     metadata = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'content_versions'
@@ -66,8 +65,7 @@ class ParsedImage(models.Model):
         return f"Image from page {self.page_number} of {self.content_version}"
 
 
-
-class ContentBlock(models.Model):
+class ContentBlock(TimeStampedModel):
     """
     Block-based content within a curriculum node (Lesson/Session).
     Supports polymorphic content types via a JSON data field.
@@ -98,9 +96,6 @@ class ContentBlock(models.Model):
     # Assignment: { "assignment_id": 456 }
     # Document: { "file_path": "...", "allow_download": true }
     data = models.JSONField(default=dict, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'content_blocks'

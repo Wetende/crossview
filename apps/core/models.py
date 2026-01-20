@@ -5,6 +5,18 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
+class TimeStampedModel(models.Model):
+    """
+    An abstract base class model that provides self-updating
+    'created_at' and 'updated_at' fields.
+    """
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
 class User(AbstractUser):
     """Custom User model for LMS."""
     phone = models.CharField(max_length=20, blank=True, null=True)
@@ -16,7 +28,7 @@ class User(AbstractUser):
         return self.email or self.username
 
 
-class InstructorProfile(models.Model):
+class InstructorProfile(TimeStampedModel):
     """
     Stores instructor application/vetting data separately from User model.
     Lifecycle: DRAFT → PENDING_REVIEW → APPROVED/REJECTED
@@ -55,9 +67,6 @@ class InstructorProfile(models.Model):
         related_name='reviewed_instructor_profiles'
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'instructor_profiles'
@@ -91,7 +100,7 @@ class InstructorCertification(models.Model):
         return f"{self.file_name} for {self.profile.user.email}"
 
 
-class Program(models.Model):
+class Program(TimeStampedModel):
     """
     Program model - represents an academic program/course.
     Links to AcademicBlueprint for structure configuration.
@@ -134,9 +143,6 @@ class Program(models.Model):
         blank=True,
         related_name='submitted_programs'
     )
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     # Extended Course Manager Fields
     faq = models.JSONField(default=list, blank=True)

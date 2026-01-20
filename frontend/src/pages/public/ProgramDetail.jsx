@@ -60,9 +60,9 @@ function ElevationScroll({ children }) {
 }
 
 // Course Details Sidebar with Context-Aware CTAs
-function CourseDetailsSidebar({ 
-    program, 
-    enrollmentStatus, 
+function CourseDetailsSidebar({
+    program,
+    enrollmentStatus,
     enrollmentData,
     enrollmentMode,
     isAuthenticated,
@@ -76,8 +76,8 @@ function CourseDetailsSidebar({
 
     // Get level label from courseLevels
     const getLevelLabel = () => {
-        const level = courseLevels.find(l => l.value === program.level);
-        return level?.label || program.level || 'Beginner';
+        const level = courseLevels.find((l) => l.value === program.level);
+        return level?.label || program.level || "Beginner";
     };
 
     // Determine CTA button text based on enrollment mode
@@ -92,41 +92,62 @@ function CourseDetailsSidebar({
     };
 
     return (
-        <Card sx={{ mb: 3, position: 'sticky', top: 100 }}>
+        <Card sx={{ mb: 3, position: "sticky", top: 100 }}>
             <CardContent sx={{ p: 3 }}>
                 {/* Enrolled User CTA */}
                 {isEnrolled ? (
                     <>
                         {/* Completion/Progress Badge */}
-                        <Stack 
-                            direction="row" 
-                            alignItems="center" 
+                        <Stack
+                            direction="row"
+                            alignItems="center"
                             justifyContent="space-between"
-                            sx={{ 
-                                mb: 2, 
-                                p: 1.5, 
-                                bgcolor: isCompleted ? 'success.light' : 'primary.light',
+                            sx={{
+                                mb: 2,
+                                p: 1.5,
+                                bgcolor: isCompleted
+                                    ? "success.light"
+                                    : "primary.light",
                                 borderRadius: 2,
                             }}
                         >
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                <IconCheck size={20} color={isCompleted ? theme.palette.success.main : theme.palette.primary.main} />
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                            >
+                                <IconCheck
+                                    size={20}
+                                    color={
+                                        isCompleted
+                                            ? theme.palette.success.main
+                                            : theme.palette.primary.main
+                                    }
+                                />
                                 <Box>
-                                    <Typography variant="body2" fontWeight={600}>
-                                        {isCompleted ? 'Course complete' : 'In progress'}
+                                    <Typography
+                                        variant="body2"
+                                        fontWeight={600}
+                                    >
+                                        {isCompleted
+                                            ? "Course complete"
+                                            : "In progress"}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                    >
                                         Score: {progressPercent}%
                                     </Typography>
                                 </Box>
                             </Stack>
-                            <Button 
-                                size="small" 
+                            <Button
+                                size="small"
                                 variant="contained"
                                 onClick={onShowDetails}
-                                sx={{ 
+                                sx={{
                                     bgcolor: theme.palette.primary.main,
-                                    fontSize: '0.7rem',
+                                    fontSize: "0.7rem",
                                     px: 1.5,
                                 }}
                             >
@@ -141,9 +162,9 @@ function CourseDetailsSidebar({
                             variant="contained"
                             fullWidth
                             size="large"
-                            sx={{ 
-                                mb: 2, 
-                                py: 1.5, 
+                            sx={{
+                                mb: 2,
+                                py: 1.5,
                                 fontWeight: 700,
                                 bgcolor: theme.palette.primary.main,
                             }}
@@ -152,25 +173,62 @@ function CourseDetailsSidebar({
                         </Button>
 
                         {/* Quick Actions for enrolled */}
-                        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
-                            <Button startIcon={<IconHeartFilled size={18} color={theme.palette.error.main} />} size="small" color="inherit">
+                        <Stack
+                            direction="row"
+                            spacing={2}
+                            justifyContent="center"
+                            sx={{ mb: 3 }}
+                        >
+                            <Button
+                                startIcon={
+                                    <IconHeartFilled
+                                        size={18}
+                                        color={theme.palette.error.main}
+                                    />
+                                }
+                                size="small"
+                                color="inherit"
+                            >
                                 Remove from wishlist
                             </Button>
-                            <Button startIcon={<IconShare size={18} />} size="small" color="inherit">
+                            <Button
+                                startIcon={<IconShare size={18} />}
+                                size="small"
+                                color="inherit"
+                            >
                                 Share
                             </Button>
                         </Stack>
                     </>
                 ) : enrollmentStatus === "pending" ? (
                     <>
-                        <Button variant="outlined" fullWidth size="large" disabled sx={{ mb: 2, py: 1.5 }}>
+                        <Button
+                            variant="outlined"
+                            fullWidth
+                            size="large"
+                            disabled
+                            sx={{ mb: 2, py: 1.5 }}
+                        >
                             ENROLLMENT PENDING
                         </Button>
-                        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
-                            <Button startIcon={<IconHeart size={18} />} size="small" color="inherit">
+                        <Stack
+                            direction="row"
+                            spacing={2}
+                            justifyContent="center"
+                            sx={{ mb: 3 }}
+                        >
+                            <Button
+                                startIcon={<IconHeart size={18} />}
+                                size="small"
+                                color="inherit"
+                            >
                                 Add to wishlist
                             </Button>
-                            <Button startIcon={<IconShare size={18} />} size="small" color="inherit">
+                            <Button
+                                startIcon={<IconShare size={18} />}
+                                size="small"
+                                color="inherit"
+                            >
                                 Share
                             </Button>
                         </Stack>
@@ -184,15 +242,33 @@ function CourseDetailsSidebar({
                             variant="contained"
                             fullWidth
                             size="large"
-                            sx={{ mb: 2, py: 1.5, fontWeight: 700, bgcolor: theme.palette.primary.main }}
+                            sx={{
+                                mb: 2,
+                                py: 1.5,
+                                fontWeight: 700,
+                                bgcolor: theme.palette.primary.main,
+                            }}
                         >
                             {getCtaText()}
                         </Button>
-                        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
-                            <Button startIcon={<IconHeart size={18} />} size="small" color="inherit">
+                        <Stack
+                            direction="row"
+                            spacing={2}
+                            justifyContent="center"
+                            sx={{ mb: 3 }}
+                        >
+                            <Button
+                                startIcon={<IconHeart size={18} />}
+                                size="small"
+                                color="inherit"
+                            >
                                 Add to wishlist
                             </Button>
-                            <Button startIcon={<IconShare size={18} />} size="small" color="inherit">
+                            <Button
+                                startIcon={<IconShare size={18} />}
+                                size="small"
+                                color="inherit"
+                            >
                                 Share
                             </Button>
                         </Stack>
@@ -205,15 +281,33 @@ function CourseDetailsSidebar({
                             variant="contained"
                             fullWidth
                             size="large"
-                            sx={{ mb: 2, py: 1.5, fontWeight: 700, bgcolor: theme.palette.primary.main }}
+                            sx={{
+                                mb: 2,
+                                py: 1.5,
+                                fontWeight: 700,
+                                bgcolor: theme.palette.primary.main,
+                            }}
                         >
                             LOGIN TO ENROLL
                         </Button>
-                        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
-                            <Button startIcon={<IconHeart size={18} />} size="small" color="inherit">
+                        <Stack
+                            direction="row"
+                            spacing={2}
+                            justifyContent="center"
+                            sx={{ mb: 3 }}
+                        >
+                            <Button
+                                startIcon={<IconHeart size={18} />}
+                                size="small"
+                                color="inherit"
+                            >
                                 Add to wishlist
                             </Button>
-                            <Button startIcon={<IconShare size={18} />} size="small" color="inherit">
+                            <Button
+                                startIcon={<IconShare size={18} />}
+                                size="small"
+                                color="inherit"
+                            >
                                 Share
                             </Button>
                         </Stack>
@@ -228,40 +322,76 @@ function CourseDetailsSidebar({
                 </Typography>
 
                 <Stack spacing={2}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                    >
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <IconClock size={18} color={theme.palette.text.secondary} />
-                            <Typography variant="body2" color="text.secondary">Duration</Typography>
+                            <IconClock
+                                size={18}
+                                color={theme.palette.text.secondary}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                                Duration
+                            </Typography>
                         </Stack>
                         <Typography variant="body2" fontWeight={600}>
                             {program.duration_hours} hours
                         </Typography>
                     </Stack>
 
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                    >
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <IconBook size={18} color={theme.palette.text.secondary} />
-                            <Typography variant="body2" color="text.secondary">Lectures</Typography>
+                            <IconBook
+                                size={18}
+                                color={theme.palette.text.secondary}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                                Lectures
+                            </Typography>
                         </Stack>
                         <Typography variant="body2" fontWeight={600}>
                             {program.lecture_count}
                         </Typography>
                     </Stack>
 
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                    >
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <IconVideo size={18} color={theme.palette.text.secondary} />
-                            <Typography variant="body2" color="text.secondary">Video</Typography>
+                            <IconVideo
+                                size={18}
+                                color={theme.palette.text.secondary}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                                Video
+                            </Typography>
                         </Stack>
                         <Typography variant="body2" fontWeight={600}>
                             {program.video_hours} hours
                         </Typography>
                     </Stack>
 
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                    >
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <IconChartBar size={18} color={theme.palette.text.secondary} />
-                            <Typography variant="body2" color="text.secondary">Level</Typography>
+                            <IconChartBar
+                                size={18}
+                                color={theme.palette.text.secondary}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                                Level
+                            </Typography>
                         </Stack>
                         <Typography variant="body2" fontWeight={600}>
                             {getLevelLabel()}
@@ -288,20 +418,30 @@ function PopularCourses({ courses }) {
                         key={course.id}
                         component={Link}
                         href={`/programs/${course.id}/`}
-                        sx={{ textDecoration: 'none', display: 'flex', '&:hover': { boxShadow: 3 } }}
+                        sx={{
+                            textDecoration: "none",
+                            display: "flex",
+                            "&:hover": { boxShadow: 3 },
+                        }}
                     >
                         <CardMedia
                             component="img"
-                            sx={{ width: 80, height: 60, objectFit: 'cover' }}
-                            image={course.thumbnail || '/static/images/course-placeholder.jpg'}
+                            sx={{ width: 80, height: 60, objectFit: "cover" }}
+                            image={
+                                course.thumbnail ||
+                                "/static/images/course-placeholder.svg"
+                            }
                             alt={course.name}
                         />
                         <CardContent sx={{ p: 1.5, flex: 1 }}>
                             <Typography variant="body2" fontWeight={600} noWrap>
                                 {course.name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {course.price > 0 ? `$${course.price}` : 'Free'}
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                            >
+                                {course.price > 0 ? `$${course.price}` : "Free"}
                             </Typography>
                         </CardContent>
                     </Card>
@@ -333,11 +473,20 @@ function CurriculumSection({ section, index }) {
                             </ListItemIcon>
                             <ListItemText
                                 primary={lesson.title}
-                                secondary={lesson.duration ? `${lesson.duration} min` : null}
-                                primaryTypographyProps={{ variant: 'body2' }}
+                                secondary={
+                                    lesson.duration
+                                        ? `${lesson.duration} min`
+                                        : null
+                                }
+                                primaryTypographyProps={{ variant: "body2" }}
                             />
                             {lesson.isPreview && (
-                                <Chip label="Preview" size="small" color="primary" variant="outlined" />
+                                <Chip
+                                    label="Preview"
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                />
                             )}
                         </ListItem>
                     ))}
@@ -384,7 +533,12 @@ export default function ProgramDetail({
                     <AppBar position="fixed" color="inherit">
                         <Container maxWidth="lg">
                             <Toolbar disableGutters sx={{ py: 1 }}>
-                                <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
+                                <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    sx={{ flex: 1 }}
+                                >
                                     <Box
                                         component={Link}
                                         href="/"
@@ -397,7 +551,7 @@ export default function ProgramDetail({
                                             alignItems: "center",
                                             justifyContent: "center",
                                             color: "white",
-                                            textDecoration: "none"
+                                            textDecoration: "none",
                                         }}
                                     >
                                         <IconBrandTabler size={24} />
@@ -407,7 +561,10 @@ export default function ProgramDetail({
                                         href="/"
                                         variant="h6"
                                         fontWeight={700}
-                                        sx={{ color: "text.primary", textDecoration: "none" }}
+                                        sx={{
+                                            color: "text.primary",
+                                            textDecoration: "none",
+                                        }}
                                     >
                                         Crossview
                                     </Typography>
@@ -415,15 +572,30 @@ export default function ProgramDetail({
 
                                 <Stack direction="row" spacing={2}>
                                     {auth?.user ? (
-                                        <Button component={Link} href="/dashboard/" variant="contained" size="small">
+                                        <Button
+                                            component={Link}
+                                            href="/dashboard/"
+                                            variant="contained"
+                                            size="small"
+                                        >
                                             Dashboard
                                         </Button>
                                     ) : (
                                         <>
-                                            <Button component={Link} href="/login/" color="inherit" size="small">
+                                            <Button
+                                                component={Link}
+                                                href="/login/"
+                                                color="inherit"
+                                                size="small"
+                                            >
                                                 Sign In
                                             </Button>
-                                            <Button component={Link} href="/register/" variant="contained" size="small">
+                                            <Button
+                                                component={Link}
+                                                href="/register/"
+                                                variant="contained"
+                                                size="small"
+                                            >
                                                 Get Started
                                             </Button>
                                         </>
@@ -442,9 +614,13 @@ export default function ProgramDetail({
                             size="small"
                             sx={{
                                 mb: 2,
-                                bgcolor: program.badge_type === 'hot' ? 'error.main' : 
-                                         program.badge_type === 'new' ? 'success.main' : 'warning.main',
-                                color: 'white',
+                                bgcolor:
+                                    program.badge_type === "hot"
+                                        ? "error.main"
+                                        : program.badge_type === "new"
+                                          ? "success.main"
+                                          : "warning.main",
+                                color: "white",
                                 fontWeight: 700,
                             }}
                         />
@@ -476,46 +652,99 @@ export default function ProgramDetail({
                                 transition={{ duration: 0.5 }}
                             >
                                 {/* Category & Instructor Row */}
-                                <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap" sx={{ mb: 2 }}>
-                                    <Stack direction="row" spacing={1} alignItems="center">
+                                <Stack
+                                    direction="row"
+                                    spacing={3}
+                                    alignItems="center"
+                                    flexWrap="wrap"
+                                    sx={{ mb: 2 }}
+                                >
+                                    <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="center"
+                                    >
                                         <IconBook size={18} />
-                                        <Typography variant="body2" color="text.secondary">
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
                                             Category
                                         </Typography>
-                                        <Chip label={program.category || 'General'} size="small" variant="outlined" />
+                                        <Chip
+                                            label={
+                                                program.category || "General"
+                                            }
+                                            size="small"
+                                            variant="outlined"
+                                        />
                                     </Stack>
 
                                     {instructors.length > 0 && (
-                                        <Stack direction="row" spacing={1} alignItems="center">
-                                            <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            alignItems="center"
+                                        >
+                                            <Avatar
+                                                sx={{
+                                                    width: 24,
+                                                    height: 24,
+                                                    fontSize: 12,
+                                                }}
+                                            >
                                                 {instructors[0].name.charAt(0)}
                                             </Avatar>
                                             <Typography variant="body2">
-                                                <strong>Instructor</strong> {instructors[0].name}
+                                                <strong>Instructor</strong>{" "}
+                                                {instructors[0].name}
                                             </Typography>
                                         </Stack>
                                     )}
 
-                                    <Stack direction="row" spacing={0.5} alignItems="center">
-                                        <Rating value={program.rating || 0} precision={0.1} size="small" readOnly />
-                                        <Typography variant="body2" fontWeight={600}>
+                                    <Stack
+                                        direction="row"
+                                        spacing={0.5}
+                                        alignItems="center"
+                                    >
+                                        <Rating
+                                            value={program.rating || 0}
+                                            precision={0.1}
+                                            size="small"
+                                            readOnly
+                                        />
+                                        <Typography
+                                            variant="body2"
+                                            fontWeight={600}
+                                        >
                                             {program.rating?.toFixed(1)}
                                         </Typography>
-                                        <Typography variant="body2" color="text.secondary">
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
                                             ({program.review_count} reviews)
                                         </Typography>
                                     </Stack>
                                 </Stack>
 
                                 {/* Title */}
-                                <Typography variant="h4" fontWeight={700} sx={{ mb: 2 }}>
+                                <Typography
+                                    variant="h4"
+                                    fontWeight={700}
+                                    sx={{ mb: 2 }}
+                                >
                                     {program.name}
                                 </Typography>
 
                                 {/* Short Description */}
-                                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                                <Typography
+                                    variant="body1"
+                                    color="text.secondary"
+                                    sx={{ mb: 3 }}
+                                >
                                     {program.description?.substring(0, 200)}
-                                    {program.description?.length > 200 && '...'}
+                                    {program.description?.length > 200 && "..."}
                                 </Typography>
 
                                 {/* Featured Image */}
@@ -525,9 +754,9 @@ export default function ProgramDetail({
                                         src={program.thumbnail}
                                         alt={program.name}
                                         sx={{
-                                            width: '100%',
+                                            width: "100%",
                                             height: 350,
-                                            objectFit: 'cover',
+                                            objectFit: "cover",
                                             borderRadius: 2,
                                             mb: 3,
                                         }}
@@ -535,8 +764,16 @@ export default function ProgramDetail({
                                 )}
 
                                 {/* Tabs */}
-                                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                                    <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
+                                <Box
+                                    sx={{
+                                        borderBottom: 1,
+                                        borderColor: "divider",
+                                    }}
+                                >
+                                    <Tabs
+                                        value={tabValue}
+                                        onChange={(e, v) => setTabValue(v)}
+                                    >
                                         <Tab label="Description" />
                                         <Tab label="Curriculum" />
                                         <Tab label="FAQ" />
@@ -547,27 +784,57 @@ export default function ProgramDetail({
 
                                 {/* Description Tab */}
                                 <TabPanel value={tabValue} index={0}>
-                                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', mb: 4 }}>
+                                    <Typography
+                                        variant="body1"
+                                        sx={{ whiteSpace: "pre-wrap", mb: 4 }}
+                                    >
                                         {program.description}
                                     </Typography>
 
-                                    {program.what_you_learn && program.what_you_learn.length > 0 && (
-                                        <Box sx={{ mt: 4 }}>
-                                            <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
-                                                What you'll learn
-                                            </Typography>
-                                            <Grid container spacing={2}>
-                                                {program.what_you_learn.map((item, idx) => (
-                                                    <Grid item xs={12} sm={6} key={idx}>
-                                                        <Stack direction="row" spacing={1}>
-                                                            <IconCheck size={20} color={theme.palette.success.main} />
-                                                            <Typography variant="body2">{item}</Typography>
-                                                        </Stack>
-                                                    </Grid>
-                                                ))}
-                                            </Grid>
-                                        </Box>
-                                    )}
+                                    {program.what_you_learn &&
+                                        program.what_you_learn.length > 0 && (
+                                            <Box sx={{ mt: 4 }}>
+                                                <Typography
+                                                    variant="h5"
+                                                    fontWeight={600}
+                                                    sx={{ mb: 3 }}
+                                                >
+                                                    What you'll learn
+                                                </Typography>
+                                                <Grid container spacing={2}>
+                                                    {program.what_you_learn.map(
+                                                        (item, idx) => (
+                                                            <Grid
+                                                                item
+                                                                xs={12}
+                                                                sm={6}
+                                                                key={idx}
+                                                            >
+                                                                <Stack
+                                                                    direction="row"
+                                                                    spacing={1}
+                                                                >
+                                                                    <IconCheck
+                                                                        size={
+                                                                            20
+                                                                        }
+                                                                        color={
+                                                                            theme
+                                                                                .palette
+                                                                                .success
+                                                                                .main
+                                                                        }
+                                                                    />
+                                                                    <Typography variant="body2">
+                                                                        {item}
+                                                                    </Typography>
+                                                                </Stack>
+                                                            </Grid>
+                                                        ),
+                                                    )}
+                                                </Grid>
+                                            </Box>
+                                        )}
                                 </TabPanel>
 
                                 {/* Curriculum Tab */}
@@ -579,7 +846,11 @@ export default function ProgramDetail({
                                     ) : (
                                         <Stack spacing={1}>
                                             {curriculum.map((section, idx) => (
-                                                <CurriculumSection key={section.id} section={section} index={idx} />
+                                                <CurriculumSection
+                                                    key={section.id}
+                                                    section={section}
+                                                    index={idx}
+                                                />
                                             ))}
                                         </Stack>
                                     )}
@@ -587,7 +858,8 @@ export default function ProgramDetail({
 
                                 {/* FAQ Tab */}
                                 <TabPanel value={tabValue} index={2}>
-                                    {!program.faq || program.faq.length === 0 ? (
+                                    {!program.faq ||
+                                    program.faq.length === 0 ? (
                                         <Typography color="text.secondary">
                                             No FAQs available for this course.
                                         </Typography>
@@ -595,11 +867,21 @@ export default function ProgramDetail({
                                         <Stack spacing={1}>
                                             {program.faq.map((item, idx) => (
                                                 <Accordion key={idx}>
-                                                    <AccordionSummary expandIcon={<IconChevronDown />}>
-                                                        <Typography fontWeight={600}>{item.question}</Typography>
+                                                    <AccordionSummary
+                                                        expandIcon={
+                                                            <IconChevronDown />
+                                                        }
+                                                    >
+                                                        <Typography
+                                                            fontWeight={600}
+                                                        >
+                                                            {item.question}
+                                                        </Typography>
                                                     </AccordionSummary>
                                                     <AccordionDetails>
-                                                        <Typography variant="body2">{item.answer}</Typography>
+                                                        <Typography variant="body2">
+                                                            {item.answer}
+                                                        </Typography>
                                                     </AccordionDetails>
                                                 </Accordion>
                                             ))}
@@ -609,24 +891,36 @@ export default function ProgramDetail({
 
                                 {/* Notice Tab */}
                                 <TabPanel value={tabValue} index={3}>
-                                    {!program.notices || program.notices.length === 0 ? (
+                                    {!program.notices ||
+                                    program.notices.length === 0 ? (
                                         <Typography color="text.secondary">
                                             No notices for this course.
                                         </Typography>
                                     ) : (
                                         <Stack spacing={2}>
-                                            {program.notices.map((notice, idx) => (
-                                                <Card key={idx} variant="outlined">
-                                                    <CardContent>
-                                                        <Typography variant="subtitle1" fontWeight={600}>
-                                                            {notice.title}
-                                                        </Typography>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            {notice.content}
-                                                        </Typography>
-                                                    </CardContent>
-                                                </Card>
-                                            ))}
+                                            {program.notices.map(
+                                                (notice, idx) => (
+                                                    <Card
+                                                        key={idx}
+                                                        variant="outlined"
+                                                    >
+                                                        <CardContent>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                fontWeight={600}
+                                                            >
+                                                                {notice.title}
+                                                            </Typography>
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                {notice.content}
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                ),
+                                            )}
                                         </Stack>
                                     )}
                                 </TabPanel>
@@ -645,11 +939,25 @@ export default function ProgramDetail({
                 {/* Footer */}
                 <Box sx={{ bgcolor: "grey.900", color: "grey.400", py: 6 }}>
                     <Container maxWidth="lg">
-                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            justifyContent="center"
+                        >
                             <IconBrandTabler size={24} color="white" />
-                            <Typography variant="body2" color="white">Crossview LMS</Typography>
+                            <Typography variant="body2" color="white">
+                                Crossview LMS
+                            </Typography>
                         </Stack>
-                        <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                display: "block",
+                                textAlign: "center",
+                                mt: 1,
+                            }}
+                        >
                             © 2025 Crossview LMS. All rights reserved.
                         </Typography>
                     </Container>

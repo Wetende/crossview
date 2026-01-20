@@ -1,11 +1,11 @@
 /**
  * Admin Curriculum Builder Page
  * Requirements: US-4.1, US-4.2, US-4.3, US-4.4, US-4.5
+ * Uses pure Inertia patterns - router.post() with redirects
  */
 
-import { useState, useCallback } from 'react';
-import { Head, Link } from '@inertiajs/react';
-import axios from 'axios';
+import { useState, useCallback, useEffect } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
   Box,
   Typography,
@@ -27,19 +27,34 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 import CurriculumTree from '@/components/CurriculumTree';
 import NodeEditor from '@/components/NodeEditor';
 
-// Configure axios for CSRF (required when mixing with session auth)
-// Following Inertia architecture hybrid pattern - client-side tree updates for performance
-axios.defaults.xsrfCookieName = 'csrftoken';
-axios.defaults.xsrfHeaderName = 'X-CSRFToken';
-axios.defaults.withCredentials = true;
-
 export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }) {
+  // Sync nodes from page props (updated after Inertia redirect)
   const [nodes, setNodes] = useState(tree);
   const [selectedNode, setSelectedNode] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [parentForNew, setParentForNew] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Flash messages from Django
+  const { flash } = usePage().props;
+  
+  // Sync tree from props when Inertia reloads the page
+  useEffect(() => {
+    setNodes(tree);
+  }, [tree]);
+  
+  // Display flash messages from Django
+  useEffect(() => {
+    if (flash?.success) {
+      setSuccess(flash.success);
+      setTimeout(() => setSuccess(null), 3000);
+    }
+    if (flash?.error) {
+      setError(flash.error);
+      setTimeout(() => setError(null), 5000);
+    }
+  }, [flash]);
 
   const handleSelectNode = useCallback((node) => {
     setSelectedNode(node);
@@ -59,70 +74,52 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
     setParentForNew(null);
   }, []);
 
-  const handleCreateNode = async (nodeData) => {
+  const handleCreateNode = (nodeData) => {
     setError(null);
-    try {
-      // Use axios with automatic CSRF token handling
-      const response = await axios.post('/admin/curriculum/nodes/create/', {
-        programId: program.id,
-        parentId: parentForNew?.id || null,
-        ...nodeData,
-      });
-
-      const newNode = response.data;
-
-      // Client-side tree update for performance
-      if (parentForNew) {
-        setNodes((prev) => addNodeToTree(prev, parentForNew.id, newNode));
-      } else {
-        setNodes((prev) => [...prev, newNode]);
-      }
-
-      setSuccess('Node created successfully');
-      setIsCreating(false);
-      setSelectedNode(newNode);
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to create node');
-    }
+    // Use Inertia router.post() - backend will redirect back with updated tree
+    router.post('/admin/curriculum/nodes/create/', {
+      programId: program.id,
+      parentId: parentForNew?.id || null,
+      ...nodeData,
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsCreating(false);
+        setParentForNew(null);
+      },
+      onError: (errors) => {
+        setError(Object.values(errors).flat().join(', ') || 'Failed to create node');
+      },
+    });
   };
 
-  const handleUpdateNode = async (nodeData) => {
+  const handleUpdateNode = (nodeData) => {
     setError(null);
-    try {
-      // Use axios with automatic CSRF token handling
-      const response = await axios.post(`/admin/curriculum/nodes/${selectedNode.id}/update/`, nodeData);
-
-      const updatedNode = response.data;
-
-      // Client-side tree update for performance
-      setNodes((prev) => updateNodeInTree(prev, updatedNode));
-      setSelectedNode(updatedNode);
-      setSuccess('Node updated successfully');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to update node');
-    }
+    // Use Inertia router.post() - backend will redirect back with updated tree
+    router.post(`/admin/curriculum/nodes/${selectedNode.id}/update/`, nodeData, {
+      preserveScroll: true,
+      onError: (errors) => {
+        setError(Object.values(errors).flat().join(', ') || 'Failed to update node');
+      },
+    });
   };
 
-  const handleDeleteNode = async (nodeId) => {
+  const handleDeleteNode = (nodeId) => {
     if (!confirm('Are you sure you want to delete this node and all its children?')) {
       return;
     }
 
     setError(null);
-    try {
-      // Use axios with automatic CSRF token handling
-      await axios.post(`/admin/curriculum/nodes/${nodeId}/delete/`);
-
-      // Client-side tree update for performance
-      setNodes((prev) => removeNodeFromTree(prev, nodeId));
-      setSelectedNode(null);
-      setSuccess('Node deleted successfully');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to delete node');
-    }
+    // Use Inertia router.post() - backend will redirect back with updated tree
+    router.post(`/admin/curriculum/nodes/${nodeId}/delete/`, {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setSelectedNode(null);
+      },
+      onError: (errors) => {
+        setError(Object.values(errors).flat().join(', ') || 'Failed to delete node');
+      },
+    });
   };
 
   const handleCancel = () => {

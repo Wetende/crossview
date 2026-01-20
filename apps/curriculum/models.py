@@ -4,9 +4,10 @@ Migrated from Laravel CurriculumNode model.
 """
 from django.db import models
 from django.core.exceptions import ValidationError
+from apps.core.models import TimeStampedModel
 
 
-class CurriculumNode(models.Model):
+class CurriculumNode(TimeStampedModel):
     """
     Represents a node in the curriculum tree structure.
     Supports hierarchical organization with self-referencing parent.
@@ -36,9 +37,6 @@ class CurriculumNode(models.Model):
     unlock_date = models.DateTimeField(null=True, blank=True, help_text='Absolute date when content unlocks')
     unlock_after_days = models.PositiveIntegerField(null=True, blank=True, help_text='Days after enrollment to unlock')
     is_preview = models.BooleanField(default=False, help_text='Allow non-enrolled users to view')
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'curriculum_nodes'
@@ -115,7 +113,7 @@ class CurriculumNode(models.Model):
         super().save(*args, **kwargs)
 
 
-class CourseChangeRequest(models.Model):
+class CourseChangeRequest(TimeStampedModel):
     """
     Admin feedback on submitted course/program.
     Used in the course vetting workflow to request specific changes.
@@ -141,7 +139,6 @@ class CourseChangeRequest(models.Model):
         on_delete=models.CASCADE,
         related_name='created_change_requests'
     )
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'course_change_requests'

@@ -3,9 +3,10 @@ Blueprint models - Academic blueprints configuration.
 """
 from django.db import models
 from django.core.exceptions import ValidationError
+from apps.core.models import TimeStampedModel
 
 
-class AcademicBlueprint(models.Model):
+class AcademicBlueprint(TimeStampedModel):
     """
     Configuration object defining hierarchy labels, grading logic, and progression rules.
     """
@@ -18,8 +19,6 @@ class AcademicBlueprint(models.Model):
     certificate_enabled = models.BooleanField(default=False)
     feature_flags = models.JSONField(default=dict, blank=True, help_text='Mode-specific feature toggles')
     # Schema: {"quizzes": bool, "assignments": bool, "practicum": bool, "portfolio": bool, "gamification": bool}
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:

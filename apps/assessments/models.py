@@ -3,9 +3,10 @@ Assessment models - Grading strategies and results.
 """
 from django.db import models
 from typing import Optional
+from apps.core.models import TimeStampedModel
 
 
-class AssessmentResult(models.Model):
+class AssessmentResult(TimeStampedModel):
     """
     Stores the outcome of a student's assessment for a specific curriculum node.
     Contains component scores, calculated total, status, and letter grade in result_data JSON.
@@ -31,8 +32,6 @@ class AssessmentResult(models.Model):
         blank=True,
         related_name='graded_results'
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'assessment_results'
@@ -66,7 +65,7 @@ class AssessmentResult(models.Model):
         return self.result_data.get('components', {}) if self.result_data else {}
 
 
-class Quiz(models.Model):
+class Quiz(TimeStampedModel):
     """
     Quiz attached to a lesson/session node.
     Each lesson can have one or more quizzes for knowledge checks.
@@ -88,8 +87,6 @@ class Quiz(models.Model):
     retake_penalty_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     shuffle_options = models.BooleanField(default=False)
     is_published = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'quizzes'
@@ -106,7 +103,7 @@ class Quiz(models.Model):
         return sum(q.points for q in self.questions.all())
 
 
-class Question(models.Model):
+class Question(TimeStampedModel):
     """
     Individual question within a quiz.
     Supports MCQ, True/False, and Short Answer types.
@@ -132,9 +129,6 @@ class Question(models.Model):
     # T/F: {"correct": true}
     # Short Answer: {"keywords": ["term1", "term2"], "manual_grading": false}
     answer_data = models.JSONField()
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'questions'
@@ -308,7 +302,7 @@ class QuizAttempt(models.Model):
         return points_earned, points_possible, round(percentage, 2), passed
 
 
-class Assignment(models.Model):
+class Assignment(TimeStampedModel):
     """
     Major graded assignment within a program.
     Each program has 2 assignments (configurable weight).
@@ -341,8 +335,6 @@ class Assignment(models.Model):
     max_file_size_mb = models.PositiveIntegerField(default=10)
     
     is_published = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'assignments'
@@ -468,7 +460,7 @@ class QuestionGapAnswer(models.Model):
         return f"Gap {self.gap_index} for Q{self.question.id}"
 
 
-class QuestionBankEntry(models.Model):
+class QuestionBankEntry(TimeStampedModel):
     """
     Reusable question library entry.
     Allows instructors to save and reuse questions across different quizzes.
@@ -487,8 +479,6 @@ class QuestionBankEntry(models.Model):
     tags = models.JSONField(default=list, blank=True)
     
     usage_count = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'question_bank_entries'

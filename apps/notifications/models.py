@@ -3,9 +3,10 @@ Notification models for in-app notifications.
 """
 
 from django.db import models
+from apps.core.models import TimeStampedModel
 
 
-class Notification(models.Model):
+class Notification(TimeStampedModel):
     """Individual notification record for a user."""
     
     NOTIFICATION_TYPES = [
@@ -48,8 +49,6 @@ class Notification(models.Model):
     related_enrollment_id = models.IntegerField(null=True, blank=True)
     related_assessment_id = models.IntegerField(null=True, blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    
     class Meta:
         db_table = 'notifications'
         ordering = ['-created_at']
@@ -62,7 +61,7 @@ class Notification(models.Model):
         return f"{self.notification_type}: {self.title} → {self.recipient}"
 
 
-class NotificationPreference(models.Model):
+class NotificationPreference(TimeStampedModel):
     """User notification preferences and settings."""
     
     EMAIL_DIGEST_CHOICES = [
@@ -92,9 +91,6 @@ class NotificationPreference(models.Model):
     # Per-type preferences stored as JSON for flexibility
     # Example: {"announcement": {"in_app": true, "email": false}}
     type_preferences = models.JSONField(default=dict, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'notification_preferences'

@@ -4,7 +4,7 @@ djangorestframework>=3.14.0
 django-cors-headers>=4.3.0
 
 # Inertia.js for Django
-inertia-django>=1.0.0
+inertia-django @ git+https://github.com/inertiajs/inertia-django.git@main
 
 # Database
 mysqlclient>=2.2.0

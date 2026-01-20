@@ -5,9 +5,10 @@ Requirements: 1.4, 2.5, 3.2, 3.3
 from django.db import models
 from django.core.signing import TimestampSigner
 from decimal import Decimal
+from apps.core.models import TimeStampedModel
 
 
-class Rubric(models.Model):
+class Rubric(TimeStampedModel):
     """
     Rubric model for grading practicum submissions.
     Dimensions are stored as JSON with name, weight, and max_score.
@@ -19,8 +20,6 @@ class Rubric(models.Model):
         help_text='List of dimension objects with name, weight, max_score'
     )
     max_score = models.PositiveIntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'rubrics'
@@ -48,7 +47,7 @@ class Rubric(models.Model):
         return total
 
 
-class PracticumSubmission(models.Model):
+class PracticumSubmission(TimeStampedModel):
     """
     Practicum submission model for student media uploads.
     Requirements: 2.5, 4.1
@@ -82,7 +81,6 @@ class PracticumSubmission(models.Model):
     duration_seconds = models.PositiveIntegerField(blank=True, null=True)
     metadata = models.JSONField(blank=True, null=True)
     submitted_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'practicum_submissions'
@@ -109,7 +107,7 @@ class PracticumSubmission(models.Model):
         return signer.sign(self.file_path)
 
 
-class SubmissionReview(models.Model):
+class SubmissionReview(TimeStampedModel):
     """
     Submission review model for lecturer feedback.
     Requirements: 3.3
@@ -140,7 +138,6 @@ class SubmissionReview(models.Model):
     )
     comments = models.TextField(blank=True, null=True)
     reviewed_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'submission_reviews'

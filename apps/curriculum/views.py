@@ -3,7 +3,7 @@ Curriculum views - Admin curriculum builder.
 Requirements: FR-4.1, FR-4.2, FR-4.3, FR-4.4, FR-4.5
 """
 
-import json
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 from django.http import JsonResponse
@@ -11,23 +11,7 @@ from inertia import render
 
 from apps.curriculum.models import CurriculumNode
 from apps.core.models import Program
-
-
-def _require_admin(user) -> bool:
-    """Check if user is admin or superadmin."""
-    return user.is_staff or user.is_superuser
-
-
-def _get_post_data(request) -> dict:
-    """Get POST data from request, handling both form-encoded and JSON."""
-    if request.POST:
-        return request.POST
-    if request.body:
-        try:
-            return json.loads(request.body)
-        except (json.JSONDecodeError, ValueError):
-            pass
-    return {}
+from apps.core.utils import get_post_data, is_admin
 
 
 def _build_curriculum_tree(program_id: int) -> list:
@@ -77,7 +61,7 @@ def admin_curriculum_builder(request):
     Curriculum builder page.
     Requirements: FR-4.1
     """
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return redirect("/dashboard/")
 
     program_id = request.GET.get("program")
@@ -121,21 +105,25 @@ def admin_node_create(request):
     """
     Create a new curriculum node.
     Requirements: FR-4.3
+    Uses Inertia redirect pattern instead of JSON API.
     """
-    if not _require_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
+    if not is_admin(request.user):
+        messages.error(request, "Unauthorized")
+        return redirect("/dashboard/")
 
     if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        messages.error(request, "Method not allowed")
+        return redirect("/admin/programs/")
 
-    data = _get_post_data(request)
+    data = get_post_data(request)
     program_id = data.get("programId")
     parent_id = data.get("parentId")
     node_type = data.get("nodeType", "").strip()
     title = data.get("title", "").strip()
 
     if not program_id or not node_type or not title:
-        return JsonResponse({"error": "Missing required fields"}, status=400)
+        messages.error(request, "Missing required fields")
+        return redirect(f"/admin/curriculum/?program={program_id}")
 
     # Verify program exists
     program = get_object_or_404(Program, pk=program_id)
@@ -156,25 +144,11 @@ def admin_node_create(request):
             position=position,
             is_published=data.get("isPublished", False),
         )
+        messages.success(request, f"Created: {node.title}")
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
+        messages.error(request, str(e))
 
-    return JsonResponse(
-        {
-            "id": node.id,
-            "parentId": node.parent_id,
-            "nodeType": node.node_type,
-            "title": node.title,
-            "code": node.code or "",
-            "description": node.description or "",
-            "properties": node.properties or {},
-            "completionRules": node.completion_rules or {},
-            "position": node.position,
-            "isPublished": node.is_published,
-            "children": [],
-        },
-        status=201,
-    )
+    return redirect(f"/admin/curriculum/?program={program_id}")
 
 
 @login_required
@@ -182,15 +156,18 @@ def admin_node_update(request, pk: int):
     """
     Update a curriculum node.
     Requirements: FR-4.4
+    Uses Inertia redirect pattern instead of JSON API.
     """
-    if not _require_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
+    if not is_admin(request.user):
+        messages.error(request, "Unauthorized")
+        return redirect("/dashboard/")
 
     if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        messages.error(request, "Method not allowed")
+        return redirect("/admin/programs/")
 
     node = get_object_or_404(CurriculumNode, pk=pk)
-    data = _get_post_data(request)
+    data = get_post_data(request)
 
     # Update fields
     if "title" in data:
@@ -208,23 +185,11 @@ def admin_node_update(request, pk: int):
 
     try:
         node.save()
+        messages.success(request, f"Updated: {node.title}")
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
+        messages.error(request, str(e))
 
-    return JsonResponse(
-        {
-            "id": node.id,
-            "parentId": node.parent_id,
-            "nodeType": node.node_type,
-            "title": node.title,
-            "code": node.code or "",
-            "description": node.description or "",
-            "properties": node.properties or {},
-            "completionRules": node.completion_rules or {},
-            "position": node.position,
-            "isPublished": node.is_published,
-        }
-    )
+    return redirect(f"/admin/curriculum/?program={node.program_id}")
 
 
 @login_required
@@ -232,27 +197,32 @@ def admin_node_delete(request, pk: int):
     """
     Delete a curriculum node and its descendants.
     Requirements: FR-4.5
+    Uses Inertia redirect pattern instead of JSON API.
     """
-    if not _require_admin(request.user):
-        return JsonResponse({"error": "Unauthorized"}, status=403)
+    if not is_admin(request.user):
+        messages.error(request, "Unauthorized")
+        return redirect("/dashboard/")
 
     if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+        messages.error(request, "Method not allowed")
+        return redirect("/admin/programs/")
 
     node = get_object_or_404(CurriculumNode, pk=pk)
+    program_id = node.program_id
 
     # Check for completions
     from apps.progression.models import NodeCompletion
 
     if NodeCompletion.objects.filter(node=node).exists():
-        return JsonResponse(
-            {"error": "Cannot delete node with student completions"}, status=400
-        )
+        messages.error(request, "Cannot delete node with student completions")
+        return redirect(f"/admin/curriculum/?program={program_id}")
 
     # Delete node (cascades to children)
+    title = node.title
     node.delete()
+    messages.success(request, f"Deleted: {title}")
 
-    return JsonResponse({"success": True})
+    return redirect(f"/admin/curriculum/?program={program_id}")
 
 
 @login_required
@@ -261,13 +231,13 @@ def admin_node_reorder(request):
     Reorder curriculum nodes.
     Requirements: FR-4.2
     """
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return JsonResponse({"error": "Unauthorized"}, status=403)
 
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    data = _get_post_data(request)
+    data = get_post_data(request)
     node_id = data.get("nodeId")
     new_parent_id = data.get("newParentId")
     new_position = data.get("newPosition", 0)
@@ -310,7 +280,7 @@ def admin_node_reorder(request):
 @login_required
 def admin_node_detail(request, pk: int):
     """Get node details for editing."""
-    if not _require_admin(request.user):
+    if not is_admin(request.user):
         return JsonResponse({"error": "Unauthorized"}, status=403)
 
     node = get_object_or_404(CurriculumNode, pk=pk)
