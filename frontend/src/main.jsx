@@ -4,6 +4,7 @@ import axios from "axios";
 import NProgress from "nprogress";
 import { router } from "@inertiajs/react";
 import ProviderWrapper from "@/app/ProviderWrapper";
+import PlatformBranding from "@/components/PlatformBranding";
 import "@/config"; // Load fonts
 import "./styles/app.css";
 import "nprogress/nprogress.css";
@@ -171,6 +172,8 @@ createInertiaApp({
     setup({ el, App, props }) {
         // Extract user from Inertia's initial page props
         const initialUser = props.initialPage?.props?.auth?.user || null;
+        // Extract favicon URL from platform props
+        const faviconUrl = props.initialPage?.props?.platform?.faviconUrl || null;
 
         // Note: DO NOT set/overwrite the csrftoken cookie here!
         // Django sets the cookie and the axios interceptor reads from it.
@@ -178,9 +181,11 @@ createInertiaApp({
 
         createRoot(el).render(
             <ProviderWrapper initialUser={initialUser}>
+                <PlatformBranding faviconUrl={faviconUrl} />
                 <App {...props} />
             </ProviderWrapper>,
         );
     },
     progress: false, // We're using NProgress instead
 });
+
