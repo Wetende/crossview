@@ -8,7 +8,7 @@ from hypothesis import given, strategies as st, settings, assume
 from decimal import Decimal
 from unittest.mock import Mock
 
-from apps.practicum.models import Rubric
+from apps.assessments.models import Rubric
 from apps.practicum.services import RubricService
 
 

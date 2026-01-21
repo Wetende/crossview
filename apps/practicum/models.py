@@ -4,47 +4,7 @@ Requirements: 1.4, 2.5, 3.2, 3.3
 """
 from django.db import models
 from django.core.signing import TimestampSigner
-from decimal import Decimal
 from apps.core.models import TimeStampedModel
-
-
-class Rubric(TimeStampedModel):
-    """
-    Rubric model for grading practicum submissions.
-    Dimensions are stored as JSON with name, weight, and max_score.
-    Requirements: 1.4, 3.2
-    """
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    dimensions = models.JSONField(
-        help_text='List of dimension objects with name, weight, max_score'
-    )
-    max_score = models.PositiveIntegerField()
-
-    class Meta:
-        db_table = 'rubrics'
-
-    def __str__(self):
-        return self.name
-
-    def calculate_score(self, dimension_scores: dict) -> Decimal:
-        """
-        Calculate total score from dimension scores using weights.
-        Requirements: 3.2, 3.4
-        
-        Args:
-            dimension_scores: Dict mapping dimension name to score
-            
-        Returns:
-            Weighted total score as Decimal
-        """
-        total = Decimal('0')
-        for dim in self.dimensions:
-            dim_name = dim['name']
-            weight = Decimal(str(dim.get('weight', 1)))
-            score = Decimal(str(dimension_scores.get(dim_name, 0)))
-            total += score * weight
-        return total
 
 
 class PracticumSubmission(TimeStampedModel):

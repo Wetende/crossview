@@ -12,7 +12,8 @@ from unittest.mock import Mock, patch, MagicMock
 from decimal import Decimal
 
 from apps.practicum.services import PracticumService, RubricService
-from apps.practicum.models import PracticumSubmission, SubmissionReview, Rubric
+from apps.practicum.models import PracticumSubmission, SubmissionReview
+from apps.assessments.models import Rubric
 from apps.practicum.exceptions import InvalidReviewException
 
 

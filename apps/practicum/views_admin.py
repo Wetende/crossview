@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from inertia import render
 
-from apps.practicum.models import Rubric
+from apps.assessments.models import Rubric
 from apps.platform.models import PlatformSettings
 
 
@@ -30,7 +30,6 @@ def _can_manage_rubrics(user) -> bool:
     """Check if user can access rubric management (instructor or admin)."""
     if user.is_staff or user.is_superuser:
         return True
-    # Check if user is in Instructors group
     return user.groups.filter(name='Instructors').exists()
 
 
@@ -39,12 +38,56 @@ def _is_admin(user) -> bool:
     return user.is_staff or user.is_superuser
 
 
+def _can_create_scope(user, scope: str) -> bool:
+    """Check if user can create rubric with given scope."""
+    if scope == 'global':
+        return user.is_superuser
+    elif scope == 'program':
+        return _is_admin(user)
+    elif scope == 'course':
+        return _can_manage_rubrics(user)
+    return False
+
+
+def _get_accessible_rubrics(user):
+    """Get rubrics accessible to user based on role and scope."""
+    if user.is_superuser:
+        return Rubric.objects.all()
+    elif _is_admin(user):
+        # Admins see global + program rubrics for their programs
+        from apps.core.models import Program
+        user_programs = Program.objects.filter(
+            instructor_assignments__instructor=user
+        ).values_list('id', flat=True)
+        return Rubric.objects.filter(
+            Q(scope='global') | 
+            Q(scope='program', program_id__in=user_programs) |
+            Q(scope='course', owner=user)
+        )
+    else:
+        # Instructors see global + program (for their programs) + their course rubrics
+        from apps.core.models import Program
+        user_programs = Program.objects.filter(
+            instructor_assignments__instructor=user
+        ).values_list('id', flat=True)
+        return Rubric.objects.filter(
+            Q(scope='global') |
+            Q(scope='program', program_id__in=user_programs) |
+            Q(scope='course', owner=user)
+        )
+
+
 def _can_edit_rubric(user, rubric) -> bool:
     """Check if user can edit a specific rubric."""
-    if _is_admin(user):
-        return True  # Admins can edit any rubric
-    # Instructors can only edit rubrics they created
-    return rubric.created_by_id == user.id if hasattr(rubric, 'created_by_id') else True
+    if user.is_superuser:
+        return True
+    if rubric.scope == 'global':
+        return False  # Only superadmin can edit global
+    if rubric.scope == 'program':
+        return _is_admin(user) and rubric.program_id in user.assigned_programs.values_list('id', flat=True)
+    if rubric.scope == 'course':
+        return rubric.owner_id == user.id
+    return False
 
 
 def _is_practicum_enabled() -> bool:
@@ -56,9 +99,7 @@ def _is_practicum_enabled() -> bool:
 @login_required
 def rubrics_list(request):
     """
-    List all rubrics.
-    Instructors see all rubrics (for use in grading).
-    Admins see all rubrics with full management.
+    List rubrics accessible to user based on scope.
     """
     if not _can_manage_rubrics(request.user):
         return redirect('/dashboard/')
@@ -67,8 +108,13 @@ def rubrics_list(request):
         messages.warning(request, "Practicum feature is not enabled.")
         return redirect('/dashboard/')
     
-    # Get all rubrics
-    rubrics = Rubric.objects.all().order_by('-created_at')
+    # Get accessible rubrics
+    rubrics = _get_accessible_rubrics(request.user).order_by('-created_at')
+    
+    # Filter by scope if requested
+    scope_filter = request.GET.get('scope')
+    if scope_filter in ['global', 'program', 'course']:
+        rubrics = rubrics.filter(scope=scope_filter)
     
     # Pagination
     page = request.GET.get('page', 1)
@@ -80,14 +126,18 @@ def rubrics_list(request):
             'id': r.id,
             'name': r.name,
             'description': r.description or '',
+            'scope': r.scope,
+            'scopeDisplay': r.get_scope_display(),
+            'owner': {'id': r.owner_id, 'name': r.owner.get_full_name()} if r.owner else None,
+            'program': {'id': r.program_id, 'name': r.program.name} if r.program else None,
             'dimensionsCount': len(r.dimensions) if r.dimensions else 0,
             'maxScore': r.max_score,
+            'canEdit': _can_edit_rubric(request.user, r),
             'createdAt': r.created_at.isoformat() if r.created_at else None,
         }
         for r in page_obj
     ]
     
-    # Determine user role for the layout
     role = 'admin' if _is_admin(request.user) else 'instructor'
     
     return render(
@@ -95,6 +145,9 @@ def rubrics_list(request):
         'Rubrics/Index',
         {
             'rubrics': rubrics_data,
+            'canCreateGlobal': request.user.is_superuser,
+            'canCreateProgram': _is_admin(request.user),
+            'canCreateCourse': _can_manage_rubrics(request.user),
             'pagination': {
                 'page': page_obj.number,
                 'totalPages': paginator.num_pages,
@@ -109,12 +162,38 @@ def rubrics_list(request):
 
 @login_required
 def rubric_create(request):
-    """Create a new rubric."""
+    """Create a new rubric with scope and ownership."""
     if not _can_manage_rubrics(request.user):
         return redirect('/dashboard/')
     
     if not _is_practicum_enabled():
         return redirect('/dashboard/')
+    
+    # Check if instructor is blocked by enforce_standard_rubrics
+    from apps.core.models import Program
+    from apps.blueprints.models import AcademicBlueprint
+    
+    enforce_standard = False
+    if not _is_admin(request.user):
+        # Check if any of instructor's programs enforce standard rubrics
+        user_programs = Program.objects.filter(
+            instructor_assignments__instructor=request.user
+        ).select_related('blueprint')
+        
+        for prog in user_programs:
+            if prog.blueprint:
+                flags = prog.blueprint.get_effective_feature_flags()
+                if flags.get('enforce_standard_rubrics', False):
+                    enforce_standard = True
+                    break
+        
+        if enforce_standard:
+            messages.warning(
+                request,
+                "This program uses standardized rubrics. Only admins can create rubrics. "
+                "Please contact your program administrator."
+            )
+            return redirect('practicum:rubrics')
     
     if request.method == 'POST':
         data = _get_post_data(request)
@@ -123,42 +202,60 @@ def rubric_create(request):
         description = data.get('description', '').strip()
         dimensions = data.get('dimensions', [])
         max_score = data.get('maxScore', 100)
+        scope = data.get('scope', 'course')
+        program_id = data.get('programId')
+        
+        # Validate scope permission
+        if not _can_create_scope(request.user, scope):
+            messages.error(request, f"You don't have permission to create {scope} rubrics.")
+            return redirect('practicum:rubrics')
+        
+        # Validate program for program-scoped rubrics
+        if scope == 'program' and not program_id:
+            messages.error(request, "Program is required for program-scoped rubrics.")
+            return render(request, 'Rubrics/Form', {
+                'mode': 'create',
+                'formData': data,
+                'role': 'admin' if _is_admin(request.user) else 'instructor',
+            })
         
         if not name:
             messages.error(request, "Name is required.")
-            return render(
-                request,
-                'Rubrics/Form',
-                {
-                    'mode': 'create',
-                    'formData': data,
-                    'role': 'admin' if _is_admin(request.user) else 'instructor',
-                },
-            )
+            return render(request, 'Rubrics/Form', {
+                'mode': 'create',
+                'formData': data,
+                'role': 'admin' if _is_admin(request.user) else 'instructor',
+            })
         
-        # Validate dimensions
         if not dimensions or len(dimensions) == 0:
             messages.error(request, "At least one dimension is required.")
-            return render(
-                request,
-                'Rubrics/Form',
-                {
-                    'mode': 'create',
-                    'formData': data,
-                    'role': 'admin' if _is_admin(request.user) else 'instructor',
-                },
-            )
+            return render(request, 'Rubrics/Form', {
+                'mode': 'create',
+                'formData': data,
+                'role': 'admin' if _is_admin(request.user) else 'instructor',
+            })
         
-        # Create rubric
+        # Create rubric with scope and ownership
         rubric = Rubric.objects.create(
             name=name,
             description=description,
             dimensions=dimensions,
             max_score=max_score,
+            scope=scope,
+            owner=request.user,
+            program_id=program_id if scope == 'program' else None,
         )
         
         messages.success(request, f"Rubric '{rubric.name}' created successfully.")
         return redirect('practicum:rubrics')
+    
+    # Get user's programs for program selector
+    from apps.core.models import Program
+    user_programs = []
+    if _is_admin(request.user):
+        user_programs = list(Program.objects.filter(
+            instructor_assignments__instructor=request.user
+        ).values('id', 'name'))
     
     role = 'admin' if _is_admin(request.user) else 'instructor'
     return render(
@@ -167,6 +264,9 @@ def rubric_create(request):
         {
             'mode': 'create',
             'role': role,
+            'canCreateGlobal': request.user.is_superuser,
+            'canCreateProgram': _is_admin(request.user),
+            'userPrograms': user_programs,
         },
     )
 

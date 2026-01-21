@@ -11,9 +11,9 @@ from apps.platform.models import PlatformSettings
 from apps.blueprints.models import AcademicBlueprint
 from apps.core.models import Program
 from apps.curriculum.models import CurriculumNode
-from apps.assessments.models import AssessmentResult
+from apps.assessments.models import AssessmentResult, Rubric
 from apps.progression.models import InstructorAssignment, Enrollment, NodeCompletion, Announcement
-from apps.practicum.models import Rubric, PracticumSubmission, SubmissionReview
+from apps.practicum.models import PracticumSubmission, SubmissionReview
 
 
 User = get_user_model()

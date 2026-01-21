@@ -8,8 +8,47 @@ from rest_framework import serializers
 from apps.assessments.models import (
     AssessmentResult, Quiz, Question, 
     QuestionOption, QuestionMatchingPair, 
-    QuestionGapAnswer, QuestionBankEntry
+    QuestionGapAnswer, QuestionBankEntry,
+    Rubric
 )
+
+
+class RubricSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Rubric model.
+    """
+    class Meta:
+        model = Rubric
+        fields = ['id', 'name', 'description', 'dimensions', 'max_score', 'scope', 'owner', 'program', 'created_at', 'updated_at']
+        read_only_fields = ['owner', 'created_at', 'updated_at']
+
+    def validate_dimensions(self, value):
+        """
+        Validate dimensions JSON structure.
+        Expected: [{"name": "string", "weight": float, "max_score": int}, ...]
+        """
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Dimensions must be a list of objects")
+        
+        total_weight = 0
+        for dim in value:
+            if not isinstance(dim, dict):
+                raise serializers.ValidationError("Each dimension must be an object")
+            
+            if 'name' not in dim:
+                raise serializers.ValidationError("Dimension missing 'name'")
+            
+            weight = dim.get('weight', 1)
+            try:
+                total_weight += float(weight)
+            except (ValueError, TypeError):
+                raise serializers.ValidationError(f"Invalid weight for dimension {dim.get('name')}")
+                
+        # Optional: Validate total weight equals 1.0 (or close to it)
+        # For now, we'll leave it flexible but maybe warn?
+        # Enforcing strict 1.0 might be annoying for simple point-based rubrics where weight is just 1.
+        
+        return value
 
 
 class AssessmentResultSerializer:

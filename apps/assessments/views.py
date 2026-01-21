@@ -1,11 +1,117 @@
 from rest_framework import viewsets, permissions, status, decorators
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import Quiz, Question, QuestionBankEntry
+from .models import Quiz, Question, QuestionBankEntry, Rubric
 from .serializers import (
-    QuizSerializer, QuestionSerializer, QuestionBankEntrySerializer
+    QuizSerializer, QuestionSerializer, QuestionBankEntrySerializer, RubricSerializer
 )
 from apps.curriculum.models import CurriculumNode
+from inertia import render
+from django.shortcuts import redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from apps.assessments.services import RubricService
+from django.contrib import messages
+
+
+@login_required
+def rubric_list(request):
+    """
+    Inertia view for listing rubrics.
+    """
+    service = RubricService()
+    rubrics = service.get_accessible_rubrics(request.user)
+    
+    return render(request, 'Assessments/Rubrics/Index', {
+        'rubrics': RubricSerializer(rubrics, many=True).data,
+        'can_create': True,  # Permissions are handled by service, but UI might need a toggle
+    })
+
+
+@login_required
+def rubric_create(request):
+    """
+    Inertia view for creating a rubric.
+    """
+    if request.method == 'POST':
+        # Inertia submits JSON, so we use request.body via DRF serializer or manually
+        # Standard Django request.POST handles form data, but Inertia sends JSON.
+        # However, with inertia-django, if content type is json, it's parsed.
+        # For complex nested JSON like 'dimensions', using the Serializer is easiest.
+        import json
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid JSON"}, status=400)
+        
+        # Security Check: Scope Permissions
+        scope = data.get('scope', 'course')
+        if scope == 'global' and not request.user.is_superuser:
+            return Response({"error": "Only superadmins can create global rubrics"}, status=403)
+        
+        if scope == 'program':
+            if not (request.user.is_staff or request.user.is_superuser):
+                 return Response({"error": "Only admins can create program rubrics"}, status=403)
+            
+            # For admins, ensure they provide a program (optional check)
+            program_id = data.get('program')
+            if not program_id:
+                 return Response({"error": "Program ID required for program scope"}, status=400)
+
+        serializer = RubricSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(owner=request.user)
+            messages.success(request, 'Rubric created successfully.')
+            return redirect('assessments:rubric_list')
+        
+        # Return errors
+        return render(request, 'Assessments/Rubrics/Create', {
+            'errors': serializer.errors,
+            'old_input': data
+        })
+
+    return render(request, 'Assessments/Rubrics/Create', {})
+
+
+@login_required
+def rubric_edit(request, pk):
+    """
+    Inertia view for editing a rubric.
+    """
+    service = RubricService()
+    # Ensure user can access this rubric
+    rubric = get_object_or_404(service.get_accessible_rubrics(request.user), pk=pk)
+    
+    if request.method == 'POST':
+        import json
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+             return Response({"error": "Invalid JSON"}, status=400)
+
+        # Security Check: Scope Modification
+        new_scope = data.get('scope', rubric.scope)
+        if new_scope != rubric.scope:
+             # Validate permission to change to new scope
+            if new_scope == 'global' and not request.user.is_superuser:
+                return Response({"error": "Only superadmins can create global rubrics"}, status=403)
+            if new_scope == 'program' and not (request.user.is_staff or request.user.is_superuser):
+                return Response({"error": "Only admins can create program rubrics"}, status=403)
+
+        serializer = RubricSerializer(rubric, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            messages.success(request, 'Rubric updated successfully.')
+            return redirect('assessments:rubric_list')
+            
+        return render(request, 'Assessments/Rubrics/Edit', {
+            'rubric': RubricSerializer(rubric).data,
+            'errors': serializer.errors
+        })
+
+    return render(request, 'Assessments/Rubrics/Edit', {
+        'rubric': RubricSerializer(rubric).data
+    })
+
 
 class QuizViewSet(viewsets.ModelViewSet):
     """

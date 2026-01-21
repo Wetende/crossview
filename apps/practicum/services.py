@@ -8,7 +8,9 @@ from django.utils import timezone
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
 
-from apps.practicum.models import PracticumSubmission, Rubric, SubmissionReview
+from apps.practicum.models import PracticumSubmission, SubmissionReview
+from apps.assessments.models import Rubric
+from apps.assessments.services import RubricService
 from apps.practicum.validators import FileValidator, ValidationResult
 from apps.practicum.storage import MediaStorageService
 from apps.practicum.exceptions import InvalidFileException, InvalidReviewException
@@ -33,6 +35,51 @@ class RubricService:
             Weighted total score
         """
         return rubric.calculate_score(dimension_scores)
+
+    def get_accessible_rubrics(self, user) -> QuerySet[Rubric]:
+        """
+        Get rubrics accessible to the user based on their role.
+        
+        Rules:
+        - Superadmin: All rubrics
+        - Admin (Staff): Global rubrics + Rubrics for Programs they manage (TODO: strict program owner check?) + Their own
+        - Instructor: Global rubrics + Rubrics for Programs they are assigned to + Their own
+        
+        Args:
+            user: Requesting user
+            
+        Returns:
+            QuerySet of accessible Rubrics
+        """
+        from django.db.models import Q
+        
+        # 1. Superadmin gets everything
+        if user.is_superuser:
+            return Rubric.objects.all()
+            
+        # 2. Base query: Global rubrics + Owner rubrics
+        query = Q(scope='global') | Q(owner=user)
+        
+        # 3. Program rubrics
+        # If staff, they might manage programs without being an instructor
+        # For now, we assume Staff can see ALL Program-scoped rubrics (simplified "Department Head" view)
+        # OR we check implicit permissions.
+        # Given the "seed" data implies Staff=Admin, we'll allow access to all Program rubrics for Staff.
+        if user.is_staff:
+            query |= Q(scope='program')
+        else:
+            # Instructors only see rubrics for programs they are assigned to
+            assigned_program_ids = user.assigned_programs.values_list('id', flat=True)
+            query |= Q(scope='program', program_id__in=assigned_program_ids)
+            
+        # 4. Course rubrics
+        # Instructors see course rubrics for their assigned programs
+        # (Assuming 'course' scope implies it's attached to a node, but the model just links Program)
+        # If scope='course', it's usually just an instructor's personal ad-hoc rubric, covered by Q(owner=user).
+        # But if shared within a program course? 
+        # For now, we'll stick to the Program-level check for Instructors.
+        
+        return Rubric.objects.filter(query).distinct()
     
     def validate_dimension_scores(self, rubric: Rubric, scores: dict) -> bool:
         """

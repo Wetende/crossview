@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import AssessmentResult
+from .models import AssessmentResult, Rubric
+
+
+@admin.register(Rubric)
+class RubricAdmin(admin.ModelAdmin):
+    list_display = ["name", "scope", "program", "owner", "max_score", "created_at"]
+    list_filter = ["scope", "created_at"]
+    search_fields = ["name", "description", "owner__username"]
+    ordering = ["name"]
+    raw_id_fields = ["owner", "program"]
 
 
 @admin.register(AssessmentResult)

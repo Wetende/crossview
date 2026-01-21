@@ -12,4 +12,7 @@ router.register(r'question-bank', views.QuestionBankViewSet, basename='question-
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('rubrics/', views.rubric_list, name='rubric_list'),
+    path('rubrics/create/', views.rubric_create, name='rubric_create'),
+    path('rubrics/<int:pk>/edit/', views.rubric_edit, name='rubric_edit'),
 ]

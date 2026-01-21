@@ -15,7 +15,8 @@ from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment, NodeCompletion, InstructorAssignment
 from apps.content.models import ContentBlock
 from apps.assessments.models import AssessmentResult
-from apps.practicum.models import PracticumSubmission, SubmissionReview, Rubric
+from apps.assessments.models import Rubric
+from apps.practicum.models import PracticumSubmission, SubmissionReview
 from apps.certifications.models import Certificate
 from apps.progression.services import ProgressionEngine
 from apps.core.utils import serialize_user

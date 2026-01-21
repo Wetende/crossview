@@ -196,6 +196,45 @@ class PassFailGradingStrategy(GradingStrategyInterface):
         return True
 
 
+class RubricGradingStrategy(GradingStrategyInterface):
+    """
+    Rubric-based grading strategy for subjective assessments.
+    Calculates weighted total from dimension scores.
+    """
+
+    def calculate(self, component_scores: Dict[str, Any], config: Dict[str, Any]) -> AssessmentResultData:
+        """Calculate rubric-based total from dimension scores."""
+        from decimal import Decimal
+        dimensions = config.get('dimensions', [])
+        total = Decimal('0.0')
+        
+        for dim in dimensions:
+            dim_name = dim['name']
+            weight = Decimal(str(dim.get('weight', 1)))
+            score = Decimal(str(component_scores.get(dim_name, 0)))
+            total += score * weight
+        
+        status = self.get_status(float(total), config)
+        
+        return AssessmentResultData(
+            total=float(total),
+            status=status,
+            components=component_scores
+        )
+
+    def get_status(self, total: float, config: Dict[str, Any]) -> str:
+        """Return Pass if total >= pass_mark, otherwise Fail."""
+        pass_mark = config.get('pass_mark', config.get('max_score', 100) * 0.5)
+        return 'Pass' if total >= pass_mark else 'Fail'
+
+    def validate_components(self, component_scores: Dict[str, Any], config: Dict[str, Any]) -> bool:
+        """Validate dimension scores match rubric dimensions."""
+        dimensions = config.get('dimensions', [])
+        expected_dims = {dim['name'] for dim in dimensions}
+        provided_dims = set(component_scores.keys())
+        return expected_dims == provided_dims
+
+
 class GradingStrategyFactory:
     """
     Factory for creating grading strategies from blueprint configuration.
@@ -225,6 +264,8 @@ class GradingStrategyFactory:
             return CompetencyGradingStrategy()
         elif grading_type == 'pass_fail':
             return PassFailGradingStrategy()
+        elif grading_type == 'rubric':
+            return RubricGradingStrategy()
         else:
             raise InvalidGradingTypeException(f"Unknown grading type: {grading_type}")
 
@@ -233,7 +274,7 @@ class GradingStrategyFactory:
         Create grading strategy directly from type string.
         
         Args:
-            grading_type: One of 'weighted', 'competency', 'pass_fail'
+            grading_type: One of 'weighted', 'competency', 'pass_fail', 'rubric'
             
         Returns:
             GradingStrategyInterface implementation
@@ -246,5 +287,7 @@ class GradingStrategyFactory:
             return CompetencyGradingStrategy()
         elif grading_type == 'pass_fail':
             return PassFailGradingStrategy()
+        elif grading_type == 'rubric':
+            return RubricGradingStrategy()
         else:
             raise InvalidGradingTypeException(f"Unknown grading type: {grading_type}")

@@ -2,10 +2,11 @@
 Assessment Engine service - Core service for calculating and managing assessment results.
 """
 from typing import Dict, Any, Optional, List
+from decimal import Decimal
 from django.utils import timezone
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 
-from apps.assessments.models import AssessmentResult
+from apps.assessments.models import AssessmentResult, Rubric
 from apps.assessments.strategies import GradingStrategyFactory, AssessmentResultData
 from apps.progression.models import Enrollment
 from apps.curriculum.models import CurriculumNode
@@ -200,3 +201,87 @@ class AssessmentEngine:
             )
         except AssessmentResult.DoesNotExist:
             return None
+
+
+class RubricService:
+    """
+    Service for rubric-based scoring.
+    Requirements: 3.2, 3.4
+    """
+    
+    def calculate_score(self, rubric: Rubric, dimension_scores: dict) -> Decimal:
+        """
+        Calculate total score from dimension scores using weights.
+        Requirements: 3.2, 3.4
+        
+        Args:
+            rubric: Rubric to use for calculation
+            dimension_scores: Dict mapping dimension name to score
+            
+        Returns:
+            Weighted total score
+        """
+        return rubric.calculate_score(dimension_scores)
+
+    def get_accessible_rubrics(self, user) -> QuerySet[Rubric]:
+        """
+        Get rubrics accessible to the user based on their role.
+        
+        Rules:
+        - Superadmin: All rubrics
+        - Admin (Staff): Global rubrics + Rubrics for Programs they manage
+        - Instructor: Global rubrics + Rubrics for Programs they are assigned to + Their own
+        
+        Args:
+            user: Requesting user
+            
+        Returns:
+            QuerySet of accessible Rubrics
+        """
+        
+        # 1. Superadmin gets everything
+        if user.is_superuser:
+            return Rubric.objects.all()
+            
+        # 2. Base query: Global rubrics + Owner rubrics
+        query = Q(scope='global') | Q(owner=user)
+        
+        # 3. Program rubrics
+        if user.is_staff:
+            query |= Q(scope='program')
+        else:
+            # Instructors only see rubrics for programs they are assigned to
+            assigned_program_ids = user.assigned_programs.values_list('id', flat=True)
+            query |= Q(scope='program', program_id__in=assigned_program_ids)
+            
+        return Rubric.objects.filter(query).distinct()
+    
+    def validate_dimension_scores(self, rubric: Rubric, scores: dict) -> bool:
+        """
+        Validate that all required dimensions have scores.
+        Requirements: 3.4
+        
+        Args:
+            rubric: Rubric to validate against
+            scores: Dimension scores to validate
+            
+        Returns:
+            True if all dimensions have valid scores
+        """
+        required_dims = {d['name'] for d in rubric.dimensions}
+        provided_dims = set(scores.keys())
+        
+        # Check all required dimensions are provided
+        if required_dims != provided_dims:
+            return False
+        
+        # Check all scores are within valid range
+        for dim in rubric.dimensions:
+            score = scores.get(dim['name'])
+            if score is None:
+                return False
+            max_score = dim.get('max_score', 10)
+            if not (0 <= score <= max_score):
+                return False
+        
+        return True

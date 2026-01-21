@@ -46,19 +46,19 @@ class AcademicBlueprint(TimeStampedModel):
         defaults = {
             'competency': {  # TVET/CDACC
                 'quizzes': True, 'assignments': True, 'practicum': True,
-                'portfolio': True, 'gamification': False
+                'portfolio': True, 'gamification': False, 'enforce_standard_rubrics': True
             },
             'weighted': {  # Theology/Traditional
                 'quizzes': False, 'assignments': True, 'practicum': True,
-                'portfolio': False, 'gamification': False
+                'portfolio': False, 'gamification': False, 'enforce_standard_rubrics': False
             },
             'progress': {  # Online/Self-paced
                 'quizzes': True, 'assignments': False, 'practicum': False,
-                'portfolio': False, 'gamification': True
+                'portfolio': False, 'gamification': True, 'enforce_standard_rubrics': False
             },
         }.get(grading_type, {
             'quizzes': True, 'assignments': True, 'practicum': False,
-            'portfolio': False, 'gamification': False
+            'portfolio': False, 'gamification': False, 'enforce_standard_rubrics': False
         })
         
         # Merge stored flags over defaults

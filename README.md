@@ -189,8 +189,16 @@ Recursive node structure supporting unlimited depth:
 ### Assessment Modes
 - **Weighted** - CAT + Exam percentages
 - **Competency** - Competent / Not Yet Competent
-- **Rubric** - Multi-dimensional scoring
+- **Rubric** - Multi-dimensional scoring for subjective assessments (essays, projects, presentations)
 - **Visual Review** - Photo/video verification
+
+### Rubric System
+Flexible rubric-based grading with three scopes:
+- **Global rubrics** (superadmin) - System-wide standards
+- **Program rubrics** (admin) - Standardized for accreditation (TVET/CDACC)
+- **Course rubrics** (instructor) - Assignment-specific
+- Blueprint feature flag: `enforce_standard_rubrics` for compliance-critical programs
+- See [docs/rubric-system.md](docs/rubric-system.md) for details
 
 ### Practicum Workflow
 1. Student uploads media (audio/video)

@@ -1,12 +1,5 @@
 from django.contrib import admin
-from .models import Rubric, PracticumSubmission, SubmissionReview
-
-
-@admin.register(Rubric)
-class RubricAdmin(admin.ModelAdmin):
-    list_display = ["name", "max_score", "created_at"]
-    search_fields = ["name", "description"]
-    ordering = ["name"]
+from .models import PracticumSubmission, SubmissionReview
 
 
 @admin.register(PracticumSubmission)

@@ -65,6 +65,60 @@ class AssessmentResult(TimeStampedModel):
         return self.result_data.get('components', {}) if self.result_data else {}
 
 
+class Rubric(TimeStampedModel):
+    """
+    Rubric model for grading subjective assessments.
+    Supports global (superadmin), program (admin), and course (instructor) scopes.
+    """
+    SCOPE_CHOICES = [
+        ('global', 'Global'),
+        ('program', 'Program'),
+        ('course', 'Course'),
+    ]
+    
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    dimensions = models.JSONField(
+        help_text='List of dimension objects with name, weight, max_score'
+    )
+    max_score = models.PositiveIntegerField()
+    scope = models.CharField(max_length=20, choices=SCOPE_CHOICES, default='course')
+    owner = models.ForeignKey(
+        'core.User',
+        on_delete=models.CASCADE,
+        related_name='rubrics'
+    )
+    program = models.ForeignKey(
+        'core.Program',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='rubrics',
+        help_text='Required for program-scoped rubrics'
+    )
+
+    class Meta:
+        db_table = 'rubrics'
+        indexes = [
+            models.Index(fields=['scope', 'owner']),
+            models.Index(fields=['program']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_scope_display()})"
+
+    def calculate_score(self, dimension_scores: dict):
+        """Calculate weighted total from dimension scores."""
+        from decimal import Decimal
+        total = Decimal('0')
+        for dim in self.dimensions:
+            dim_name = dim['name']
+            weight = Decimal(str(dim.get('weight', 1)))
+            score = Decimal(str(dimension_scores.get(dim_name, 0)))
+            total += score * weight
+        return total
+
+
 class Quiz(TimeStampedModel):
     """
     Quiz attached to a lesson/session node.
@@ -334,6 +388,15 @@ class Assignment(TimeStampedModel):
     allowed_file_types = models.JSONField(default=list)  # ['pdf', 'docx']
     max_file_size_mb = models.PositiveIntegerField(default=10)
     
+    rubric = models.ForeignKey(
+        'assessments.Rubric',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assignments',
+        help_text='Optional rubric for grading'
+    )
+    
     is_published = models.BooleanField(default=False)
 
     class Meta:
@@ -379,6 +442,7 @@ class AssignmentSubmission(models.Model):
     
     # Grading
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    dimension_scores = models.JSONField(null=True, blank=True, help_text='Rubric dimension scores')
     feedback = models.TextField(blank=True, default='')
     graded_by = models.ForeignKey(
         'core.User',
