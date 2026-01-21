@@ -12,7 +12,7 @@ from inertia import render
 from apps.blueprints.models import AcademicBlueprint
 from apps.platform.models import PresetBlueprint
 from apps.core.models import Program
-from apps.core.utils import get_post_data, is_admin
+from apps.core.utils import get_post_data, is_admin, is_superadmin
 
 
 # =============================================================================
@@ -137,7 +137,7 @@ def admin_blueprint_detail(request, pk: int):
         {
             "blueprint": _serialize_blueprint(blueprint),
             "programs": list(programs),
-            "canEdit": not blueprint.programs.exists(),
+            "canEdit": is_superadmin(request.user) and not blueprint.programs.exists(),
         },
     )
 
@@ -152,8 +152,9 @@ def admin_blueprint_create(request):
     """
     Create a new blueprint.
     Requirements: US-2.2
+    Restricted to: Superadmins only
     """
-    if not is_admin(request.user):
+    if not is_superadmin(request.user):
         return redirect("/dashboard/")
 
     if request.method == "POST":
@@ -218,8 +219,9 @@ def admin_blueprint_edit(request, pk: int):
     """
     Edit a blueprint.
     Requirements: FR-2.4
+    Restricted to: Superadmins only
     """
-    if not is_admin(request.user):
+    if not is_superadmin(request.user):
         return redirect("/dashboard/")
 
     blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
@@ -297,8 +299,8 @@ def admin_blueprint_edit(request, pk: int):
 
 @login_required
 def admin_blueprint_delete(request, pk: int):
-    """Delete a blueprint."""
-    if not is_admin(request.user):
+    """Delete a blueprint. Restricted to: Superadmins only."""
+    if not is_superadmin(request.user):
         return redirect("/dashboard/")
 
     if request.method != "POST":

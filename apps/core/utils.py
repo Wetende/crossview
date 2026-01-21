@@ -55,6 +55,18 @@ def is_admin(user) -> bool:
         return False
     return user.is_staff or user.is_superuser
 
+
+def is_superadmin(user) -> bool:
+    """Check if user is a superadmin (platform owner, not just client admin).
+    
+    Superadmins have is_superuser=True and can manage blueprints, presets,
+    and platform-wide settings. Client admins (is_staff=True only) cannot
+    modify blueprints as that would break the academic structure.
+    """
+    if not user.is_authenticated:
+        return False
+    return user.is_superuser
+
 def get_client_ip(request) -> Optional[str]:
     """Extract client IP from request."""
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")

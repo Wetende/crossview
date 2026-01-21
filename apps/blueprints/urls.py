@@ -7,7 +7,7 @@ from apps.blueprints import views
 app_name = "blueprints"
 
 urlpatterns = [
-    # Admin Blueprint Management
+    # Admin Blueprint Management (Superadmin only for create/edit/delete)
     path("admin/blueprints/", views.admin_blueprints, name="admin.blueprints"),
     path(
         "admin/blueprints/create/",
