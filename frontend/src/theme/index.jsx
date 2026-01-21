@@ -13,11 +13,11 @@ import componentsOverride from "./overrides";
  * Inner ThemeProvider - Creates MUI theme based on current mode
  */
 function ThemeProviderInner({ children }) {
-    const { mode } = useThemeMode();
-    
+    const { mode, platformColors } = useThemeMode();
+
     const theme = useMemo(() => {
-        const themePalette = palette(mode);
-        
+        const themePalette = palette(mode, platformColors);
+
         // Create base theme with breakpoints and palette
         let themeDefault = createTheme({
             breakpoints: {
@@ -43,10 +43,11 @@ function ThemeProviderInner({ children }) {
         });
 
         // Add component overrides
-        themeWithTypography.components = componentsOverride(themeWithTypography);
+        themeWithTypography.components =
+            componentsOverride(themeWithTypography);
 
         return themeWithTypography;
-    }, [mode]);
+    }, [mode, platformColors]);
 
     return (
         <MuiThemeProvider theme={theme}>
@@ -61,9 +62,18 @@ function ThemeProviderInner({ children }) {
  * Applies Crossview branding colors, typography, and component overrides
  * Supports dark/light mode switching
  */
-export default function ThemeProvider({ children }) {
+export default function ThemeProvider({
+    children,
+    platform = null,
+    forcedMode = null,
+    storageKey = undefined,
+}) {
     return (
-        <ThemeModeProvider>
+        <ThemeModeProvider
+            initialPlatform={platform}
+            forcedMode={forcedMode}
+            storageKey={storageKey}
+        >
             <ThemeProviderInner>{children}</ThemeProviderInner>
         </ThemeModeProvider>
     );

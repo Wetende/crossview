@@ -1,75 +1,88 @@
-import React from 'react';
-import { Box, IconButton, useTheme, Typography, Button, AppBar, Toolbar } from '@mui/material';
-import { Link } from '@inertiajs/react';
-import { 
-    Menu as MenuIcon, 
+import React from "react";
+import {
+    Box,
+    IconButton,
+    useTheme,
+    Typography,
+    Button,
+    AppBar,
+    Toolbar,
+} from "@mui/material";
+import { Link } from "@inertiajs/react";
+import {
+    Menu as MenuIcon,
     ArrowBack,
     Close as CloseIcon,
     DarkMode,
     LightMode,
-    ChatBubbleOutline
-} from '@mui/icons-material';
-import { useThemeMode } from '@/theme';
+    ChatBubbleOutline,
+} from "@mui/icons-material";
+import ThemeProvider, { useThemeMode } from "@/theme";
 
-const ClassroomLayout = ({ 
-    children, 
-    programTitle, 
-    backLink, 
-    RightPanel, 
+const ClassroomLayoutInner = ({
+    children,
+    programTitle,
+    backLink,
+    RightPanel,
     LeftPanel,
     isSidebarOpen,
     onToggleSidebar,
     isDiscussionsOpen,
-    onToggleDiscussions
+    onToggleDiscussions,
 }) => {
     const theme = useTheme();
     const { isDark, toggleMode } = useThemeMode();
-    
+
     const discussionsWidth = 320;
 
     return (
-        <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            height: '100vh', 
-            bgcolor: 'background.default',
-            overflow: 'hidden'
-        }}>
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100vh",
+                bgcolor: "background.default",
+                overflow: "hidden",
+            }}
+        >
             {/* Header Bar */}
-            <AppBar 
-                position="static" 
-                color="default" 
-                elevation={0} 
-                sx={{ 
-                    bgcolor: 'background.paper', 
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    zIndex: theme.zIndex.drawer + 1 
+            <AppBar
+                position="static"
+                color="default"
+                elevation={0}
+                sx={{
+                    bgcolor: "background.paper",
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    zIndex: theme.zIndex.drawer + 1,
                 }}
             >
-                <Toolbar variant="dense" sx={{ minHeight: 48, justifyContent: 'space-between' }}>
+                <Toolbar
+                    variant="dense"
+                    sx={{ minHeight: 48, justifyContent: "space-between" }}
+                >
                     {/* Left Section */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton 
-                            size="small" 
-                            component={Link} 
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <IconButton
+                            size="small"
+                            component={Link}
                             href={backLink}
-                            sx={{ color: 'text.secondary' }}
+                            sx={{ color: "text.secondary" }}
                         >
                             <ArrowBack fontSize="small" />
                         </IconButton>
-                        
-                        <Box 
-                            sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
+
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
                                 gap: 0.5,
-                                bgcolor: 'primary.main',
-                                color: 'primary.contrastText',
+                                bgcolor: "primary.main",
+                                color: "primary.contrastText",
                                 px: 1.5,
                                 py: 0.5,
                                 borderRadius: 1,
-                                cursor: 'pointer'
+                                cursor: "pointer",
                             }}
                             onClick={onToggleSidebar}
                         >
@@ -77,36 +90,59 @@ const ClassroomLayout = ({
                             <Typography variant="body2" fontWeight={500}>
                                 Curriculum
                             </Typography>
-                            {isSidebarOpen && <CloseIcon fontSize="small" sx={{ ml: 0.5 }} />}
+                            {isSidebarOpen && (
+                                <CloseIcon fontSize="small" sx={{ ml: 0.5 }} />
+                            )}
                         </Box>
 
-                        <Box sx={{ display: 'flex', flexDirection: 'column', ml: 2 }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                ml: 2,
+                            }}
+                        >
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ lineHeight: 1 }}
+                            >
                                 Course
                             </Typography>
-                            <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 300, color: 'text.primary' }}>
+                            <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                noWrap
+                                sx={{ maxWidth: 300, color: "text.primary" }}
+                            >
                                 {programTitle}
                             </Typography>
                         </Box>
                     </Box>
 
                     {/* Right Section */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton 
-                            size="small" 
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <IconButton
+                            size="small"
                             onClick={toggleMode}
-                            sx={{ color: 'text.secondary' }}
+                            sx={{ color: "text.secondary" }}
                         >
-                            {isDark ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
+                            {isDark ? (
+                                <LightMode fontSize="small" />
+                            ) : (
+                                <DarkMode fontSize="small" />
+                            )}
                         </IconButton>
-                        
+
                         <Button
                             size="small"
                             startIcon={<ChatBubbleOutline fontSize="small" />}
                             onClick={onToggleDiscussions}
-                            sx={{ 
-                                textTransform: 'none',
-                                color: isDiscussionsOpen ? 'primary.main' : 'text.secondary'
+                            sx={{
+                                textTransform: "none",
+                                color: isDiscussionsOpen
+                                    ? "primary.main"
+                                    : "text.secondary",
                             }}
                         >
                             Discussions
@@ -116,60 +152,70 @@ const ClassroomLayout = ({
             </AppBar>
 
             {/* Main Content Area */}
-            <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden', position: 'relative' }}>
-                
+            <Box
+                sx={{
+                    display: "flex",
+                    flexGrow: 1,
+                    overflow: "hidden",
+                    position: "relative",
+                }}
+            >
                 {/* Left Sidebar (Curriculum) */}
-                <Box 
+                <Box
                     component="nav"
-                    sx={{ 
-                        width: isSidebarOpen ? 280 : 0, 
+                    sx={{
+                        width: isSidebarOpen ? 280 : 0,
                         flexShrink: 0,
-                        borderRight: isSidebarOpen ? '1px solid' : 'none', 
-                        borderColor: 'divider',
-                        transition: theme.transitions.create('width', {
+                        borderRight: isSidebarOpen ? "1px solid" : "none",
+                        borderColor: "divider",
+                        transition: theme.transitions.create("width", {
                             easing: theme.transitions.easing.sharp,
                             duration: theme.transitions.duration.enteringScreen,
                         }),
-                        overflow: 'hidden',
-                        bgcolor: 'background.paper'
+                        overflow: "hidden",
+                        bgcolor: "background.paper",
                     }}
                 >
-                    <Box sx={{ width: 280, height: '100%', overflowY: 'auto' }}>
+                    <Box sx={{ width: 280, height: "100%", overflowY: "auto" }}>
                         {LeftPanel}
                     </Box>
                 </Box>
 
                 {/* Center Stage (Content) - Expands to fill available space */}
-                <Box 
+                <Box
                     component="main"
-                    sx={{ 
-                        flexGrow: 1, 
-                        height: '100%', 
-                        display: 'flex',
-                        flexDirection: 'column',
-                        bgcolor: 'background.default',
-                        position: 'relative',
+                    sx={{
+                        flexGrow: 1,
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        bgcolor: "background.default",
+                        position: "relative",
                         // Adjust margin when discussions is open
-                        marginRight: isDiscussionsOpen ? `${discussionsWidth}px` : 0,
-                        transition: theme.transitions.create('margin', {
+                        marginRight: isDiscussionsOpen
+                            ? `${discussionsWidth}px`
+                            : 0,
+                        transition: theme.transitions.create("margin", {
                             easing: theme.transitions.easing.sharp,
                             duration: theme.transitions.duration.enteringScreen,
                         }),
                     }}
                 >
-                    <Box sx={{ 
-                        flexGrow: 1, 
-                        overflowY: 'auto',
-                        px: { xs: 2, md: 6 },
-                        py: 3,
-                        maxWidth: 900,
-                        mx: 'auto',
-                        width: '100%',
-                        // Hide scrollbar
-                        '&::-webkit-scrollbar': { display: 'none' },
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none'
-                    }}>
+                    <Box
+                        sx={{
+                            flexGrow: 1,
+                            overflowY: "auto",
+                            px: { xs: 2, md: 6 },
+                            py: 3,
+                            maxWidth: 900,
+                            mx: "auto",
+                            width: "100%",
+                            // Hide scrollbar
+                            "&::-webkit-scrollbar": { display: "none" },
+                            scrollbarWidth: "none",
+                            msOverflowStyle: "none",
+                        }}
+                    >
                         {children}
                     </Box>
                 </Box>
@@ -177,21 +223,23 @@ const ClassroomLayout = ({
                 {/* Right Sidebar (Discussions) - Fixed position overlay */}
                 <Box
                     sx={{
-                        position: 'absolute',
+                        position: "absolute",
                         right: 0,
                         top: 0,
                         bottom: 0,
                         width: discussionsWidth,
-                        bgcolor: 'background.paper',
-                        borderLeft: '1px solid',
-                        borderColor: 'divider',
-                        transform: isDiscussionsOpen ? 'translateX(0)' : `translateX(${discussionsWidth}px)`,
-                        transition: theme.transitions.create('transform', {
+                        bgcolor: "background.paper",
+                        borderLeft: "1px solid",
+                        borderColor: "divider",
+                        transform: isDiscussionsOpen
+                            ? "translateX(0)"
+                            : `translateX(${discussionsWidth}px)`,
+                        transition: theme.transitions.create("transform", {
                             easing: theme.transitions.easing.sharp,
                             duration: theme.transitions.duration.enteringScreen,
                         }),
                         zIndex: 10,
-                        overflowY: 'auto'
+                        overflowY: "auto",
                     }}
                 >
                     {RightPanel}
@@ -200,5 +248,11 @@ const ClassroomLayout = ({
         </Box>
     );
 };
+
+const ClassroomLayout = (props) => (
+    <ThemeProvider storageKey="lms_theme_classroom">
+        <ClassroomLayoutInner {...props} />
+    </ThemeProvider>
+);
 
 export default ClassroomLayout;

@@ -9,6 +9,8 @@
  * Info: Soft Sky Blue (#3B82F6) - Backgrounds and hover states
  */
 
+import { generatePaletteFromColor } from './utils/colorUtils';
+
 const lightPalette = {
     mode: 'light',
     primary: {
@@ -163,8 +165,24 @@ const darkPalette = {
     },
 };
 
-export default function palette(mode = 'light') {
-    return mode === 'dark' ? darkPalette : lightPalette;
+export default function palette(mode = 'light', brandColors = {}) {
+    const { primaryColor, secondaryColor } = brandColors;
+    const basePalette = mode === 'dark' ? darkPalette : lightPalette;
+
+    // Use base palette as starting point
+    const mergedPalette = { ...basePalette };
+
+    // Override primary if custom color provided
+    if (primaryColor) {
+        mergedPalette.primary = generatePaletteFromColor(primaryColor, mode);
+    }
+
+    // Override secondary if custom color provided
+    if (secondaryColor) {
+        mergedPalette.secondary = generatePaletteFromColor(secondaryColor, mode);
+    }
+
+    return mergedPalette;
 }
 
 // Export color constants for direct access (light mode defaults)

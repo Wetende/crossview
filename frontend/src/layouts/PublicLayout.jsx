@@ -8,13 +8,18 @@ import {
     Stack,
     Alert,
 } from "@mui/material";
+import ThemeProvider from "@/theme";
 
 /**
  * PublicLayout - Layout wrapper for public pages with platform branding.
  * Applies platform branding CSS variables and handles error states.
  * Requirements: 6.5, 6.6
  */
-export default function PublicLayout({ children, showHeader = true, showFooter = true }) {
+export default function PublicLayout({
+    children,
+    showHeader = true,
+    showFooter = true,
+}) {
     const { platform, flash } = usePage().props;
 
     // Handle inactive platform
@@ -41,7 +46,9 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
         >
             {/* Flash Messages */}
             {flash?.length > 0 && (
-                <Box sx={{ position: "fixed", top: 16, right: 16, zIndex: 9999 }}>
+                <Box
+                    sx={{ position: "fixed", top: 16, right: 16, zIndex: 9999 }}
+                >
                     <Stack spacing={1}>
                         {flash.map((msg, idx) => (
                             <Alert key={idx} severity={getSeverity(msg.type)}>
@@ -79,11 +86,19 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
                         </Typography>
                     </Stack>
                     <Stack direction="row" spacing={2}>
-                        <Button component={Link} href="/login/" variant="outlined">
+                        <Button
+                            component={Link}
+                            href="/login/"
+                            variant="outlined"
+                        >
                             Sign In
                         </Button>
                         {platform.registrationEnabled && (
-                            <Button component={Link} href="/register/" variant="contained">
+                            <Button
+                                component={Link}
+                                href="/register/"
+                                variant="contained"
+                            >
                                 Register
                             </Button>
                         )}
@@ -96,9 +111,18 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
 
             {/* Footer */}
             {showFooter && (
-                <Box sx={{ py: 3, textAlign: "center", borderTop: 1, borderColor: "divider" }}>
+                <Box
+                    sx={{
+                        py: 3,
+                        textAlign: "center",
+                        borderTop: 1,
+                        borderColor: "divider",
+                    }}
+                >
                     <Typography variant="body2" color="text.secondary">
-                        {platform ? `Powered by Crossview LMS` : `© ${new Date().getFullYear()} Crossview LMS`}
+                        {platform
+                            ? `Powered by Crossview LMS`
+                            : `© ${new Date().getFullYear()} Crossview LMS`}
                     </Typography>
                 </Box>
             )}
@@ -107,7 +131,8 @@ export default function PublicLayout({ children, showHeader = true, showFooter =
             {platform?.customCss && (
                 <style dangerouslySetInnerHTML={{ __html: platform.customCss }} />
             )}
-        </Box>
+            </Box>
+        </ThemeProvider>
     );
 }
 
@@ -134,10 +159,19 @@ function ErrorState({ title, message }) {
             }}
         >
             <Container maxWidth="sm" sx={{ textAlign: "center" }}>
-                <Typography variant="h4" fontWeight={600} color="error" gutterBottom>
+                <Typography
+                    variant="h4"
+                    fontWeight={600}
+                    color="error"
+                    gutterBottom
+                >
                     {title}
                 </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+                <Typography
+                    variant="body1"
+                    color="text.secondary"
+                    sx={{ mb: 4 }}
+                >
                     {message}
                 </Typography>
                 <Button component={Link} href="/" variant="contained">

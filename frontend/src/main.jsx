@@ -176,13 +176,15 @@ createInertiaApp({
         const faviconUrl = props.initialPage?.props?.platform?.faviconUrl || null;
         // Extract institution name from platform props for document title
         const platformName = props.initialPage?.props?.platform?.institutionName || null;
+        // Extract full platform object for dynamic theming
+        const platform = props.initialPage?.props?.platform || null;
 
         // Note: DO NOT set/overwrite the csrftoken cookie here!
         // Django sets the cookie and the axios interceptor reads from it.
         // Overwriting it with different tokens (from props/meta) breaks CSRF validation.
 
         createRoot(el).render(
-            <ProviderWrapper initialUser={initialUser}>
+            <ProviderWrapper initialUser={initialUser} platform={platform}>
                 <PlatformBranding faviconUrl={faviconUrl} platformName={platformName} />
                 <App {...props} />
             </ProviderWrapper>,
