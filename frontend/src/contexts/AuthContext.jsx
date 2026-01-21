@@ -25,7 +25,7 @@ export function AuthProvider({ children, initialUser = null }) {
     const logout = useCallback(async () => {
         return new Promise((resolve) => {
             router.post(
-                "/logout",
+                "/logout/",
                 {},
                 {
                     onSuccess: () => {

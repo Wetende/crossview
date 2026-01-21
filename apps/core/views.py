@@ -69,6 +69,12 @@ def landing_page(request):
             "name": p.name,
             "code": p.code or "",
             "description": p.description or "",
+            "thumbnail": p.thumbnail.url if p.thumbnail else None,
+            "badge_type": p.badge_type, 
+            "category": p.category,
+            "rating": 4.5, # Placeholder rating
+            "price": p.custom_pricing.get("price", 0) if p.custom_pricing else 0,
+            "original_price": p.custom_pricing.get("original_price") if p.custom_pricing else None,
             "enrollmentCount": enrollment_counts.get(p.id, 0),
         }
         for p in programs
@@ -534,6 +540,7 @@ def login_page(request):
     )
 
 
+@ensure_csrf_cookie
 def register_page(request):
     """
     Registration page with form handling.
@@ -634,6 +641,7 @@ def register_page(request):
     )
 
 
+@ensure_csrf_cookie
 def forgot_password_page(request):
     """
     Forgot password page - sends reset email.
@@ -677,6 +685,7 @@ def forgot_password_page(request):
     return render(request, "Auth/ForgotPassword", {})
 
 
+@ensure_csrf_cookie
 def reset_password_page(request, uidb64: str, token: str):
     """
     Reset password page - validates token and resets password.
@@ -2093,6 +2102,7 @@ def instructor_gradebook(request):
         programs_data.append({
             "id": p.id,
             "name": p.name,
+            "thumbnailUrl": p.thumbnail.url if p.thumbnail else None,
             "gradingType": grading_config.get("type") or grading_config.get("mode", "percentage"),
             "gradingConfig": grading_config,
             "studentCount": enrollments.count(),

@@ -61,13 +61,12 @@ export default function PublicProgramCard({
             <Box sx={{ position: "relative" }}>
                 <CardMedia
                     component="img"
-                    height="160"
                     image={
                         program.thumbnail ||
                         "/static/images/course-placeholder.svg"
                     }
                     alt={program.name}
-                    sx={{ objectFit: "cover" }}
+                    sx={{ aspectRatio: "16/9", objectFit: "cover" }}
                 />
                 {program.badge_type && (
                     <Chip
@@ -123,6 +122,7 @@ export default function PublicProgramCard({
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
                         "&:hover": { color: theme.palette.primary.main },
+                        minHeight: "3.2em", // approx 2 lines
                     }}
                 >
                     {program.name}

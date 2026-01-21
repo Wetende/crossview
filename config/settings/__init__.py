@@ -1,2 +1,2 @@
-# Default to development settings
-from .development import *
+# Use unified settings file
+from .settings import *

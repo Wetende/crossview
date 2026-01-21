@@ -38,7 +38,12 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post("/login/");
+
+        post("/login/", {
+            onError: (errors) => {
+                console.error("Login failed:", errors);
+            }
+        });
     };
 
     const hasError = errors.auth || Object.keys(errors).length > 0;

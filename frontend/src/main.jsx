@@ -8,9 +8,8 @@ import "@/config"; // Load fonts
 import "./styles/app.css";
 import "nprogress/nprogress.css";
 
-// Configure axios for CSRF (used by Inertia internally)
-axios.defaults.xsrfCookieName = "csrftoken";
-axios.defaults.xsrfHeaderName = "X-CSRFToken";
+// Configure axios for CSRF
+// Django is now configured to use Axios defaults: XSRF-TOKEN cookie, X-XSRF-TOKEN header
 axios.defaults.withCredentials = true;
 
 // Configure NProgress
@@ -173,18 +172,9 @@ createInertiaApp({
         // Extract user from Inertia's initial page props
         const initialUser = props.initialPage?.props?.auth?.user || null;
 
-        // Ensure cookies are synced with Inertia props if needed, but rely on browser/axios for headers
-        const csrfToken = props.initialPage?.props?.csrfToken;
-        if (csrfToken) {
-            // We do NOT set the header manually here to avoid stale tokens after rotation.
-            // Axios will automatically read the 'csrftoken' cookie and set the 'X-CSRFToken' header
-            // based on the defaults configured above.
-
-            // Ensure the cookie exists (useful for first load if HttpOnly isn't used)
-            if (!document.cookie.includes("csrftoken=")) {
-                document.cookie = `csrftoken=${csrfToken}; path=/; SameSite=Lax`;
-            }
-        }
+        // Note: DO NOT set/overwrite the csrftoken cookie here!
+        // Django sets the cookie and the axios interceptor reads from it.
+        // Overwriting it with different tokens (from props/meta) breaks CSRF validation.
 
         createRoot(el).render(
             <ProviderWrapper initialUser={initialUser}>

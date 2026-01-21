@@ -26,6 +26,7 @@ import ButtonAnimationWrapper from "@/features/components/common/ButtonAnimation
 
 // Sections
 import HeroSection from "@/components/sections/landing/HeroSection";
+import FooterSection from "@/components/sections/landing/FooterSection";
 
 // Skeletons
 import CardGridSkeleton from "@/components/sections/landing/skeletons/CardGridSkeleton";
@@ -447,21 +448,10 @@ function PlatformLanding({ platform, programs = [], stats = {}, allPrograms = []
                     placeholderHeight={600}
                 />
 
-                {/* Footer */}
-                <LazySection
-                    sections={[
-                        {
-                            importFunc: () =>
-                                import(
-                                    "@/components/sections/landing/FooterSection"
-                                ).then((m) => ({ default: m.default })),
-                            props: { platform },
-                        },
-                    ]}
-                    offset="100px"
-                    placeholderHeight={300}
-                />
+                {/* Footer - Static import to avoid build warnings */}
+                <FooterSection platform={platform} />
             </Box>
         </ThemeProvider>
     );
 }
+

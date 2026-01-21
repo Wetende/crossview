@@ -11,19 +11,7 @@ from apps.platform.models import PlatformSettings
 from apps.notifications.services import NotificationService
 
 
-class CSRFHeaderMiddleware:
-    """
-    Middleware to ensure CSRF token header is found even if sent as X-XSRF-TOKEN.
-    Inertia.js/Axios often sends 'X-XSRF-TOKEN' which Django doesn't read by default.
-    """
-    def __init__(self, get_response):
-        self.get_response = get_response
 
-    def __call__(self, request):
-        if "HTTP_X_CSRFTOKEN" not in request.META:
-            if "HTTP_X_XSRF_TOKEN" in request.META:
-                request.META["HTTP_X_CSRFTOKEN"] = request.META["HTTP_X_XSRF_TOKEN"]
-        return self.get_response(request)
 
 
 class InertiaShareMiddleware:

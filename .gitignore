@@ -52,3 +52,5 @@ Thumbs.db
 *.egg-info/
 build/
 specs
+
+.agent

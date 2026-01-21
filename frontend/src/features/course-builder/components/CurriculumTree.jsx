@@ -462,45 +462,28 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                             </Box>
                             
                             <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                                <Box sx={{ bgcolor: 'grey.100', px: 2, py: 1 }}><Typography variant="subtitle2" color="text.secondary">Exam Students</Typography></Box>
+                                <Box sx={{ bgcolor: 'grey.100', px: 2, py: 1 }}><Typography variant="subtitle2" color="text.secondary">Assessments</Typography></Box>
                                 <List disablePadding>
-                                     {featureFlags.quizzes && (
-                                         <ListItemButton onClick={() => handleLessonTypeSelect('quiz')}>
-                                            <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><QuizIcon /></Box>
-                                            <ListItemText primary="Quiz" />
-                                        </ListItemButton>
-                                     )}
-                                     {featureFlags.assignments && (
-                                         <ListItemButton onClick={() => handleLessonTypeSelect('assignment')}>
-                                            <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><AssignmentIcon /></Box>
-                                            <ListItemText primary="Assignment" />
-                                        </ListItemButton>
-                                     )}
-                                     {!featureFlags.quizzes && !featureFlags.assignments && (
-                                         <Box sx={{ p: 2, color: 'text.disabled', textAlign: 'center' }}>
-                                             <Typography variant="body2">No assessment types enabled</Typography>
-                                         </Box>
-                                     )}
+                                    <ListItemButton onClick={() => handleLessonTypeSelect('quiz')}>
+                                        <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><QuizIcon /></Box>
+                                        <ListItemText primary="Quiz" secondary="Test student knowledge" />
+                                    </ListItemButton>
+                                    <ListItemButton onClick={() => handleLessonTypeSelect('assignment')}>
+                                        <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><AssignmentIcon /></Box>
+                                        <ListItemText primary="Assignment" secondary="Graded coursework" />
+                                    </ListItemButton>
                                 </List>
                             </Box>
                             
-                            {/* Practical Skills - TVET/Theology modes */}
-                            {(featureFlags.portfolio || featureFlags.practicum) && (
+                            {/* Portfolio - only for programs that support it */}
+                            {featureFlags.portfolio && (
                                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                                     <Box sx={{ bgcolor: 'grey.100', px: 2, py: 1 }}><Typography variant="subtitle2" color="text.secondary">Practical Skills</Typography></Box>
                                     <List disablePadding>
-                                         {featureFlags.portfolio && (
-                                             <ListItemButton onClick={() => handleLessonTypeSelect('portfolio')}>
-                                                <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><AssignmentIcon /></Box>
-                                                <ListItemText primary="Portfolio Entry" secondary="Evidence-based competency proof" />
-                                            </ListItemButton>
-                                         )}
-                                         {featureFlags.practicum && (
-                                             <ListItemButton onClick={() => handleLessonTypeSelect('practicum')}>
-                                                <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><ArticleIcon /></Box>
-                                                <ListItemText primary="Practicum Session" secondary="Supervised practical work" />
-                                            </ListItemButton>
-                                         )}
+                                        <ListItemButton onClick={() => handleLessonTypeSelect('portfolio')}>
+                                            <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}><AssignmentIcon /></Box>
+                                            <ListItemText primary="Portfolio Entry" secondary="Evidence-based competency proof" />
+                                        </ListItemButton>
                                     </List>
                                 </Box>
                             )}
