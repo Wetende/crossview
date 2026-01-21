@@ -373,7 +373,7 @@ export default function HeroSection({ platform, allPrograms = [] }) {
             sx={{
                 pt: { xs: 14, md: 16 },
                 pb: { xs: 10, md: 14 },
-                backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.5)} 0%, ${hexToRgba(secondaryColor, 0.6)} 100%), url(${heroBgImage})`,
+                backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.3)} 0%, ${hexToRgba(secondaryColor, 0.45)} 100%), url(${heroBgImage})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 position: "relative",
@@ -432,7 +432,7 @@ export default function HeroSection({ platform, allPrograms = [] }) {
             />
 
             <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
-                <Grid container spacing={{ xs: 4, md: 8 }} alignItems="center">
+                <Grid container spacing={{ xs: 4, md: 8 }} alignItems="center" justifyContent="space-between">
                     <Grid item xs={12} md={6}>
                         <motion.div {...fadeInUp}>
                             <SectionLabel
@@ -607,7 +607,7 @@ export default function HeroSection({ platform, allPrograms = [] }) {
                         </motion.div>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid item xs={12} md={5}>
                         <ContactCard primaryColor={primaryColor} programs={allPrograms} />
                     </Grid>
                 </Grid>

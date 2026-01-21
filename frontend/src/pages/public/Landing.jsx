@@ -47,26 +47,6 @@ const lightTheme = createTheme({
     },
 });
 
-// --- Helper Components ---
-
-function ElevationScroll({ children, primaryColor }) {
-    const trigger = useScrollTrigger({
-        disableHysteresis: true,
-        threshold: 0,
-    });
-
-    return cloneElement(children, {
-        elevation: trigger ? 4 : 0,
-        sx: {
-            bgcolor: trigger ? "rgba(255, 255, 255, 0.95)" : "transparent",
-            backdropFilter: trigger ? "blur(20px)" : "none",
-            borderBottom: trigger ? 1 : 0,
-            borderColor: "divider",
-            transition: "all 0.3s ease",
-        },
-    });
-}
-
 // --- Main Component ---
 
 export default function Landing() {
@@ -140,6 +120,15 @@ function PlatformLanding({ platform, programs = [], stats = {}, allPrograms = []
         { label: "Contact", href: "/contact/" },
     ];
 
+    // Scroll trigger for dynamic navbar
+    const scrolled = useScrollTrigger({
+        disableHysteresis: true,
+        threshold: 10, // Slight threshold to avoid flickering at very top
+    });
+
+    // Dynamic text color based on scroll state
+    const navbarTextColor = scrolled ? lightTheme.palette.text.primary : "white";
+
     return (
         <ThemeProvider theme={lightTheme}>
             <CssBaseline />
@@ -153,138 +142,154 @@ function PlatformLanding({ platform, programs = [], stats = {}, allPrograms = []
                 }}
             >
                 {/* ================== NAVBAR ================== */}
-                <ElevationScroll primaryColor={primaryColor}>
-                    <AppBar position="fixed" color="transparent">
-                        <Container maxWidth="lg">
-                            <Toolbar
-                                disableGutters
-                                sx={{ py: 1, justifyContent: "space-between" }}
+                <AppBar 
+                    position="fixed" 
+                    color="transparent"
+                    elevation={scrolled ? 4 : 0}
+                    sx={{
+                        bgcolor: scrolled ? "rgba(255, 255, 255, 0.95)" : "transparent",
+                        backdropFilter: scrolled ? "blur(20px)" : "none",
+                        borderBottom: scrolled ? 1 : 0,
+                        borderColor: "divider",
+                        transition: "all 0.3s ease",
+                    }}
+                >
+                    <Container maxWidth="lg">
+                        <Toolbar
+                            disableGutters
+                            sx={{ py: 1, justifyContent: "space-between" }}
+                        >
+                            {/* Logo */}
+                            <Stack
+                                direction="row"
+                                spacing={2}
+                                alignItems="center"
                             >
-                                {/* Logo */}
-                                <Stack
-                                    direction="row"
-                                    spacing={2}
-                                    alignItems="center"
-                                >
-                                    {platform.logoUrl ? (
+                                {platform.logoUrl ? (
+                                    <Box
+                                        component="img"
+                                        src={platform.logoUrl}
+                                        alt={platform.institutionName}
+                                        sx={{
+                                            height: 40,
+                                            maxWidth: 160,
+                                            objectFit: "contain",
+                                        }}
+                                    />
+                                ) : (
+                                    <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        alignItems="center"
+                                    >
                                         <Box
-                                            component="img"
-                                            src={platform.logoUrl}
-                                            alt={platform.institutionName}
                                             sx={{
+                                                width: 40,
                                                 height: 40,
-                                                maxWidth: 160,
-                                                objectFit: "contain",
-                                            }}
-                                        />
-                                    ) : (
-                                        <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            alignItems="center"
-                                        >
-                                            <Box
-                                                sx={{
-                                                    width: 40,
-                                                    height: 40,
-                                                    bgcolor: primaryColor,
-                                                    borderRadius: 2,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    color: "white",
-                                                }}
-                                            >
-                                                <IconSchool size={24} />
-                                            </Box>
-                                            <Typography
-                                                variant="h6"
-                                                fontWeight={700}
-                                                color="text.primary"
-                                            >
-                                                {platform.institutionName}
-                                            </Typography>
-                                        </Stack>
-                                    )}
-                                </Stack>
-
-                                {/* Desktop Nav */}
-                                <Stack
-                                    direction="row"
-                                    spacing={4}
-                                    sx={{ display: { xs: "none", md: "flex" } }}
-                                >
-                                    {navLinks.map((link) => (
-                                        <Link
-                                            key={link.href}
-                                            href={link.href}
-                                            style={{
-                                                textDecoration: "none",
-                                                color: lightTheme.palette.text
-                                                    .primary,
-                                                fontWeight: 500,
-                                                fontSize: "0.95rem",
+                                                bgcolor: primaryColor,
+                                                borderRadius: 2,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                color: "white",
                                             }}
                                         >
-                                            {link.label}
-                                        </Link>
-                                    ))}
-                                </Stack>
+                                            <IconSchool size={24} />
+                                        </Box>
+                                        <Typography
+                                            variant="h6"
+                                            fontWeight={700}
+                                            color={navbarTextColor}
+                                            sx={{ transition: "color 0.3s ease" }}
+                                        >
+                                            {platform.institutionName}
+                                        </Typography>
+                                    </Stack>
+                                )}
+                            </Stack>
 
-                                {/* CTA Buttons */}
-                                <Stack
-                                    direction="row"
-                                    spacing={2}
-                                    alignItems="center"
+                            {/* Desktop Nav */}
+                            <Stack
+                                direction="row"
+                                spacing={4}
+                                sx={{ display: { xs: "none", md: "flex" } }}
+                            >
+                                {navLinks.map((link) => (
+                                    <Link
+                                        key={link.href}
+                                        href={link.href}
+                                        style={{
+                                            textDecoration: "none",
+                                            color: navbarTextColor,
+                                            fontWeight: 500,
+                                            fontSize: "0.95rem",
+                                            transition: "color 0.3s ease",
+                                        }}
+                                    >
+                                        {link.label}
+                                    </Link>
+                                ))}
+                            </Stack>
+
+                            {/* CTA Buttons */}
+                            <Stack
+                                direction="row"
+                                spacing={2}
+                                alignItems="center"
+                            >
+                                <Button
+                                    component={Link}
+                                    href="/login/"
+                                    color="inherit"
+                                    sx={{
+                                        fontWeight: 600,
+                                        color: navbarTextColor,
+                                        transition: "color 0.3s ease",
+                                        display: {
+                                            xs: "none",
+                                            sm: "inline-flex",
+                                        },
+                                    }}
                                 >
+                                    Sign In
+                                </Button>
+                                <ButtonAnimationWrapper>
                                     <Button
                                         component={Link}
-                                        href="/login/"
-                                        color="inherit"
+                                        href="/register/"
+                                        variant="contained"
                                         sx={{
-                                            fontWeight: 600,
+                                            borderRadius: 100,
+                                            px: 3,
+                                            bgcolor: primaryColor,
+                                            "&:hover": {
+                                                bgcolor: secondaryColor,
+                                            },
                                             display: {
                                                 xs: "none",
                                                 sm: "inline-flex",
                                             },
                                         }}
                                     >
-                                        Sign In
+                                        Get Started
                                     </Button>
-                                    <ButtonAnimationWrapper>
-                                        <Button
-                                            component={Link}
-                                            href="/register/"
-                                            variant="contained"
-                                            sx={{
-                                                borderRadius: 100,
-                                                px: 3,
-                                                bgcolor: primaryColor,
-                                                "&:hover": {
-                                                    bgcolor: secondaryColor,
-                                                },
-                                                display: {
-                                                    xs: "none",
-                                                    sm: "inline-flex",
-                                                },
-                                            }}
-                                        >
-                                            Get Started
-                                        </Button>
-                                    </ButtonAnimationWrapper>
+                                </ButtonAnimationWrapper>
 
-                                    {/* Mobile Menu Toggle */}
-                                    <IconButton
-                                        sx={{ display: { md: "none" } }}
-                                        onClick={() => setMobileMenuOpen(true)}
-                                    >
-                                        <IconMenu2 />
-                                    </IconButton>
-                                </Stack>
-                            </Toolbar>
-                        </Container>
-                    </AppBar>
-                </ElevationScroll>
+                                {/* Mobile Menu Toggle */}
+                                <IconButton
+                                    sx={{ 
+                                        display: { md: "none" },
+                                        color: navbarTextColor,
+                                        transition: "color 0.3s ease",
+                                    }}
+                                    onClick={() => setMobileMenuOpen(true)}
+                                >
+                                    <IconMenu2 />
+                                </IconButton>
+                            </Stack>
+                        </Toolbar>
+                    </Container>
+                </AppBar>
 
                 {/* Mobile Drawer */}
                 <Drawer

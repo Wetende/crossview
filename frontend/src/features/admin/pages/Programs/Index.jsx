@@ -296,9 +296,9 @@ export default function ProgramsIndex({
           </MenuItem>
           <MenuItem
             component={Link}
-            href={selectedProgram ? `/admin/curriculum/?program=${selectedProgram.id}` : '#'}
+            href={selectedProgram ? `/instructor/programs/${selectedProgram.id}/manage/` : '#'}
           >
-            Curriculum Builder
+            Course Manager
           </MenuItem>
           <MenuItem onClick={handlePublish}>
             {selectedProgram?.isPublished ? 'Unpublish' : 'Publish'}

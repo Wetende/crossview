@@ -100,11 +100,11 @@ export default function ProgramShow({ program, stats, instructors = [] }) {
             </Button>
             <Button
               component={Link}
-              href={`/admin/curriculum/?program=${program.id}`}
+              href={`/instructor/programs/${program.id}/manage/`}
               variant="contained"
               startIcon={<AccountTreeIcon />}
             >
-              Curriculum Builder
+              Course Manager
             </Button>
           </Stack>
         </Box>

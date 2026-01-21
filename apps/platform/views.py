@@ -50,42 +50,42 @@ def admin_settings(request):
     )
 
 
-@login_required
-def admin_branding(request):
-    """Admin branding page - uses PlatformSettings for single-tenant mode."""
-    if not is_admin(request.user):
-        return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    
-    if request.method == "POST":
-        data = get_post_data(request)
-        logo = request.FILES.get("logo")
-        favicon = request.FILES.get("favicon")
-        
-        PlatformSettingsService.update_branding(
-            primary_color=data.get("primaryColor"),
-            secondary_color=data.get("secondaryColor"),
-            custom_css=data.get("customCss", ""),
-            logo=logo,
-            favicon=favicon,
-        )
-        messages.success(request, "Branding updated successfully")
-        return redirect("tenants:admin.branding")
-    
-    settings = PlatformSettingsService.get_settings()
-    return render(
-        request,
-        "Admin/Settings/Branding",
-        {
-            "branding": {
-                "primaryColor": settings.get("primaryColor", "#3B82F6"),
-                "secondaryColor": settings.get("secondaryColor", "#1E40AF"),
-                "logoUrl": settings.get("logo", ""),
-                "customCss": settings.get("customCss", ""),
-            },
-        },
-    )
+# @login_required
+# def admin_branding(request):
+#     """Admin branding page - uses PlatformSettings for single-tenant mode."""
+#     if not is_admin(request.user):
+#         return redirect("/dashboard/")
+#     
+#     from apps.platform.services import PlatformSettingsService
+#     
+#     if request.method == "POST":
+#         data = get_post_data(request)
+#         logo = request.FILES.get("logo")
+#         favicon = request.FILES.get("favicon")
+#         
+#         PlatformSettingsService.update_branding(
+#             primary_color=data.get("primaryColor"),
+#             secondary_color=data.get("secondaryColor"),
+#             custom_css=data.get("customCss", ""),
+#             logo=logo,
+#             favicon=favicon,
+#         )
+#         messages.success(request, "Branding updated successfully")
+#         return redirect("tenants:admin.branding")
+#     
+#     settings = PlatformSettingsService.get_settings()
+#     return render(
+#         request,
+#         "Admin/Settings/Branding",
+#         {
+#             "branding": {
+#                 "primaryColor": settings.get("primaryColor", "#3B82F6"),
+#                 "secondaryColor": settings.get("secondaryColor", "#1E40AF"),
+#                 "logoUrl": settings.get("logo", ""),
+#                 "customCss": settings.get("customCss", ""),
+#             },
+#         },
+#     )
 
 
 # =============================================================================

@@ -134,20 +134,20 @@ def admin_certificates(request):
         return redirect('core:login')
     
     # Require admin or superadmin role
-    if not (request.user.is_superuser or request.user.role in ['admin', 'superadmin']):
+    if not (request.user.is_superuser or request.user.is_staff):
         return redirect('core:dashboard')
     
     # Get all certificates with related data
     certificates = Certificate.objects.select_related(
         'enrollment', 'enrollment__user', 'enrollment__program'
-    ).order_by('-issued_at')
+    ).order_by('-issue_date')
     
     # Calculate stats
     now = timezone.now()
     thirty_days_ago = now - timedelta(days=30)
     
     total_certificates = certificates.count()
-    certificates_this_month = certificates.filter(issued_at__gte=thirty_days_ago).count()
+    certificates_this_month = certificates.filter(issue_date__gte=thirty_days_ago).count()
     revoked_count = certificates.filter(is_revoked=True).count()
     
     # Serialize certificates for frontend
@@ -160,7 +160,7 @@ def admin_certificates(request):
             'studentEmail': cert.enrollment.user.email if cert.enrollment else None,
             'programTitle': cert.program_title,
             'completionDate': cert.completion_date.isoformat() if cert.completion_date else None,
-            'issuedAt': cert.issued_at.isoformat() if cert.issued_at else None,
+            'issuedAt': cert.issue_date.isoformat() if cert.issue_date else None,
             'isRevoked': cert.is_revoked,
             'revocationReason': cert.revocation_reason,
         })

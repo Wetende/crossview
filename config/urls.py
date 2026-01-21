@@ -15,7 +15,7 @@ urlpatterns = [
     path("", include("apps.practicum.urls")),  # Practicum API routes
     path("", include("apps.certifications.urls")),  # Certificate routes
     path("", include("apps.blueprints.urls")),  # Blueprint admin routes
-    path("", include("apps.curriculum.urls")),  # Curriculum admin routes
+
     path("", include("apps.platform.urls")),  # Platform settings routes
     path("assessments/", include("apps.assessments.urls")),
     path("content/", include("apps.content.urls")),

@@ -9,7 +9,7 @@ app_name = "tenants"
 urlpatterns = [
     # Admin Settings
     path("admin/settings/", views.admin_settings, name="admin.settings"),
-    path("admin/settings/branding/", views.admin_branding, name="admin.branding"),
+    # path("admin/settings/branding/", views.admin_branding, name="admin.branding"),
     
     # Super Admin Dashboard
     path("superadmin/", views.superadmin_dashboard, name="superadmin.dashboard"),

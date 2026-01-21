@@ -20,7 +20,7 @@ from inertia import render
 
 from apps.core.models import User, Program
 from apps.certifications.models import Certificate, VerificationLog
-from apps.core.utils import get_post_data
+from apps.core.utils import get_post_data, is_instructor, get_instructor_program_ids
 
 
 def get_dashboard_url(role: str) -> str:
@@ -290,11 +290,17 @@ def public_program_detail(request, pk: int):
     
     # Get instructor info
     instructors_data = []
-    for instructor in program.instructors.all():
+    # Use InstructorAssignment model to get correctly assigned instructors
+    from apps.progression.models import InstructorAssignment
+    assignments = InstructorAssignment.objects.filter(program=program).select_related('instructor')
+    
+    for assignment in assignments:
+        instructor = assignment.instructor
         instructors_data.append({
             "id": instructor.id,
             "name": instructor.get_full_name() or instructor.email,
             "avatar": None,  # TODO: Add avatar field
+            "role": assignment.role, # Include role (e.g. "Primary Instructor")
         })
     
     # Get related/popular programs
@@ -1780,26 +1786,15 @@ def _serialize_user(user: User) -> dict:
 # =============================================================================
 
 
-def _require_instructor(user) -> bool:
-    """Check if user is instructor (or higher)."""
-    if user.is_superuser or user.is_staff:
-        return True
-    return hasattr(user, "groups") and user.groups.filter(name="Instructors").exists()
-
-
-def _get_instructor_program_ids(user) -> list:
-    """Get list of program IDs assigned to this instructor."""
-    from apps.progression.models import InstructorAssignment
-    return list(InstructorAssignment.objects.filter(instructor=user).values_list("program_id", flat=True))
 
 
 @login_required
 def instructor_programs(request):
     """List programs assigned to this instructor."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     programs = Program.objects.filter(id__in=program_ids).select_related("blueprint")
     
     from apps.progression.models import Enrollment
@@ -1831,14 +1826,14 @@ def instructor_programs(request):
 @login_required
 def instructor_program_detail(request, pk: int):
     """View program details for instructor."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     from django.shortcuts import get_object_or_404
     from apps.progression.models import Enrollment
     from apps.curriculum.models import CurriculumNode
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     program = get_object_or_404(Program, pk=pk, id__in=program_ids)
     
     # Get enrolled students
@@ -1880,12 +1875,12 @@ def instructor_program_detail(request, pk: int):
 @login_required
 def instructor_students(request):
     """List all students enrolled in instructor's programs."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     from apps.progression.models import Enrollment
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     
     enrollments = (
         Enrollment.objects.filter(program_id__in=program_ids)
@@ -1919,13 +1914,13 @@ def instructor_students(request):
 @login_required
 def instructor_student_detail(request, pk: int):
     """View individual student details."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     from django.shortcuts import get_object_or_404
     from apps.progression.models import Enrollment, NodeCompletion
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     student = get_object_or_404(User, pk=pk)
     
     # Only show enrollment data for instructor's programs
@@ -1962,7 +1957,7 @@ def instructor_student_detail(request, pk: int):
 @login_required
 def instructor_enrollment_status(request, enrollment_id: int):
     """Update enrollment status (active, suspended, withdrawn, completed)."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     if request.method != "POST":
@@ -1971,10 +1966,10 @@ def instructor_enrollment_status(request, enrollment_id: int):
     from django.shortcuts import get_object_or_404
     from apps.progression.models import Enrollment
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program_id__in=program_ids)
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     new_status = data.get("status", "")
     
     valid_statuses = ["active", "suspended", "withdrawn", "completed"]
@@ -1998,7 +1993,7 @@ def _get_students_for_program(program_id: int, user) -> list:
     from apps.curriculum.models import CurriculumNode
     from apps.assessments.models import Quiz, QuizAttempt, Assignment, AssignmentSubmission
     
-    program_ids = _get_instructor_program_ids(user)
+    program_ids = get_instructor_program_ids(user)
     program = get_object_or_404(Program, pk=program_id, id__in=program_ids)
     
     # Get enrolled students
@@ -2085,12 +2080,12 @@ def _get_students_for_program(program_id: int, user) -> list:
 
 def instructor_gradebook(request):
     """Gradebook for instructor's programs with partial reload for students."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     from apps.progression.models import Enrollment
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     programs = Program.objects.filter(id__in=program_ids).select_related("blueprint")
     
     # Get grading config from blueprint
@@ -2135,13 +2130,13 @@ def instructor_gradebook(request):
 @login_required
 def instructor_grade_entry(request, enrollment_id: int):
     """Enter grades for a specific enrollment."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     from django.shortcuts import get_object_or_404
     from apps.progression.models import Enrollment
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program_id__in=program_ids)
     
     if request.method == "POST":
@@ -2170,14 +2165,14 @@ def instructor_grade_entry(request, enrollment_id: int):
 @login_required
 def instructor_program_gradebook(request, pk: int):
     """Gradebook for a specific program with quiz and assignment scores."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     from django.shortcuts import get_object_or_404
     from apps.progression.models import Enrollment
     from apps.assessments.models import Quiz, QuizAttempt, Assignment, AssignmentSubmission
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     program = get_object_or_404(Program, pk=pk, id__in=program_ids)
     
     grading_config = program.blueprint.grading_logic if program.blueprint else {}
@@ -2303,7 +2298,7 @@ def instructor_program_gradebook(request, pk: int):
 @login_required
 def instructor_program_gradebook_save(request, pk: int):
     """Save grades for a specific program."""
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     if request.method != "POST":
@@ -2312,10 +2307,10 @@ def instructor_program_gradebook_save(request, pk: int):
     from django.shortcuts import get_object_or_404
     from apps.progression.models import Enrollment
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     program = get_object_or_404(Program, pk=pk, id__in=program_ids)
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     grades_data = data.get("grades", {})
     
     # Update grades for each enrollment
@@ -2345,10 +2340,10 @@ def instructor_announcements_index(request):
     List all announcements across instructor's programs.
     Announcements are stored in Program.notices JSONField.
     """
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     programs = Program.objects.filter(id__in=program_ids)
     
     # Gather all notices from all programs
@@ -2383,10 +2378,10 @@ def instructor_announcement_create(request):
     Create a new announcement for a program.
     Appends to Program.notices JSONField.
     """
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     programs = Program.objects.filter(id__in=program_ids)
     
     if request.method == "POST":
@@ -2737,7 +2732,7 @@ def admin_instructor_application_reject(request, pk: int):
         messages.error(request, "Application not found")
         return redirect("core:admin.instructor_applications")
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     reason = data.get("reason", "").strip()
     
     if not reason:
@@ -2951,7 +2946,7 @@ def student_quiz_submit(request, quiz_id: int):
         return redirect("core:student.quiz_start", quiz_id=quiz_id)
     
     # Save answers
-    data = _get_post_data(request)
+    data = get_post_data(request)
     attempt.answers = data.get("answers", {})
     attempt.submitted_at = timezone.now()
     
@@ -3039,10 +3034,10 @@ def instructor_assignments_global(request):
     from apps.progression.models import InstructorAssignment
     from django.db.models import Count, Q
     
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     
     # Get search and filter params
     search = request.GET.get("search", "").strip()
@@ -3799,7 +3794,7 @@ def admin_course_request_changes(request, program_id: int):
         messages.error(request, "Program not found")
         return redirect("core:admin.course_approval")
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     message = data.get("message", "").strip()
     node_id = data.get("nodeId")
     
@@ -3975,7 +3970,7 @@ def instructor_program_manage(request, pk: int):
     New MasterStudy-style Course Manager.
     Entry point for Curriculum Builder, Settings, etc.
     """
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return redirect("/dashboard/")
     
     from apps.curriculum.models import CurriculumNode
@@ -4046,7 +4041,7 @@ def instructor_program_manage(request, pk: int):
 @login_required
 def instructor_node_create(request, program_id: int):
     """Create a new curriculum node."""
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         return redirect("/dashboard/")
 
     from apps.curriculum.models import CurriculumNode
@@ -4057,7 +4052,7 @@ def instructor_node_create(request, program_id: int):
         messages.error(request, "Permission denied")
         return redirect("/dashboard/")
 
-    data = _get_post_data(request)
+    data = get_post_data(request)
     parent_id = data.get("parent_id")
     title = data.get("title", "New Item")
     frontend_type = data.get("type")  # Frontend can specify: Lesson, Quiz, Assignment, etc.
@@ -4298,17 +4293,17 @@ def _sync_assignment(node):
 @login_required
 def instructor_node_update(request, node_id: int):
     """Update node details (title, description, properties)."""
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         return redirect("/dashboard/")
 
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import InstructorAssignment
     from django.shortcuts import get_object_or_404
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     node = get_object_or_404(CurriculumNode, pk=node_id, program_id__in=program_ids)
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     node.title = data.get("title", node.title)
     node.description = data.get("description", node.description)
     
@@ -4341,13 +4336,13 @@ def instructor_node_update(request, node_id: int):
 @login_required
 def instructor_node_delete(request, node_id: int):
     """Delete a node and its children."""
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         return redirect("/dashboard/")
 
     from apps.curriculum.models import CurriculumNode
     from django.shortcuts import get_object_or_404
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     node = get_object_or_404(CurriculumNode, pk=node_id, program_id__in=program_ids)
     
     program_id = node.program_id
@@ -4359,7 +4354,7 @@ def instructor_node_delete(request, node_id: int):
 @login_required
 def instructor_node_reorder(request, program_id: int):
     """Reorder siblings."""
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         return redirect("/dashboard/")
         
     from apps.curriculum.models import CurriculumNode
@@ -4370,7 +4365,7 @@ def instructor_node_reorder(request, program_id: int):
 
     # For MVP, maybe just "move up/down" or full list update? 
     # Let's assume full list of IDs for a specific parent context
-    data = _get_post_data(request)
+    data = get_post_data(request)
     ordered_ids = data.get("ordered_ids", [])
     
     for idx, node_id in enumerate(ordered_ids):
@@ -4384,7 +4379,7 @@ def instructor_node_reorder(request, program_id: int):
 @login_required
 def instructor_program_update_settings(request, pk: int):
     """Update extended settings: FAQ, Pricing, Notices."""
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         return redirect("/dashboard/")
 
     from apps.progression.models import InstructorAssignment
@@ -4392,7 +4387,7 @@ def instructor_program_update_settings(request, pk: int):
         return redirect("/dashboard/")
         
     program = Program.objects.get(pk=pk)
-    data = _get_post_data(request)
+    data = get_post_data(request)
     
     if "faq" in data:
         program.faq = data["faq"]
@@ -4417,12 +4412,12 @@ def instructor_lesson_file_upload(request, node_id: int):
     from django.conf import settings
     from django.http import JsonResponse
     
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         return JsonResponse({"error": "Permission denied"}, status=403)
     
     from apps.curriculum.models import CurriculumNode
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     try:
         node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
     except CurriculumNode.DoesNotExist:
@@ -4482,18 +4477,18 @@ def instructor_lesson_file_delete(request, node_id: int):
     from django.conf import settings
     from django.http import JsonResponse
     
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         return JsonResponse({"error": "Permission denied"}, status=403)
     
     from apps.curriculum.models import CurriculumNode
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     try:
         node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
     except CurriculumNode.DoesNotExist:
         return JsonResponse({"error": "Node not found"}, status=404)
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     file_id = data.get('file_id')
     
     if not file_id:
@@ -4540,7 +4535,7 @@ def instructor_material_search(request, program_id: int):
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import InstructorAssignment
     
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return JsonResponse({"error": "Permission denied"}, status=403)
     
     # Get all programs this instructor has access to
@@ -4689,7 +4684,7 @@ def instructor_material_import(request, program_id: int):
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import InstructorAssignment
     
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         messages.error(request, "Method not allowed")
         return redirect(f"/instructor/course-builder/{program_id}/")
     
@@ -4700,7 +4695,7 @@ def instructor_material_import(request, program_id: int):
         messages.error(request, "Permission denied")
         return redirect(f"/instructor/course-builder/{program_id}/")
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     source_ids = data.get('source_node_ids', [])
     target_section_id = data.get('target_section_id')
     
@@ -4743,10 +4738,10 @@ def instructor_node_discussions(request, node_id: int):
     from apps.discussions.models import DiscussionThread
     from apps.curriculum.models import CurriculumNode
     
-    if not _require_instructor(request.user):
+    if not is_instructor(request.user):
         return JsonResponse({"error": "Permission denied"}, status=403)
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     
     try:
         node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
@@ -4784,11 +4779,11 @@ def instructor_discussion_create(request, node_id: int):
     
     referer = request.META.get('HTTP_REFERER', '/instructor/')
     
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         messages.error(request, "Method not allowed")
         return redirect(referer)
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     
     try:
         node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
@@ -4796,7 +4791,7 @@ def instructor_discussion_create(request, node_id: int):
         messages.error(request, "Node not found")
         return redirect(referer)
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     title = data.get('title', '').strip()
     content = data.get('content', '').strip()
     is_pinned = data.get('is_pinned', False)
@@ -4824,11 +4819,11 @@ def instructor_discussion_toggle_pin(request, discussion_id: int):
     
     referer = request.META.get('HTTP_REFERER', '/instructor/')
     
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         messages.error(request, "Method not allowed")
         return redirect(referer)
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     
     try:
         thread = DiscussionThread.objects.select_related('node').get(
@@ -4854,11 +4849,11 @@ def instructor_discussion_toggle_lock(request, discussion_id: int):
     
     referer = request.META.get('HTTP_REFERER', '/instructor/')
     
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         messages.error(request, "Method not allowed")
         return redirect(referer)
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     
     try:
         thread = DiscussionThread.objects.select_related('node').get(
@@ -4888,11 +4883,11 @@ def instructor_discussion_reply(request):
     
     referer = request.META.get('HTTP_REFERER', '/instructor/')
     
-    if not _require_instructor(request.user) or request.method != "POST":
+    if not is_instructor(request.user) or request.method != "POST":
         messages.error(request, "Method not allowed")
         return redirect(referer)
     
-    data = _get_post_data(request)
+    data = get_post_data(request)
     thread_id = data.get('thread')
     content = data.get('content', '').strip()
     
@@ -4900,7 +4895,7 @@ def instructor_discussion_reply(request):
         messages.error(request, "Thread ID and content are required")
         return redirect(referer)
     
-    program_ids = _get_instructor_program_ids(request.user)
+    program_ids = get_instructor_program_ids(request.user)
     
     try:
         thread = DiscussionThread.objects.select_related('node').get(
