@@ -115,6 +115,13 @@ createInertiaApp({
             // Note: Student/Programs/Show removed - backend now renders CoursePlayer directly
 
             // Rubrics
+            "Assessments/Rubrics/Index":
+                "./features/assessments/pages/Rubrics/Index.jsx",
+            "Assessments/Rubrics/Create":
+                "./features/assessments/pages/Rubrics/Create.jsx",
+            "Assessments/Rubrics/Edit":
+                "./features/assessments/pages/Rubrics/Edit.jsx",
+
             "Rubrics/Index": "./features/rubrics/pages/Index.jsx",
             "Rubrics/Form": "./features/rubrics/pages/Form.jsx",
         };
@@ -173,9 +180,11 @@ createInertiaApp({
         // Extract user from Inertia's initial page props
         const initialUser = props.initialPage?.props?.auth?.user || null;
         // Extract favicon URL from platform props
-        const faviconUrl = props.initialPage?.props?.platform?.faviconUrl || null;
+        const faviconUrl =
+            props.initialPage?.props?.platform?.faviconUrl || null;
         // Extract institution name from platform props for document title
-        const platformName = props.initialPage?.props?.platform?.institutionName || null;
+        const platformName =
+            props.initialPage?.props?.platform?.institutionName || null;
         // Extract full platform object for dynamic theming
         const platform = props.initialPage?.props?.platform || null;
 
@@ -185,11 +194,13 @@ createInertiaApp({
 
         createRoot(el).render(
             <ProviderWrapper initialUser={initialUser} platform={platform}>
-                <PlatformBranding faviconUrl={faviconUrl} platformName={platformName} />
+                <PlatformBranding
+                    faviconUrl={faviconUrl}
+                    platformName={platformName}
+                />
                 <App {...props} />
             </ProviderWrapper>,
         );
     },
     progress: false, // We're using NProgress instead
 });
-

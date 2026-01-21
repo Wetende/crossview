@@ -1,6 +1,7 @@
 /**
  * Rubric Create/Edit Form
  * Dynamic dimension editor with weights and max scores
+ * Supports scope selection (global/program/course)
  */
 
 import { useState, useEffect } from 'react';
@@ -17,6 +18,11 @@ import {
   Divider,
   Alert,
   Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import SaveIcon from '@mui/icons-material/Save';
@@ -33,11 +39,16 @@ export default function RubricForm({
   mode = 'create', 
   rubric = null, 
   formData = null,
-  role = 'instructor' 
+  role = 'instructor',
+  canCreateGlobal = false,
+  canCreateProgram = false,
+  userPrograms = []
 }) {
   const [name, setName] = useState(formData?.name || rubric?.name || '');
   const [description, setDescription] = useState(formData?.description || rubric?.description || '');
   const [maxScore, setMaxScore] = useState(formData?.maxScore || rubric?.maxScore || 100);
+  const [scope, setScope] = useState(formData?.scope || rubric?.scope || 'course');
+  const [programId, setProgramId] = useState(formData?.programId || rubric?.program?.id || '');
   const [dimensions, setDimensions] = useState(
     formData?.dimensions || rubric?.dimensions || [{ ...defaultDimension }]
   );
@@ -73,6 +84,9 @@ export default function RubricForm({
     if (!name.trim()) {
       newErrors.name = 'Name is required';
     }
+    if (scope === 'program' && !programId) {
+      newErrors.programId = 'Program is required for program-scoped rubrics';
+    }
     if (dimensions.length === 0) {
       newErrors.dimensions = 'At least one dimension is required';
     }
@@ -94,6 +108,8 @@ export default function RubricForm({
       name: name.trim(),
       description: description.trim(),
       maxScore: parseInt(maxScore, 10),
+      scope,
+      programId: scope === 'program' ? programId : null,
       dimensions: dimensions.map(d => ({
         name: d.name.trim(),
         weight: parseFloat(d.weight),
@@ -181,6 +197,63 @@ export default function RubricForm({
                 helperText={errors.name}
                 placeholder="e.g., Ministry Practicum Evaluation"
               />
+
+              {/* Scope Selector */}
+              <FormControl fullWidth>
+                <InputLabel>Scope</InputLabel>
+                <Select
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value)}
+                  label="Scope"
+                >
+                  <MenuItem value="course">
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <span>Course</span>
+                      <Chip label="Your assignments" size="small" />
+                    </Stack>
+                  </MenuItem>
+                  {canCreateProgram && (
+                    <MenuItem value="program">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <span>Program</span>
+                        <Chip label="Program-wide" size="small" color="primary" />
+                      </Stack>
+                    </MenuItem>
+                  )}
+                  {canCreateGlobal && (
+                    <MenuItem value="global">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <span>Global</span>
+                        <Chip label="System-wide" size="small" color="secondary" />
+                      </Stack>
+                    </MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+
+              {/* Program Selector (for program scope) */}
+              {scope === 'program' && userPrograms.length > 0 && (
+                <FormControl fullWidth error={!!errors.programId}>
+                  <InputLabel>Program *</InputLabel>
+                  <Select
+                    value={programId}
+                    onChange={(e) => setProgramId(e.target.value)}
+                    label="Program *"
+                    required
+                  >
+                    {userPrograms.map((prog) => (
+                      <MenuItem key={prog.id} value={prog.id}>
+                        {prog.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {errors.programId && (
+                    <Typography variant="caption" color="error">
+                      {errors.programId}
+                    </Typography>
+                  )}
+                </FormControl>
+              )}
               
               <TextField
                 label="Description"
