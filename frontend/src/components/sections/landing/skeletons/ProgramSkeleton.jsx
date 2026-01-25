@@ -10,7 +10,7 @@ export default function ProgramSkeleton() {
             </Stack>
             <Grid container spacing={4}>
                 {[1, 2, 3].map((item) => (
-                    <Grid item xs={12} md={4} key={item}>
+                    <Grid size={{ xs: 12, md: 4 }} key={item}>
                         <Box
                             sx={{
                                 height: 400,

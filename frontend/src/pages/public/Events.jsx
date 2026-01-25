@@ -92,7 +92,10 @@ export default function Events({ events }) {
                     {/* Events Grid */}
                     <Grid container spacing={4}>
                         {events.map((event) => (
-                            <Grid item xs={12} sm={6} md={3} key={event.id}>
+                            <Grid
+                                size={{ xs: 12, sm: 6, md: 3 }}
+                                key={event.id}
+                            >
                                 <EventCard event={event} />
                             </Grid>
                         ))}

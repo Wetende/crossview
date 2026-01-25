@@ -5,18 +5,10 @@ import {
     Typography,
     Grid,
     Stack,
-    Card,
-    CardContent,
-    CardMedia,
     useTheme,
     Button,
-    AppBar,
-    Toolbar,
-    useScrollTrigger,
     TextField,
     InputAdornment,
-    Chip,
-    Rating,
     FormControl,
     Select,
     MenuItem,
@@ -24,24 +16,9 @@ import {
 import { IconBrandTabler, IconSearch, IconBook } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { getBackgroundDots } from "../../utils/getBackgroundDots";
-import { cloneElement, useState } from "react";
-import ButtonAnimationWrapper from "../../components/common/ButtonAnimationWrapper";
-
-// --- Helper Components ---
-function ElevationScroll({ children }) {
-    const trigger = useScrollTrigger({ disableHysteresis: true, threshold: 0 });
-    return cloneElement(children, {
-        elevation: trigger ? 4 : 0,
-        sx: {
-            bgcolor: trigger ? "rgba(255, 255, 255, 0.9)" : "transparent",
-            backdropFilter: trigger ? "blur(20px)" : "none",
-            borderBottom: trigger ? 1 : 0,
-            borderColor: "divider",
-            transition: "all 0.3s ease",
-            py: trigger ? 1 : 2,
-        },
-    });
-}
+import { useState } from "react";
+import ProgramGrid from "../../components/lists/ProgramGrid";
+import PublicNavbar from "../../components/common/PublicNavbar";
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -49,206 +26,6 @@ const fadeInUp = {
     viewport: { once: true },
     transition: { duration: 0.5, ease: [0.215, 0.61, 0.355, 1] },
 };
-
-// Badge colors
-const getBadgeColor = (type) => {
-    switch (type) {
-        case "hot":
-            return "#FF4444";
-        case "new":
-            return "#4CAF50";
-        case "special":
-            return "#FF9800";
-        default:
-            return "#1976d2";
-    }
-};
-
-// Program Card Component
-function ProgramCard({ program, enrollmentStatus, isAuthenticated }) {
-    const theme = useTheme();
-
-    return (
-        <Card
-            sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                borderRadius: 2,
-                overflow: "hidden",
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 12px 24px -4px rgba(0,0,0,0.15)",
-                },
-            }}
-        >
-            {/* Thumbnail with badge */}
-            <Box sx={{ position: "relative" }}>
-                <CardMedia
-                    component="img"
-                    image={
-                        program.thumbnail ||
-                        "/static/images/course-placeholder.svg"
-                    }
-                    alt={program.name}
-                    sx={{ aspectRatio: "16/9", objectFit: "cover" }}
-                />
-                {program.badge_type && (
-                    <Chip
-                        label={
-                            program.badge_type.charAt(0).toUpperCase() +
-                            program.badge_type.slice(1)
-                        }
-                        size="small"
-                        sx={{
-                            position: "absolute",
-                            top: 12,
-                            right: 12,
-                            bgcolor: getBadgeColor(program.badge_type),
-                            color: "white",
-                            fontWeight: 700,
-                            fontSize: "0.7rem",
-                            height: 24,
-                        }}
-                    />
-                )}
-            </Box>
-
-            <CardContent
-                sx={{
-                    flexGrow: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    p: 2.5,
-                }}
-            >
-                {/* Category */}
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mb: 0.5 }}
-                >
-                    {program.category || "General"}
-                </Typography>
-
-                {/* Title */}
-                <Typography
-                    component={Link}
-                    href={`/programs/${program.id}/`}
-                    variant="subtitle1"
-                    fontWeight={600}
-                    sx={{
-                        mb: 1,
-                        textDecoration: "none",
-                        color: "text.primary",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                        "&:hover": { color: "primary.main" },
-                        minHeight: "3.2em", // approx 2 lines
-                    }}
-                >
-                    {program.name}
-                </Typography>
-
-                {/* Rating */}
-                <Stack
-                    direction="row"
-                    spacing={0.5}
-                    alignItems="center"
-                    sx={{ mb: 1.5 }}
-                >
-                    <Rating
-                        value={program.rating || 0}
-                        precision={0.1}
-                        size="small"
-                        readOnly
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                        {program.rating?.toFixed(1) || "0.0"}
-                    </Typography>
-                </Stack>
-
-                {/* Price */}
-                <Box sx={{ mt: "auto" }}>
-                    {program.price > 0 ? (
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography
-                                variant="body1"
-                                fontWeight={700}
-                                color="primary.main"
-                            >
-                                ${program.price}
-                            </Typography>
-                            {program.original_price &&
-                                program.original_price > program.price && (
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            textDecoration: "line-through",
-                                            color: "text.disabled",
-                                        }}
-                                    >
-                                        ${program.original_price}
-                                    </Typography>
-                                )}
-                        </Stack>
-                    ) : (
-                        <Typography
-                            variant="body1"
-                            fontWeight={700}
-                            color="success.main"
-                        >
-                            Free
-                        </Typography>
-                    )}
-                </Box>
-
-                {/* Action Button */}
-                <Box sx={{ mt: 2 }}>
-                    {enrollmentStatus === "enrolled" ? (
-                        <Button
-                            component={Link}
-                            href={`/programs/${program.id}/`}
-                            variant="contained"
-                            color="success"
-                            fullWidth
-                            size="small"
-                        >
-                            Continue Learning
-                        </Button>
-                    ) : enrollmentStatus === "pending" ? (
-                        <Button
-                            variant="outlined"
-                            fullWidth
-                            size="small"
-                            disabled
-                        >
-                            Enrollment Pending
-                        </Button>
-                    ) : (
-                        <Button
-                            component={Link}
-                            href={`/programs/${program.id}/`}
-                            variant="contained"
-                            fullWidth
-                            size="small"
-                            sx={{
-                                bgcolor: isAuthenticated
-                                    ? "primary.main"
-                                    : "primary.main",
-                            }}
-                        >
-                            {isAuthenticated ? "Enroll Now" : "View Details"}
-                        </Button>
-                    )}
-                </Box>
-            </CardContent>
-        </Card>
-    );
-}
 
 export default function Programs({
     programs,
@@ -263,12 +40,6 @@ export default function Programs({
     const [selectedCategory, setSelectedCategory] = useState(
         filters.category || "",
     );
-
-    const getEnrollmentStatus = (programId) => {
-        if (userEnrollments.includes(programId)) return "enrolled";
-        if (userPendingRequests.includes(programId)) return "pending";
-        return null;
-    };
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -306,126 +77,7 @@ export default function Programs({
                 }}
             >
                 {/* Navbar */}
-                <ElevationScroll>
-                    <AppBar position="fixed" color="transparent" sx={{ py: 2 }}>
-                        <Container maxWidth="lg">
-                            <Toolbar
-                                disableGutters
-                                sx={{ justifyContent: "space-between" }}
-                            >
-                                <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="center"
-                                >
-                                    <Box
-                                        component={Link}
-                                        href="/"
-                                        sx={{
-                                            width: 40,
-                                            height: 40,
-                                            bgcolor: "primary.main",
-                                            borderRadius: 2,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "white",
-                                            textDecoration: "none",
-                                        }}
-                                    >
-                                        <IconBrandTabler size={24} />
-                                    </Box>
-                                    <Typography
-                                        component={Link}
-                                        href="/"
-                                        variant="h5"
-                                        fontWeight={700}
-                                        sx={{
-                                            color: "grey.900",
-                                            textDecoration: "none",
-                                        }}
-                                    >
-                                        Crossview
-                                    </Typography>
-                                </Stack>
-
-                                <Stack
-                                    direction="row"
-                                    spacing={3}
-                                    sx={{ display: { xs: "none", md: "flex" } }}
-                                >
-                                    <Link
-                                        href="/programs/"
-                                        style={{
-                                            textDecoration: "none",
-                                            color: theme.palette.primary.main,
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        Programs
-                                    </Link>
-                                    <Link
-                                        href="/about/"
-                                        style={{
-                                            textDecoration: "none",
-                                            color: theme.palette.text.primary,
-                                            fontWeight: 500,
-                                        }}
-                                    >
-                                        About
-                                    </Link>
-                                    <Link
-                                        href="/contact/"
-                                        style={{
-                                            textDecoration: "none",
-                                            color: theme.palette.text.primary,
-                                            fontWeight: 500,
-                                        }}
-                                    >
-                                        Contact
-                                    </Link>
-                                </Stack>
-
-                                <Stack direction="row" spacing={2}>
-                                    {auth?.user ? (
-                                        <Button
-                                            component={Link}
-                                            href="/dashboard/"
-                                            variant="contained"
-                                            sx={{ borderRadius: 100, px: 3 }}
-                                        >
-                                            Dashboard
-                                        </Button>
-                                    ) : (
-                                        <>
-                                            <Button
-                                                component={Link}
-                                                href="/login/"
-                                                color="inherit"
-                                                sx={{ fontWeight: 600 }}
-                                            >
-                                                Sign In
-                                            </Button>
-                                            <ButtonAnimationWrapper>
-                                                <Button
-                                                    component={Link}
-                                                    href="/register/"
-                                                    variant="contained"
-                                                    sx={{
-                                                        borderRadius: 100,
-                                                        px: 3,
-                                                    }}
-                                                >
-                                                    Get Started
-                                                </Button>
-                                            </ButtonAnimationWrapper>
-                                        </>
-                                    )}
-                                </Stack>
-                            </Toolbar>
-                        </Container>
-                    </AppBar>
-                </ElevationScroll>
+                <PublicNavbar activeLink="/programs/" auth={auth} />
 
                 {/* Hero Section */}
                 <Box
@@ -571,36 +223,12 @@ export default function Programs({
                             )}
                         </Box>
                     ) : (
-                        <Grid container spacing={3}>
-                            {programs.map((program, idx) => (
-                                <Grid
-                                    item
-                                    xs={12}
-                                    sm={6}
-                                    md={4}
-                                    lg={3}
-                                    key={program.id}
-                                >
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true }}
-                                        transition={{
-                                            delay: idx * 0.05,
-                                            duration: 0.5,
-                                        }}
-                                    >
-                                        <ProgramCard
-                                            program={program}
-                                            enrollmentStatus={getEnrollmentStatus(
-                                                program.id,
-                                            )}
-                                            isAuthenticated={!!auth?.user}
-                                        />
-                                    </motion.div>
-                                </Grid>
-                            ))}
-                        </Grid>
+                        <ProgramGrid
+                            programs={programs}
+                            isAuthenticated={!!auth?.user}
+                            userEnrollments={userEnrollments}
+                            userPendingRequests={userPendingRequests}
+                        />
                     )}
                 </Container>
 
@@ -608,7 +236,7 @@ export default function Programs({
                 <Box sx={{ bgcolor: "grey.900", color: "grey.400", py: 8 }}>
                     <Container maxWidth="lg">
                         <Grid container spacing={8}>
-                            <Grid item xs={12} md={4}>
+                            <Grid size={{ xs: 12, md: 4 }}>
                                 <Stack
                                     direction="row"
                                     spacing={1}
@@ -629,7 +257,7 @@ export default function Programs({
                                     technology.
                                 </Typography>
                             </Grid>
-                            <Grid item xs={6} md={2}>
+                            <Grid size={{ xs: 6, md: 2 }}>
                                 <Typography
                                     variant="subtitle2"
                                     color="white"
@@ -658,7 +286,7 @@ export default function Programs({
                                     </Link>
                                 </Stack>
                             </Grid>
-                            <Grid item xs={6} md={2}>
+                            <Grid size={{ xs: 6, md: 2 }}>
                                 <Typography
                                     variant="subtitle2"
                                     color="white"

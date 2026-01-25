@@ -23,9 +23,6 @@ import {
     Avatar,
     Divider,
     useTheme,
-    AppBar,
-    Toolbar,
-    useScrollTrigger,
     LinearProgress,
 } from "@mui/material";
 import {
@@ -43,21 +40,11 @@ import {
     IconLock,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
-import { cloneElement, useState } from "react";
+import { useState } from "react";
 import { CourseDetailsModal } from "@/components/modals";
+import PublicNavbar from "@/components/common/PublicNavbar";
 
 // --- Helper Components ---
-function ElevationScroll({ children }) {
-    const trigger = useScrollTrigger({ disableHysteresis: true, threshold: 0 });
-    return cloneElement(children, {
-        elevation: trigger ? 4 : 0,
-        sx: {
-            bgcolor: trigger ? "rgba(255, 255, 255, 0.95)" : "white",
-            backdropFilter: trigger ? "blur(20px)" : "none",
-            transition: "all 0.3s ease",
-        },
-    });
-}
 
 // Course Details Sidebar with Context-Aware CTAs
 function CourseDetailsSidebar({
@@ -529,82 +516,7 @@ export default function ProgramDetail({
 
             <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
                 {/* Navbar */}
-                <ElevationScroll>
-                    <AppBar position="fixed" color="inherit">
-                        <Container maxWidth="lg">
-                            <Toolbar disableGutters sx={{ py: 1 }}>
-                                <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="center"
-                                    sx={{ flex: 1 }}
-                                >
-                                    <Box
-                                        component={Link}
-                                        href="/"
-                                        sx={{
-                                            width: 40,
-                                            height: 40,
-                                            bgcolor: "primary.main",
-                                            borderRadius: 2,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "white",
-                                            textDecoration: "none",
-                                        }}
-                                    >
-                                        <IconBrandTabler size={24} />
-                                    </Box>
-                                    <Typography
-                                        component={Link}
-                                        href="/"
-                                        variant="h6"
-                                        fontWeight={700}
-                                        sx={{
-                                            color: "text.primary",
-                                            textDecoration: "none",
-                                        }}
-                                    >
-                                        Crossview
-                                    </Typography>
-                                </Stack>
-
-                                <Stack direction="row" spacing={2}>
-                                    {auth?.user ? (
-                                        <Button
-                                            component={Link}
-                                            href="/dashboard/"
-                                            variant="contained"
-                                            size="small"
-                                        >
-                                            Dashboard
-                                        </Button>
-                                    ) : (
-                                        <>
-                                            <Button
-                                                component={Link}
-                                                href="/login/"
-                                                color="inherit"
-                                                size="small"
-                                            >
-                                                Sign In
-                                            </Button>
-                                            <Button
-                                                component={Link}
-                                                href="/register/"
-                                                variant="contained"
-                                                size="small"
-                                            >
-                                                Get Started
-                                            </Button>
-                                        </>
-                                    )}
-                                </Stack>
-                            </Toolbar>
-                        </Container>
-                    </AppBar>
-                </ElevationScroll>
+                <PublicNavbar activeLink="/programs/" auth={auth} />
 
                 {/* Badge (if any) */}
                 <Container maxWidth="lg" sx={{ pt: 12 }}>
@@ -631,7 +543,7 @@ export default function ProgramDetail({
                 <Container maxWidth="lg" sx={{ pb: 8 }}>
                     <Grid container spacing={4}>
                         {/* Left Sidebar */}
-                        <Grid item xs={12} md={4} order={{ xs: 2, md: 1 }}>
+                        <Grid size={{ xs: 12, md: 4 }} order={{ xs: 2, md: 1 }}>
                             <CourseDetailsSidebar
                                 program={program}
                                 enrollmentStatus={enrollmentStatus}
@@ -645,7 +557,7 @@ export default function ProgramDetail({
                         </Grid>
 
                         {/* Main Content Area */}
-                        <Grid item xs={12} md={8} order={{ xs: 1, md: 2 }}>
+                        <Grid size={{ xs: 12, md: 8 }} order={{ xs: 1, md: 2 }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -805,9 +717,10 @@ export default function ProgramDetail({
                                                     {program.what_you_learn.map(
                                                         (item, idx) => (
                                                             <Grid
-                                                                item
-                                                                xs={12}
-                                                                sm={6}
+                                                                size={{
+                                                                    xs: 12,
+                                                                    sm: 6,
+                                                                }}
                                                                 key={idx}
                                                             >
                                                                 <Stack

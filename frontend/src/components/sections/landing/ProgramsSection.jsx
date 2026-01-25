@@ -1,4 +1,4 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -11,7 +11,7 @@ import {
 import { IconArrowRight } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import ButtonAnimationWrapper from "../../common/ButtonAnimationWrapper";
-import PublicProgramCard from "../../cards/PublicProgramCard";
+import ProgramGrid from "../../lists/ProgramGrid";
 
 // --- Animation Variants ---
 const fadeInUp = {
@@ -49,6 +49,9 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
 
 export default function ProgramsSection({ platform, programs = [] }) {
     const theme = useTheme();
+    const { auth } = usePage().props;
+    const isAuthenticated = !!auth?.user;
+    
     const primaryColor = platform.primaryColor || "#3B82F6";
     const secondaryColor = platform.secondaryColor || "#1E40AF";
 
@@ -80,36 +83,11 @@ export default function ProgramsSection({ platform, programs = [] }) {
                     </motion.div>
                 </Stack>
 
-                {/* Flexbox layout - 3 cards per row on desktop */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 3,
-                        justifyContent: "center",
-                    }}
-                >
-                    {programs.slice(0, 6).map((program, idx) => (
-                        <Box
-                            key={program.id}
-                            sx={{
-                                flex: { xs: "1 1 100%", sm: "1 1 calc(50% - 12px)", md: "1 1 calc(33.333% - 16px)" },
-                                maxWidth: { xs: "100%", sm: "calc(50% - 12px)", md: "calc(33.333% - 16px)" },
-                                minWidth: 0,
-                            }}
-                        >
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: idx * 0.1, duration: 0.5 }}
-                                style={{ height: "100%" }}
-                            >
-                                <PublicProgramCard program={program} />
-                            </motion.div>
-                        </Box>
-                    ))}
-                </Box>
+                <ProgramGrid
+                    programs={programs}
+                    limit={6}
+                    isAuthenticated={isAuthenticated}
+                />
 
                 <Box sx={{ textAlign: "center", mt: 6 }}>
                     <ButtonAnimationWrapper>

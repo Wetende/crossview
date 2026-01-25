@@ -105,7 +105,7 @@ function ContactCard({ primaryColor, programs = [] }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        
+
         router.post("/contact/", formData, {
             preserveScroll: true,
             onSuccess: () => {
@@ -276,9 +276,7 @@ function ContactCard({ primaryColor, programs = [] }) {
                             },
                         }}
                     />
-                    <Box
-                        sx={{ position: "relative" }}
-                    >
+                    <Box sx={{ position: "relative" }}>
                         <Box
                             component="select"
                             name="course"
@@ -307,7 +305,9 @@ function ContactCard({ primaryColor, programs = [] }) {
                                 },
                             }}
                         >
-                            <option value="" disabled>Select Course</option>
+                            <option value="" disabled>
+                                Select Course
+                            </option>
                             {programs.map((program) => (
                                 <option key={program.id} value={program.id}>
                                     {program.name}
@@ -329,12 +329,20 @@ function ContactCard({ primaryColor, programs = [] }) {
                         </Box>
                     </Box>
 
-                    <Box sx={{ display: "flex", justifyContent: "flex-start", mt: 1 }}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            justifyContent: "flex-start",
+                            mt: 1,
+                        }}
+                    >
                         <Button
                             type="submit"
                             variant="contained"
                             disabled={isSubmitting}
-                            endIcon={!isSubmitting && <IconArrowRight size={18} />}
+                            endIcon={
+                                !isSubmitting && <IconArrowRight size={18} />
+                            }
                             sx={{
                                 bgcolor: primaryColor,
                                 "&:hover": {
@@ -432,8 +440,13 @@ export default function HeroSection({ platform, allPrograms = [] }) {
             />
 
             <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
-                <Grid container spacing={{ xs: 4, md: 8 }} alignItems="center" justifyContent="space-between">
-                    <Grid item xs={12} md={6}>
+                <Grid
+                    container
+                    spacing={{ xs: 4, md: 8 }}
+                    alignItems="center"
+                    justifyContent="space-between"
+                >
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <motion.div {...fadeInUp}>
                             <SectionLabel
                                 color="white"
@@ -607,8 +620,11 @@ export default function HeroSection({ platform, allPrograms = [] }) {
                         </motion.div>
                     </Grid>
 
-                    <Grid item xs={12} md={5}>
-                        <ContactCard primaryColor={primaryColor} programs={allPrograms} />
+                    <Grid size={{ xs: 12, md: 5 }}>
+                        <ContactCard
+                            primaryColor={primaryColor}
+                            programs={allPrograms}
+                        />
                     </Grid>
                 </Grid>
             </Container>

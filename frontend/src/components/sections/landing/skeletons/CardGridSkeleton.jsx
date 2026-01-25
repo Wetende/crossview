@@ -10,7 +10,7 @@ export default function CardGridSkeleton({ count = 3, height = 300 }) {
             </Stack>
             <Grid container spacing={3} justifyContent="center">
                 {Array.from({ length: count }).map((_, idx) => (
-                    <Grid item xs={12} sm={4} key={idx}>
+                    <Grid size={{ xs: 12, sm: 4 }} key={idx}>
                         <Box
                             sx={{
                                 height,

@@ -10,9 +10,6 @@ import {
     Avatar,
     useTheme,
     Button,
-    AppBar,
-    Toolbar,
-    useScrollTrigger,
 } from "@mui/material";
 import {
     IconSchool,
@@ -25,8 +22,7 @@ import {
 } from "@tabler/icons-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { getBackgroundDots } from "../../utils/getBackgroundDots";
-import { cloneElement } from "react";
-import ButtonAnimationWrapper from "../../components/common/ButtonAnimationWrapper";
+import PublicNavbar from "../../components/common/PublicNavbar";
 
 // --- Animation Variants ---
 const fadeInUp = {
@@ -37,25 +33,6 @@ const fadeInUp = {
 };
 
 // --- Helper Components ---
-function ElevationScroll({ children }) {
-    const trigger = useScrollTrigger({
-        disableHysteresis: true,
-        threshold: 0,
-    });
-
-    return cloneElement(children, {
-        elevation: trigger ? 4 : 0,
-        sx: {
-            bgcolor: trigger ? "rgba(255, 255, 255, 0.9)" : "transparent",
-            backdropFilter: trigger ? "blur(20px)" : "none",
-            borderBottom: trigger ? 1 : 0,
-            borderColor: "divider",
-            transition: "all 0.3s ease",
-            py: trigger ? 1 : 2,
-        },
-    });
-}
-
 function GraphicsCard({ children, sx = {} }) {
     return (
         <Card
@@ -102,59 +79,7 @@ export default function About() {
 
             <Box sx={{ minHeight: "100vh", bgcolor: "background.default", overflowX: "hidden" }}>
                 {/* Navbar */}
-                <ElevationScroll>
-                    <AppBar position="fixed" color="transparent" sx={{ py: 2 }}>
-                        <Container maxWidth="lg">
-                            <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                    <Box
-                                        component={Link}
-                                        href="/"
-                                        sx={{
-                                            width: 40,
-                                            height: 40,
-                                            bgcolor: "primary.main",
-                                            borderRadius: 2,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "white",
-                                            textDecoration: "none"
-                                        }}
-                                    >
-                                        <IconBrandTabler size={24} />
-                                    </Box>
-                                    <Typography
-                                        component={Link}
-                                        href="/"
-                                        variant="h5"
-                                        fontWeight={700}
-                                        sx={{ color: "grey.900", textDecoration: "none" }}
-                                    >
-                                        Crossview
-                                    </Typography>
-                                </Stack>
-
-                                <Stack direction="row" spacing={3} sx={{ display: { xs: "none", md: "flex" } }}>
-                                    <Link href="/programs/" style={{ textDecoration: 'none', color: theme.palette.text.primary, fontWeight: 500 }}>Programs</Link>
-                                    <Link href="/about/" style={{ textDecoration: 'none', color: theme.palette.primary.main, fontWeight: 600 }}>About</Link>
-                                    <Link href="/contact/" style={{ textDecoration: 'none', color: theme.palette.text.primary, fontWeight: 500 }}>Contact</Link>
-                                </Stack>
-
-                                <Stack direction="row" spacing={2}>
-                                    <Button component={Link} href="/login/" color="inherit" sx={{ fontWeight: 600 }}>
-                                        Sign In
-                                    </Button>
-                                    <ButtonAnimationWrapper>
-                                        <Button component={Link} href="/register/" variant="contained" sx={{ borderRadius: 100, px: 3 }}>
-                                            Get Started
-                                        </Button>
-                                    </ButtonAnimationWrapper>
-                                </Stack>
-                            </Toolbar>
-                        </Container>
-                    </AppBar>
-                </ElevationScroll>
+                <PublicNavbar activeLink="/about/" />
 
                 {/* Hero Section */}
                 <Box sx={{ position: "relative", pt: { xs: 16, md: 24 }, pb: { xs: 12, md: 20 }, overflow: "hidden" }}>

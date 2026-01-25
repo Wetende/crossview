@@ -21,11 +21,13 @@ import {
 function getBadgeColor(type) {
     switch (type) {
         case "featured":
-            return "#F59E0B";
+        case "special": // Merged from Programs
+            return "#F59E0B"; // Orange
         case "new":
-            return "#10B981";
+            return "#10B981"; // Emerald
         case "popular":
-            return "#EF4444";
+        case "hot": // Merged from Programs
+            return "#EF4444"; // Red
         case "bestseller":
             return "#8B5CF6";
         default:
@@ -33,10 +35,12 @@ function getBadgeColor(type) {
     }
 }
 
+
 export default function PublicProgramCard({
     program,
     enrollmentStatus = null,
     showEnrollButton = false,
+    isAuthenticated = false,
 }) {
     const theme = useTheme();
 
@@ -222,14 +226,22 @@ export default function PublicProgramCard({
                                 Enrollment Pending
                             </Button>
                         ) : (
+
                             <Button
                                 component={Link}
                                 href={`/programs/${program.id}/`}
                                 variant="contained"
                                 fullWidth
                                 size="small"
+                                sx={
+                                    isAuthenticated
+                                        ? { bgcolor: "primary.main" } // Highlight for Enroll
+                                        : {}
+                                }
                             >
-                                Learn More
+                                {isAuthenticated
+                                    ? "Enroll Now"
+                                    : "View Details"}
                             </Button>
                         )}
                     </Box>

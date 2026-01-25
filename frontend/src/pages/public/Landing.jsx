@@ -114,6 +114,7 @@ function PlatformLanding({ platform, programs = [], stats = {}, allPrograms = []
 
     // Navigation links
     const navLinks = [
+        { label: "Home", href: "/" },
         { label: "Programs", href: "/programs/" },
         { label: "Events", href: "/events/" },
         { label: "About", href: "/about/" },
