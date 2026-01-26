@@ -1,4 +1,4 @@
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -11,7 +11,8 @@ import {
 } from "@mui/material";
 import { IconChevronRight } from "@tabler/icons-react";
 import EventCard from "@/features/events/components/EventCard";
-import FooterSection from "@/components/sections/landing/FooterSection"; // Reusing footer
+import FooterSection from "@/components/sections/landing/FooterSection";
+import PublicNavbar from "@/components/common/PublicNavbar";
 
 // Light theme to match landing page style
 const lightTheme = createTheme({
@@ -39,10 +40,12 @@ const lightTheme = createTheme({
 });
 
 export default function Events({ events }) {
+    const { auth } = usePage().props;
+    
     // Mock platform data for footer since we might not pass it from mock view
     const platform = {
-        institutionName: "MasterStudy",
-        description: "Review tems for online education.",
+        institutionName: "Crossview",
+        description: "Your learning management system.",
     };
 
     return (
@@ -58,10 +61,14 @@ export default function Events({ events }) {
                     bgcolor: "white",
                 }}
             >
-                {/* Header Section */}
+                {/* Navbar */}
+                <PublicNavbar activeLink="/events/" auth={auth} />
+
+                {/* Breadcrumb Header Section */}
                 <Box
                     sx={{
-                        py: 4,
+                        pt: 14,
+                        pb: 4,
                         borderBottom: "1px solid",
                         borderColor: "divider",
                         bgcolor: "#F9FAFB",
@@ -84,6 +91,9 @@ export default function Events({ events }) {
                             </Link>
                             <Typography color="text.primary">Events</Typography>
                         </Breadcrumbs>
+                        <Typography variant="h4" fontWeight={700}>
+                            Upcoming Events
+                        </Typography>
                     </Container>
                 </Box>
 

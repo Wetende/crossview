@@ -1,4 +1,4 @@
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, usePage, router } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -31,6 +31,7 @@ import {
 import { useState } from "react";
 import { format } from "date-fns";
 import FooterSection from "@/components/sections/landing/FooterSection";
+import PublicNavbar from "@/components/common/PublicNavbar";
 
 // Custom theme (consistent with listing page but with specific overrides)
 const theme = createTheme({
@@ -108,10 +109,9 @@ function TabPanel({ children, value, index, ...other }) {
     );
 }
 
-export default function EventDetail({ event, isRegistered = false }) {
-    const [tabValue, setTabValue] = useState(1); // Default to 'Event Target' (index 1 based on screenshot?) or Location (0)
-    // Screenshot shows "Event Target" active, let's guess index.
-    // Actually typically Location is first. Let's make Tabs flexible.
+export default function EventDetail({ event, isRegistered = false, archives = [], about = "" }) {
+    const { auth } = usePage().props;
+    const [tabValue, setTabValue] = useState(1); // Default to 'Event Target' (index 1)
 
     const handleChangeTab = (event, newValue) => {
         setTabValue(newValue);
@@ -121,8 +121,15 @@ export default function EventDetail({ event, isRegistered = false }) {
         router.post(`/events/${event.slug}/join/`);
     };
 
+    const handleArchiveChange = (e) => {
+        const month = e.target.value;
+        if (month) {
+            router.visit(`/events/?month=${month}`);
+        }
+    };
+
     // Platform mock for footer
-    const platform = { institutionName: "MasterStudy" };
+    const platform = { institutionName: "Crossview" };
 
     return (
         <ThemeProvider theme={theme}>
@@ -136,8 +143,11 @@ export default function EventDetail({ event, isRegistered = false }) {
                     flexDirection: "column",
                 }}
             >
+                {/* Navbar */}
+                <PublicNavbar activeLink="/events/" auth={auth} />
+
                 {/* Header / Breadcrumbs */}
-                <Box sx={{ py: 2, bgcolor: "#FFFFFF" }}>
+                <Box sx={{ pt: 12, pb: 2, bgcolor: "#FFFFFF" }}>
                     <Container maxWidth="lg">
                         <Breadcrumbs
                             separator={<IconChevronRight size={14} />}
@@ -149,22 +159,13 @@ export default function EventDetail({ event, isRegistered = false }) {
                             }}
                         >
                             <Link
-                                href="/events/"
+                                href="/"
                                 style={{
                                     textDecoration: "none",
                                     color: "inherit",
                                 }}
                             >
-                                LMS Sites
-                            </Link>
-                            <Link
-                                href="/events/"
-                                style={{
-                                    textDecoration: "none",
-                                    color: "inherit",
-                                }}
-                            >
-                                Light LMS - MasterStudy
+                                Home
                             </Link>
                             <Link
                                 href="/events/"
@@ -361,27 +362,46 @@ export default function EventDetail({ event, isRegistered = false }) {
                                         direction="row"
                                         spacing={1}
                                         alignItems="center"
-                                        sx={{ mb: 2 }}
+                                        sx={{ mb: 3 }}
                                     >
                                         <IconMapPin size={20} />
                                         <Typography>
                                             {event.location}
                                         </Typography>
                                     </Stack>
-                                    {/* Map Placeholder */}
-                                    <Box
-                                        sx={{
-                                            height: 200,
-                                            bgcolor: "#F3F4F6",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                        }}
-                                    >
-                                        <Typography color="text.secondary">
-                                            Google Map Placeholder
-                                        </Typography>
-                                    </Box>
+                                    
+                                    {/* Map Embed or Placeholder */}
+                                    {event.map_embed_code ? (
+                                        <Box
+                                            sx={{
+                                                height: 400,
+                                                bgcolor: "#F3F4F6",
+                                                overflow: "hidden",
+                                                borderRadius: 1,
+                                                "& iframe": { 
+                                                    width: "100%", 
+                                                    height: "100%", 
+                                                    border: 0 
+                                                }
+                                            }}
+                                            dangerouslySetInnerHTML={{ __html: event.map_embed_code }}
+                                        />
+                                    ) : (
+                                        <Box
+                                            sx={{
+                                                height: 200,
+                                                bgcolor: "#F3F4F6",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                borderRadius: 1,
+                                            }}
+                                        >
+                                            <Typography color="text.secondary">
+                                                No map available for {event.location}
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </Box>
                             </TabPanel>
 
@@ -469,41 +489,43 @@ export default function EventDetail({ event, isRegistered = false }) {
                         <Grid size={{ xs: 12, md: 4 }}>
                             <Stack spacing={4}>
                                 {/* Archive Widget */}
-                                <Box>
-                                    <Typography
-                                        variant="h6"
-                                        sx={{
-                                            mb: 2,
-                                            fontWeight: 400,
-                                            textTransform: "uppercase",
-                                            fontSize: "1.1rem",
-                                        }}
-                                    >
-                                        Archive
-                                    </Typography>
-                                    <FormControl fullWidth size="small">
-                                        <Select
-                                            value=""
-                                            displayEmpty
-                                            inputProps={{
-                                                "aria-label": "Select Month",
+                                {archives && archives.length > 0 && (
+                                    <Box>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                mb: 2,
+                                                fontWeight: 400,
+                                                textTransform: "uppercase",
+                                                fontSize: "1.1rem",
                                             }}
-                                            sx={{ borderRadius: 0 }}
                                         >
-                                            <MenuItem value="">
-                                                <Typography color="text.secondary">
-                                                    Select Month
-                                                </Typography>
-                                            </MenuItem>
-                                            <MenuItem value="feb-2023">
-                                                February 2023
-                                            </MenuItem>
-                                            <MenuItem value="sep-2023">
-                                                September 2023
-                                            </MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                </Box>
+                                            Archive
+                                        </Typography>
+                                        <FormControl fullWidth size="small">
+                                            <Select
+                                                value=""
+                                                displayEmpty
+                                                onChange={handleArchiveChange}
+                                                inputProps={{
+                                                    "aria-label": "Select Month",
+                                                }}
+                                                sx={{ borderRadius: 0 }}
+                                            >
+                                                <MenuItem value="">
+                                                    <Typography color="text.secondary">
+                                                        Select Month
+                                                    </Typography>
+                                                </MenuItem>
+                                                {archives.map((arch) => (
+                                                    <MenuItem key={arch.value} value={arch.value}>
+                                                        {arch.label} ({arch.count})
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    </Box>
+                                )}
 
                                 {/* Divider */}
                                 <Box
@@ -515,48 +537,28 @@ export default function EventDetail({ event, isRegistered = false }) {
                                 />
 
                                 {/* About Us Widget */}
-                                <Box>
-                                    <Typography
-                                        variant="h6"
-                                        sx={{
-                                            mb: 2,
-                                            fontWeight: 400,
-                                            textTransform: "uppercase",
-                                            fontSize: "1.1rem",
-                                        }}
-                                    >
-                                        About Us:
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ mb: 2, lineHeight: 1.7 }}
-                                    >
-                                        <Link
-                                            href="#"
-                                            style={{
-                                                color: "#3B82F6",
-                                                textDecoration: "none",
+                                {about && (
+                                    <Box>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                mb: 2,
+                                                fontWeight: 400,
+                                                textTransform: "uppercase",
+                                                fontSize: "1.1rem",
                                             }}
                                         >
-                                            Masterstudy
-                                        </Link>{" "}
-                                        is Education WordPress theme featured by
-                                        Learning Management System (LMS) for
-                                        online education. Developed by{" "}
-                                        <Link
-                                            href="#"
-                                            style={{
-                                                color: "#3B82F6",
-                                                textDecoration: "none",
-                                            }}
+                                            About Us:
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{ mb: 2, lineHeight: 1.7 }}
                                         >
-                                            StylemixThemes
-                                        </Link>
-                                        . Lorem ipsum dolor sit amet, onsectetur
-                                        adipiscing elit. Morbi at egestas magna.
-                                    </Typography>
-                                </Box>
+                                            {about}
+                                        </Typography>
+                                    </Box>
+                                )}
 
                                 {/* Divider */}
                                 <Box

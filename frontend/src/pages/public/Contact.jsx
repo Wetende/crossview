@@ -21,6 +21,7 @@ import {
 import { motion } from "framer-motion";
 import { getBackgroundDots } from "../../utils/getBackgroundDots";
 import PublicNavbar from "../../components/common/PublicNavbar";
+import ButtonAnimationWrapper from "../../components/common/ButtonAnimationWrapper";
 
 // --- Helper Components ---
 function GraphicsCard({ children, sx = {} }) {
