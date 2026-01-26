@@ -213,3 +213,24 @@ class ContactInquiry(models.Model):
     def __str__(self):
         return f"Inquiry from {self.name} ({self.email})"
 
+
+class ProgramResource(models.Model):
+    """
+    Downloadable resources for a program (syllabus, reading list, etc).
+    """
+    program = models.ForeignKey(
+        'Program',
+        on_delete=models.CASCADE,
+        related_name='resources'
+    )
+    file = models.FileField(upload_to='programs/resources/')
+    title = models.CharField(max_length=255, blank=True)
+    resource_type = models.CharField(max_length=50, default='material') # material, outline, etc.
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'program_resources'
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return self.title or self.file.name

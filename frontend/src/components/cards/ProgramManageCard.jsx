@@ -17,7 +17,7 @@ import {
     Rating,
     useTheme,
 } from "@mui/material";
-import { IconEye, IconCircleFilled } from "@tabler/icons-react";
+import { IconEye, IconCircleFilled, IconTools, IconFileDescription } from "@tabler/icons-react";
 
 // Badge colors using theme palette
 const getBadgeColor = (type, theme) => {
@@ -237,25 +237,49 @@ export default function ProgramManageCard({
                     </Stack>
                 </Stack>
 
-                {/* Action Button */}
+                {/* Action Buttons */}
                 {showMakeFeatured && (
-                    <Button
-                        component={Link}
-                        href={`/instructor/programs/${program.id}/manage/`}
-                        variant="contained"
-                        fullWidth
-                        sx={{
-                            bgcolor: theme.palette.primary.main,
-                            color: "white",
-                            fontWeight: 700,
-                            py: 1,
-                            "&:hover": {
-                                bgcolor: theme.palette.primary.dark,
-                            },
-                        }}
-                    >
-                        MANAGE COURSE
-                    </Button>
+                    <Stack direction="row" spacing={1} sx={{ mt: 'auto' }}>
+                         <Button
+                            component={Link}
+                            href={`/instructor/programs/${program.id}/`}
+                            variant="outlined"
+                            fullWidth
+                            startIcon={<IconFileDescription size={16} />}
+                            sx={{
+                                fontWeight: 700,
+                                py: 1,
+                                fontSize: '0.75rem',
+                                color: theme.palette.text.primary,
+                                borderColor: theme.palette.divider,
+                                "&:hover": {
+                                    borderColor: theme.palette.text.primary,
+                                    bgcolor: 'transparent'
+                                }
+                            }}
+                        >
+                            Guide
+                        </Button>
+                        <Button
+                            component={Link}
+                            href={`/instructor/programs/${program.id}/manage/`}
+                            variant="contained"
+                            fullWidth
+                            startIcon={<IconTools size={16} />}
+                            sx={{
+                                bgcolor: theme.palette.primary.main,
+                                color: "white",
+                                fontWeight: 700,
+                                py: 1,
+                                fontSize: '0.75rem',
+                                "&:hover": {
+                                    bgcolor: theme.palette.primary.dark,
+                                },
+                            }}
+                        >
+                            Builder
+                        </Button>
+                    </Stack>
                 )}
 
                 {/* Last Updated */}

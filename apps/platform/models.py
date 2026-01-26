@@ -96,6 +96,13 @@ class PlatformSettings(TimeStampedModel):
         help_text='Course difficulty levels: [{"value": "beginner", "label": "Beginner"}, ...]'
     )
 
+    # Program Categories (admin-configurable)
+    program_categories = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='List of available program categories: ["Biblical Studies", "Theology", ...]'
+    )
+
     # Setup Status
     is_setup_complete = models.BooleanField(
         default=False,

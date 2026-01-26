@@ -44,6 +44,11 @@ urlpatterns = [
         name="admin.program.edit",
     ),
     path(
+        "admin/programs/<int:pk>/content/",
+        views.admin_program_content,
+        name="admin.program.content",
+    ),
+    path(
         "admin/programs/<int:pk>/delete/",
         views.admin_program_delete,
         name="admin.program.delete",

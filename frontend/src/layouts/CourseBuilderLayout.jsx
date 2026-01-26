@@ -94,37 +94,41 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                     </Box>
 
                     <Stack direction="row" spacing={2} alignItems="center">
-                        <Button
-                            variant="contained"
-                            size="small"
-                            color="primary"
-                            sx={{ 
-                                textTransform: 'none', 
-                                fontWeight: 600, 
-                                borderRadius: '0 !important',
-                                py: 0.75,
-                                px: 2
-                            }}
-                        >
-                            Published
-                        </Button>
-                         <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<IconEye size={18} />}
-                            sx={{
-                                color: 'grey.50',
-                                borderColor: 'grey.700',
-                                textTransform: 'none',
-                                borderRadius: '0 !important',
-                                borderWidth: '1px !important',
-                                py: 0.75,
-                                px: 2,
-                                '&:hover': { borderColor: 'grey.50', bgcolor: 'action.hover' }
-                            }}
-                        >
-                            View
-                        </Button>
+                        {props.appBarActions ? props.appBarActions : (
+                            <>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    color="primary"
+                                    sx={{ 
+                                        textTransform: 'none', 
+                                        fontWeight: 600, 
+                                        borderRadius: '0 !important',
+                                        py: 0.75,
+                                        px: 2
+                                    }}
+                                >
+                                    Published
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={<IconEye size={18} />}
+                                    sx={{
+                                        color: 'grey.50',
+                                        borderColor: 'grey.700',
+                                        textTransform: 'none',
+                                        borderRadius: '0 !important',
+                                        borderWidth: '1px !important',
+                                        py: 0.75,
+                                        px: 2,
+                                        '&:hover': { borderColor: 'grey.50', bgcolor: 'action.hover' }
+                                    }}
+                                >
+                                    View
+                                </Button>
+                            </>
+                        )}
                     </Stack>
                 </Toolbar>
             </AppBar>

@@ -2,7 +2,7 @@ from django.db.models import Sum
 from apps.core.models import Program
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import InstructorAssignment
-from apps.assessments.models import Assessment
+from apps.assessments.models import Assignment, Quiz
 
 class ProgramValidationService:
     """
@@ -67,30 +67,13 @@ class ProgramValidationService:
         """Checks for Weighted/Theology mode."""
         errors = []
         
-        # Check if assessments strictly sum to 100%
-        # Assessments are nodes with node_type='quiz' or 'assignment' usually, 
-        # BUT weights might be stored on the Assessment model or Node properties.
-        # Assuming Assessment model links to CurriculumNode or Program directly?
-        # Let's check Assessment model structure or CurriculumNode properties.
+        # Calculate total weight from Assignments
+        # Note: Quizzes might contribute if they have weights, but for now we look at Assignments
+        total_weight = Assignment.objects.filter(
+            program=program
+        ).aggregate(Sum('weight'))['weight__sum'] or 0
         
-        # Based on typical LMS: Assessments are usually Nodes.
-        # Let's assume weights are in node properties? Or Assessment objects?
-        # Looking at previous context: "Create a CAT worth 30%".
-        
-        # For now, let's query Assessment objects linked to the program (if feasible)
-        # Or iterate nodes.
-        
-        # Re-checking Assessment model structure might be needed, but sticking to 
-        # generic implementation plan logic first.
-        
-        # Strategy: Sum weights of all PUBLISHED assessments in the program
-        total_weight = Assessment.objects.filter(
-            node__program=program,
-            is_active=True
-        ).aggregate(Sum('weight_percentage'))['weight_percentage__sum'] or 0
-        
-        # Start simplistic: strict 100% check might receive float issues, check range?
-        if abs(total_weight - 100) > 0.01:
+        if total_weight != 100:
              errors.append(f"Total assessment weight is {total_weight}%. It must sum to exactly 100%.")
 
         return errors

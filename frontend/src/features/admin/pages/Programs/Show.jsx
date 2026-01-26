@@ -20,30 +20,56 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Alert,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import PublishIcon from '@mui/icons-material/Publish';
-import UnpublishedIcon from '@mui/icons-material/Unpublished';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DescriptionIcon from '@mui/icons-material/Description';
+import CancelIcon from '@mui/icons-material/Cancel';
 import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
 import DashboardLayout from '@/layouts/DashboardLayout';
+import { useState } from 'react';
 
-export default function ProgramShow({ program, stats, instructors = [] }) {
-  const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this program?')) {
-      router.post(`/admin/programs/${program.id}/delete/`);
-    }
-  };
+export default function ProgramShow({ program, stats, instructors = [], readiness = {} }) {
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const handlePublish = () => {
-    router.post(`/admin/programs/${program.id}/publish/`);
+    router.post(`/admin/programs/${program.id}/publish/`, {}, {
+      onSuccess: () => setPublishOpen(false),
+    });
   };
+
+  const handleChipClick = () => {
+    setPublishOpen(true);
+  };
+
+  const StatItem = ({ icon: Icon, value, label, color = 'primary' }) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, justifyContent: 'center' }}>
+      <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: `${color}.lighter`, color: `${color}.main` }}>
+        <Icon fontSize="large" />
+      </Box>
+      <Box>
+        <Typography variant="h4" fontWeight="bold" sx={{ lineHeight: 1 }}>
+          {value}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+          {label}
+        </Typography>
+      </Box>
+    </Box>
+  );
 
   return (
     <DashboardLayout
@@ -74,21 +100,20 @@ export default function ProgramShow({ program, stats, instructors = [] }) {
               <Chip
                 label={program.isPublished ? 'Published' : 'Draft'}
                 color={program.isPublished ? 'success' : 'default'}
+                onClick={handleChipClick}
+                sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                icon={program.isPublished ? <CheckCircleIcon /> : <EditIcon />}
               />
             </Box>
-            {program.code && (
-              <Typography variant="body1" color="text.secondary">
-                Code: {program.code}
-              </Typography>
-            )}
           </Box>
           <Stack direction="row" spacing={1}>
             <Button
+              component={Link}
+              href={`/admin/programs/${program.id}/content/`}
               variant="outlined"
-              startIcon={program.isPublished ? <UnpublishedIcon /> : <PublishIcon />}
-              onClick={handlePublish}
+              startIcon={<DescriptionIcon />}
             >
-              {program.isPublished ? 'Unpublish' : 'Publish'}
+              Content Setup
             </Button>
             <Button
               component={Link}
@@ -109,210 +134,227 @@ export default function ProgramShow({ program, stats, instructors = [] }) {
           </Stack>
         </Box>
 
-        <Grid container spacing={3}>
-          {/* Stats Cards */}
-          <Grid item xs={12} md={8}>
-            <Grid container spacing={2}>
-              <Grid item xs={6} sm={3}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <Card>
-                    <CardContent sx={{ textAlign: 'center' }}>
-                      <PeopleIcon color="primary" fontSize="large" />
-                      <Typography variant="h4" fontWeight="bold">
-                        {stats.enrollmentCount}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Total Enrollments
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <Card>
-                    <CardContent sx={{ textAlign: 'center' }}>
-                      <SchoolIcon color="success" fontSize="large" />
-                      <Typography variant="h4" fontWeight="bold">
-                        {stats.activeEnrollments}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Active Students
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <Card>
-                    <CardContent sx={{ textAlign: 'center' }}>
-                      <CheckCircleIcon color="info" fontSize="large" />
-                      <Typography variant="h4" fontWeight="bold">
-                        {stats.completedEnrollments}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Completed
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <Card>
-                    <CardContent sx={{ textAlign: 'center' }}>
-                      <AccountTreeIcon color="secondary" fontSize="large" />
-                      <Typography variant="h4" fontWeight="bold">
-                        {stats.nodeCount}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Curriculum Nodes
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </Grid>
-            </Grid>
-          </Grid>
-
-          {/* Program Info */}
-          <Grid item xs={12} md={4}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Program Details
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">
-                        Blueprint
-                      </Typography>
-                      <Typography variant="body1">
-                        {program.blueprintName || 'None'}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">
-                        Created
-                      </Typography>
-                      <Typography variant="body1">
-                        {new Date(program.createdAt).toLocaleDateString()}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-
-          {/* Description */}
-          {program.description && (
-            <Grid item xs={12}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
+        {/* Wrapper for Animation */}
+        <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+        >
+            <Stack spacing={3}>
+                {/* Stats Strip */}
                 <Card>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Description
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                      {program.description}
-                    </Typography>
+                    <Stack 
+                        direction={{ xs: 'column', md: 'row' }} 
+                        divider={<Divider orientation="vertical" flexItem />} 
+                        spacing={3} 
+                        justifyContent="space-between"
+                        alignItems={{ xs: 'center', md: 'stretch' }}
+                    >
+                        <StatItem 
+                            icon={PeopleIcon} 
+                            value={stats.enrollmentCount} 
+                            label="Total Enrollments" 
+                            color="primary"
+                        />
+                        <StatItem 
+                            icon={SchoolIcon} 
+                            value={stats.activeEnrollments} 
+                            label="Active Students" 
+                            color="success"
+                        />
+                        <StatItem 
+                            icon={CheckCircleIcon} 
+                            value={stats.completedEnrollments} 
+                            label="Completed" 
+                            color="info"
+                        />
+                    </Stack>
                   </CardContent>
                 </Card>
-              </motion.div>
-            </Grid>
-          )}
 
-          {/* Instructors */}
-          <Grid item xs={12}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Assigned Instructors
-                  </Typography>
-                  {instructors.length === 0 ? (
-                    <Typography color="text.secondary">
-                      No instructors assigned yet.
-                    </Typography>
-                  ) : (
-                    <TableContainer component={Paper} variant="outlined">
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Email</TableCell>
-                            <TableCell>Role</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {instructors.map((instructor) => (
-                            <TableRow key={instructor.id}>
-                              <TableCell>{instructor.name}</TableCell>
-                              <TableCell>{instructor.email}</TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={instructor.role}
-                                  size="small"
-                                  color="primary"
-                                  variant="outlined"
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </Grid>
-        </Grid>
+                {/* Main Layout */}
+                <Grid container spacing={3}>
+                  {/* Left Column (Main) */}
+                  <Grid item xs={12} md={8}>
+                    <Stack spacing={3}>
+                        {/* Description */}
+                        <Card>
+                          <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                              Description
+                            </Typography>
+                            {program.description ? (
+                                <Typography variant="body1" color="text.secondary">
+                                  {program.description}
+                                </Typography>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                                    No description provided for this program.
+                                </Typography>
+                            )}
+                          </CardContent>
+                        </Card>
 
-        {/* Delete Button */}
-        {stats.enrollmentCount === 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={handleDelete}
-            >
-              Delete Program
-            </Button>
-          </Box>
-        )}
+                        {/* Instructors */}
+                        <Card>
+                          <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                              Assigned Instructors
+                            </Typography>
+                            {instructors.length === 0 ? (
+                              <Typography color="text.secondary">
+                                No instructors assigned yet.
+                              </Typography>
+                            ) : (
+                              <TableContainer component={Paper} variant="outlined">
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell>Name</TableCell>
+                                      <TableCell>Email</TableCell>
+                                      <TableCell>Role</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {instructors.map((instructor) => (
+                                      <TableRow key={instructor.id}>
+                                        <TableCell>{instructor.name}</TableCell>
+                                        <TableCell>{instructor.email}</TableCell>
+                                        <TableCell>
+                                          <Chip
+                                            label={instructor.role}
+                                            size="small"
+                                            color="primary"
+                                            variant="outlined"
+                                          />
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                            )}
+                          </CardContent>
+                        </Card>
+                    </Stack>
+                  </Grid>
+
+                  {/* Right Column (Sidebar) */}
+                  <Grid item xs={12} md={4}>
+                    <Stack spacing={3}>
+                        {/* Meta Details */}
+                        <Card>
+                            <CardContent>
+                              <Typography variant="h6" gutterBottom>
+                                Program Details
+                              </Typography>
+                              <Stack spacing={2}>
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Blueprint
+                                  </Typography>
+                                  <Typography variant="body1" fontWeight="medium">
+                                    {program.blueprintName || 'None'}
+                                  </Typography>
+                                </Box>
+                                <Divider />
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Program Code
+                                  </Typography>
+                                  <Typography variant="body1" fontFamily="monospace">
+                                    {program.code || '-'}
+                                  </Typography>
+                                </Box>
+                                <Divider />
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Created On
+                                  </Typography>
+                                  <Typography variant="body1">
+                                    {new Date(program.createdAt).toLocaleDateString(undefined, {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })}
+                                  </Typography>
+                                </Box>
+                              </Stack>
+                            </CardContent>
+                        </Card>
+                    </Stack>
+                  </Grid>
+                </Grid>
+            </Stack>
+        </motion.div>
       </Stack>
+
+      {/* Publish/Readiness Dialog */}
+      <Dialog open={publishOpen} onClose={() => setPublishOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+           {program.isPublished ? 'Unpublish Program?' : 'Pre-Publish Checklist'}
+        </DialogTitle>
+        <DialogContent>
+            {program.isPublished ? (
+                <Typography>
+                    Are you sure you want to unpublish <strong>{program.name}</strong>? 
+                    This will hide the course and all its content from students immediately.
+                </Typography>
+            ) : (
+                <Stack spacing={2}>
+                    <Typography gutterBottom>
+                         Review the following requirements before publishing:
+                    </Typography>
+                    
+                    <List dense sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
+                        {readiness.checks && readiness.checks.map((check, index) => (
+                            <ListItem key={index}>
+                                <ListItemIcon>
+                                    {check.passed ? (
+                                        <CheckCircleIcon color="success" />
+                                    ) : (
+                                        <CancelIcon color="error" />
+                                    )}
+                                </ListItemIcon>
+                                <ListItemText 
+                                    primary={check.label} 
+                                    secondary={!check.passed && "Requirement missing"}
+                                    primaryTypographyProps={{
+                                        color: check.passed ? 'text.primary' : 'error.main',
+                                        fontWeight: check.passed ? 'medium' : 'bold'
+                                    }}
+                                />
+                            </ListItem>
+                        ))}
+                    </List>
+
+                    {!readiness.isReady && (
+                        <Alert severity="error">
+                            You cannot publish this program until all checks pass.
+                        </Alert>
+                    )}
+                    
+                    {readiness.isReady && (
+                        <Alert severity="success">
+                            All systems go! This course is ready to be published.
+                        </Alert>
+                    )}
+                </Stack>
+            )}
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={() => setPublishOpen(false)}>Cancel</Button>
+            <Button 
+                variant="contained" 
+                color={program.isPublished ? "error" : "success"}
+                disabled={!program.isPublished && !readiness.isReady}
+                onClick={handlePublish}
+                autoFocus
+            >
+                {program.isPublished ? 'Unpublish' : 'Confirm Publish'}
+            </Button>
+        </DialogActions>
+      </Dialog>
     </DashboardLayout>
   );
 }

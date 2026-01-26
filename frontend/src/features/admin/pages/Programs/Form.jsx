@@ -171,49 +171,8 @@ export default function ProgramForm({
                             </motion.div>
                         </Grid>
 
-                        {/* Settings */}
-                        <Grid item xs={12} md={4}>
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                            >
-                                <Card>
-                                    <CardContent>
-                                        <Typography variant="h6" gutterBottom>
-                                            Settings
-                                        </Typography>
-                                        <Stack spacing={2}>
-                                            <FormControlLabel
-                                                control={
-                                                    <Switch
-                                                        checked={
-                                                            data.isPublished
-                                                        }
-                                                        onChange={(e) =>
-                                                            setData(
-                                                                "isPublished",
-                                                                e.target
-                                                                    .checked,
-                                                            )
-                                                        }
-                                                    />
-                                                }
-                                                label="Published"
-                                            />
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                            >
-                                                Published programs are visible
-                                                to students
-                                            </Typography>
-                                        </Stack>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        </Grid>
-
+                        {/* Settings - Published toggle removed for Draft-First Workflow */}
+                        
                         {/* Blueprint Selection - Hidden if only one blueprint (auto-selected) */}
                         {blueprints.length > 1 && (
                             <Grid item xs={12}>
@@ -463,7 +422,7 @@ export default function ProgramForm({
                                     : "Creating..."
                                 : isEdit
                                   ? "Save Changes"
-                                  : "Create Program"}
+                                  : "Create Draft & Continue"}
                         </Button>
                     </Box>
                 </Stack>

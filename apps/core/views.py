@@ -1142,6 +1142,24 @@ def admin_program_detail(request, pk: int):
         for a in instructors
     ]
 
+    # Get readiness status (even if not publishing yet)
+    from apps.core.services.validation import ProgramValidationService
+    validator = ProgramValidationService()
+    validation_errors = validator.validate(program)
+    
+    # Structure readiness report for frontend
+    readiness = {
+        "isReady": len(validation_errors) == 0,
+        "errors": validation_errors,
+        "checks": [
+           {"label": "Structural Integrity", "passed": "Program must have at least one Session/Lesson." not in validation_errors},
+           {"label": "Instructor Assignment", "passed": "Program must have at least one assigned Instructor." not in validation_errors},
+           {"label": "Metadata (Description)", "passed": "Program must have a Description for the public catalog." not in validation_errors},
+           {"label": "Metadata (Thumbnail)", "passed": "Program must have a Thumbnail image." not in validation_errors},
+           {"label": "Mode Validations", "passed": not any("assessment weight" in e for e in validation_errors)} 
+        ]
+    }
+
     return render(
         request,
         "Admin/Programs/Show",
@@ -1163,6 +1181,7 @@ def admin_program_detail(request, pk: int):
                 "nodeCount": node_count,
             },
             "instructors": instructors_data,
+            "readiness": readiness,
         },
     )
 
@@ -1224,7 +1243,7 @@ def admin_program_create(request):
                 role="instructor",
             )
 
-        return redirect("core:admin.program", pk=program.id)
+        return redirect("core:admin.program.content", pk=program.id)
 
     # GET - show create form
     return render(
@@ -1318,6 +1337,90 @@ def admin_program_edit(request, pk: int):
             "canChangeBlueprint": not Enrollment.objects.filter(
                 program=program
             ).exists(),
+        },
+    )
+
+
+@login_required
+def admin_program_content(request, pk: int):
+    """
+    Manage program content/syllabus.
+    """
+    if not _require_admin(request.user):
+        return redirect("/dashboard/")
+
+    from django.shortcuts import get_object_or_404
+    from apps.core.models import ProgramResource
+    from apps.platform.models import PlatformSettings
+    
+    program = get_object_or_404(Program, pk=pk)
+
+    if request.method == "POST":
+        # Handle file uploads (standard multipart/form-data)
+        data = request.POST
+        files = request.FILES
+        
+        # Update General Info
+        program.description = data.get("description", "")
+        program.category = data.get("category", "")
+        program.level = data.get("level", "beginner")
+        
+        # Update Content/Syllabus - Split by newline
+        what_you_learn_raw = data.get("whatYouLearn", "")
+        # Filter empty lines
+        program.what_you_learn = [line.strip() for line in what_you_learn_raw.split("\n") if line.strip()]
+
+        # Handle Thumbnail
+        if "thumbnail" in files:
+            program.thumbnail = files["thumbnail"]
+        
+        program.save()
+
+        # Handle Course Materials
+        # In Django, getlist returns all files for a field name
+        material_files = files.getlist("materials")
+        for f in material_files:
+            ProgramResource.objects.create(
+                program=program,
+                file=f,
+                title=f.name,
+                resource_type="material"
+            )
+        
+        messages.success(request, "Program content saved successfully")
+        return redirect("core:admin.program", pk=program.id)
+
+    # GET - show content form
+    
+    # Get platform settings
+    platform_settings = PlatformSettings.get_settings()
+    course_levels = platform_settings.get_course_levels()
+    # Logic: only show categories if explicitly configured in platform settings.
+    categories = platform_settings.program_categories or []
+
+    # Serialize what_you_learn as string for TextArea
+    what_you_learn_str = "\n".join(program.what_you_learn or [])
+
+    return render(
+        request,
+        "Admin/Programs/Content",
+        {
+            "program": {
+                **_serialize_program(program),
+                "thumbnailUrl": program.thumbnail.url if program.thumbnail else None,
+            },
+            "initialData": {
+                "description": program.description or "",
+                "category": program.category or "",
+                "level": program.level or "beginner",
+                "whatYouLearn": what_you_learn_str,
+            },
+            "courseLevels": course_levels,
+            "categories": categories,
+            "resources": [
+                {"id": r.id, "title": r.title, "url": r.file.url, "type": r.resource_type}
+                for r in program.resources.all()
+            ]
         },
     )
 
@@ -4045,6 +4148,11 @@ def instructor_program_manage(request, pk: int):
                 "level": program.level,
                 "category": program.category,
                 "thumbnail": program.thumbnail.url if program.thumbnail else None,
+                "whatYouLearn": program.what_you_learn or [],
+                "resources": [
+                    {"id": r.id, "title": r.title, "url": r.file.url, "type": r.resource_type, "ext": r.file.name.split('.')[-1] if '.' in r.file.name else ""}
+                    for r in program.resources.all()
+                ],
                 "faq": program.faq,
                 "notices": program.notices,
                 "customPricing": program.custom_pricing,
