@@ -125,7 +125,9 @@ class Program(TimeStampedModel):
         blank=True
     )
     name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, blank=True, null=True)
+    code = models.CharField(max_length=50, unique=True, error_messages={
+        'unique': "A program with this code already exists."
+    })
     description = models.TextField(blank=True, null=True)
     is_published = models.BooleanField(default=False)
     

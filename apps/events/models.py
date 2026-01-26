@@ -21,6 +21,7 @@ class Event(TimeStampedModel):
     
     # Location
     location = models.CharField(max_length=255, help_text="e.g., 'Chicago, WY82601, US'")
+    map_embed_code = models.TextField(blank=True, help_text="Google Maps Embed HTML code (<iframe...>)")
     
     # Media
     image = models.ImageField(upload_to='events/', blank=True, null=True)

@@ -98,7 +98,7 @@ class Rubric(TimeStampedModel):
     )
 
     class Meta:
-        db_table = 'rubrics'
+        db_table = 'assessments_rubrics'
         indexes = [
             models.Index(fields=['scope', 'owner']),
             models.Index(fields=['program']),

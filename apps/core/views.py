@@ -1357,8 +1357,22 @@ def admin_program_publish(request, pk: int):
 
     from django.shortcuts import get_object_or_404
     from apps.curriculum.models import CurriculumNode
+    from apps.core.services.validation import ProgramValidationService
 
     program = get_object_or_404(Program, pk=pk)
+    
+    # If we are TRYING to publish (currently False), run validation
+    if not program.is_published:
+        validator = ProgramValidationService()
+        errors = validator.validate(program)
+        
+        if errors:
+            # Block publishing
+            for error in errors:
+                messages.error(request, error)
+            return redirect("core:admin.program", pk=pk)
+
+    # Proceed if valid or if unpublishing
     was_published = program.is_published
     program.is_published = not program.is_published
     program.save()
@@ -1366,15 +1380,27 @@ def admin_program_publish(request, pk: int):
     # Cascade unpublish: when program becomes unpublished, unpublish all child nodes
     if was_published and not program.is_published:
         CurriculumNode.objects.filter(program=program).update(is_published=False)
+        messages.success(request, f"Program '{program.name}' unpublished.")
+    else:
+        messages.success(request, f"Program '{program.name}' published successfully.")
 
     return redirect("core:admin.program", pk=pk)
 
 
 def _get_blueprints_for_form() -> list:
-    """Get blueprints for dropdown (single-tenant: all blueprints)."""
+    """Get active blueprint(s) for the tenant."""
     from apps.blueprints.models import AcademicBlueprint
+    from apps.platform.models import PlatformSettings
 
-    blueprints = AcademicBlueprint.objects.all().order_by("name")
+    settings = PlatformSettings.get_settings()
+    
+    # In single-tenant mode, we only show the configured blueprint
+    if settings.active_blueprint:
+        blueprints = [settings.active_blueprint]
+    else:
+        # Fallback: show all blueprints if tenant not fully configured
+        blueprints = AcademicBlueprint.objects.all().order_by("name")
+
     return [
         {
             "id": b.id,
@@ -1388,7 +1414,7 @@ def _get_blueprints_for_form() -> list:
 def _get_instructors_for_form() -> list:
     """Get instructors for dropdown (single-tenant: all staff)."""
     instructors = User.objects.filter(
-        is_staff=True,
+        groups__name="Instructors"
     ).order_by("first_name", "last_name")
 
     return [
