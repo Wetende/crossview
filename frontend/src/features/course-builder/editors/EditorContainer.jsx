@@ -63,5 +63,6 @@ export default function EditorContainer({ node, onSave, blueprint }) {
     }
 
     // Default to Content Editor for 'Lesson' type (text, video, live_class, etc.)
+    console.log('EditorContainer rendering ContentEditor for:', { type, lessonType, node });
     return <ContentEditor node={node} onSave={onSave} blueprint={blueprint} />;
 }

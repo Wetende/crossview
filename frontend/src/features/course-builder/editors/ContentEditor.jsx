@@ -284,6 +284,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
     };
 
     const { icon, label } = getHeaderInfo();
+    console.log('ContentEditor mounted. ActiveTab:', activeTab, 'LessonType:', lessonType);
 
     return (
         <Box>

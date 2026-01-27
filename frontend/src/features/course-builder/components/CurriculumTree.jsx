@@ -198,7 +198,12 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                 const oldIds = new Set(flattenNodes(nodes).map(n => n.id));
                 const newNodesFlat = flattenNodes(page.props.curriculum);
                 const createdNode = newNodesFlat.find(n => !oldIds.has(n.id));
-                if (createdNode) handleSelect(createdNode);
+                console.log('Create Success. Old IDs:', oldIds.size, 'New IDs:', newNodesFlat.length, 'Created:', createdNode);
+                if (createdNode) {
+                    handleSelect(createdNode);
+                } else {
+                    console.warn('Could not identify created node to select.');
+                }
             },
         });
     };
@@ -228,7 +233,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
         router.post(`/instructor/programs/${program.id}/nodes/create/`, {
             parent_id: null,
             title: createTitle,
-            type: 'Module',
+            type: 'Module', // Generic type, backend maps to Year/Unit based on parent/depth
         }, {
             onSuccess: (page) => {
                 setCreateModalOpen(false);
@@ -340,6 +345,9 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                         <IconButton size="small" onClick={(e) => startEditingSection(node, e)}>
                             <EditIcon fontSize="small" />
                         </IconButton>
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleDelete(node.id); }}>
+                            <DeleteIcon fontSize="small" />
+                        </IconButton>
                         <IconButton size="small" onClick={(e) => { e.stopPropagation(); toggleSection(node.id); }}>
                             {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                         </IconButton>
@@ -402,7 +410,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                      {!localNodes || localNodes.length === 0 ? (
                          <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
                              <Typography variant="body2">No curriculum yet.</Typography>
-                             <Typography variant="caption">Start by adding a section.</Typography>
+                             <Typography variant="caption">Start by adding a {program.blueprint?.hierarchy_structure?.[0] || 'Section'}.</Typography>
                          </Box>
                      ) : (
                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

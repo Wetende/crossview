@@ -21,6 +21,9 @@ import CloseIcon from '@mui/icons-material/Close'; // Added
 import VisibilityIcon from '@mui/icons-material/Visibility'; // Added
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'; // Added
 import DescriptionIcon from '@mui/icons-material/Description'; // Added
+import Brightness4Icon from '@mui/icons-material/Brightness4'; // Added
+import Brightness7Icon from '@mui/icons-material/Brightness7'; // Added
+import { useThemeMode } from '@/theme/index'; // Added
 import CourseBuilderLayout from '@/layouts/CourseBuilderLayout';
 import CurriculumTree, { flattenNodes } from '../components/CurriculumTree';
 import EditorContainer from '../editors/EditorContainer';
@@ -29,6 +32,7 @@ import SettingsPanel from '../components/SettingsPanel';
 const RIGHT_DRAWER_WIDTH = 300; // Define the width for the right drawer
 
 export default function InstructorProgramBuilder({ program, curriculum }) {
+  const { mode, toggleMode } = useThemeMode(); // Added
   const [activeTab, setActiveTab] = useState('curriculum');
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [guideOpen, setGuideOpen] = useState(false); // Added state for guide drawer
@@ -55,6 +59,9 @@ export default function InstructorProgramBuilder({ program, curriculum }) {
         // Pass the guide button to the layout's AppBar slot
         appBarActions={
             <Stack direction="row" spacing={1}>
+                <IconButton onClick={toggleMode} color="inherit" sx={{ mr: 1 }}>
+                  {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+                </IconButton>
                 <Button
                     variant={guideOpen ? "contained" : "outlined"}
                     color="secondary"

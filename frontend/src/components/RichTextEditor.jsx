@@ -105,7 +105,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                     p: 1,
                     borderBottom: 1,
                     borderColor: 'divider',
-                    bgcolor: 'grey.50'
+                    bgcolor: 'background.neutral' // Changed from grey.50
                 }}
             >
                 <MenuButton
@@ -192,31 +192,34 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
 
             {/* Editor Content */}
             <Box
-                sx={{
-                    bgcolor: '#fff',
+                sx={(theme) => ({
+                    bgcolor: 'background.paper', // Changed from #fff
+                    color: 'text.primary',
                     '& .ProseMirror': {
                         minHeight,
                         '&:focus': { outline: 'none' },
                         '& p': { margin: 0, marginBottom: '0.5em' },
-                        '& h1, & h2, & h3': { marginTop: '1em', marginBottom: '0.5em' },
+                        '& h1, & h2, & h3': { marginTop: '1em', marginBottom: '0.5em', color: 'text.primary' },
                         '& ul, & ol': { paddingLeft: '1.5em', marginBottom: '0.5em' },
                         '& blockquote': { 
-                            borderLeft: '3px solid #ddd', 
+                            borderLeft: `3px solid ${theme.palette.divider}`,  // Changed from #ddd
                             marginLeft: 0, 
                             paddingLeft: '1em',
                             color: 'text.secondary'
                         },
                         '& pre': {
-                            bgcolor: '#f5f5f5',
+                            bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100', // Changed from #f5f5f5
                             padding: '0.5em',
                             borderRadius: 1,
-                            overflow: 'auto'
+                            overflow: 'auto',
+                            color: theme.palette.mode === 'dark' ? 'text.secondary' : 'inherit'
                         },
                         '& code': {
-                            bgcolor: '#f5f5f5',
+                            bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100', // Changed from #f5f5f5
                             padding: '0.1em 0.3em',
                             borderRadius: '3px',
-                            fontFamily: 'monospace'
+                            fontFamily: 'monospace',
+                            color: theme.palette.mode === 'dark' ? 'secondary.main' : 'inherit'
                         },
                         '& a': { color: 'primary.main' },
                         '& img': { maxWidth: '100%', height: 'auto' },
@@ -228,7 +231,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
                         pointerEvents: 'none',
                         height: 0
                     }
-                }}
+                })}
             >
                 <EditorContent editor={editor} />
             </Box>

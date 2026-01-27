@@ -3,7 +3,7 @@
  * Requirements: FR-3.1, US-3.1
  */
 
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router } from "@inertiajs/react";
 import {
   Box,
   Typography,
@@ -27,27 +27,40 @@ import {
   IconButton,
   Menu,
   Pagination,
-} from '@mui/material';
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import AddIcon from '@mui/icons-material/Add';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import SearchIcon from '@mui/icons-material/Search';
-import FilterListIcon from '@mui/icons-material/FilterList';
+} from "@mui/material";
+import { Fragment, useState } from "react";
+import { motion } from "framer-motion";
+import AddIcon from "@mui/icons-material/Add";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import SearchIcon from "@mui/icons-material/Search";
+import FilterListIcon from "@mui/icons-material/FilterList";
 
-import DashboardLayout from '@/layouts/DashboardLayout';
+import DashboardLayout from "@/layouts/DashboardLayout";
 
 export default function ProgramsIndex({
   programs = [],
+  groupedPrograms = [],
   blueprints = [],
+  courseLevels = [],
   filters = {},
   pagination = {},
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedProgram, setSelectedProgram] = useState(null);
-  const [search, setSearch] = useState(filters.search || '');
-  const [status, setStatus] = useState(filters.status || '');
-  const [blueprint, setBlueprint] = useState(filters.blueprint || '');
+  const [search, setSearch] = useState(filters.search || "");
+  const [status, setStatus] = useState(filters.status || "");
+  const [blueprint, setBlueprint] = useState(filters.blueprint || "");
+  const [level, setLevel] = useState(filters.level || "");
+
+  const groupsToRender =
+    groupedPrograms && groupedPrograms.length > 0
+      ? groupedPrograms
+      : [{ value: "all", label: "All Programs", programs }];
+
+  const totalPrograms = groupsToRender.reduce(
+    (total, group) => total + (group.programs || []).length,
+    0,
+  );
 
   const handleMenuOpen = (event, program) => {
     setAnchorEl(event.currentTarget);
@@ -61,28 +74,32 @@ export default function ProgramsIndex({
 
   const handleFilter = () => {
     const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (status) params.set('status', status);
-    if (blueprint) params.set('blueprint', blueprint);
+    if (search) params.set("search", search);
+    if (status) params.set("status", status);
+    if (blueprint) params.set("blueprint", blueprint);
+    if (level) params.set("level", level);
 
     router.visit(`/admin/programs/?${params.toString()}`, {
-      only: ['programs', 'pagination'],
+      only: ["programs", "groupedPrograms", "pagination"],
       preserveState: true,
     });
   };
 
   const handlePageChange = (event, page) => {
     const params = new URLSearchParams(window.location.search);
-    params.set('page', page);
+    params.set("page", page);
     router.visit(`/admin/programs/?${params.toString()}`, {
-      only: ['programs', 'pagination'],
+      only: ["programs", "pagination"],
       preserveState: true,
       preserveScroll: true,
     });
   };
 
   const handleDelete = () => {
-    if (selectedProgram && confirm('Are you sure you want to delete this program?')) {
+    if (
+      selectedProgram &&
+      confirm("Are you sure you want to delete this program?")
+    ) {
       router.post(`/admin/programs/${selectedProgram.id}/delete/`);
     }
     handleMenuClose();
@@ -96,15 +113,18 @@ export default function ProgramsIndex({
   };
 
   return (
-    <DashboardLayout
-      role="admin"
-      breadcrumbs={[{ label: 'Programs' }]}
-    >
+    <DashboardLayout role="admin" breadcrumbs={[{ label: "Programs" }]}>
       <Head title="Programs" />
 
       <Stack spacing={3}>
         {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Box>
             <Typography variant="h4" fontWeight="bold">
               Programs
@@ -126,10 +146,10 @@ export default function ProgramsIndex({
         {/* Filters */}
         <Card>
           <CardContent>
-            <Stack 
-              direction={{ xs: 'column', md: 'row' }} 
-              spacing={2} 
-              alignItems={{ xs: 'stretch', md: 'flex-end' }}
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={2}
+              alignItems={{ xs: "stretch", md: "flex-end" }}
             >
               <TextField
                 label="Search"
@@ -137,16 +157,23 @@ export default function ProgramsIndex({
                 onChange={(e) => setSearch(e.target.value)}
                 size="small"
                 fullWidth
-                sx={{ 
-                  minWidth: { xs: '100%', md: 200 },
+                sx={{
+                  minWidth: { xs: "100%", md: 200 },
                   maxWidth: { md: 300 },
                 }}
                 InputProps={{
                   startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
                 }}
-                onKeyPress={(e) => e.key === 'Enter' && handleFilter()}
+                onKeyPress={(e) => e.key === "Enter" && handleFilter()}
               />
-              <FormControl size="small" fullWidth sx={{ minWidth: { xs: '100%', md: 150 }, maxWidth: { md: 180 } }}>
+              <FormControl
+                size="small"
+                fullWidth
+                sx={{
+                  minWidth: { xs: "100%", md: 150 },
+                  maxWidth: { md: 180 },
+                }}
+              >
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={status}
@@ -158,7 +185,14 @@ export default function ProgramsIndex({
                   <MenuItem value="draft">Draft</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl size="small" fullWidth sx={{ minWidth: { xs: '100%', md: 200 }, maxWidth: { md: 250 } }}>
+              <FormControl
+                size="small"
+                fullWidth
+                sx={{
+                  minWidth: { xs: "100%", md: 200 },
+                  maxWidth: { md: 250 },
+                }}
+              >
                 <InputLabel>Blueprint</InputLabel>
                 <Select
                   value={blueprint}
@@ -173,13 +207,35 @@ export default function ProgramsIndex({
                   ))}
                 </Select>
               </FormControl>
+              <FormControl
+                size="small"
+                fullWidth
+                sx={{
+                  minWidth: { xs: "100%", md: 180 },
+                  maxWidth: { md: 220 },
+                }}
+              >
+                <InputLabel>Level</InputLabel>
+                <Select
+                  value={level}
+                  label="Level"
+                  onChange={(e) => setLevel(e.target.value)}
+                >
+                  <MenuItem value="">All Levels</MenuItem>
+                  {courseLevels.map((lvl) => (
+                    <MenuItem key={lvl.value} value={lvl.value}>
+                      {lvl.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <Button
                 variant="outlined"
                 startIcon={<FilterListIcon />}
                 onClick={handleFilter}
                 fullWidth
-                sx={{ 
-                  minWidth: { xs: '100%', md: 'auto' },
+                sx={{
+                  minWidth: { xs: "100%", md: "auto" },
                   maxWidth: { md: 120 },
                 }}
               >
@@ -207,7 +263,7 @@ export default function ProgramsIndex({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {programs.length === 0 ? (
+                {totalPrograms === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} align="center">
                       <Typography color="text.secondary" sx={{ py: 4 }}>
@@ -216,47 +272,72 @@ export default function ProgramsIndex({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  programs.map((program) => (
-                    <TableRow key={program.id} hover>
-                      <TableCell>
-                        <Link
-                          href={`/admin/programs/${program.id}/`}
-                          style={{ textDecoration: 'none' }}
-                        >
-                          <Typography fontWeight="medium" color="primary">
-                            {program.name}
+                  groupsToRender.map((group) => (
+                    <Fragment key={group.value || group.label}>
+                      <TableRow>
+                        <TableCell colSpan={6} sx={{ bgcolor: "grey.50" }}>
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {group.label}
                           </Typography>
-                        </Link>
-                      </TableCell>
-                      <TableCell>{program.code || '-'}</TableCell>
-                      <TableCell>
-                        {program.blueprintName ? (
-                          <Chip
-                            label={program.blueprintName}
-                            size="small"
-                            variant="outlined"
-                          />
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
-                      <TableCell>{program.enrollmentCount}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={program.isPublished ? 'Published' : 'Draft'}
-                          size="small"
-                          color={program.isPublished ? 'success' : 'default'}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMenuOpen(e, program)}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
+                      {(group.programs || []).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} align="center">
+                            <Typography color="text.secondary" sx={{ py: 2 }}>
+                              No programs in this level
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (group.programs || []).map((program) => (
+                          <TableRow key={program.id} hover>
+                            <TableCell>
+                              <Link
+                                href={`/admin/programs/${program.id}/`}
+                                style={{ textDecoration: "none" }}
+                              >
+                                <Typography fontWeight="medium" color="primary">
+                                  {program.name}
+                                </Typography>
+                              </Link>
+                            </TableCell>
+                            <TableCell>{program.code || "-"}</TableCell>
+                            <TableCell>
+                              {program.blueprintName ? (
+                                <Chip
+                                  label={program.blueprintName}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell>{program.enrollmentCount}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={
+                                  program.isPublished ? "Published" : "Draft"
+                                }
+                                size="small"
+                                color={
+                                  program.isPublished ? "success" : "default"
+                                }
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handleMenuOpen(e, program)}
+                              >
+                                <MoreVertIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </Fragment>
                   ))
                 )}
               </TableBody>
@@ -266,7 +347,7 @@ export default function ProgramsIndex({
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Pagination
               count={pagination.totalPages}
               page={pagination.page}
@@ -284,27 +365,37 @@ export default function ProgramsIndex({
         >
           <MenuItem
             component={Link}
-            href={selectedProgram ? `/admin/programs/${selectedProgram.id}/` : '#'}
+            href={
+              selectedProgram ? `/admin/programs/${selectedProgram.id}/` : "#"
+            }
           >
             View Details
           </MenuItem>
           <MenuItem
             component={Link}
-            href={selectedProgram ? `/admin/programs/${selectedProgram.id}/edit/` : '#'}
+            href={
+              selectedProgram
+                ? `/admin/programs/${selectedProgram.id}/edit/`
+                : "#"
+            }
           >
             Edit
           </MenuItem>
           <MenuItem
             component={Link}
-            href={selectedProgram ? `/instructor/programs/${selectedProgram.id}/manage/` : '#'}
+            href={
+              selectedProgram
+                ? `/instructor/programs/${selectedProgram.id}/manage/`
+                : "#"
+            }
           >
             Course Manager
           </MenuItem>
           <MenuItem onClick={handlePublish}>
-            {selectedProgram?.isPublished ? 'Unpublish' : 'Publish'}
+            {selectedProgram?.isPublished ? "Unpublish" : "Publish"}
           </MenuItem>
           {selectedProgram?.enrollmentCount === 0 && (
-            <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
               Delete
             </MenuItem>
           )}

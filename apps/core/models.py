@@ -1,6 +1,7 @@
 """
 Core models - Custom User model and base classes.
 """
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -10,6 +11,7 @@ class TimeStampedModel(models.Model):
     An abstract base class model that provides self-updating
     'created_at' and 'updated_at' fields.
     """
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -19,10 +21,11 @@ class TimeStampedModel(models.Model):
 
 class User(AbstractUser):
     """Custom User model for LMS."""
+
     phone = models.CharField(max_length=20, blank=True, null=True)
-    
+
     class Meta:
-        db_table = 'users'
+        db_table = "users"
 
     def __str__(self):
         return self.email or self.username
@@ -33,46 +36,45 @@ class InstructorProfile(TimeStampedModel):
     Stores instructor application/vetting data separately from User model.
     Lifecycle: DRAFT → PENDING_REVIEW → APPROVED/REJECTED
     """
+
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('pending_review', 'Pending Review'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+        ("draft", "Draft"),
+        ("pending_review", "Pending Review"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
     ]
 
     user = models.OneToOneField(
-        'User',
-        on_delete=models.CASCADE,
-        related_name='instructor_profile'
+        "User", on_delete=models.CASCADE, related_name="instructor_profile"
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+
     # Professional Identity
-    bio = models.TextField(blank=True, default='')
-    job_title = models.CharField(max_length=255, blank=True, default='')
-    
+    bio = models.TextField(blank=True, default="")
+    job_title = models.CharField(max_length=255, blank=True, default="")
+
     # Proof of Expertise
     resume_path = models.CharField(max_length=500, blank=True, null=True)
-    linkedin_url = models.URLField(blank=True, default='')
-    teaching_experience = models.TextField(blank=True, default='')
-    why_teach_here = models.TextField(blank=True, default='')
-    
+    linkedin_url = models.URLField(blank=True, default="")
+    teaching_experience = models.TextField(blank=True, default="")
+    why_teach_here = models.TextField(blank=True, default="")
+
     # Review Data
-    rejection_reason = models.TextField(blank=True, default='')
+    rejection_reason = models.TextField(blank=True, default="")
     reviewed_by = models.ForeignKey(
-        'User',
+        "User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='reviewed_instructor_profiles'
+        related_name="reviewed_instructor_profiles",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'instructor_profiles'
+        db_table = "instructor_profiles"
         indexes = [
-            models.Index(fields=['status']),
-            models.Index(fields=['user']),
+            models.Index(fields=["status"]),
+            models.Index(fields=["user"]),
         ]
 
     def __str__(self):
@@ -84,17 +86,16 @@ class InstructorCertification(models.Model):
     Uploaded certification documents for instructor applications.
     Auto-deleted when application is rejected.
     """
+
     profile = models.ForeignKey(
-        'InstructorProfile',
-        on_delete=models.CASCADE,
-        related_name='certifications'
+        "InstructorProfile", on_delete=models.CASCADE, related_name="certifications"
     )
     file_path = models.CharField(max_length=500)
     file_name = models.CharField(max_length=255)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'instructor_certifications'
+        db_table = "instructor_certifications"
 
     def __str__(self):
         return f"{self.file_name} for {self.profile.user.email}"
@@ -105,45 +106,44 @@ class Program(TimeStampedModel):
     Program model - represents an academic program/course.
     Links to AcademicBlueprint for structure configuration.
     """
+
     SUBMISSION_STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('submitted', 'Submitted for Review'),
-        ('changes_requested', 'Changes Requested'),
-        ('approved', 'Approved'),
+        ("draft", "Draft"),
+        ("submitted", "Submitted for Review"),
+        ("changes_requested", "Changes Requested"),
+        ("approved", "Approved"),
     ]
 
     blueprint = models.ForeignKey(
-        'blueprints.AcademicBlueprint',
+        "blueprints.AcademicBlueprint",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='programs'
+        related_name="programs",
     )
     instructors = models.ManyToManyField(
-        'User',
-        related_name='assigned_programs',
-        blank=True
+        "User", related_name="assigned_programs", blank=True
     )
     name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, unique=True, error_messages={
-        'unique': "A program with this code already exists."
-    })
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        error_messages={"unique": "A program with this code already exists."},
+    )
     description = models.TextField(blank=True, null=True)
     is_published = models.BooleanField(default=False)
-    
+
     # Course Vetting Workflow
     submission_status = models.CharField(
-        max_length=20,
-        choices=SUBMISSION_STATUS_CHOICES,
-        default='draft'
+        max_length=20, choices=SUBMISSION_STATUS_CHOICES, default="draft"
     )
     submitted_at = models.DateTimeField(null=True, blank=True)
     submitted_by = models.ForeignKey(
-        'User',
+        "User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='submitted_programs'
+        related_name="submitted_programs",
     )
 
     # Extended Course Manager Fields
@@ -152,26 +152,36 @@ class Program(TimeStampedModel):
     custom_pricing = models.JSONField(default=dict, blank=True)
 
     # Course Display Fields (for public listing/detail pages)
-    thumbnail = models.ImageField(upload_to='programs/thumbnails/', blank=True, null=True)
+    thumbnail = models.ImageField(
+        upload_to="programs/thumbnails/", blank=True, null=True
+    )
     category = models.CharField(max_length=100, blank=True, null=True)
     # Level is now admin-configurable via PlatformSettings.course_levels
-    level = models.CharField(max_length=50, blank=True, default='beginner')
-    duration_hours = models.PositiveIntegerField(default=0, help_text="Total duration in hours")
-    video_hours = models.PositiveIntegerField(default=0, help_text="Video content duration in hours")
+    level = models.CharField(max_length=50)
+    duration_hours = models.PositiveIntegerField(
+        default=0, help_text="Total duration in hours"
+    )
+    video_hours = models.PositiveIntegerField(
+        default=0, help_text="Video content duration in hours"
+    )
     BADGE_CHOICES = [
-        ('hot', 'Hot'),
-        ('new', 'New'),
-        ('special', 'Special'),
+        ("hot", "Hot"),
+        ("new", "New"),
+        ("special", "Special"),
     ]
-    badge_type = models.CharField(max_length=20, blank=True, null=True, choices=BADGE_CHOICES)
-    what_you_learn = models.JSONField(default=list, blank=True, help_text="List of learning outcomes")
+    badge_type = models.CharField(
+        max_length=20, blank=True, null=True, choices=BADGE_CHOICES
+    )
+    what_you_learn = models.JSONField(
+        default=list, blank=True, help_text="List of learning outcomes"
+    )
 
     class Meta:
-        db_table = 'programs'
+        db_table = "programs"
         indexes = [
-            models.Index(fields=['name']),
-            models.Index(fields=['is_published']),
-            models.Index(fields=['submission_status']),
+            models.Index(fields=["name"]),
+            models.Index(fields=["is_published"]),
+            models.Index(fields=["submission_status"]),
         ]
 
     def __str__(self):
@@ -183,31 +193,32 @@ class ContactInquiry(models.Model):
     Stores contact form submissions from the hero section.
     Admins can view and manage these inquiries.
     """
+
     name = models.CharField(max_length=255)
     email = models.EmailField()
-    phone = models.CharField(max_length=50, blank=True, default='')
+    phone = models.CharField(max_length=50, blank=True, default="")
     program = models.ForeignKey(
-        'Program',
+        "Program",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='inquiries'
+        related_name="inquiries",
     )
-    message = models.TextField(blank=True, default='')
+    message = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     is_resolved = models.BooleanField(default=False)
     resolved_by = models.ForeignKey(
-        'User',
+        "User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='resolved_inquiries'
+        related_name="resolved_inquiries",
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'contact_inquiries'
-        ordering = ['-created_at']
+        db_table = "contact_inquiries"
+        ordering = ["-created_at"]
         verbose_name_plural = "Contact Inquiries"
 
     def __str__(self):
@@ -218,19 +229,20 @@ class ProgramResource(models.Model):
     """
     Downloadable resources for a program (syllabus, reading list, etc).
     """
+
     program = models.ForeignKey(
-        'Program',
-        on_delete=models.CASCADE,
-        related_name='resources'
+        "Program", on_delete=models.CASCADE, related_name="resources"
     )
-    file = models.FileField(upload_to='programs/resources/')
+    file = models.FileField(upload_to="programs/resources/")
     title = models.CharField(max_length=255, blank=True)
-    resource_type = models.CharField(max_length=50, default='material') # material, outline, etc.
+    resource_type = models.CharField(
+        max_length=50, default="material"
+    )  # material, outline, etc.
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'program_resources'
-        ordering = ['-uploaded_at']
+        db_table = "program_resources"
+        ordering = ["-uploaded_at"]
 
     def __str__(self):
         return self.title or self.file.name

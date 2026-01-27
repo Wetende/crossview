@@ -242,7 +242,7 @@ export default function QuizEditor({ node, onSave }) {
             {activeTab === 'questions' && (
                 <Stack spacing={3}>
                     {questions.length === 0 ? (
-                        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', bgcolor: '#f8f9fa' }}>
+                        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover' }}>
                             <Typography color="text.secondary" paragraph>No questions yet.</Typography>
                             <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setAddDialogOpen(true)}>Add Question</Button>
                         </Paper>

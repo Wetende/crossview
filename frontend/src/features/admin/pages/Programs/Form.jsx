@@ -33,6 +33,7 @@ export default function ProgramForm({
     program = null,
     blueprints = [],
     instructors = [],
+    courseLevels = [],
     currentInstructorIds = [],
     canChangeBlueprint = true,
     errors = {},
@@ -49,6 +50,7 @@ export default function ProgramForm({
     const { data, setData, post, processing } = useForm({
         name: program?.name || formData.name || "",
         code: program?.code || formData.code || "",
+        level: program?.level || formData.level || "",
         description: program?.description || formData.description || "",
         blueprintId: defaultBlueprintId,
         instructorIds: currentInstructorIds || formData.instructorIds || [],
@@ -152,6 +154,26 @@ export default function ProgramForm({
                                                 }
                                                 fullWidth
                                             />
+                                            
+                                            <FormControl fullWidth required error={!!errors.level}>
+                                                <InputLabel>Level</InputLabel>
+                                                <Select
+                                                    value={data.level}
+                                                    label="Level"
+                                                    onChange={(e) => setData("level", e.target.value)}
+                                                >
+                                                    {courseLevels.map((level) => (
+                                                        <MenuItem key={level.value} value={level.value}>
+                                                            {level.label}
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                                {errors.level && (
+                                                    <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                                                        {errors.level}
+                                                    </Typography>
+                                                )}
+                                            </FormControl>
                                             <TextField
                                                 label="Description"
                                                 value={data.description}
