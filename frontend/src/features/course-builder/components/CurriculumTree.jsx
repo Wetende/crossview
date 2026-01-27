@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import SearchMaterialsModal from './SearchMaterialsModal';
 import { router } from '@inertiajs/react';
 import {
@@ -171,6 +171,8 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
         setCreateModalOpen(true);
     };
 
+    const oldIdsRef = useRef(new Set());
+
     const openCreateLesson = (parentId) => {
         setCreateParentId(parentId);
         setCreateType('lesson_select');
@@ -192,10 +194,13 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
             properties: { lesson_type: type }
         };
         
+        // Capture current IDs before request
+        oldIdsRef.current = new Set(flattenNodes(nodes).map(n => n.id));
+        
         router.post(`/instructor/programs/${program.id}/nodes/create/`, payload, {
             onSuccess: (page) => {
                 setCreateModalOpen(false);
-                const oldIds = new Set(flattenNodes(nodes).map(n => n.id));
+                const oldIds = oldIdsRef.current;
                 const newNodesFlat = flattenNodes(page.props.curriculum);
                 const createdNode = newNodesFlat.find(n => !oldIds.has(n.id));
                 console.log('Create Success. Old IDs:', oldIds.size, 'New IDs:', newNodesFlat.length, 'Created:', createdNode);
@@ -203,6 +208,13 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                     handleSelect(createdNode);
                 } else {
                     console.warn('Could not identify created node to select.');
+                    // Fallback: Try to select the node with the highest ID if it wasn't in old list
+                    if (newNodesFlat.length > oldIds.size) {
+                         const maxIdNode = newNodesFlat.reduce((prev, current) => (prev.id > current.id) ? prev : current);
+                         if (!oldIds.has(maxIdNode.id)) {
+                             handleSelect(maxIdNode);
+                         }
+                    }
                 }
             },
         });
@@ -217,10 +229,13 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
             properties: { lesson_type: 'quiz' }
         };
 
+        // Capture current IDs before request
+        oldIdsRef.current = new Set(flattenNodes(nodes).map(n => n.id));
+
         router.post(`/instructor/programs/${program.id}/nodes/create/`, payload, {
             onSuccess: (page) => {
                 setCreateQuizModalOpen(false);
-                const oldIds = new Set(flattenNodes(nodes).map(n => n.id));
+                const oldIds = oldIdsRef.current;
                 const newNodesFlat = flattenNodes(page.props.curriculum);
                 const createdNode = newNodesFlat.find(n => !oldIds.has(n.id));
                 if (createdNode) handleSelect(createdNode);
