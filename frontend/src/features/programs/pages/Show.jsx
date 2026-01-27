@@ -220,6 +220,35 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Resources Card */}
+              {program.resources && program.resources.length > 0 && (
+                <Card sx={{ mt: 3 }}>
+                    <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                            Resources
+                        </Typography>
+                        <Divider sx={{ my: 2 }} />
+                        <Stack spacing={1}>
+                            {program.resources.map((res) => (
+                                <Button
+                                    key={res.id}
+                                    component="a"
+                                    href={res.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    fullWidth
+                                    variant="outlined"
+                                    color="inherit"
+                                    sx={{ justifyContent: 'flex-start', textAlign: 'left', textTransform: 'none' }}
+                                >
+                                    {res.title}
+                                </Button>
+                            ))}
+                        </Stack>
+                    </CardContent>
+                </Card>
+              )}
             </motion.div>
           </Grid>
           

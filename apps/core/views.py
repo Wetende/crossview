@@ -249,14 +249,26 @@ def public_program_detail(request, pk: int):
     from django.shortcuts import get_object_or_404
     from django.db.models import Count
     
-    # Get published program
-    program = get_object_or_404(Program, pk=pk, is_published=True)
+    # Check if this is a preview
+    is_preview = request.session.get('preview_program_id') == pk
+    
+    if is_preview:
+        # Allow access even if not published
+        program = get_object_or_404(Program, pk=pk)
+    else:
+        # Strict check
+        program = get_object_or_404(Program, pk=pk, is_published=True)
     
     # Build curriculum tree for display
     def build_tree(nodes):
         result = []
         for node in nodes:
-            children = node.children.filter(is_published=True).order_by("position")
+            # If preview, show all children. If public, show only published.
+            if is_preview:
+                children = node.children.all().order_by("position")
+            else:
+                children = node.children.filter(is_published=True).order_by("position")
+            
             result.append({
                 "id": node.id,
                 "title": node.title,
@@ -267,9 +279,14 @@ def public_program_detail(request, pk: int):
             })
         return result
     
-    root_nodes = CurriculumNode.objects.filter(
-        program=program, parent__isnull=True, is_published=True
-    ).prefetch_related("children").order_by("position")
+    if is_preview:
+        root_nodes = CurriculumNode.objects.filter(
+            program=program, parent__isnull=True
+        ).prefetch_related("children").order_by("position")
+    else:
+        root_nodes = CurriculumNode.objects.filter(
+            program=program, parent__isnull=True, is_published=True
+        ).prefetch_related("children").order_by("position")
     
     curriculum = build_tree(root_nodes)
     
@@ -381,6 +398,16 @@ def public_program_detail(request, pk: int):
         "faq": program.faq or [],
         "notices": program.notices or [],
         "what_you_learn": program.what_you_learn or [],
+        "resources": [
+            {
+                "id": r.id,
+                "title": r.title,
+                "url": r.file.url,
+                "type": r.resource_type,
+                "ext": r.file.name.split('.')[-1] if '.' in r.file.name else ""
+            }
+            for r in program.resources.all()
+        ],
         "rating": 4.5,  # TODO: Calculate from reviews
         "review_count": 0,  # TODO: Count reviews
     }
@@ -920,7 +947,13 @@ def _get_admin_dashboard_data(user) -> dict:
     from apps.certifications.models import Certificate
 
     # Get stats for entire platform
-    total_students = User.objects.filter(is_staff=False).count()
+    
+    # Calculate Total Students (Not staff, not superuser, not in Instructors group)
+    total_students = User.objects.filter(is_staff=False, is_superuser=False).exclude(groups__name="Instructors").count()
+    
+    # Calculate Total Instructors (In Instructors group)
+    total_instructors = User.objects.filter(groups__name="Instructors").count()
+    
     active_programs = Program.objects.filter(is_published=True).count()
     certificates_issued = Certificate.objects.count()
     active_enrollments = Enrollment.objects.filter(status="active").count()
@@ -944,6 +977,7 @@ def _get_admin_dashboard_data(user) -> dict:
     return {
         "stats": {
             "totalStudents": total_students,
+            "totalInstructors": total_instructors,
             "activePrograms": active_programs,
             "certificatesIssued": certificates_issued,
             "activeEnrollments": active_enrollments,
@@ -1377,15 +1411,17 @@ def admin_program_content(request, pk: int):
         program.save()
 
         # Handle Course Materials
-        # In Django, getlist returns all files for a field name
-        material_files = files.getlist("materials")
-        for f in material_files:
-            ProgramResource.objects.create(
-                program=program,
-                file=f,
-                title=f.name,
-                resource_type="material"
-            )
+        # Robust handling for different array naming conventions (materials, materials[], materials[0])
+        for key in files:
+            if key == "materials" or key.startswith("materials["):
+                file_list = files.getlist(key)
+                for f in file_list:
+                    ProgramResource.objects.create(
+                        program=program,
+                        file=f,
+                        title=f.name,
+                        resource_type="material"
+                    )
         
         messages.success(request, "Program content saved successfully")
         return redirect("core:admin.program", pk=program.id)
@@ -1985,6 +2021,18 @@ def instructor_program_detail(request, pk: int):
     # Get curriculum nodes
     nodes = CurriculumNode.objects.filter(program=program, parent__isnull=True).order_by("position")
     
+    # Get program resources
+    resources = [
+        {
+            "id": r.id,
+            "title": r.title,
+            "url": r.file.url,
+            "type": r.resource_type,
+            "ext": r.file.name.split('.')[-1] if '.' in r.file.name else ""
+        }
+        for r in program.resources.all()
+    ]
+    
     return render(
         request,
         "Instructor/Programs/Detail",
@@ -1994,6 +2042,7 @@ def instructor_program_detail(request, pk: int):
                 "name": program.name,
                 "code": program.code or "",
                 "description": program.description or "",
+                "resources": resources,
             },
             "students": students_data,
             "curriculum": [{"id": n.id, "title": n.title, "type": n.node_type} for n in nodes],
@@ -4483,6 +4532,24 @@ def instructor_node_delete(request, node_id: int):
     node.delete()
     messages.success(request, "Item deleted")
     return redirect("core:instructor.program_manage", pk=program_id)
+
+
+@login_required
+def instructor_program_preview(request, pk: int):
+    """
+    Allow instructor to preview their program as a student.
+    """
+    from apps.progression.models import InstructorAssignment
+    
+    # Verify access (Instructor of program or staff)
+    if not (InstructorAssignment.objects.filter(instructor=request.user, program_id=pk).exists() or request.user.is_staff):
+        return redirect("/dashboard/")
+        
+    # Mark session as preview mode for this program
+    request.session['preview_program_id'] = pk
+    
+    # Redirect to the public detail page
+    return redirect("core:program_detail", pk=pk)
 
 
 @login_required

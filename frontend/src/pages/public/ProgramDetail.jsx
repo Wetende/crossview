@@ -688,6 +688,7 @@ export default function ProgramDetail({
                                     >
                                         <Tab label="Description" />
                                         <Tab label="Curriculum" />
+                                        <Tab label="Resources" />
                                         <Tab label="FAQ" />
                                         <Tab label="Notice" />
                                         <Tab label="Reviews" />
@@ -769,8 +770,55 @@ export default function ProgramDetail({
                                     )}
                                 </TabPanel>
 
-                                {/* FAQ Tab */}
+                                {/* Resources Tab */}
                                 <TabPanel value={tabValue} index={2}>
+                                    {!program.resources ||
+                                    program.resources.length === 0 ? (
+                                        <Typography color="text.secondary">
+                                            No downloadable resources available.
+                                        </Typography>
+                                    ) : (
+                                        <List>
+                                            {program.resources.map((res) => (
+                                                <ListItem key={res.id} divider>
+                                                    <ListItemIcon>
+                                                        <IconFolder size={24} />
+                                                    </ListItemIcon>
+                                                    <ListItemText
+                                                        primary={
+                                                            <a
+                                                                href={res.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                style={{
+                                                                    textDecoration:
+                                                                        "none",
+                                                                    color: "inherit",
+                                                                    fontWeight: 500,
+                                                                }}
+                                                            >
+                                                                {res.title}
+                                                            </a>
+                                                        }
+                                                        secondary={res.type}
+                                                    />
+                                                    <Button
+                                                        component="a"
+                                                        href={res.url}
+                                                        target="_blank"
+                                                        variant="outlined"
+                                                        size="small"
+                                                    >
+                                                        Download
+                                                    </Button>
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    )}
+                                </TabPanel>
+
+                                {/* FAQ Tab */}
+                                <TabPanel value={tabValue} index={3}>
                                     {!program.faq ||
                                     program.faq.length === 0 ? (
                                         <Typography color="text.secondary">
@@ -800,6 +848,49 @@ export default function ProgramDetail({
                                             ))}
                                         </Stack>
                                     )}
+                                </TabPanel>
+
+                                {/* Notice Tab */}
+                                <TabPanel value={tabValue} index={4}>
+                                    {!program.notices ||
+                                    program.notices.length === 0 ? (
+                                        <Typography color="text.secondary">
+                                            No notices for this course.
+                                        </Typography>
+                                    ) : (
+                                        <Stack spacing={2}>
+                                            {program.notices.map(
+                                                (notice, idx) => (
+                                                    <Card
+                                                        key={idx}
+                                                        variant="outlined"
+                                                    >
+                                                        <CardContent>
+                                                            <Typography
+                                                                variant="subtitle1"
+                                                                fontWeight={600}
+                                                            >
+                                                                {notice.title}
+                                                            </Typography>
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                {notice.content}
+                                                            </Typography>
+                                                        </CardContent>
+                                                    </Card>
+                                                ),
+                                            )}
+                                        </Stack>
+                                    )}
+                                </TabPanel>
+
+                                {/* Reviews Tab */}
+                                <TabPanel value={tabValue} index={5}>
+                                    <Typography color="text.secondary">
+                                        Reviews feature coming soon.
+                                    </Typography>
                                 </TabPanel>
 
                                 {/* Notice Tab */}

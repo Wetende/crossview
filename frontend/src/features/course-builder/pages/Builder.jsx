@@ -66,7 +66,7 @@ export default function InstructorProgramBuilder({ program, curriculum }) {
                 </Button>
                 <Button
                   startIcon={<VisibilityIcon />}
-                  onClick={() => window.open(`/programs/${program.id}/preview`, '_blank')}
+                  onClick={() => window.open(`/instructor/programs/${program.id}/preview/`, '_blank')}
                 >
                     Preview
                 </Button>

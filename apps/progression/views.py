@@ -1377,6 +1377,8 @@ def instructor_program_detail(request, pk: int):
             total_progress += completed_nodes / total_nodes * 100
     avg_progress = (total_progress / active) if active > 0 else 0
 
+    print(f"DEBUG: Program Resources: {list(program.resources.values('title', 'file'))}")
+
     return render(
         request,
         "Instructor/Programs/Show",
@@ -1396,6 +1398,16 @@ def instructor_program_detail(request, pk: int):
                         program.blueprint.grading_logic if program.blueprint else {}
                     ),
                 },
+                "resources": [
+                    {
+                        "id": r.id,
+                        "title": r.title,
+                        "url": r.file.url,
+                        "type": r.resource_type,
+                        "ext": r.file.name.split('.')[-1] if '.' in r.file.name else ""
+                    }
+                    for r in program.resources.all()
+                ],
             },
             "stats": {
                 "totalEnrollments": total,
@@ -1406,6 +1418,7 @@ def instructor_program_detail(request, pk: int):
             "curriculum": curriculum_tree,
         },
     )
+    print(f"DEBUG: Program Resources: {list(program.resources.values('title', 'file'))}")
 
 
 def _build_instructor_curriculum_tree(nodes, program) -> list:

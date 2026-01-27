@@ -24,10 +24,12 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                 position="fixed" 
                 elevation={0} 
                 sx={{ 
-                    bgcolor: 'grey.900', 
-                    color: 'grey.50', 
+                    bgcolor: 'background.paper', 
+                    color: 'text.primary', 
                     zIndex: 1201, 
-                    borderRadius: 0 
+                    borderRadius: 0,
+                    borderBottom: 1,
+                    borderColor: 'divider'
                 }}
             >
                 <Toolbar sx={{ minHeight: 48, justifyContent: 'space-between' }}>
@@ -36,11 +38,11 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                             component={Link} 
                             href="/instructor/programs/"
                             startIcon={<IconArrowLeft size={20} />}
-                            sx={{ color: 'grey.400', '&:hover': { color: 'grey.50' } }}
+                            sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
                         >
                             Back to programs
                         </Button>
-                        <Typography variant="h6" fontWeight={600} sx={{ borderLeft: '1px solid', borderColor: 'grey.700', pl: 2, ml: 2 }}>
+                        <Typography variant="h6" fontWeight={600} sx={{ borderLeft: '1px solid', borderColor: 'divider', pl: 2, ml: 2 }}>
                             {program.name}
                         </Typography>
                     </Stack>
@@ -64,8 +66,8 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                                     fontSize: '0.95rem',
                                     minWidth: 'auto',
                                     px: 2,
-                                    color: 'grey.500',
-                                    '&.Mui-selected': { color: 'grey.50' }
+                                    color: 'text.secondary',
+                                    '&.Mui-selected': { color: 'primary.main' }
                                 },
                                 '& .MuiTabs-indicator': { backgroundColor: 'primary.main', height: 3 }
                             }}
@@ -115,14 +117,14 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                                     size="small"
                                     startIcon={<IconEye size={18} />}
                                     sx={{
-                                        color: 'grey.50',
-                                        borderColor: 'grey.700',
+                                        color: 'text.primary',
+                                        borderColor: 'divider',
                                         textTransform: 'none',
                                         borderRadius: '0 !important',
                                         borderWidth: '1px !important',
                                         py: 0.75,
                                         px: 2,
-                                        '&:hover': { borderColor: 'grey.50', bgcolor: 'action.hover' }
+                                        '&:hover': { borderColor: 'text.primary', bgcolor: 'action.hover' }
                                     }}
                                 >
                                     View

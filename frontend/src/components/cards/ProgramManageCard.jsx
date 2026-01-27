@@ -245,7 +245,7 @@ export default function ProgramManageCard({
                             href={`/instructor/programs/${program.id}/`}
                             variant="outlined"
                             fullWidth
-                            startIcon={<IconFileDescription size={16} />}
+                            // startIcon={<IconFileDescription size={16} />}
                             sx={{
                                 fontWeight: 700,
                                 py: 1,
@@ -258,14 +258,14 @@ export default function ProgramManageCard({
                                 }
                             }}
                         >
-                            Guide
+                            Details
                         </Button>
                         <Button
                             component={Link}
                             href={`/instructor/programs/${program.id}/manage/`}
                             variant="contained"
                             fullWidth
-                            startIcon={<IconTools size={16} />}
+                            // startIcon={<IconTools size={16} />}
                             sx={{
                                 bgcolor: theme.palette.primary.main,
                                 color: "white",

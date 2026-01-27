@@ -28,8 +28,8 @@ class TestProgramManagement(TestCase):
 
     def test_list_programs(self):
         """Test program listing."""
-        Program.objects.create(name="Program 1", blueprint=self.blueprint)
-        Program.objects.create(name="Program 2", blueprint=self.blueprint)
+        Program.objects.create(name="Program 1", code="P1", blueprint=self.blueprint)
+        Program.objects.create(name="Program 2", code="P2", blueprint=self.blueprint)
         
         response = self.client.get(reverse('core:admin.programs'), HTTP_X_INERTIA=True)
         assert response.status_code == 200
@@ -49,12 +49,12 @@ class TestProgramManagement(TestCase):
         
         assert response.status_code == 302
         new_program = Program.objects.get(name="New Program")
-        assert response.url == reverse('core:admin.program', kwargs={'pk': new_program.id})
+        assert response.url == reverse('core:admin.program.content', kwargs={'pk': new_program.id})
         assert Program.objects.filter(name="New Program").exists()
 
     def test_edit_program(self):
         """Test program editing."""
-        program = Program.objects.create(name="Old Name", blueprint=self.blueprint)
+        program = Program.objects.create(name="Old Name", code="OLD1", blueprint=self.blueprint)
         data = {
             "name": "Updated Name",
             "code": "UP101",
@@ -65,3 +65,26 @@ class TestProgramManagement(TestCase):
         assert response.status_code == 302
         program.refresh_from_db()
         assert program.name == "Updated Name"
+
+    def test_manage_program_content_with_materials(self):
+        """Test uploading program materials."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from apps.core.models import ProgramResource
+
+        program = Program.objects.create(name="Content Program", code="CP1", blueprint=self.blueprint)
+        
+        file_content = b"dummy content"
+        test_file = SimpleUploadedFile("syllabus.pdf", file_content, content_type="application/pdf")
+
+        data = {
+            "description": "Test description",
+            "materials": [test_file]
+        }
+        
+        response = self.client.post(reverse('core:admin.program.content', args=[program.id]), data=data)
+        
+        assert response.status_code == 302
+        assert ProgramResource.objects.filter(program=program).count() == 1
+        resource = ProgramResource.objects.get(program=program)
+        assert resource.title == "syllabus.pdf"
+        assert resource.resource_type == "material"

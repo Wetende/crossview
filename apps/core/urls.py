@@ -113,6 +113,7 @@ urlpatterns = [
     path("instructor/apply/", views.instructor_apply, name="instructor.apply"),
     path("instructor/programs/", views.instructor_programs, name="instructor.programs"),
     path("instructor/programs/<int:pk>/", views.instructor_program_detail, name="instructor.program"),
+    path("instructor/programs/<int:pk>/preview/", views.instructor_program_preview, name="instructor.program_preview"),
     # Course Manager (Builder)
     path("instructor/programs/<int:pk>/manage/", views.instructor_program_manage, name="instructor.program_manage"),
     path("instructor/programs/<int:pk>/manage/settings/", views.instructor_program_update_settings, name="instructor.program_update_settings"),

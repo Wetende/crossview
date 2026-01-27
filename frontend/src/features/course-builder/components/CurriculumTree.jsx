@@ -309,9 +309,9 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                         p: 1.5, 
                         display: 'flex', 
                         alignItems: 'center', 
-                        bgcolor: 'grey.50',
+                        bgcolor: 'background.paper',
                         cursor: 'pointer',
-                        '&:hover': { bgcolor: 'grey.100' }
+                        '&:hover': { bgcolor: 'action.hover' }
                     }}
                     onClick={() => !isEditing && toggleSection(node.id)}
                 >
@@ -365,7 +365,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                             <Button 
                                 size="small" 
                                 startIcon={<SearchIcon />} 
-                                sx={{ bgcolor: '#f5f5f5', color: 'text.secondary', textTransform: 'none', px: 2, minWidth: 'auto' }}
+                                sx={{ bgcolor: 'action.hover', color: 'text.secondary', textTransform: 'none', px: 2, minWidth: 'auto' }}
                                 onClick={() => openSearchModal(node.id, node.title)}
                             >
                                 Search
@@ -386,19 +386,19 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                     flexShrink: 0, 
                     display: 'flex', 
                     flexDirection: 'column',
-                    bgcolor: '#fff',
+                    bgcolor: 'background.paper',
                     borderRadius: 2,
                     mr: 3,
                     overflow: 'hidden'
                 }}
             >
-                <Box sx={{ p: 2, bgcolor: '#fff', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" fontWeight="bold">Curriculum</Typography>
                      {/* Placeholder for Import SCORM if needed later */}
                      <Box />
                 </Box>
 
-                <Box sx={{ flex: 1, overflowY: 'auto', p: 2, bgcolor: '#fdfdfd' }}>
+                <Box sx={{ flex: 1, overflowY: 'auto', p: 2, bgcolor: 'background.default' }}>
                      {!localNodes || localNodes.length === 0 ? (
                          <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
                              <Typography variant="body2">No curriculum yet.</Typography>
@@ -413,7 +413,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
                      )}
                 </Box>
                 {/* Footer Add Section Button */}
-                <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: '#fff' }}>
+                <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
                     <Button
                         fullWidth
                         variant="outlined"
