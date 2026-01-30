@@ -90,26 +90,99 @@ const QuizRenderer = ({ node, enrollmentId, onComplete }) => {
 
     if (showResults) {
         return (
-            <Paper elevation={0} sx={{ p: 5, textAlign: 'center', borderRadius: 2, bgcolor: 'background.paper' }}>
-                <Typography variant="h4" fontWeight={700} gutterBottom>
-                    Quiz Completed!
-                </Typography>
-                
-                <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
-                    <Typography variant="h2" color={score >= 70 ? 'success.main' : 'warning.main'} fontWeight={800}>
-                        {score}%
+            <Paper elevation={0} sx={{ p: { xs: 2, md: 5 }, borderRadius: 2, bgcolor: 'background.paper' }}>
+                <Box sx={{ textAlign: 'center', mb: 4 }}>
+                    <Typography variant="h4" fontWeight={700} gutterBottom>
+                        Quiz Completed!
+                    </Typography>
+                    
+                    <Box sx={{ position: 'relative', display: 'inline-flex', mb: 2 }}>
+                        <Typography variant="h2" color={score >= 70 ? 'success.main' : 'warning.main'} fontWeight={800}>
+                            {score}%
+                        </Typography>
+                    </Box>
+
+                    <Typography color="text.secondary" paragraph>
+                        {score >= 70 
+                            ? "Great job! You've mastered this topic." 
+                            : "Review the answers below and try again to improve your score."}
                     </Typography>
                 </Box>
-
-                <Typography color="text.secondary" paragraph>
-                    {score >= 70 
-                        ? "Great job! You've mastered this topic." 
-                        : "Review the material and try again to improve your score."}
-                </Typography>
                 
-                <Button variant="contained" onClick={handleRetake}>
-                    Retake Quiz
-                </Button>
+                {/* Detailed Review Section */}
+                <Box sx={{ mb: 4 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                        Review Your Answers
+                    </Typography>
+                    
+                    {questions.map((question, index) => {
+                        const selectedOptionId = answers[question.id];
+                        const correctOption = question.options?.find(opt => opt.isCorrect);
+                        const selectedOption = question.options?.find(opt => String(opt.id) === selectedOptionId);
+                        const isCorrect = correctOption && selectedOptionId === String(correctOption.id);
+                        
+                        return (
+                            <Paper 
+                                key={question.id} 
+                                variant="outlined" 
+                                sx={{ 
+                                    p: 2, 
+                                    mb: 2, 
+                                    borderRadius: 2,
+                                    borderColor: isCorrect ? 'success.main' : 'error.light',
+                                    borderWidth: 2
+                                }}
+                            >
+                                <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5 }}>
+                                    <Typography 
+                                        variant="caption" 
+                                        sx={{ 
+                                            px: 1, 
+                                            py: 0.25, 
+                                            borderRadius: 1,
+                                            bgcolor: isCorrect ? 'success.lighter' : 'error.lighter',
+                                            color: isCorrect ? 'success.dark' : 'error.dark',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Question {index + 1}
+                                    </Typography>
+                                </Box>
+                                
+                                <Typography variant="body1" fontWeight={500} sx={{ mb: 1 }}>
+                                    {question.text || question.question}
+                                </Typography>
+                                
+                                <Box sx={{ pl: 2, borderLeft: '3px solid', borderColor: 'divider' }}>
+                                    {!isCorrect && selectedOption && (
+                                        <Typography variant="body2" color="error.main" sx={{ mb: 0.5 }}>
+                                            Your answer: {selectedOption.text}
+                                        </Typography>
+                                    )}
+                                    {correctOption && (
+                                        <Typography variant="body2" color="success.main">
+                                            Correct answer: {correctOption.text}
+                                        </Typography>
+                                    )}
+                                    {question.explanation && (
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                            💡 {question.explanation}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </Paper>
+                        );
+                    })}
+                </Box>
+                
+                <Box sx={{ textAlign: 'center' }}>
+                    <Button variant="contained" onClick={handleRetake} sx={{ px: 4 }}>
+                        Retake Quiz
+                    </Button>
+                </Box>
             </Paper>
         );
     }

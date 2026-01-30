@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import SearchMaterialsModal from './SearchMaterialsModal';
 import { router } from '@inertiajs/react';
 import {
@@ -69,7 +69,7 @@ export const flattenNodes = (nodes) => {
     return result;
 };
 
-export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint }) {
+export default function CurriculumTree({ program, nodes, onNodeSelect, onCurriculumUpdate, blueprint }) {
     // Get feature flags from blueprint (with defaults)
     const featureFlags = blueprint?.featureFlags || {
         quizzes: true, assignments: true, practicum: false, portfolio: false, gamification: false
@@ -78,7 +78,9 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
     const [localNodes, setLocalNodes] = useState(nodes);
     
     // Update local nodes when props change
-    React.useEffect(() => setLocalNodes(nodes), [nodes]);
+    React.useEffect(() => {
+        setLocalNodes(nodes);
+    }, [nodes]);
     
     // Drag and drop sensors
     const sensors = useSensors(
@@ -171,14 +173,20 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
         setCreateModalOpen(true);
     };
 
-    const oldIdsRef = useRef(new Set());
-
+    /**
+     * Open dialog to create a new lesson under the specified container.
+     * Shows lesson type selection (video, text, quiz, assignment, live).
+     */
     const openCreateLesson = (parentId) => {
         setCreateParentId(parentId);
         setCreateType('lesson_select');
         setCreateModalOpen(true);
     };
 
+    /**
+     * Handle lesson type selection and create the lesson node.
+     * All lesson types use the same node type from blueprint, differentiated by lesson_type property.
+     */
     const handleLessonTypeSelect = (type) => {
         if (type === 'quiz') {
             setCreateModalOpen(false);
@@ -194,29 +202,42 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
             properties: { lesson_type: type }
         };
         
-        // Capture current IDs before request
-        oldIdsRef.current = new Set(flattenNodes(nodes).map(n => n.id));
+        // Capture current IDs before request to identify new node
+        const oldIds = new Set(flattenNodes(localNodes).map(n => n.id));
         
         router.post(`/instructor/programs/${program.id}/nodes/create/`, payload, {
+            preserveScroll: true,
             onSuccess: (page) => {
                 setCreateModalOpen(false);
-                const oldIds = oldIdsRef.current;
-                const newNodesFlat = flattenNodes(page.props.curriculum);
-                const createdNode = newNodesFlat.find(n => !oldIds.has(n.id));
-                console.log('Create Success. Old IDs:', oldIds.size, 'New IDs:', newNodesFlat.length, 'Created:', createdNode);
-                if (createdNode) {
-                    handleSelect(createdNode);
-                } else {
-                    console.warn('Could not identify created node to select.');
-                    // Fallback: Try to select the node with the highest ID if it wasn't in old list
-                    if (newNodesFlat.length > oldIds.size) {
-                         const maxIdNode = newNodesFlat.reduce((prev, current) => (prev.id > current.id) ? prev : current);
-                         if (!oldIds.has(maxIdNode.id)) {
-                             handleSelect(maxIdNode);
-                         }
+                
+                // Backend returns updated curriculum tree
+                if (page.props.curriculum) {
+                    setLocalNodes(page.props.curriculum);
+                    
+                    // Notify parent component
+                    if (onCurriculumUpdate) {
+                        onCurriculumUpdate(page.props.curriculum);
                     }
+                    
+                    // Auto-select newly created node
+                    const newNodesFlat = flattenNodes(page.props.curriculum);
+                    const createdNode = newNodesFlat.find(n => !oldIds.has(n.id));
+                    
+                    if (createdNode) {
+                        handleSelect(createdNode);
+                        
+                        // Auto-expand parent container
+                        if (createParentId) {
+                            setExpandedSections(prev => ({ ...prev, [createParentId]: true }));
+                        }
+                    }
+                } else {
+                    console.error('No curriculum in response - backend may need update');
                 }
             },
+            onError: (errors) => {
+                console.error('Failed to create lesson:', errors);
+            }
         });
     };
 
@@ -245,17 +266,35 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, blueprint
 
     const handleCreateSection = () => {
         if (!createTitle.trim()) return;
+        
+        // Capture current IDs before request
+        const oldIds = new Set(flattenNodes(localNodes).map(n => n.id));
+        
         router.post(`/instructor/programs/${program.id}/nodes/create/`, {
             parent_id: null,
             title: createTitle,
             type: 'Module', // Generic type, backend maps to Year/Unit based on parent/depth
         }, {
+            preserveScroll: true,
             onSuccess: (page) => {
+                console.log('[DEBUG] Create section success. page.props:', page.props);
                 setCreateModalOpen(false);
-                const oldIds = new Set(flattenNodes(nodes).map(n => n.id));
-                const newNodesFlat = flattenNodes(page.props.curriculum);
-                const createdNode = newNodesFlat.find(n => !oldIds.has(n.id));
-                if (createdNode) handleSelect(createdNode);
+                
+                // Backend now returns updated curriculum in response
+                if (page.props.curriculum) {
+                    setLocalNodes(page.props.curriculum);
+                    
+                    if (onCurriculumUpdate) {
+                        onCurriculumUpdate(page.props.curriculum);
+                    }
+                    
+                    const newNodesFlat = flattenNodes(page.props.curriculum);
+                    const createdNode = newNodesFlat.find(n => !oldIds.has(n.id));
+                    
+                    if (createdNode) {
+                        handleSelect(createdNode);
+                    }
+                }
             },
         });
     };

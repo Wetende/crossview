@@ -21,6 +21,13 @@ const LectureView = ({
     // Local State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isDiscussionsOpen, setIsDiscussionsOpen] = useState(false);
+    const [currentVideoTimestamp, setCurrentVideoTimestamp] = useState(null);
+
+    // Handle video progress updates
+    const handleVideoProgress = (state) => {
+        // state.playedSeconds contains current playback position
+        setCurrentVideoTimestamp(Math.floor(state.playedSeconds));
+    };
 
     // Left Panel - Curriculum Sidebar
     const LeftPanel = (
@@ -39,6 +46,8 @@ const LectureView = ({
             nodeId={node?.id}
             enrollmentId={enrollment?.id}
             discussions={discussions}
+            notes={notes}
+            currentVideoTimestamp={currentVideoTimestamp}
             onClose={() => setIsDiscussionsOpen(false)}
         />
     );
@@ -64,6 +73,7 @@ const LectureView = ({
                     nextNode={nextNode}
                     courseId={enrollment?.id}
                     isCompleted={isCompleted}
+                    onVideoProgress={handleVideoProgress}
                 />
             ) : (
                 <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -77,3 +87,4 @@ const LectureView = ({
 };
 
 export default LectureView;
+

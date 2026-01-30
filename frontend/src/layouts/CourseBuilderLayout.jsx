@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, AppBar, Toolbar, Typography, Button, Tabs, Tab, Stack } from '@mui/material';
 import { Link, usePage } from '@inertiajs/react';
 import {
@@ -6,16 +6,47 @@ import {
   IconEye,
 } from '@tabler/icons-react';
 
-const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...props }) => {
-    // Define tabs list
-    const tabs = [
-        { label: 'Curriculum', value: 'curriculum', href: `/instructor/programs/${program.id}/manage/` },
-        { label: 'Drip', value: 'drip', href: `/instructor/programs/${program.id}/manage/drip/` },
-        { label: 'Settings', value: 'settings', href: `/instructor/programs/${program.id}/manage/settings/` },
-        { label: 'Pricing', value: 'pricing', href: `/instructor/programs/${program.id}/manage/pricing/` },
-        { label: 'FAQ', value: 'faq', href: `/instructor/programs/${program.id}/manage/faq/` },
-        { label: 'Notice', value: 'notice', href: `/instructor/programs/${program.id}/manage/notice/` },
-    ];
+const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', platformFeatures = {}, deploymentMode = 'custom', ...props }) => {
+    // Mode-aware tabs: conditionally show tabs based on platform features and blueprint flags
+    const blueprintFlags = program?.blueprint?.featureFlags || {};
+    
+    const tabs = useMemo(() => {
+        const baseTabs = [
+            { label: 'Curriculum', value: 'curriculum', href: `/instructor/programs/${program.id}/manage/` },
+            { label: 'Drip', value: 'drip', href: `/instructor/programs/${program.id}/manage/drip/` },
+            { label: 'Settings', value: 'settings', href: `/instructor/programs/${program.id}/manage/settings/` },
+        ];
+        
+        // Pricing tab: only when payments feature is enabled (Online, NITA, Driving modes)
+        if (platformFeatures.payments) {
+            baseTabs.push({ label: 'Pricing', value: 'pricing', href: `/instructor/programs/${program.id}/manage/pricing/` });
+        }
+        
+        // FAQ and Notice tabs: always available
+        baseTabs.push({ label: 'FAQ', value: 'faq', href: `/instructor/programs/${program.id}/manage/faq/` });
+        baseTabs.push({ label: 'Notice', value: 'notice', href: `/instructor/programs/${program.id}/manage/notice/` });
+        
+        // Practicum tab: when practicum/portfolio features enabled (TVET, Theology, Driving, NITA)
+        if (blueprintFlags.practicum || blueprintFlags.portfolio) {
+            baseTabs.push({ label: 'Practicum', value: 'practicum', href: `/instructor/programs/${program.id}/manage/practicum/` });
+        }
+        
+        // Note: Gamification is a PLATFORM-LEVEL feature (SuperAdmin toggle, Admin config, Student dashboard)
+        // It is NOT configured per-course in Course Builder
+        
+        // Prerequisites tab: TVET/Theology/Online need course sequencing
+        if (['tvet', 'theology', 'online'].includes(deploymentMode)) {
+            baseTabs.push({ label: 'Prerequisites', value: 'prerequisites', href: `/instructor/programs/${program.id}/manage/prerequisites/` });
+        }
+        
+        // Time Limit tab: subscription-based modes (Online, NITA, Driving)
+        if (['online', 'nita', 'driving'].includes(deploymentMode)) {
+            baseTabs.push({ label: 'Access', value: 'access', href: `/instructor/programs/${program.id}/manage/access/` });
+        }
+        
+        return baseTabs;
+    }, [program.id, platformFeatures.payments, blueprintFlags.practicum, blueprintFlags.portfolio, deploymentMode]);
+
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', bgcolor: 'background.default' }}>

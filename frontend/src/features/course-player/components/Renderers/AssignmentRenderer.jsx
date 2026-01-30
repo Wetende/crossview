@@ -66,9 +66,18 @@ const AssignmentRenderer = ({ node, enrollmentId, onSubmit }) => {
                 <Typography color="text.secondary" paragraph sx={{ maxWidth: 400 }}>
                     Your assignment has been successfully uploaded and is pending review by the instructor. You will be notified once it is graded.
                 </Typography>
-                <Button variant="outlined" onClick={() => setIsSubmitted(false)}>
-                    Submit Another
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <Button 
+                        variant="contained" 
+                        href={`/student/assignment/${node?.id}/`}
+                        sx={{ minWidth: 180 }}
+                    >
+                        View Submission Details
+                    </Button>
+                    <Button variant="outlined" onClick={() => setIsSubmitted(false)}>
+                        Submit Another
+                    </Button>
+                </Box>
             </Paper>
         );
     }

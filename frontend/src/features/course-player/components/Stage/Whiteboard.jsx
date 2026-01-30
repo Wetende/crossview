@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { router } from '@inertiajs/react';
 import { Box } from '@mui/material';
 import LessonHeader from './LessonHeader';
 import SessionControl from './SessionControl';
+import BlockRenderer from '../Renderers/BlockRenderer';
 import VideoRenderer from '../Renderers/VideoRenderer';
 import TextRenderer from '../Renderers/TextRenderer';
 import QuizRenderer from '../Renderers/QuizRenderer';
 import AssignmentRenderer from '../Renderers/AssignmentRenderer';
 
-const Whiteboard = ({ node, prevNode, nextNode, courseId, isCompleted = false }) => {
+const Whiteboard = ({ node, prevNode, nextNode, courseId, isCompleted = false, onVideoProgress }) => {
     if (!node) return null;
 
     const handleNavigate = (destination) => {
@@ -25,8 +26,25 @@ const Whiteboard = ({ node, prevNode, nextNode, courseId, isCompleted = false })
         });
     };
 
-    const renderContent = () => {
-        // Normalize type from various property sources
+    // Check if node has content blocks (new multi-block model) - memoized for performance
+    const blocks = node?.blocks || [];
+    const hasBlocks = useMemo(() => blocks.length > 0, [blocks]);
+
+    const renderBlocks = () => {
+        return blocks.map((block) => (
+            <BlockRenderer 
+                key={block.id}
+                block={block}
+                enrollmentId={courseId}
+                nodeId={node.id}
+                onComplete={handleComplete}
+                onVideoProgress={onVideoProgress}
+            />
+        ));
+    };
+
+    const renderLegacyContent = () => {
+        // Fallback: Normalize type from various property sources
         const type = (node.type || node.nodeType || 'lesson').toLowerCase();
         const lessonType = (node.properties?.lesson_type || node.lessonType || '').toLowerCase();
 
@@ -54,7 +72,7 @@ const Whiteboard = ({ node, prevNode, nextNode, courseId, isCompleted = false })
 
         // 3. Video
         if (type === 'video_lesson' || lessonType === 'video' || lessonType === 'video_lesson') {
-            return <VideoRenderer url={node.properties?.video_url} />;
+            return <VideoRenderer url={node.properties?.video_url} onProgress={onVideoProgress} />;
         }
 
         // 4. Text (Default) - render HTML content
@@ -76,7 +94,7 @@ const Whiteboard = ({ node, prevNode, nextNode, courseId, isCompleted = false })
             
             {/* Content Area */}
             <Box sx={{ flexGrow: 1 }}>
-                {renderContent()}
+                {hasBlocks ? renderBlocks() : renderLegacyContent()}
             </Box>
 
             {/* Footer Navigation */}
@@ -92,3 +110,4 @@ const Whiteboard = ({ node, prevNode, nextNode, courseId, isCompleted = false })
 };
 
 export default Whiteboard;
+

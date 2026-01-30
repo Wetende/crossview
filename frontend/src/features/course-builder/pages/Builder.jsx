@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
+import { Head, router, usePage } from '@inertiajs/react';
 import {
   Box,
   Card,
@@ -31,11 +31,23 @@ import SettingsPanel from '../components/SettingsPanel';
 
 const RIGHT_DRAWER_WIDTH = 300; // Define the width for the right drawer
 
-export default function InstructorProgramBuilder({ program, curriculum }) {
+export default function InstructorProgramBuilder({ program, curriculum: initialCurriculum, platformFeatures = {}, deploymentMode = 'custom' }) {
   const { mode, toggleMode } = useThemeMode(); // Added
   const [activeTab, setActiveTab] = useState('curriculum');
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [guideOpen, setGuideOpen] = useState(false); // Added state for guide drawer
+  const [curriculum, setCurriculum] = useState(initialCurriculum);
+  
+  // Get reactive page props for curriculum updates
+  const page = usePage();
+  
+  // Update curriculum when page props change (e.g., after creating a new node)
+  useEffect(() => {
+      if (page.props.curriculum) {
+          console.log('[DEBUG] Builder: curriculum updated from page props:', page.props.curriculum);
+          setCurriculum(page.props.curriculum);
+      }
+  }, [page.props.curriculum]);
 
   // Helper to find node by ID in the tree
   const findNode = (id) => {
@@ -56,6 +68,8 @@ export default function InstructorProgramBuilder({ program, curriculum }) {
         program={program}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        platformFeatures={platformFeatures}
+        deploymentMode={deploymentMode}
         // Pass the guide button to the layout's AppBar slot
         appBarActions={
             <Stack direction="row" spacing={1}>
@@ -98,36 +112,50 @@ export default function InstructorProgramBuilder({ program, curriculum }) {
                     <Box sx={{ display: 'flex', height: '100%' }}>
                          {/* Pass onNodeSelect to update local state */}
                          <CurriculumTree
-                            program={program}
-                            nodes={curriculum}
-                            onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)}
-                            blueprint={program.blueprint}
-                         />
+                             program={program}
+                             nodes={curriculum}
+                             onNodeSelect={(node) => {
+                                 console.log('[DEBUG] Builder: onNodeSelect called with:', node);
+                                 setSelectedNodeId(node ? node.id : null);
+                             }}
+                             onCurriculumUpdate={(newCurriculum) => {
+                                 console.log('[DEBUG] Builder: onCurriculumUpdate called');
+                                 setCurriculum(newCurriculum);
+                             }}
+                             blueprint={program.blueprint}
+                          />
 
-                         {/* Right Panel: Content Editor */}
-                         <Box sx={{ flex: 1, p: 3, overflowY: 'auto' }}>
-                            {selectedNode ? (
-                                <EditorContainer
-                                    key={selectedNode.id} // Force remount on node change
-                                    node={selectedNode}
-                                    onSave={handleNodeSave}
-                                    blueprint={program.blueprint}
-                                />
-                            ) : (
-                                <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', flexDirection: 'column' }}>
-                                    <Box component={TouchAppIcon} sx={{ fontSize: 80, mb: 2, opacity: 0.2 }} />
-                                    <Typography variant="h6">Select a lesson to edit</Typography>
-                                    <Typography variant="body2">Or create a new one from the menu on the left.</Typography>
-                                </Box>
-                            )}
-                         </Box>
+                          {/* Right Panel: Content Editor */}
+                          <Box sx={{ flex: 1, p: 3, overflowY: 'auto' }}>
+                             {console.log('[DEBUG] Builder rendering selectedNode:', selectedNode)}
+                             {selectedNode ? (
+                                 <EditorContainer
+                                     key={selectedNode.id} // Force remount on node change
+                                     node={selectedNode}
+                                     onSave={handleNodeSave}
+                                     blueprint={program.blueprint}
+                                 />
+                             ) : (
+                                 <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', flexDirection: 'column' }}>
+                                     <Box component={TouchAppIcon} sx={{ fontSize: 80, mb: 2, opacity: 0.2 }} />
+                                     <Typography variant="h6">Select a lesson to edit</Typography>
+                                     <Typography variant="body2">Or create a new one from the menu on the left.</Typography>
+                                 </Box>
+                             )}
+                          </Box>
                     </Box>
                  )}
-                 {(activeTab === 'settings' || activeTab === 'pricing' || activeTab === 'faq' || activeTab === 'notice' || activeTab === 'drip') && (
+                 {(activeTab === 'settings' || activeTab === 'pricing' || activeTab === 'faq' || activeTab === 'notice' || activeTab === 'drip' || activeTab === 'practicum' || activeTab === 'prerequisites' || activeTab === 'access') && (
                      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
                         <Card>
                             <CardContent>
-                                <SettingsPanel program={program} activeTab={activeTab} curriculum={curriculum} />
+                                <SettingsPanel 
+                                    program={program} 
+                                    activeTab={activeTab} 
+                                    curriculum={curriculum} 
+                                    platformFeatures={platformFeatures}
+                                    deploymentMode={deploymentMode}
+                                />
                             </CardContent>
                         </Card>
                      </Box>
