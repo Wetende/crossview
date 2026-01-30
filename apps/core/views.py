@@ -4521,6 +4521,125 @@ def admin_preview_as_student(request, program_id: int):
 # =============================================================================
 
 
+def serialize_program_data(program):
+    """
+    Serialize program data for frontend consumption.
+    Reduces code duplication across endpoints.
+    """
+    from apps.platform.models import PlatformSettings
+    
+    platform_settings = PlatformSettings.get_settings()
+    
+    return {
+        "program": {
+            "id": program.id,
+            "name": program.name,
+            "code": program.code,
+            "description": program.description,
+            "level": program.level,
+            "category": program.category,
+            "thumbnail": program.thumbnail.url if program.thumbnail else None,
+            "whatYouLearn": program.what_you_learn or [],
+            "resources": [
+                {
+                    "id": r.id,
+                    "title": r.title,
+                    "url": r.file.url,
+                    "type": r.resource_type,
+                    "ext": r.file.name.split(".")[-1] if "." in r.file.name else "",
+                }
+                for r in program.resources.all()
+            ],
+            "faq": program.faq,
+            "notices": program.notices,
+            "customPricing": program.custom_pricing,
+            "blueprint": {
+                "name": program.blueprint.name if program.blueprint else "Default",
+                "hierarchy": program.blueprint.hierarchy_structure
+                if program.blueprint
+                else ["Module", "Lesson"],
+                "featureFlags": program.blueprint.get_effective_feature_flags()
+                if program.blueprint
+                else {
+                    "quizzes": True,
+                    "assignments": True,
+                    "practicum": False,
+                    "portfolio": False,
+                    "gamification": False,
+                },
+                "gradingType": (program.blueprint.grading_logic or {}).get(
+                    "type", "weighted"
+                )
+                if program.blueprint
+                else "weighted",
+            }
+            if program.blueprint
+            else None,
+        },
+        "courseLevels": platform_settings.get_course_levels(),
+        "platformFeatures": platform_settings.get_default_features_for_mode(),
+        "deploymentMode": platform_settings.deployment_mode,
+    }
+
+
+def build_curriculum_tree(program):
+    """
+    Build and serialize the complete curriculum tree for a program.
+    Returns a nested tree structure with all descendants.
+    
+    Performance: O(n) time with 1 database query.
+    Fetches all nodes in a single query, then builds tree in memory.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    from apps.curriculum.models import CurriculumNode
+    
+    # Single query to fetch ALL nodes for this program
+    all_nodes = list(
+        CurriculumNode.objects.filter(program=program)
+        .order_by("position")
+        .values("id", "parent_id", "title", "node_type", "description", "properties", "position")
+    )
+    
+    logger.info(f"[CURRICULUM_TREE] Fetched {len(all_nodes)} nodes for program {program.id}")
+    
+    if not all_nodes:
+        return []
+    
+    # Build parent → children mapping in memory
+    children_map = {}  # parent_id → list of child nodes
+    for node in all_nodes:
+        parent_id = node["parent_id"]
+        if parent_id not in children_map:
+            children_map[parent_id] = []
+        children_map[parent_id].append(node)
+    
+    def serialize_node(node, depth=0):
+        """Recursively serialize a node and its children from memory."""
+        node_id = node["id"]
+        children = children_map.get(node_id, [])
+        
+        logger.debug(f"[CURRICULUM_TREE] {'  ' * depth}Node {node_id}: '{node['title']}' with {len(children)} children")
+        
+        return {
+            "id": node_id,
+            "title": node["title"],
+            "type": node["node_type"],
+            "description": node["description"],
+            "properties": node["properties"],
+            "position": node["position"],
+            "children": [serialize_node(child, depth + 1) for child in children],
+        }
+    
+    # Root nodes have parent_id = None
+    root_nodes = children_map.get(None, [])
+    
+    logger.info(f"[CURRICULUM_TREE] Tree complete: {len(root_nodes)} root nodes")
+    
+    return [serialize_node(n) for n in root_nodes]
+
+
 @login_required
 def instructor_program_manage(request, pk: int):
     """
@@ -4546,86 +4665,14 @@ def instructor_program_manage(request, pk: int):
 
     program = get_object_or_404(Program.objects.select_related("blueprint"), pk=pk)
 
-    # Get full curriculum tree
-    def serialize_node(node):
-        children = node.children.all().order_by("position")
-        return {
-            "id": node.id,
-            "title": node.title,
-            "type": node.node_type,
-            "description": node.description,
-            "properties": node.properties,
-            "position": node.position,
-            "children": [serialize_node(child) for child in children],
-        }
+    # Get full curriculum tree using helper
+    curriculum = build_curriculum_tree(program)
 
-    root_nodes = (
-        CurriculumNode.objects.filter(program=program, parent__isnull=True)
-        .prefetch_related("children")
-        .order_by("position")
-    )
+    # Serialize program data using shared helper
+    response_data = serialize_program_data(program)
+    response_data["curriculum"] = curriculum
 
-    curriculum = [serialize_node(n) for n in root_nodes]
-
-    # Get admin-configured course levels
-    from apps.platform.models import PlatformSettings
-
-    platform_settings = PlatformSettings.get_settings()
-    course_levels = platform_settings.get_course_levels()
-
-    return render(
-        request,
-        "Instructor/Program/Manage",
-        {
-            "program": {
-                "id": program.id,
-                "name": program.name,
-                "code": program.code,
-                "description": program.description,
-                "level": program.level,
-                "category": program.category,
-                "thumbnail": program.thumbnail.url if program.thumbnail else None,
-                "whatYouLearn": program.what_you_learn or [],
-                "resources": [
-                    {
-                        "id": r.id,
-                        "title": r.title,
-                        "url": r.file.url,
-                        "type": r.resource_type,
-                        "ext": r.file.name.split(".")[-1] if "." in r.file.name else "",
-                    }
-                    for r in program.resources.all()
-                ],
-                "faq": program.faq,
-                "notices": program.notices,
-                "customPricing": program.custom_pricing,
-                "blueprint": {
-                    "name": program.blueprint.name if program.blueprint else "Default",
-                    "hierarchy": program.blueprint.hierarchy_structure
-                    if program.blueprint
-                    else ["Module", "Lesson", "Session"],
-                    "featureFlags": program.blueprint.get_effective_feature_flags()
-                    if program.blueprint
-                    else {
-                        "quizzes": True,
-                        "assignments": True,
-                        "practicum": False,
-                        "portfolio": False,
-                        "gamification": False,
-                    },
-                    "gradingType": (program.blueprint.grading_logic or {}).get(
-                        "type", "weighted"
-                    )
-                    if program.blueprint
-                    else "weighted",
-                }
-                if program.blueprint
-                else None,
-            },
-            "curriculum": curriculum,
-            "courseLevels": course_levels,
-        },
-    )
+    return render(request, "Instructor/Program/Manage", response_data)
 
 
 @login_required
@@ -4654,12 +4701,25 @@ def instructor_node_create(request, program_id: int):
         "type"
     )  # Frontend can specify: Lesson, Quiz, Assignment, etc.
 
-    program = Program.objects.get(pk=program_id)
-    blueprint_structure = (
-        program.blueprint.hierarchy_structure
-        if program.blueprint
-        else ["Module", "Lesson", "Session"]
-    )
+    from django.shortcuts import get_object_or_404
+    from django.http import JsonResponse
+    
+    program = get_object_or_404(Program.objects.select_related("blueprint"), pk=program_id)
+    
+    # Error proofing: Validate blueprint configuration at use time
+    if not program.blueprint:
+        messages.error(request, "Program must have a blueprint configured")
+        return redirect("core:instructor.program_manage", pk=program_id)
+    
+    blueprint_structure = program.blueprint.hierarchy_structure
+    
+    # Error proofing: Validate blueprint has exactly 2 tiers (Container, Content)
+    if len(blueprint_structure) != 2:
+        messages.error(
+            request,
+            f"Blueprint must define exactly 2 hierarchy levels. Found {len(blueprint_structure)}: {blueprint_structure}"
+        )
+        return redirect("core:instructor.program_manage", pk=program_id)
 
     try:
         parent = None
@@ -4673,22 +4733,30 @@ def instructor_node_create(request, program_id: int):
             current_depth = parent.get_depth()
             if current_depth + 1 >= len(blueprint_structure):
                 raise ValueError("Maximum nesting depth reached")
-            # Use frontend type if provided (for lessons, quizzes, assignments), else use blueprint
-            node_type = (
-                frontend_type
-                if frontend_type
-                else blueprint_structure[current_depth + 1]
-            )
+            
+            # All children use the blueprint hierarchy structure
+            # Lesson types (video, text, quiz, assignment, live) are differentiated by properties.lesson_type
+            node_type = blueprint_structure[current_depth + 1]
         else:
-            # Root level nodes (sections/modules) use blueprint structure
-            # Logic: If frontend requested 'Module'/'Section' but Blueprint demands 'Year'/'Theology', map it.
-            if (
-                frontend_type in ["Module", "Section"]
-                and frontend_type not in blueprint_structure
-            ):
-                node_type = blueprint_structure[0]
-            else:
-                node_type = frontend_type if frontend_type else blueprint_structure[0]
+            # Root level nodes (containers) use the first item in blueprint structure
+            node_type = blueprint_structure[0]
+
+        # Enforce two-tier builder taxonomy validation (Level is admin-set, not in tree)
+        # Reuse current_depth from line 4728 to avoid redundant get_depth() call
+        depth = current_depth + 1 if parent else 0
+        
+        if depth > 1:
+            raise ValueError(
+                f"Cannot create {blueprint_structure[depth]} at depth {depth}. "
+                f"Maximum depth is 1. Hierarchy: {blueprint_structure[0]} → {blueprint_structure[1]}"
+            )
+        
+        # Validate parent-child relationships
+        if parent and depth > 0 and parent.get_depth() != 0:
+            raise ValueError(
+                f"Invalid parent. {blueprint_structure[1]} nodes must be children of "
+                f"{blueprint_structure[0]} nodes (depth 0), not depth {parent.get_depth()} nodes."
+            )
 
         position = CurriculumNode.objects.filter(program=program, parent=parent).count()
 
@@ -4707,11 +4775,25 @@ def instructor_node_create(request, program_id: int):
             is_published=auto_publish,
         )
 
-        messages.success(request, f"{node_type} created")
+        messages.success(request, f"{node_type} '{title}' created successfully")
+        
+        # Build updated curriculum tree and return as Inertia response
+        curriculum = build_curriculum_tree(program)
+        
+        # Serialize program data using shared helper
+        response_data = serialize_program_data(program)
+        response_data["curriculum"] = curriculum
+        
+        return render(request, "Instructor/Program/Manage", response_data)
     except Exception as e:
+        import traceback
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Node creation failed: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         messages.error(request, str(e))
+        return redirect("core:instructor.program_manage", pk=program_id)
 
-    return redirect("core:instructor.program_manage", pk=program_id)
 
 
 def _sync_quiz_questions(node, questions_data: list):
