@@ -1,1 +1,0 @@
-import{j as t}from"./vendor-motion-AUo8QjiA.js";import{D as s}from"./index-DeKt8w3P.js";function n({children:r,breadcrumbs:o=[]}){return t.jsx(s,{role:"instructor",breadcrumbs:o,children:r})}export{n as I};
