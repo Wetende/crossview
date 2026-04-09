@@ -40,10 +40,8 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import GradingIcon from "@mui/icons-material/Grading";
-import ArchitectureIcon from "@mui/icons-material/Architecture";
 import RateReviewIcon from "@mui/icons-material/RateReview";
 import PersonIcon from "@mui/icons-material/Person";
-import HistoryIcon from "@mui/icons-material/History";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -214,36 +212,12 @@ const roleNavigation = {
             ],
         },
     ],
-    superadmin: [
-        {
-            items: [
-                {
-                    label: "Dashboard",
-                    href: "/dashboard/",
-                    icon: DashboardIcon,
-                },
-                {
-                    label: "Platform Settings",
-                    href: "/superadmin/platform/",
-                    icon: SettingsIcon,
-                },
-                {
-                    label: "Blueprints",
-                    href: "/superadmin/presets/",
-                    icon: ArchitectureIcon,
-                },
-                { label: "Users", href: "/admin/users/", icon: PeopleIcon },
-                { label: "Logs", href: "/superadmin/logs/", icon: HistoryIcon },
-            ],
-        },
-    ],
 };
 
 const roleColors = {
     student: "primary",
     instructor: "success",
     admin: "warning",
-    superadmin: "error",
 };
 
 const STORAGE_KEY_COLLAPSED = "dashboard_sidebar_collapsed";
@@ -727,8 +701,7 @@ export default function DashboardLayout({
                                         Profile
                                     </MenuItem>
                                 )}
-                                {(role === "admin" ||
-                                    role === "superadmin") && (
+                                {role === "admin" && (
                                     <MenuItem
                                         component={Link}
                                         href="/admin/settings/"

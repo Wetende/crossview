@@ -111,13 +111,6 @@ function resolvePageLoader(name) {
         }
     }
 
-    if (name.startsWith("SuperAdmin/")) {
-        const superAdminPath = `./features/super-admin/pages/${name.replace("SuperAdmin/", "")}.jsx`;
-        if (features[superAdminPath]) {
-            return features[superAdminPath];
-        }
-    }
-
     if (featureMap[name] && features[featureMap[name]]) {
         return features[featureMap[name]];
     }

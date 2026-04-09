@@ -1,7 +1,7 @@
 /**
  * Unified Dashboard Page
  * Shows different content and menus based on user role
- * Roles: student, instructor, admin, superadmin
+ * Roles: student, instructor, admin
  */
 
 import { Head, Link, usePage } from '@inertiajs/react';
@@ -33,7 +33,6 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import BusinessIcon from '@mui/icons-material/Business';
 import SettingsIcon from '@mui/icons-material/Settings';
-import WarningIcon from '@mui/icons-material/Warning';
 import GradingIcon from '@mui/icons-material/Grading';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
@@ -715,101 +714,6 @@ function AdminContent({ stats, recentActivity }) {
 }
 
 // =============================================================================
-// Super Admin Dashboard Content (Single-Platform Mode)
-// =============================================================================
-
-function SuperAdminContent({ platformSettings, stats, isSetupRequired }) {
-  const settings = platformSettings || {};
-  const features = settings.features || {};
-
-  return (
-    <Stack spacing={3}>
-      {/* Setup Required Alert */}
-      {isSetupRequired && (
-        <Paper sx={{ p: 3, bgcolor: 'warning.light' }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <WarningIcon color="warning" /> Setup Required
-            </Typography>
-            <Button component={Link} href="/setup/" variant="contained" size="small">
-              Run Setup Wizard
-            </Button>
-          </Stack>
-        </Paper>
-      )}
-
-      <Box>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {settings.institutionName || 'Platform Dashboard'}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {settings.tagline || 'Configure and manage your learning platform'}
-        </Typography>
-      </Box>
-
-      {/* Stats */}
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard title="Total Users" value={stats?.totalUsers || 0} icon={PeopleIcon} color="primary" />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <StatCard title="Programs" value={stats?.totalPrograms || 0} icon={SchoolIcon} color="success" />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: settings.isSetupComplete ? 'success.light' : 'warning.light' }}>
-                {settings.isSetupComplete ? <CheckCircleIcon color="success" /> : <SettingsIcon color="warning" />}
-              </Box>
-              <Box>
-                <Typography variant="h4" fontWeight="bold">
-                  {settings.deploymentMode || 'Custom'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Deployment Mode
-                </Typography>
-              </Box>
-            </Stack>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* Quick Actions */}
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Quick Actions</Typography>
-            <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-              <Button component={Link} href="/superadmin/platform/" variant="contained" startIcon={<SettingsIcon />}>
-                Platform Settings
-              </Button>
-              <Button component={Link} href="/superadmin/presets/" variant="outlined" startIcon={<SchoolIcon />}>
-                Blueprints
-              </Button>
-              <Button component={Link} href="/admin/programs/" variant="outlined" startIcon={<AddIcon />}>
-                Manage Programs
-              </Button>
-            </Stack>
-          </Paper>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>Enabled Features</Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {features.certificates && <Button size="small" variant="outlined" color="success">Certificates</Button>}
-              {features.practicum && <Button size="small" variant="outlined" color="success">Practicum</Button>}
-              {features.gamification && <Button size="small" variant="outlined" color="success">Gamification</Button>}
-              {features.self_registration && <Button size="small" variant="outlined" color="success">Self-Registration</Button>}
-            </Stack>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Stack>
-  );
-}
-
-
-// =============================================================================
 // Main Dashboard Component
 // =============================================================================
 
@@ -819,14 +723,6 @@ export default function Dashboard(props) {
 
   const renderContent = () => {
     switch (role) {
-      case 'superadmin':
-        return (
-          <SuperAdminContent
-            platformSettings={props.platformSettings}
-            stats={props.stats}
-            isSetupRequired={props.isSetupRequired}
-          />
-        );
       case 'admin':
         return <AdminContent stats={props.stats} recentActivity={props.recentActivity} />;
       case 'instructor':
