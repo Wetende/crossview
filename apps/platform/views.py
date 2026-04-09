@@ -1,22 +1,37 @@
-"""Platform views - Admin settings, branding, and Super Admin management."""
+"""Platform views - admin settings and Django admin redirects."""
 
-import json
-
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
 from inertia import render
 
-from apps.platform.models import PresetBlueprint
-from apps.platform.services import (
-    PresetBlueprintService,
-)
 from apps.core.utils import get_post_data, is_admin
+from apps.platform.models import PlatformSettings
 
 
 def _require_superadmin(user) -> bool:
     return user.is_superuser
+
+
+def _redirect_superadmin_to_django_admin() -> object:
+    return redirect("admin:index")
+
+
+def _redirect_superadmin_to_platform_settings() -> object:
+    settings = PlatformSettings.get_settings()
+    return redirect("admin:platform_platformsettings_change", settings.pk)
+
+
+def _redirect_superadmin_to_preset_list() -> object:
+    return redirect("admin:platform_presetblueprint_changelist")
+
+
+def _redirect_superadmin_to_preset_create() -> object:
+    return redirect("admin:platform_presetblueprint_add")
+
+
+def _redirect_superadmin_to_preset_edit(pk: int) -> object:
+    return redirect("admin:platform_presetblueprint_change", pk)
 
 
 @login_required
@@ -90,426 +105,88 @@ def admin_settings(request):
 #     )
 
 
-# =============================================================================
-# Super Admin Views
-# =============================================================================
-
-
 @login_required
 def superadmin_dashboard(request):
-    """Super admin dashboard with platform settings and stats."""
+    """Legacy superadmin dashboard route - redirect to Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    from apps.core.models import User, Program
-    
-    # Get platform settings
-    platform_settings = PlatformSettingsService.get_settings()
-    
-    # Get basic stats
-    total_users = User.objects.count()
-    total_programs = Program.objects.count()
-    
-    # Check if setup is needed
-    is_setup_required = PlatformSettingsService.is_setup_required()
-    
-    return render(
-        request,
-        "Dashboard",
-        {
-            "role": "superadmin",
-            "platformSettings": platform_settings,
-            "stats": {
-                "totalUsers": total_users,
-                "totalPrograms": total_programs,
-            },
-            "isSetupRequired": is_setup_required,
-        },
-    )
+    return _redirect_superadmin_to_django_admin()
 
 
 @login_required
 def superadmin_presets(request):
-    """List preset blueprints."""
+    """Legacy preset list route - redirect to Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    presets_data = PresetBlueprintService.list_presets()
-    return render(request, "SuperAdmin/Presets/Index", {"presets": presets_data})
+    return _redirect_superadmin_to_preset_list()
 
 
 @login_required
 def superadmin_preset_create(request):
-    """Create a new preset blueprint."""
+    """Legacy preset create route - redirect to Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    if request.method == "POST":
-        data = get_post_data(request)
-        try:
-            PresetBlueprintService.create_preset(
-                name=data.get("name", "").strip(),
-                code=data.get("code", "").strip().lower(),
-                hierarchy_labels=data.get("hierarchyLabels", []),
-                description=data.get("description", ""),
-                regulatory_body=data.get("regulatoryBody", ""),
-                grading_config=data.get("gradingConfig", {}),
-                is_active=data.get("isActive", True),
-            )
-            messages.success(request, "Preset created successfully")
-            return redirect("tenants:superadmin.presets")
-        except ValidationError as e:
-            return render(
-                request,
-                "SuperAdmin/Presets/Form",
-                {
-                    "mode": "create",
-                    "errors": e.message_dict,
-                    "formData": data,
-                },
-            )
-    return render(request, "SuperAdmin/Presets/Form", {"mode": "create"})
+    return _redirect_superadmin_to_preset_create()
 
 
 @login_required
 def superadmin_preset_edit(request, pk: int):
-    """Edit a preset blueprint."""
+    """Legacy preset edit route - redirect to Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    preset = get_object_or_404(PresetBlueprint, pk=pk)
-    if request.method == "POST":
-        data = get_post_data(request)
-        try:
-            PresetBlueprintService.update_preset(
-                preset_id=pk,
-                name=data.get("name", "").strip(),
-                code=data.get("code", "").strip().lower(),
-                hierarchy_labels=data.get("hierarchyLabels", []),
-                description=data.get("description", ""),
-                regulatory_body=data.get("regulatoryBody", ""),
-                grading_config=data.get("gradingConfig", preset.grading_config),
-                is_active=data.get("isActive", preset.is_active),
-            )
-            messages.success(request, "Preset updated successfully")
-            return redirect("tenants:superadmin.presets")
-        except ValidationError as e:
-            return render(
-                request,
-                "SuperAdmin/Presets/Form",
-                {
-                    "mode": "edit",
-                    "preset": _serialize_preset(preset),
-                    "errors": e.message_dict,
-                },
-            )
-    return render(
-        request,
-        "SuperAdmin/Presets/Form",
-        {
-            "mode": "edit",
-            "preset": _serialize_preset(preset),
-        },
-    )
-
-
-
+    return _redirect_superadmin_to_preset_edit(pk)
 
 @login_required
 def superadmin_logs(request):
-    """View platform audit logs."""
+    """Legacy logs route - redirect to Django admin index."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    page = int(request.GET.get("page", 1))
-    level = request.GET.get("level", "")
-    # Placeholder logs - would come from actual logging system
-    logs_data = [
-        {
-            "id": 1,
-            "level": "info",
-            "message": "Platform configured",
-            "user": "admin@crossview.edu",
-            "timestamp": "2024-01-15T10:30:00Z",
-            "context": {},
-        }
-    ]
-    return render(
-        request,
-        "SuperAdmin/Logs",
-        {
-            "logs": logs_data,
-            "filters": {"level": level},
-            "pagination": {
-                "page": page,
-                "perPage": 50,
-                "total": len(logs_data),
-                "totalPages": 1,
-            },
-        },
-    )
-
-
-# =============================================================================
-# Serializers
-# =============================================================================
-
-
-# _serialize_tenant removed - not needed in single-tenant mode
-
-
-def _serialize_preset(preset) -> dict:
-    return {
-        "id": preset.id,
-        "name": preset.name,
-        "code": preset.code,
-        "description": preset.description or "",
-        "regulatoryBody": preset.regulatory_body or "",
-        "hierarchyLabels": preset.hierarchy_labels or [],
-        "gradingConfig": preset.grading_config or {},
-        "isActive": preset.is_active,
-    }
-
-
-# =============================================================================
-# Setup Wizard Views (Single-Tenant Mode)
-# =============================================================================
+    return _redirect_superadmin_to_django_admin()
 
 
 @login_required
 def setup_wizard(request):
-    """Setup wizard - redirect to appropriate step or dashboard if complete."""
+    """Legacy setup route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    
-    if not PlatformSettingsService.is_setup_required():
-        return redirect("/superadmin/")
-    
-    return redirect("tenants:setup.institution")
+    return _redirect_superadmin_to_platform_settings()
 
 
 @login_required
 def setup_institution(request):
-    """Step 1: Institution information."""
+    """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    
-    if request.method == "POST":
-        data = get_post_data(request)
-        PlatformSettingsService.update_institution_info(
-            institution_name=data.get("institutionName", "").strip(),
-            tagline=data.get("tagline", "").strip(),
-            contact_email=data.get("contactEmail", "").strip(),
-            contact_phone=data.get("contactPhone", "").strip(),
-            address=data.get("address", "").strip(),
-        )
-        messages.success(request, "Institution information saved")
-        return redirect("tenants:setup.mode")
-    
-    current = PlatformSettingsService.get_settings()
-    return render(
-        request,
-        "SuperAdmin/Setup/Institution",
-        {
-            "step": 1,
-            "totalSteps": 4,
-            "settings": current,
-        },
-    )
+    return _redirect_superadmin_to_platform_settings()
 
 
 @login_required
 def setup_mode(request):
-    """Step 2: Deployment mode selection."""
+    """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    
-    if request.method == "POST":
-        data = get_post_data(request)
-        try:
-            PlatformSettingsService.update_deployment_mode(
-                deployment_mode=data.get("deploymentMode", "custom"),
-                blueprint_id=data.get("blueprintId"),
-            )
-            messages.success(request, "Deployment mode saved")
-            return redirect("tenants:setup.branding")
-        except ValidationError as exc:
-            error = (
-                exc.message_dict.get("blueprintId", [str(exc)])[0]
-                if hasattr(exc, "message_dict")
-                else str(exc)
-            )
-            messages.error(request, error)
-    
-    current = PlatformSettingsService.get_settings()
-    modes = PlatformSettingsService.get_deployment_modes()
-    blueprints = PlatformSettingsService.list_builder_compatible_blueprints()
-    
-    return render(
-        request,
-        "SuperAdmin/Setup/Mode",
-        {
-            "step": 2,
-            "totalSteps": 4,
-            "settings": current,
-            "modes": modes,
-            "blueprints": blueprints,
-        },
-    )
+    return _redirect_superadmin_to_platform_settings()
 
 
 @login_required
 def setup_branding(request):
-    """Step 3: Branding configuration."""
+    """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    
-    if request.method == "POST":
-        data = get_post_data(request)
-        logo = request.FILES.get("logo")
-        favicon = request.FILES.get("favicon")
-        
-        PlatformSettingsService.update_branding(
-            primary_color=data.get("primaryColor"),
-            secondary_color=data.get("secondaryColor"),
-            custom_css=data.get("customCss", ""),
-            logo=logo,
-            favicon=favicon,
-        )
-        messages.success(request, "Branding saved")
-        return redirect("tenants:setup.features")
-    
-    current = PlatformSettingsService.get_settings()
-    return render(
-        request,
-        "SuperAdmin/Setup/Branding",
-        {
-            "step": 3,
-            "totalSteps": 4,
-            "settings": current,
-        },
-    )
+    return _redirect_superadmin_to_platform_settings()
 
 
 @login_required
 def setup_features(request):
-    """Step 4: Feature toggles."""
+    """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    
-    if request.method == "POST":
-        data = get_post_data(request)
-        features = {
-            "certificates": data.get("certificates", False),
-            "practicum": data.get("practicum", False),
-            "gamification": data.get("gamification", False),
-            "self_registration": data.get("selfRegistration", False),
-            "payments": data.get("payments", False),
-        }
-        PlatformSettingsService.update_features(features)
-        PlatformSettingsService.complete_setup()
-        messages.success(request, "Setup complete!")
-        return redirect("tenants:superadmin.dashboard")
-    
-    current = PlatformSettingsService.get_settings()
-    return render(
-        request,
-        "SuperAdmin/Setup/Features",
-        {
-            "step": 4,
-            "totalSteps": 4,
-            "settings": current,
-        },
-    )
+    return _redirect_superadmin_to_platform_settings()
 
 
 @login_required
 def platform_settings(request):
-    """View/edit platform settings after initial setup."""
+    """Legacy platform settings route - redirect to Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
-    
-    from apps.platform.services import PlatformSettingsService
-    
-    if request.method == "POST":
-        data = get_post_data(request)
-        logo = request.FILES.get("logo")
-        favicon = request.FILES.get("favicon")
-        
-        # Update institution info
-        PlatformSettingsService.update_institution_info(
-            institution_name=data.get("institutionName", "").strip(),
-            tagline=data.get("tagline", "").strip(),
-            contact_email=data.get("contactEmail", "").strip(),
-            contact_phone=data.get("contactPhone", "").strip(),
-            address=data.get("address", "").strip(),
-        )
-        
-        # Update branding
-        PlatformSettingsService.update_branding(
-            primary_color=data.get("primaryColor"),
-            secondary_color=data.get("secondaryColor"),
-            custom_css=data.get("customCss", ""),
-            logo=logo,
-            favicon=favicon,
-        )
-        
-        # Update mode if changed
-        try:
-            PlatformSettingsService.update_deployment_mode(
-                deployment_mode=data.get("deploymentMode", "custom"),
-                blueprint_id=data.get("blueprintId"),
-            )
-        except ValidationError as exc:
-            error = (
-                exc.message_dict.get("blueprintId", [str(exc)])[0]
-                if hasattr(exc, "message_dict")
-                else str(exc)
-            )
-            messages.error(request, error)
-            return redirect("tenants:platform.settings")
-
-        raw_levels = data.get("courseLevelsJson")
-        if raw_levels:
-            try:
-                parsed_levels = json.loads(raw_levels)
-            except (TypeError, ValueError, json.JSONDecodeError):
-                parsed_levels = []
-
-            normalized_levels = []
-            seen_values = set()
-            for lvl in parsed_levels:
-                if not isinstance(lvl, dict):
-                    continue
-                value = str(lvl.get("value", "")).strip()
-                label = str(lvl.get("label", "")).strip()
-                if not value or not label or value in seen_values:
-                    continue
-                seen_values.add(value)
-                normalized_levels.append({"value": value, "label": label})
-
-            PlatformSettingsService.update_course_levels(normalized_levels)
-        
-        messages.success(request, "Platform settings updated")
-        return redirect("tenants:platform.settings")
-    
-    current = PlatformSettingsService.get_settings()
-    modes = PlatformSettingsService.get_deployment_modes()
-    blueprints = PlatformSettingsService.list_builder_compatible_blueprints()
-    
-    return render(
-        request,
-        "SuperAdmin/Settings/Platform",
-        {
-            "settings": current,
-            "modes": modes,
-            "blueprints": blueprints,
-        },
-    )
+    return _redirect_superadmin_to_platform_settings()

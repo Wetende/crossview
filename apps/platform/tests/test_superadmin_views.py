@@ -1,97 +1,63 @@
-"""Tests for super admin views."""
+"""Tests for legacy superadmin routes now backed by Django admin."""
 
 import pytest
-from django.test import Client
-from apps.core.tests.factories import UserFactory, TenantFactory
+from django.urls import reverse
+
+from apps.core.tests.factories import UserFactory
+from apps.platform.models import PlatformSettings
 from apps.platform.tests.factories import PresetBlueprintFactory
 
 
 @pytest.fixture
-def superadmin_user(db):
-    """Create a superadmin user."""
-    tenant = TenantFactory()
-    return UserFactory(tenant=tenant, is_superuser=True, is_staff=True)
-
-
-@pytest.fixture
-def regular_user(db):
-    """Create a regular user."""
-    tenant = TenantFactory()
-    return UserFactory(tenant=tenant, is_superuser=False, is_staff=False)
-
-
-@pytest.fixture
-def authenticated_superadmin(client, superadmin_user):
-    """Return client authenticated as superadmin."""
-    client.force_login(superadmin_user)
+def authenticated_superadmin(client):
+    user = UserFactory(password="TestPass123", superadmin=True)
+    client.force_login(user)
     return client
 
 
 @pytest.fixture
-def authenticated_regular(client, regular_user):
-    """Return client authenticated as regular user."""
-    client.force_login(regular_user)
+def authenticated_regular(client):
+    user = UserFactory(password="TestPass123")
+    client.force_login(user)
     return client
 
 
-class TestSuperAdminDashboard:
-    """Tests for super admin dashboard view."""
-
-    def test_superadmin_can_access_dashboard(self, authenticated_superadmin):
-        """Superadmin should be able to access dashboard."""
+@pytest.mark.django_db
+class TestLegacySuperAdminRoutes:
+    def test_superadmin_dashboard_redirects_to_django_admin(self, authenticated_superadmin):
         response = authenticated_superadmin.get("/superadmin/")
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert response.url == reverse("admin:index")
 
-    def test_regular_user_redirected_from_dashboard(self, authenticated_regular):
-        """Regular user should be redirected from dashboard."""
+    def test_regular_user_redirected_from_superadmin_dashboard(self, authenticated_regular):
         response = authenticated_regular.get("/superadmin/")
         assert response.status_code == 302
-        assert "/dashboard/" in response.url
+        assert response.url == "/dashboard/"
 
-
-
-
-class TestSuperAdminPresets:
-    """Tests for preset blueprint management views."""
-
-    def test_superadmin_can_list_presets(self, authenticated_superadmin):
-        """Superadmin should be able to list presets."""
-        PresetBlueprintFactory.create_batch(3)
+    def test_superadmin_presets_redirect_to_admin_changelist(self, authenticated_superadmin):
+        PresetBlueprintFactory.create_batch(2)
         response = authenticated_superadmin.get("/superadmin/presets/")
-        assert response.status_code == 200
-
-    def test_superadmin_can_access_preset_create(self, authenticated_superadmin):
-        """Superadmin should be able to access preset create form."""
-        response = authenticated_superadmin.get("/superadmin/presets/create/")
-        assert response.status_code == 200
-
-    def test_superadmin_can_access_preset_edit(self, authenticated_superadmin):
-        """Superadmin should be able to access preset edit form."""
-        preset = PresetBlueprintFactory()
-        response = authenticated_superadmin.get(
-            f"/superadmin/presets/{preset.id}/edit/"
-        )
-        assert response.status_code == 200
-
-
-class TestSuperAdminSettings:
-    """Tests for platform settings views."""
-
-    def test_superadmin_can_access_settings(self, authenticated_superadmin):
-        """Superadmin should be able to access settings."""
-        response = authenticated_superadmin.get("/superadmin/platform/")
-        assert response.status_code == 200
-
-    def test_regular_user_cannot_access_settings(self, authenticated_regular):
-        """Regular user should not be able to access settings."""
-        response = authenticated_regular.get("/superadmin/platform/")
         assert response.status_code == 302
+        assert response.url == reverse("admin:platform_presetblueprint_changelist")
 
+    def test_superadmin_preset_create_redirects_to_admin_add(self, authenticated_superadmin):
+        response = authenticated_superadmin.get("/superadmin/presets/create/")
+        assert response.status_code == 302
+        assert response.url == reverse("admin:platform_presetblueprint_add")
 
-class TestSuperAdminLogs:
-    """Tests for system logs views."""
+    def test_superadmin_preset_edit_redirects_to_admin_change(self, authenticated_superadmin):
+        preset = PresetBlueprintFactory()
+        response = authenticated_superadmin.get(f"/superadmin/presets/{preset.id}/edit/")
+        assert response.status_code == 302
+        assert response.url == reverse("admin:platform_presetblueprint_change", args=[preset.id])
 
-    def test_superadmin_can_access_logs(self, authenticated_superadmin):
-        """Superadmin should be able to access logs."""
+    def test_superadmin_platform_settings_redirect_to_admin_change(self, authenticated_superadmin):
+        settings = PlatformSettings.get_settings()
+        response = authenticated_superadmin.get("/superadmin/platform/")
+        assert response.status_code == 302
+        assert response.url == reverse("admin:platform_platformsettings_change", args=[settings.pk])
+
+    def test_superadmin_logs_redirect_to_django_admin(self, authenticated_superadmin):
         response = authenticated_superadmin.get("/superadmin/logs/")
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert response.url == reverse("admin:index")
