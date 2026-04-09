@@ -1,4 +1,4 @@
-U[# Inertia.js Architecture Guide
+# Inertia.js Architecture Guide
 
 > How Django communicates with React in Crossview LMS - No separate API needed for page rendering.
 

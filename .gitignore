@@ -23,6 +23,11 @@ staticfiles/
 .coverage
 htmlcov/
 .tox/
+test_output.txt
+test_detail_output.txt
+
+# Local debug artifacts
+cookies.txt
 
 # IDE
 .idea/
@@ -42,6 +47,7 @@ dist/
 
 # Environment
 .env
+.env.test
 .env.local
 .env.*.local
 

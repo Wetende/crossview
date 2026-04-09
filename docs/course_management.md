@@ -468,6 +468,6 @@ class TestCurriculumService:
 ## References
 
 - `understand` - Business context and Blueprint philosophy
-- `frontend.md` - Frontend design system
-- `.kiro/steering/multi-tenancy.md` - Tenant isolation rules
-- `.kiro/steering/api-design.md` - API conventions
+- `docs/dashboard-architecture.md` - Role-based dashboard and navigation architecture
+- `docs/services-layer.md` - Service boundary and business-logic organization
+- `docs/inertia-architecture.md` - Inertia request/response integration model

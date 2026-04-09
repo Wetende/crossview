@@ -275,11 +275,13 @@ pytest apps/blueprints/
 | Document | Description |
 |----------|-------------|
 | `understand` | Business context and architecture vision |
-| `frontend.md` | Frontend design system and patterns |
+| `docs/course-builder-taxonomy.md` | Builder taxonomy rules and normalization notes |
 | `docs/dashboard-architecture.md` | Unified dashboard layout system |
 | `docs/services-layer.md` | Services layer pattern and implementation |
 | `docs/inertia-architecture.md` | Inertia.js integration details |
 | `docs/course_management.md` | Course and curriculum management |
+| `docs/paystack-webhook-runbook.md` | Payment webhook safety and recovery runbook |
+| `docs/upstream-sync.md` | Fork maintenance guide (`origin` vs `upstream`) |
 
 ## Environment Variables
 
