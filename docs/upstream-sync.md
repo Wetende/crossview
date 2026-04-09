@@ -71,6 +71,10 @@ Do not mix these in one commit:
 
 Split them into separate commits. This keeps future upstream merges and cherry-picks manageable.
 
+**Pro-Tip: Use AI for Triage**
+If you make bulk changes across the Digikatech codebase, do not just `git add .`! 
+ *"Look at my uncommitted changes, tell me which ones are generic Crossview features and which ones are Digika-specific, and split them into separate commits for me."* The AI will analyze the diff and generate the exact stage/commit commands needed to protect the sync boundary.
+
 ## If Upstream Changes Become Large
 
 Use this safer flow:
@@ -82,4 +86,30 @@ git merge upstream/main
 ```
 
 Resolve conflicts, run tests, then merge that sync branch into `main`.
+
+## Backporting Digika Features to Crossview
+
+If you build a generic feature in `digikatech` and want to easily port it back to `crossview` without waiting for a GitHub pull request, you can link the two local folders directly.
+
+### 1. Set Up the Local Bridge
+In your `crossview` terminal, add `digikatech` as a local remote:
+
+```bash
+cd /path/to/crossview
+git remote add digika /path/to/digikatech
+git fetch digika
+```
+
+*(Note: `fetch` doesn't alter your Crossview files. It simply downloads the awareness of Digika's commits into Crossview's hidden Git memory.)*
+
+### 2. Cherry-Pick the Feature
+Now that Crossview has the blueprint, find the 7-character hash of the commit you want from your Digikatech git history (`git log --oneline`).
+
+Then, manually apply just that commit to Crossview:
+
+```bash
+git cherry-pick <commit-hash>
+```
+
+Because `cherry-pick` is a 100% manual process, you have complete surgical control over what comes over. You can confidently pick commits that contain generic platform improvements and ignore the commits that contain Digika-specific branding or templates!
 

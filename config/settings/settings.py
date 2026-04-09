@@ -11,10 +11,16 @@ import importlib.util
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Load environment variables from the selected env file.
+# Defaults to ".env" and can be overridden with DJANGO_ENV_FILE.
+env_file = os.getenv("DJANGO_ENV_FILE", ".env")
+env_path = Path(env_file)
+if not env_path.is_absolute():
+    env_path = BASE_DIR / env_path
+load_dotenv(env_path)
 
 # =============================================================================
 # Core Settings (Environment-controlled)
