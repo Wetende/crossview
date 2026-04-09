@@ -29,14 +29,14 @@ class TestDashboardViews(TestCase):
             username="student@test.com", email="student@test.com", password="password123"
         )
 
-    def test_dashboard_redirect_to_superadmin(self):
-        """SuperAdmin should see superadmin dashboard."""
+    def test_superadmin_uses_admin_dashboard_role(self):
+        """Superusers should use the standard admin dashboard in-app."""
         self.client.login(username="super@test.com", password="password123")
         response = self.client.get(reverse('core:dashboard'), HTTP_X_INERTIA=True)
         assert response.status_code == 200
         data = response.json()
         assert data['component'] == 'Dashboard'
-        assert data['props']['role'] == 'superadmin'
+        assert data['props']['role'] == 'admin'
 
     def test_dashboard_redirect_to_admin(self):
         """Admin should see admin dashboard."""

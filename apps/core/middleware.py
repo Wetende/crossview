@@ -8,6 +8,8 @@ from django.middleware.csrf import get_token
 from inertia import share
 
 from apps.platform.models import PlatformSettings
+
+
 class InertiaShareMiddleware:
     """
     Middleware to share common data with all Inertia pages.
@@ -38,6 +40,7 @@ class InertiaShareMiddleware:
                         "lastName": request.user.last_name,
                         "fullName": request.user.get_full_name() or request.user.email,
                         "role": self._get_user_role(request.user),
+                        "isSuperuser": request.user.is_superuser,
                     },
                 },
             )
@@ -70,12 +73,12 @@ class InertiaShareMiddleware:
 
     def _get_user_role(self, user) -> str:
         """
-        Determine user role for dashboard redirect.
+        Determine the app-facing user role for dashboard routing.
 
-        Returns: 'student', 'instructor', 'admin', or 'superadmin'
+        Returns: 'student', 'instructor', or 'admin'
         """
         if user.is_superuser:
-            return "superadmin"
+            return "admin"
         if user.is_staff:
             return "admin"
         # Check for instructor role (could be in groups or a field)

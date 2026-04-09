@@ -48,14 +48,14 @@ from apps.core.utils import (
 
 def get_dashboard_url(role: str) -> str:
     """Get dashboard URL based on user role. Requirement: 2.2"""
-    # All roles use the unified dashboard
+    # All app roles use the unified dashboard. Superusers behave like admins.
     return "/dashboard/"
 
 
 def _get_user_role(user: User) -> str:
-    """Determine user role for dashboard redirect."""
+    """Determine the app-facing user role for dashboard routing."""
     if user.is_superuser:
-        return "superadmin"
+        return "admin"
     if user.is_staff:
         return "admin"
     if hasattr(user, "groups") and user.groups.filter(name="Instructors").exists():
@@ -1271,7 +1271,7 @@ def home(request):
 def dashboard(request):
     """
     Unified dashboard - shows different content based on user role.
-    Roles: student, instructor, admin, superadmin
+    Roles: student, instructor, admin
     """
     user = request.user
     role = _get_user_role(user)
@@ -1279,9 +1279,7 @@ def dashboard(request):
     # Build props based on role
     props = {"role": role}
 
-    if role == "superadmin":
-        props.update(_get_superadmin_dashboard_data())
-    elif role == "admin":
+    if role == "admin":
         props.update(_get_admin_dashboard_data(user))
     elif role == "instructor":
         props.update(_get_instructor_dashboard_data(user))
@@ -1498,26 +1496,6 @@ def _get_admin_dashboard_data(user) -> dict:
             "pendingPracticumSubmissions": pending_practicum_submissions,
         },
         "recentActivity": recent_activity,
-    }
-
-
-def _get_superadmin_dashboard_data() -> dict:
-    """Get dashboard data for super admins (platform settings)."""
-    from apps.platform.services import PlatformSettingsService
-
-    platform_settings = PlatformSettingsService.get_settings()
-    is_setup_required = PlatformSettingsService.is_setup_required()
-
-    total_users = User.objects.count()
-    total_programs = Program.objects.count()
-
-    return {
-        "platformSettings": platform_settings,
-        "stats": {
-            "totalUsers": total_users,
-            "totalPrograms": total_programs,
-        },
-        "isSetupRequired": is_setup_required,
     }
 
 
