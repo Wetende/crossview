@@ -38,13 +38,11 @@ export default function Footer() {
     const p = platform || {};
     const primaryColor = p.primaryColor || "#3B82F6";
     const currentYear = new Date().getFullYear();
-    const institutionName = p.institutionName || "Crossview LMS";
-    const contactEmail = "info@crossviecollege.com";
-    const contactAddress = [
-        "Pioneer Visionary Church of Christ / One Kingdom Mission Center",
-        "Pioneer 3rd Street, Kisumu Road, Eldoret City, Uasin Gishu County, Kenya",
-        "P. BOX 6300-30100, Eldoret",
-    ];
+    const institutionName = p.institutionName || "DigikaTech Africa";
+    const contactEmail = p.email || "info@digikatech.com";
+    const contactAddress = p.address
+        ? [p.address]
+        : ["Nairobi, Kenya"];
 
     const quickLinks = [
         { label: "Programs", href: "/programs/" },
@@ -60,12 +58,13 @@ export default function Footer() {
         { label: "Terms of Service", href: "/terms/" },
     ];
 
+    const platformSocials = p.socialLinks || {};
     const socialLinks = [
-        { icon: IconBrandFacebook, href: "#", label: "Facebook" },
-        { icon: IconBrandTwitter, href: "#", label: "Twitter" },
-        { icon: IconBrandLinkedin, href: "#", label: "LinkedIn" },
-        { icon: IconBrandYoutube, href: "#", label: "YouTube" },
-    ];
+        platformSocials.facebook && { icon: IconBrandFacebook, href: platformSocials.facebook, label: "Facebook" },
+        platformSocials.twitter && { icon: IconBrandTwitter, href: platformSocials.twitter, label: "Twitter" },
+        platformSocials.linkedin && { icon: IconBrandLinkedin, href: platformSocials.linkedin, label: "LinkedIn" },
+        platformSocials.youtube && { icon: IconBrandYoutube, href: platformSocials.youtube, label: "YouTube" },
+    ].filter(Boolean);
 
     return (
         <Box
@@ -102,8 +101,9 @@ export default function Footer() {
                                 variant="body2"
                                 sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}
                             >
-                                {p.description ||
-                                    "Empowering learners with quality education and flexible learning options to achieve their goals."}
+                                {p.publicContent?.footerDescription
+                                    || p.description
+                                    || "Empowering African youth with world-class technology education in robotics, coding, AI, and design."}
                             </Typography>
 
                             {/* Social Links */}

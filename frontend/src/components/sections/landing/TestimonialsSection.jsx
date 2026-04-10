@@ -7,7 +7,6 @@ import {
     Avatar,
     Rating,
     Chip,
-    useTheme,
 } from "@mui/material";
 import { IconQuote } from "@tabler/icons-react";
 import { motion } from "framer-motion";
@@ -51,26 +50,27 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
     );
 }
 
-// Testimonials data
-const testimonials = [
+// Default testimonials — DigikaTech Africa context
+// These act as placeholders until real reviews are added via SuperAdmin
+const defaultTestimonials = [
     {
-        name: "Mary Wanjiku",
-        role: "Graduate, Certificate in IT",
-        quote: "The structured curriculum and supportive instructors helped me land my dream job within 3 months of graduating.",
-        avatar: "MW",
+        name: "Amara K.",
+        role: "Student, Robotics & IoT Program",
+        quote: "Last month I knew nothing about coding. Today I've built my first robot and programmed it with Python. DigikaTech changed everything for me.",
+        avatar: "AK",
         rating: 5,
     },
     {
-        name: "John Ochieng",
-        role: "Current Student",
-        quote: "The practical approach to learning is incredible. I'm already applying what I've learned at my workplace.",
+        name: "James O.",
+        role: "Student, Coding & Algorithms",
+        quote: "The hands-on approach is incredible. I'm building real web apps and games, not just reading theory. The instructors actually care about our progress.",
         avatar: "JO",
         rating: 5,
     },
     {
-        name: "Grace Muthoni",
-        role: "Graduate, Diploma Program",
-        quote: "The certificate I earned opened new doors for my career. Highly recommend for anyone looking to upskill.",
+        name: "Grace M.",
+        role: "Teacher, Partner School",
+        quote: "DigikaTech brought tech education to our school when we had nothing. Now our students are competing in robotics challenges and dreaming bigger.",
         avatar: "GM",
         rating: 5,
     },
@@ -123,7 +123,7 @@ function TestimonialCard({ testimonial, primaryColor }) {
                     flexGrow: 1,
                 }}
             >
-                "{testimonial.quote}"
+                &quot;{testimonial.quote}&quot;
             </Typography>
 
             <Stack direction="row" spacing={2} alignItems="center">
@@ -155,8 +155,12 @@ function TestimonialCard({ testimonial, primaryColor }) {
 }
 
 export default function TestimonialsSection({ platform }) {
-    const theme = useTheme();
     const primaryColor = platform.primaryColor || "#3B82F6";
+
+    // Use platform testimonials if available, otherwise fall back to defaults
+    const testimonials = platform.testimonials?.length > 0
+        ? platform.testimonials
+        : defaultTestimonials;
 
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "white" }}>
@@ -171,7 +175,7 @@ export default function TestimonialsSection({ platform }) {
                             fontWeight={700}
                             sx={{ mb: 2 }}
                         >
-                            What Our Students Say
+                            What Our Community Says
                         </Typography>
                     </motion.div>
                 </Stack>

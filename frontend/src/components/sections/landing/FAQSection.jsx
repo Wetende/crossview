@@ -8,7 +8,6 @@ import {
     AccordionSummary,
     AccordionDetails,
     Chip,
-    useTheme,
 } from "@mui/material";
 import { IconChevronDown } from "@tabler/icons-react";
 import { motion } from "framer-motion";
@@ -47,32 +46,43 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
     );
 }
 
-// Default FAQ data
+// Default FAQ data — DigikaTech Africa specific
 const defaultFAQs = [
     {
-        question: "How do I enroll in a program?",
-        answer: "Enrolling is easy! Simply browse our programs, select the one that interests you, and click 'Enroll Now'. You'll be guided through the registration process step by step.",
+        question: "What is DigikaTech Africa?",
+        answer: "DigikaTech Africa is a tech education initiative dedicated to empowering African youth (ages 8-18) with skills in robotics, coding, AI, web design, and digital innovation. We deliver education through online platforms, school partnerships, tech hubs, and bootcamps.",
     },
     {
-        question: "Are the certificates recognized?",
-        answer: "Yes! Our certificates are industry-recognized and come with unique QR verification codes. Employers can verify your credentials instantly.",
+        question: "Why focus on robotics and IoT?",
+        answer: "Robotics and IoT are transformative technologies. They teach hands-on engineering, programming, and problem-solving. They're in high demand across industries and exciting for young learners. We've made robotics and IoT our primary focus because they unlock broader tech understanding and create pathways to multiple careers.",
     },
     {
-        question: "Can I study at my own pace?",
-        answer: "Absolutely! Our platform supports self-paced learning. Access your courses anytime, anywhere, and complete them according to your schedule.",
+        question: "Who can enroll in courses?",
+        answer: "Our programs are designed for kids and teens aged 8-18, including primary school, secondary school, and high school students. We offer courses for beginners with no tech background as well as advanced learners. Teachers and educators can also enroll in professional development programs.",
     },
     {
-        question: "What payment methods do you accept?",
-        answer: "We accept various payment methods including credit/debit cards, mobile money, and bank transfers. Payment plans are also available for select programs.",
+        question: "Is there a scholarship or financial aid?",
+        answer: "Yes. We're committed to affordability. We offer scholarships and subsidized courses for students from low-income backgrounds. School partnerships often offer free or low-cost programs to students. Contact us to discuss options.",
     },
     {
-        question: "Is there support available if I get stuck?",
-        answer: "Yes! Our instructors and support team are here to help. You can reach out through the discussion forums, email, or live chat during office hours.",
+        question: "Do I need a computer at home?",
+        answer: "For online courses, reliable internet and a computer are helpful but not always required. Many students use smartphones. School-based and hub-based programs provide computers and equipment. We work to minimize barriers to access.",
+    },
+    {
+        question: "How long do courses take?",
+        answer: "Course duration varies. Introductory courses might be 4-8 weeks. Full programs can be 3-6 months. Bootcamps are intensive 2-8 week experiences. Self-paced courses let you progress at your speed.",
+    },
+    {
+        question: "Will I get a certificate?",
+        answer: "Yes. Upon course completion, students receive certificates verifying skills learned. These are recognized by employers and educational institutions.",
+    },
+    {
+        question: "How can my school partner with DigikaTech?",
+        answer: "Contact us! We'll discuss your school's needs and goals. We can arrange teacher training, classroom programs, tech club setup, or hybrid models. Most partnerships start with a conversation about vision and feasibility.",
     },
 ];
 
 export default function FAQSection({ platform, faqs }) {
-    const theme = useTheme();
     const primaryColor = platform.primaryColor || "#3B82F6";
     const [expanded, setExpanded] = useState(0);
 

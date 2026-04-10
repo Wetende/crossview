@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "@inertiajs/react";
 import PropTypes from "prop-types";
 import {
@@ -35,16 +34,6 @@ const fadeInScale = {
     whileInView: { opacity: 1, scale: 1 },
     viewport: { once: true },
     transition: { duration: 0.5 },
-};
-
-const staggerContainer = {
-    initial: {},
-    whileInView: {
-        transition: {
-            staggerChildren: 0.1,
-        },
-    },
-    viewport: { once: true },
 };
 
 const statItem = {
@@ -86,22 +75,22 @@ SectionLabel.propTypes = {
 };
 
 // --- Stats Highlight Card Component ---
-function StatsHighlightCard({ primaryColor, stats = {} }) {
+function StatsHighlightCard({ primaryColor }) {
     const statItems = [
         {
             icon: IconUsers,
-            value: "Growing",
-            label: "Learning Community",
+            value: "1M+",
+            label: "Goal: Young Africans",
         },
         {
             icon: IconSchool,
-            value: "Diverse",
-            label: "Course Offerings",
+            value: "500+",
+            label: "Target Schools",
         },
         {
             icon: IconCertificate,
             value: "Verified",
-            label: "Upon Completion",
+            label: "Certificates",
         },
     ];
 
@@ -133,7 +122,7 @@ function StatsHighlightCard({ primaryColor, stats = {} }) {
                 What We Offer
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-                Quality education designed for your success.
+                Future-ready tech skills for Africa&apos;s next generation.
             </Typography>
 
             <Stack spacing={3}>
@@ -186,23 +175,28 @@ function StatsHighlightCard({ primaryColor, stats = {} }) {
 
 StatsHighlightCard.propTypes = {
     primaryColor: PropTypes.string.isRequired,
-    stats: PropTypes.shape({
-        studentCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-        programCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    }),
 };
 
 // --- Main HeroSection Component ---
-export default function HeroSection({ platform, stats = {} }) {
+export default function HeroSection({ platform }) {
     const primaryColor = platform?.primaryColor || "#3B82F6";
     const secondaryColor = platform?.secondaryColor || "#1E40AF";
+    const publicContent = platform?.publicContent || {};
+    // Hero background: platform upload > bundled default
+    const bgImage = platform?.heroImageUrl || heroBgImage;
+    // Hero headline parts — configurable via SuperAdmin
+    const heroHeadline = publicContent.heroHeadline || "Unlock the Future: Tech Education for Every African Child";
+    // Hero subheadline — configurable via SuperAdmin, else use tagline, else fallback
+    const heroSubheadline = publicContent.heroSubheadline
+        || platform?.tagline
+        || "Through hands-on robotics, coding, AI, and design courses, we're empowering 1 million young Africans with the digital skills they need to lead in tomorrow's tech-driven world. Whether online or in-school, our learning platform reaches students across Africa.";
 
     return (
         <Box
             sx={{
                 pt: { xs: 14, md: 16 },
                 pb: { xs: 10, md: 14 },
-                backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.3)} 0%, ${hexToRgba(secondaryColor, 0.45)} 100%), url(${heroBgImage})`,
+                backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.3)} 0%, ${hexToRgba(secondaryColor, 0.45)} 100%), url(${bgImage})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 position: "relative",
@@ -274,7 +268,7 @@ export default function HeroSection({ platform, stats = {} }) {
                                 bgColor="rgba(255,255,255,0.2)"
                             >
                                 Welcome to{" "}
-                                {platform?.institutionName || "Our Platform"}
+                                {platform?.institutionName || "DigikaTech Africa"}
                             </SectionLabel>
                             <Typography
                                 variant="h1"
@@ -290,51 +284,38 @@ export default function HeroSection({ platform, stats = {} }) {
                                     mb: 3,
                                 }}
                             >
-                                Unlock Your{" "}
-                                <Box
-                                    component="span"
-                                    sx={{
-                                        background:
-                                            "linear-gradient(90deg, #FFD700, #FFA500)",
-                                        WebkitBackgroundClip: "text",
-                                        WebkitTextFillColor: "transparent",
-                                    }}
-                                >
-                                    Potential
-                                </Box>
-                                <br />
-                                Start Learning Today
+                                {/* Split headline at colon if present for styling */}
+                                {heroHeadline.includes(":") ? (
+                                    <>
+                                        {heroHeadline.split(":")[0]}:{" "}
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                background:
+                                                    "linear-gradient(90deg, #FFD700, #FFA500)",
+                                                WebkitBackgroundClip: "text",
+                                                WebkitTextFillColor: "transparent",
+                                            }}
+                                        >
+                                            {heroHeadline.split(":").slice(1).join(":").trim()}
+                                        </Box>
+                                    </>
+                                ) : (
+                                    heroHeadline
+                                )}
                             </Typography>
-                            {platform?.tagline && (
-                                <Typography
-                                    variant="h5"
-                                    sx={{
-                                        color: "rgba(255,255,255,0.9)",
-                                        fontWeight: 400,
-                                        mb: 4,
-                                        maxWidth: 480,
-                                        lineHeight: 1.6,
-                                    }}
-                                >
-                                    {platform.tagline}
-                                </Typography>
-                            )}
-                            {!platform?.tagline && (
-                                <Typography
-                                    variant="h5"
-                                    sx={{
-                                        color: "rgba(255,255,255,0.9)",
-                                        fontWeight: 400,
-                                        mb: 4,
-                                        maxWidth: 480,
-                                        lineHeight: 1.6,
-                                    }}
-                                >
-                                    Quality education designed to help you
-                                    achieve your personal and professional
-                                    goals.
-                                </Typography>
-                            )}
+                            <Typography
+                                variant="h5"
+                                sx={{
+                                    color: "rgba(255,255,255,0.9)",
+                                    fontWeight: 400,
+                                    mb: 4,
+                                    maxWidth: 480,
+                                    lineHeight: 1.6,
+                                }}
+                            >
+                                {heroSubheadline}
+                            </Typography>
 
                             <Stack
                                 direction={{ xs: "column", sm: "row" }}
@@ -406,7 +387,7 @@ export default function HeroSection({ platform, stats = {} }) {
                                         variant="body2"
                                         fontWeight={500}
                                     >
-                                        Quality Education
+                                        Robotics & IoT
                                     </Typography>
                                 </Stack>
                                 <Stack
@@ -420,7 +401,7 @@ export default function HeroSection({ platform, stats = {} }) {
                                         variant="body2"
                                         fontWeight={500}
                                     >
-                                        Verified Certificates
+                                        AI & Coding
                                     </Typography>
                                 </Stack>
                                 <Stack
@@ -434,7 +415,7 @@ export default function HeroSection({ platform, stats = {} }) {
                                         variant="body2"
                                         fontWeight={500}
                                     >
-                                        Expert Instructors
+                                        School Partnerships
                                     </Typography>
                                 </Stack>
                             </Stack>
@@ -442,10 +423,7 @@ export default function HeroSection({ platform, stats = {} }) {
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 5 }}>
-                        <StatsHighlightCard
-                            primaryColor={primaryColor}
-                            stats={stats}
-                        />
+                        <StatsHighlightCard primaryColor={primaryColor} />
                     </Grid>
                 </Grid>
             </Container>
@@ -459,10 +437,6 @@ HeroSection.propTypes = {
         secondaryColor: PropTypes.string,
         institutionName: PropTypes.string,
         tagline: PropTypes.string,
-    }),
-    stats: PropTypes.shape({
-        studentCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-        programCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
     }),
 };
 

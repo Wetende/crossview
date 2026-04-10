@@ -6,7 +6,6 @@ import {
     Stack,
     Button,
     Chip,
-    useTheme,
 } from "@mui/material";
 import { IconArrowRight } from "@tabler/icons-react";
 import { motion } from "framer-motion";
@@ -48,7 +47,6 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
 }
 
 export default function ProgramsSection({ platform, programs = [] }) {
-    const theme = useTheme();
     const { auth } = usePage().props;
     const isAuthenticated = !!auth?.user;
     
@@ -70,15 +68,17 @@ export default function ProgramsSection({ platform, programs = [] }) {
                             fontWeight={700}
                             sx={{ mb: 2 }}
                         >
-                            Explore Our Courses
+                            Core Programs Empowering Young Innovators
                         </Typography>
                         <Typography
                             variant="body1"
                             color="text.secondary"
                             sx={{ maxWidth: 600, mx: "auto" }}
                         >
-                            Choose from our carefully designed programs to
-                            advance your knowledge and skills.
+                            Our comprehensive tech curriculum combines
+                            cutting-edge robotics, programming, and AI with
+                            design thinking — built for African students of
+                            all levels.
                         </Typography>
                     </motion.div>
                 </Stack>

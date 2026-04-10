@@ -4,10 +4,8 @@ import {
     Typography,
     Grid,
     Stack,
-    useTheme,
 } from "@mui/material";
 import {
-    IconCheck,
     IconUsers,
     IconShieldCheck,
     IconAward,
@@ -30,8 +28,7 @@ function hexToRgba(hex, alpha = 1) {
     return `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${alpha})`;
 }
 
-export default function TrustBadgesSection({ platform, stats }) {
-    const theme = useTheme();
+export default function TrustBadgesSection({ platform, stats = {} }) {
     const primaryColor = platform.primaryColor || "#3B82F6";
 
     return (
@@ -64,13 +61,13 @@ export default function TrustBadgesSection({ platform, stats }) {
                             },
                             {
                                 icon: IconUsers,
-                                label: `${stats.studentCount || 500}+ Students`,
+                                label: `${stats.studentCount || 0}+ Students`,
                                 sublabel: "Active Learners",
                             },
                             {
                                 icon: IconThumbUp,
-                                label: "4.8/5 Rating",
-                                sublabel: "Student Satisfaction",
+                                label: `${stats.schoolCount || 3}+ Schools`,
+                                sublabel: "Partner Institutions",
                             },
                         ].map((badge, idx) => (
                             <Grid item xs={6} sm={3} key={idx}>

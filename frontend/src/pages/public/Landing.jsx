@@ -157,7 +157,12 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
     return (
         <ThemeProvider theme={lightTheme}>
             <CssBaseline />
-            <Head title={`${platform.institutionName} - Learning Portal`} />
+            <Head title={`${platform.institutionName || "DigikaTech Africa"} | Robotics, Coding & AI Education`}>
+                <meta
+                    name="description"
+                    content="Learn the future-ready skills needed to thrive in Africa's digital economy with our innovative STEM programs in robotics, coding, AI, and design."
+                />
+            </Head>
 
             <Box
                 sx={{

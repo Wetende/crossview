@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -62,7 +62,12 @@ export default function Contact() {
     return (
         <ThemeProvider theme={lightTheme}>
             <CssBaseline />
-            <Head title={`Contact - ${institutionName}`} />
+            <Head title={`Contact - ${institutionName}`}>
+                <meta
+                    name="description"
+                    content={`Get in touch with ${institutionName}. We'd love to hear from you about our robotics, coding, AI, and tech education programs for African youth.`}
+                />
+            </Head>
 
             <Box sx={{ minHeight: "100vh", bgcolor: "#FAFAFA", overflowX: "hidden" }}>
                 {/* ═══════ NAVBAR ═══════ */}
@@ -185,13 +190,7 @@ export default function Contact() {
                                             Address
                                         </Typography>
                                         <Typography variant="body1" color="text.secondary">
-                                            Pioneer Visionary Church of Christ / One Kingdom Mission Center
-                                        </Typography>
-                                        <Typography variant="body1" color="text.secondary">
-                                            Pioneer 3rd Street, Kisumu Road, Eldoret City, Uasin Gishu County, Kenya
-                                        </Typography>
-                                        <Typography variant="body1" color="text.secondary">
-                                            P. BOX 6300-30100, Eldoret
+                                            {platform?.address || "Nairobi, Kenya"}
                                         </Typography>
                                     </Box>
 
@@ -204,9 +203,24 @@ export default function Contact() {
                                             Email
                                         </Typography>
                                         <Typography variant="body1" color="text.secondary">
-                                            info@crossviecollege.com
+                                            {platform?.email || "info@digikatech.com"}
                                         </Typography>
                                     </Box>
+
+                                    {/* Phone */}
+                                    {platform?.phone && (
+                                        <Box sx={{ mt: 4 }}>
+                                            <Typography
+                                                variant="subtitle1"
+                                                sx={{ fontWeight: 700, color: primaryColor, mb: 0.5 }}
+                                            >
+                                                Phone
+                                            </Typography>
+                                            <Typography variant="body1" color="text.secondary">
+                                                {platform.phone}
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </motion.div>
                             </Grid>
 

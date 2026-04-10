@@ -6,7 +6,6 @@ import {
     Card,
     Avatar,
     Chip,
-    useTheme,
 } from "@mui/material";
 import { motion } from "framer-motion";
 
@@ -44,30 +43,38 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
     );
 }
 
-// Instructors data
-const instructors = [
+// Default instructors — DigikaTech Africa placeholder profiles
+// These serve as fallback until real instructor data is passed from the backend
+const defaultInstructors = [
     {
-        name: "Dr. Sarah Kimani",
-        role: "Lead Instructor, Data Science",
-        bio: "Ph.D. in Computer Science with 10+ years of industry experience at top tech firms.",
-        avatar: "SK",
+        name: "Robotics Instructor",
+        role: "Lead, Robotics & IoT Program",
+        bio: "Experienced robotics engineer guiding students through hands-on builds with Arduino, Raspberry Pi, and LEGO SPIKE kits.",
+        avatar: "RI",
     },
     {
-        name: "James Mwangi",
-        role: "Senior Trainer, Automotive Engineering",
-        bio: "Certified Master Mechanic ensuring students gain practical, hands-on skills.",
-        avatar: "JM",
+        name: "Coding Mentor",
+        role: "Lead, Coding & Algorithms",
+        bio: "Software developer teaching Python, JavaScript, and C++ through project-based learning and portfolio building.",
+        avatar: "CM",
     },
     {
-        name: "Pastor David Omondi",
-        role: "Head of Theology Department",
-        bio: "Dedicated to guiding students in their spiritual and academic growth.",
-        avatar: "DO",
+        name: "AI & Design Lead",
+        role: "Lead, AI & Creative Tech",
+        bio: "AI practitioner and digital artist bridging machine learning with creative design for African students.",
+        avatar: "AD",
     },
 ];
 
 // Instructor Card Component
 function InstructorCard({ instructor, primaryColor }) {
+    // Support both backend format (firstName/lastName) and static format (name)
+    const displayName = instructor.name
+        || `${instructor.firstName || ""} ${instructor.lastName || ""}`.trim()
+        || "Instructor";
+    const initials = instructor.avatar
+        || displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+
     return (
         <Card
             sx={{
@@ -97,6 +104,7 @@ function InstructorCard({ instructor, primaryColor }) {
                 }}
             >
                 <Avatar
+                    src={instructor.avatarUrl || null}
                     sx={{
                         width: 70,
                         height: 70,
@@ -106,7 +114,7 @@ function InstructorCard({ instructor, primaryColor }) {
                         fontWeight: 700,
                     }}
                 >
-                    {instructor.avatar}
+                    {initials}
                 </Avatar>
             </Box>
             <Box sx={{ p: 2, textAlign: "left", flexGrow: 1 }}>
@@ -115,7 +123,7 @@ function InstructorCard({ instructor, primaryColor }) {
                     fontWeight={700}
                     sx={{ color: "#1F2937", fontSize: "0.95rem" }}
                 >
-                    {instructor.name}
+                    {displayName}
                 </Typography>
                 <Typography
                     variant="subtitle2"
@@ -125,30 +133,36 @@ function InstructorCard({ instructor, primaryColor }) {
                         fontSize: "0.75rem",
                     }}
                 >
-                    {instructor.role}
+                    {instructor.role || "Instructor"}
                 </Typography>
-                <Typography
-                    variant="body2"
-                    sx={{
-                        color: "#6B7280",
-                        lineHeight: 1.5,
-                        fontSize: "0.8rem",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                    }}
-                >
-                    {instructor.bio}
-                </Typography>
+                {instructor.bio && (
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: "#6B7280",
+                            lineHeight: 1.5,
+                            fontSize: "0.8rem",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                        }}
+                    >
+                        {instructor.bio}
+                    </Typography>
+                )}
             </Box>
         </Card>
     );
 }
 
-export default function InstructorsSection({ platform }) {
-    const theme = useTheme();
+export default function InstructorsSection({ platform, featuredInstructors }) {
     const primaryColor = platform.primaryColor || "#3B82F6";
+
+    // Use real instructor data from backend if available, else defaults
+    const instructors = featuredInstructors?.length > 0
+        ? featuredInstructors
+        : defaultInstructors;
 
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#F8FAFC" }}>
@@ -156,22 +170,23 @@ export default function InstructorsSection({ platform }) {
                 <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
-                            Our Experts
+                            Our Mentors
                         </SectionLabel>
                         <Typography
                             variant="h2"
                             fontWeight={700}
                             sx={{ mb: 2 }}
                         >
-                            Learn from the Best
+                            Learn from African Tech Professionals
                         </Typography>
                         <Typography
                             variant="body1"
                             color="text.secondary"
                             sx={{ maxWidth: 600, mx: "auto" }}
                         >
-                            Our dedicated team of instructors are industry
-                            veterans committed to your success.
+                            Our instructors are practising engineers, developers,
+                            and designers who understand local contexts and bring
+                            real industry experience to the classroom.
                         </Typography>
                     </motion.div>
                 </Stack>
