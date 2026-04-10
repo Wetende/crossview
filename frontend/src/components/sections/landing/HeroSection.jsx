@@ -186,10 +186,8 @@ export default function HeroSection({ platform }) {
     const bgImage = platform?.heroImageUrl || heroBgImage;
     // Hero headline parts — configurable via SuperAdmin
     const heroHeadline = publicContent.heroHeadline || "Unlock the Future: Tech Education for Every African Child";
-    // Hero subheadline — configurable via SuperAdmin, else use tagline, else fallback
-    const heroSubheadline = publicContent.heroSubheadline
-        || platform?.tagline
-        || "Through hands-on robotics, coding, AI, and design courses, we're empowering 1 million young Africans with the digital skills they need to lead in tomorrow's tech-driven world. Whether online or in-school, our learning platform reaches students across Africa.";
+    // Hero subheadline comes from platform settings only.
+    const heroSubheadline = platform?.tagline || "";
 
     return (
         <Box
@@ -304,18 +302,20 @@ export default function HeroSection({ platform }) {
                                     heroHeadline
                                 )}
                             </Typography>
-                            <Typography
-                                variant="h5"
-                                sx={{
-                                    color: "rgba(255,255,255,0.9)",
-                                    fontWeight: 400,
-                                    mb: 4,
-                                    maxWidth: 480,
-                                    lineHeight: 1.6,
-                                }}
-                            >
-                                {heroSubheadline}
-                            </Typography>
+                            {heroSubheadline && (
+                                <Typography
+                                    variant="h5"
+                                    sx={{
+                                        color: "rgba(255,255,255,0.9)",
+                                        fontWeight: 400,
+                                        mb: 4,
+                                        maxWidth: 480,
+                                        lineHeight: 1.6,
+                                    }}
+                                >
+                                    {heroSubheadline}
+                                </Typography>
+                            )}
 
                             <Stack
                                 direction={{ xs: "column", sm: "row" }}
