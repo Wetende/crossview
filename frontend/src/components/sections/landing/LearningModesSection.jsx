@@ -14,6 +14,7 @@ import {
     IconRocket,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
+import VisuallyHidden from "../../common/VisuallyHidden";
 import ButtonAnimationWrapper from "../../common/ButtonAnimationWrapper";
 
 // Import image
@@ -95,6 +96,37 @@ export default function LearningModesSection({ platform }) {
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#FAFAFA" }}>
             <Container maxWidth="lg">
+                <Box sx={{ textAlign: "center", mb: { xs: 5, md: 8 }, maxWidth: 800, mx: "auto" }}>
+                    <motion.div {...fadeInLeft}>
+                        <SectionLabel color={primaryColor}>
+                            How We Deliver
+                        </SectionLabel>
+                        <Typography
+                            variant="h2"
+                            fontWeight={700}
+                            sx={{ mb: 2, color: "text.primary" }}
+                        >
+                            We Meet Learners{" "}
+                            <Box
+                                component="span"
+                                sx={{ color: primaryColor }}
+                            >
+                                Where They Are
+                            </Box>
+                        </Typography>
+                        <Typography
+                            variant="body1"
+                            color="text.secondary"
+                            sx={{ lineHeight: 1.8 }}
+                        >
+                            African students have diverse needs and
+                            circumstances. We deliver quality tech education
+                            through flexible methods — ensuring every learner
+                            is reached, whether online or in-person.
+                        </Typography>
+                    </motion.div>
+                </Box>
+
                 <Box
                     sx={{
                         display: "flex",
@@ -144,33 +176,6 @@ export default function LearningModesSection({ platform }) {
                         }}
                     >
                         <motion.div {...fadeInRight}>
-                            <SectionLabel color={primaryColor}>
-                                How We Deliver
-                            </SectionLabel>
-                            <Typography
-                                variant="h2"
-                                fontWeight={700}
-                                sx={{ mb: 2, color: "text.primary" }}
-                            >
-                                We Meet Learners{" "}
-                                <Box
-                                    component="span"
-                                    sx={{ color: primaryColor }}
-                                >
-                                    Where They Are
-                                </Box>
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                color="text.secondary"
-                                sx={{ mb: 4, lineHeight: 1.8 }}
-                            >
-                                African students have diverse needs and
-                                circumstances. We deliver quality tech education
-                                through flexible methods — ensuring every learner
-                                is reached, whether online or in-person.
-                            </Typography>
-
                             {/* Delivery method cards */}
                             <Stack spacing={2} sx={{ mb: 4 }}>
                                 {deliveryMethods.map((method, idx) => (
@@ -245,6 +250,17 @@ export default function LearningModesSection({ platform }) {
                                                     >
                                                         {method.description}
                                                     </Typography>
+
+                                                    {/* SEO Injection */}
+                                                    {method.title.includes("LMS") && (
+                                                        <VisuallyHidden>Online learning platform, Virtual learning Africa</VisuallyHidden>
+                                                    )}
+                                                    {method.title.includes("Bootcamps") && (
+                                                        <VisuallyHidden>Tech bootcamps Africa, Career development tech</VisuallyHidden>
+                                                    )}
+                                                    {method.title.includes("Hubs") && (
+                                                        <VisuallyHidden>Youth innovation hubs, Tech mentorship</VisuallyHidden>
+                                                    )}
                                                 </Box>
                                             </Stack>
                                         </Card>

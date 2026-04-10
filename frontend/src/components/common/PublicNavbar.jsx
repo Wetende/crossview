@@ -61,14 +61,14 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
         <>
             <ElevationScroll>
                 <AppBar position="fixed" color="transparent" sx={{ py: 2 }}>
-                    <Container maxWidth="lg">
+                    <Container maxWidth={false} sx={{ px: { xs: 2, sm: 4, md: 8 } }}>
                         <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
                             {/* Logo */}
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <PlatformLogo
                                     platform={platform}
                                     href="/"
-                                    fallbackName="Crossview"
+                                    fallbackName="DigikaTech Africa"
                                     logoHeight={40}
                                     logoMaxWidth={160}
                                     iconContainerSize={40}

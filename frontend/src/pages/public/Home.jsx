@@ -1,4 +1,3 @@
-import React from 'react'
 import { Head } from '@inertiajs/react'
 import ArchitectureIcon from '@mui/icons-material/Architecture'
 import AssignmentIcon from '@mui/icons-material/Assignment'
@@ -11,12 +10,12 @@ import Footer from '@/components/common/Footer'
 export default function Home({ message }) {
   return (
     <>
-      <Head title="Home - Crossview LMS" />
+      <Head title="Home - DigikaTech Africa" />
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100">
         <div className="container mx-auto px-4 py-16">
           <div className="text-center">
             <h1 className="text-5xl font-bold text-emerald-800 mb-4">
-              Crossview LMS
+              DigikaTech Africa
             </h1>
             <p className="text-xl text-emerald-600 mb-8">
               {message || 'Modern Learning Management System'}

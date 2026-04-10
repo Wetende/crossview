@@ -13,7 +13,7 @@ export default function PlatformLogo({
     showName = true,
     showNameWhenLogo = false,
     showNameWhenNoLogo = true,
-    fallbackName = "Crossview LMS",
+    fallbackName = "DigikaTech Africa",
     logoHeight = 40,
     logoMaxWidth = 160,
     iconContainerSize = 40,

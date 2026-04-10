@@ -246,7 +246,7 @@ export default function Footer() {
                         variant="body2"
                         sx={{ color: "rgba(255,255,255,0.5)" }}
                     >
-                        Powered by Crossview LMS
+                        Powered by DigikaTech Africa
                     </Typography>
                 </Stack>
             </Container>

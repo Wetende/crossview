@@ -23,7 +23,6 @@ import {
     Avatar,
     Divider,
     useTheme,
-    LinearProgress,
 } from "@mui/material";
 import {
     IconClock,
@@ -527,8 +526,7 @@ export default function ProgramDetail({
     ctaState = "not_enrolled",
     courseLevels = [],
 }) {
-    const theme = useTheme();
-    const { auth } = usePage().props;
+    const { auth, platform } = usePage().props;
     const [tabValue, setTabValue] = useState(0);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
@@ -537,7 +535,7 @@ export default function ProgramDetail({
 
     return (
         <>
-            <Head title={`${program.name} - Crossview LMS`} />
+            <Head title={`${program.name} - ${platform?.institutionName || "DigikaTech Africa"}`} />
 
             <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
                 {/* Navbar */}
@@ -737,7 +735,7 @@ export default function ProgramDetail({
                                                     fontWeight={600}
                                                     sx={{ mb: 3 }}
                                                 >
-                                                    What you'll learn
+                                                    What you&apos;ll learn
                                                 </Typography>
                                                 <Box
                                                     sx={{

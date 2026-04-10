@@ -13,7 +13,6 @@ import {
   Stack,
   Typography,
   Alert,
-  Chip,
 } from '@mui/material';
 import {
   Verified as VerifiedIcon,
@@ -160,9 +159,12 @@ function NotFoundCertificate({ serialNumber }) {
 }
 
 export default function CertificateVerify({ serialNumber, result, certificate }) {
+  const { platform } = usePage().props;
+  const institutionName = platform?.institutionName || "DigikaTech Africa";
+
   return (
     <>
-      <Head title={`Verify Certificate - ${serialNumber}`} />
+      <Head title={`Verify Certificate - ${serialNumber} | ${institutionName}`} />
 
       <Container maxWidth="sm" sx={{ py: 6 }}>
         <motion.div {...fadeIn}>
@@ -170,7 +172,7 @@ export default function CertificateVerify({ serialNumber, result, certificate })
             Certificate Verification
           </Typography>
           <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 4 }}>
-            Crossview Learning Management System
+            {institutionName}
           </Typography>
 
           {result === 'valid' && <ValidCertificate certificate={certificate} />}

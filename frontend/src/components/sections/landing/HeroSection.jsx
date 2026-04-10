@@ -16,9 +16,14 @@ import {
     IconUsers,
     IconSchool,
     IconCertificate,
+    IconRobot,
+    IconCode,
+    IconApps,
+    IconWorld,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import ButtonAnimationWrapper from "../../common/ButtonAnimationWrapper";
+import VisuallyHidden from "../../common/VisuallyHidden";
 import heroBgImage from "../../../assets/images/hero1.jpg";
 
 // --- Animation Variants ---
@@ -78,19 +83,24 @@ SectionLabel.propTypes = {
 function StatsHighlightCard({ primaryColor }) {
     const statItems = [
         {
-            icon: IconUsers,
-            value: "1M+",
-            label: "Goal: Young Africans",
+            icon: IconRobot,
+            value: "Robotics & IoT",
+            label: "Hands-on builds with sensors and microcontrollers",
         },
         {
-            icon: IconSchool,
-            value: "500+",
-            label: "Target Schools",
+            icon: IconCode,
+            value: "Algorithms & Coding",
+            label: "Python, logic, and problem-solving fundamentals",
         },
         {
-            icon: IconCertificate,
-            value: "Verified",
-            label: "Certificates",
+            icon: IconApps,
+            value: "Application Skills",
+            label: "Productivity tools and digital literacy",
+        },
+        {
+            icon: IconWorld,
+            value: "Internet & E-communications",
+            label: "Digital citizenship, safety, and collaboration",
         },
     ];
 
@@ -152,18 +162,21 @@ function StatsHighlightCard({ primaryColor }) {
                             </Box>
                             <Box>
                                 <Typography
-                                    variant="h5"
+                                    variant="h6"
                                     fontWeight={700}
-                                    sx={{ color: "#1F2937" }}
+                                    sx={{ color: "#1F2937", lineHeight: 1.2 }}
                                 >
                                     {item.value}
                                 </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {item.label}
-                                </Typography>
+                                {item.label && (
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mt: 0.5, lineHeight: 1.4 }}
+                                    >
+                                        {item.label}
+                                    </Typography>
+                                )}
                             </Box>
                         </Stack>
                     </motion.div>
@@ -193,66 +206,52 @@ export default function HeroSection({ platform }) {
         <Box
             sx={{
                 pt: { xs: 14, md: 16 },
-                pb: { xs: 10, md: 14 },
-                backgroundImage: `linear-gradient(135deg, ${hexToRgba(primaryColor, 0.3)} 0%, ${hexToRgba(secondaryColor, 0.45)} 100%), url(${bgImage})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
+                pb: { xs: 12, md: 16 },
+                backgroundColor: "#0B1120",
                 position: "relative",
                 overflow: "hidden",
             }}
         >
-            {/* Background decoration */}
+            {/* Layer 1 — Mesh grid */}
             <Box
                 sx={{
                     position: "absolute",
                     inset: 0,
-                    opacity: 0.05,
-                    backgroundImage: `radial-gradient(circle at 20% 80%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)`,
-                    backgroundSize: "60px 60px",
+                    backgroundImage: `
+                        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)
+                    `,
+                    backgroundSize: "40px 40px",
                 }}
             />
-            {/* Floating shapes */}
+            {/* Layer 2 — glow blob (top right-ish) */}
             <Box
-                component={motion.div}
-                animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
-                transition={{
-                    duration: 6,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                }}
                 sx={{
                     position: "absolute",
-                    top: "20%",
-                    right: "10%",
-                    width: 80,
-                    height: 80,
+                    top: "-150px",
+                    right: "-100px",
+                    width: 600,
+                    height: 600,
                     borderRadius: "50%",
-                    bgcolor: "rgba(255,255,255,0.1)",
-                    display: { xs: "none", md: "block" },
+                    background: "radial-gradient(circle, rgba(26,92,204,0.3) 0%, transparent 70%)",
+                    pointerEvents: "none",
                 }}
             />
+            {/* Additional glow blob (bottom left-ish) for balance */}
             <Box
-                component={motion.div}
-                animate={{ y: [0, 15, 0], rotate: [0, -5, 0] }}
-                transition={{
-                    duration: 5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    delay: 1,
-                }}
                 sx={{
                     position: "absolute",
-                    bottom: "30%",
-                    left: "5%",
-                    width: 60,
-                    height: 60,
-                    borderRadius: 3,
-                    bgcolor: "rgba(255,255,255,0.08)",
-                    display: { xs: "none", md: "block" },
+                    bottom: "-250px",
+                    left: "-150px",
+                    width: 600,
+                    height: 600,
+                    borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(26,92,204,0.15) 0%, transparent 70%)",
+                    pointerEvents: "none",
                 }}
             />
 
-            <Container maxWidth="lg" sx={{ position: "relative", zIndex: 1 }}>
+            <Container maxWidth="xl" sx={{ position: "relative", zIndex: 1, px: { xs: 2, sm: 4, md: 8 } }}>
                 <Grid
                     container
                     spacing={{ xs: 4, md: 8 }}
@@ -290,7 +289,7 @@ export default function HeroSection({ platform }) {
                                             component="span"
                                             sx={{
                                                 background:
-                                                    "linear-gradient(90deg, #FFD700, #FFA500)",
+                                                    "linear-gradient(90deg, #F5A623, #FFCA28)",
                                                 WebkitBackgroundClip: "text",
                                                 WebkitTextFillColor: "transparent",
                                             }}
@@ -341,6 +340,7 @@ export default function HeroSection({ platform }) {
                                         }}
                                     >
                                         Explore Programs
+                                        <VisuallyHidden>for Tech skills development and the Future of education in Africa</VisuallyHidden>
                                     </Button>
                                 </ButtonAnimationWrapper>
                                 <ButtonAnimationWrapper>
@@ -369,56 +369,7 @@ export default function HeroSection({ platform }) {
                                 </ButtonAnimationWrapper>
                             </Stack>
 
-                            {/* Trust indicators */}
-                            <Stack
-                                direction="row"
-                                spacing={4}
-                                flexWrap="wrap"
-                                useFlexGap
-                            >
-                                <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="center"
-                                    sx={{ color: "white" }}
-                                >
-                                    <IconCheck size={20} />
-                                    <Typography
-                                        variant="body2"
-                                        fontWeight={500}
-                                    >
-                                        Robotics & IoT
-                                    </Typography>
-                                </Stack>
-                                <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="center"
-                                    sx={{ color: "white" }}
-                                >
-                                    <IconCheck size={20} />
-                                    <Typography
-                                        variant="body2"
-                                        fontWeight={500}
-                                    >
-                                        AI & Coding
-                                    </Typography>
-                                </Stack>
-                                <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="center"
-                                    sx={{ color: "white" }}
-                                >
-                                    <IconCheck size={20} />
-                                    <Typography
-                                        variant="body2"
-                                        fontWeight={500}
-                                    >
-                                        School Partnerships
-                                    </Typography>
-                                </Stack>
-                            </Stack>
+
                         </motion.div>
                     </Grid>
 
@@ -427,6 +378,52 @@ export default function HeroSection({ platform }) {
                     </Grid>
                 </Grid>
             </Container>
+
+            {/* Ticker Tape */}
+            <Box
+                sx={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    width: "100%",
+                    bgcolor: "#F5A623",
+                    overflow: "hidden",
+                    py: 1.25,
+                    display: "flex",
+                    alignItems: "center",
+                }}
+            >
+                <Box
+                    component={motion.div}
+                    animate={{ x: ["0%", "-50%"] }}
+                    transition={{
+                        repeat: Infinity,
+                        ease: "linear",
+                        duration: 35,
+                    }}
+                    sx={{
+                        display: "flex",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    {[...Array(2)].map((_, i) => (
+                        <Typography
+                            key={i}
+                            variant="button"
+                            sx={{
+                                color: "#0B1120",
+                                fontWeight: 800,
+                                fontSize: "0.85rem",
+                                letterSpacing: 1,
+                                px: 2,
+                                display: "inline-block",
+                            }}
+                        >
+                            ROBOTICS & IOT &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; CODING & ALGORITHMS &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; ARTIFICIAL INTELLIGENCE &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; WEB DEVELOPMENT &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; 3D DESIGN &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; MOBILE APP DEV &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; SCRATCH & BLOCK CODING &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp; INTERNET & ECOMMUNICATIONS &nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;&nbsp;{" "}
+                        </Typography>
+                    ))}
+                </Box>
+            </Box>
         </Box>
     );
 }

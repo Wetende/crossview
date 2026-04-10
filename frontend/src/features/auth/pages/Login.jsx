@@ -80,7 +80,7 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                                     fontWeight={700}
                                     gutterBottom
                                 >
-                                    {platform?.institutionName || "Crossview LMS"}
+                                    {platform?.institutionName || "DigikaTech Africa"}
                                 </Typography>
                                 <Typography variant="body1" color="text.secondary">
                                     Welcome back! Please sign in to continue.

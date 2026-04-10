@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -39,7 +39,7 @@ export default function Events({ events }) {
     const { auth, platform } = usePage().props;
 
     const primaryColor = platform?.primaryColor || "#2563EB";
-    const institutionName = platform?.institutionName || "Crossview";
+    const institutionName = platform?.institutionName || "DigikaTech Africa";
 
     return (
         <ThemeProvider theme={lightTheme}>

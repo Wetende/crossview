@@ -315,7 +315,7 @@ export default function DashboardLayout({
                     <PlatformLogo
                         platform={platform}
                         showName={false}
-                        fallbackName="Crossview"
+                        fallbackName="DigikaTech Africa"
                         logoHeight={collapsed && !isMobile ? 28 : 32}
                         logoMaxWidth={collapsed && !isMobile ? 32 : 120}
                         iconContainerSize={28}
@@ -336,7 +336,7 @@ export default function DashboardLayout({
                             whiteSpace: "nowrap",
                         }}
                     >
-                        {platform?.institutionName || "Crossview"}
+                        {platform?.institutionName || "DigikaTech Africa"}
                     </Typography>
                 )}
 

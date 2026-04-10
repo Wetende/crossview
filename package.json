@@ -1,7 +1,7 @@
 {
-  "name": "crossview-lms",
+  "name": "digikatech",
   "version": "1.0.0",
-  "description": "Crossview LMS - Django + React + Inertia.js",
+  "description": "DigikaTech Africa - Django + React + Inertia.js",
   "type": "module",
   "scripts": {
     "dev": "vite",

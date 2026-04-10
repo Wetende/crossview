@@ -46,6 +46,8 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
     );
 }
 
+
+
 export default function ProgramsSection({ platform, programs = [] }) {
     const { auth } = usePage().props;
     const isAuthenticated = !!auth?.user;
@@ -56,23 +58,24 @@ export default function ProgramsSection({ platform, programs = [] }) {
     if (!programs.length) return null;
 
     return (
-        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#FAFAFA" }}>
+        <Box sx={{ pt: { xs: 4, md: 4 }, pb: { xs: 6, md: 8 }, bgcolor: "#0B1120" }}>
             <Container maxWidth="lg">
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
+                <Stack spacing={2} textAlign="center" sx={{ mb: 5 }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
-                            Our Programs
+                            Core Programs
                         </SectionLabel>
                         <Typography
                             variant="h2"
                             fontWeight={700}
+                            color="white"
                             sx={{ mb: 2 }}
                         >
-                            Core Programs Empowering Young Innovators
+                            Empowering Young Innovators
                         </Typography>
                         <Typography
                             variant="body1"
-                            color="text.secondary"
+                            color="rgba(255,255,255,0.7)"
                             sx={{ maxWidth: 600, mx: "auto" }}
                         >
                             Our comprehensive tech curriculum combines

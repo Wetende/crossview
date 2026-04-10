@@ -5,6 +5,7 @@ import {
     Stack,
     Card,
     Chip,
+    useTheme,
 } from "@mui/material";
 import {
     IconCpu,
@@ -14,8 +15,20 @@ import {
     IconDeviceMobile,
     IconPalette,
     IconPuzzle,
+    IconRobot,
+    IconDeviceLaptop,
+    IconSchool,
+    IconBulb,
+    IconUsers,
+    IconCertificate,
+    IconRoute,
+    IconRocket,
+    IconSettings,
+    IconWifi,
+    IconCheck,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
+import VisuallyHidden from "../../common/VisuallyHidden";
 
 // --- Animation Variants ---
 const fadeInUp = {
@@ -51,56 +64,24 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
     );
 }
 
-// DigikaTech Africa core programs — from DIGIKATECHAFRICA.md §2 & §4
-// 7 programs: Robotics (flagship), Coding, AI, Web, Mobile, Graphics, Scratch
-const features = [
-    {
-        icon: IconCpu,
-        title: "Robotics & IoT",
-        description:
-            "Build intelligent robots and Internet of Things (IoT) devices. Master sensors, automation, and embedded systems. This flagship program combines hardware, programming, and real-world problem-solving — perfect for students aged 8–18.",
-        highlight: true,
-    },
-    {
-        icon: IconCode,
-        title: "Coding & Algorithms",
-        description:
-            "From Python to JavaScript, learn programming languages used by tech giants globally. Solve complex problems with algorithms. Build games, applications, and software with real portfolio projects.",
-    },
-    {
-        icon: IconBrain,
-        title: "AI & Machine Learning",
-        description:
-            "Explore AI, neural networks, and machine learning. Understand how AI is reshaping healthcare, finance, agriculture, and education in Africa. Build AI applications that solve real-world problems.",
-    },
-    {
-        icon: IconWorldWww,
-        title: "Web Design & Development",
-        description:
-            "Create beautiful, responsive websites. Learn HTML, CSS, JavaScript, and modern web frameworks. Build portfolios and real projects for careers in tech and entrepreneurship.",
-    },
-    {
-        icon: IconDeviceMobile,
-        title: "Mobile App Development",
-        description:
-            "Develop iOS and Android applications. Learn mobile-first design and app development frameworks. Create apps that make a difference in African communities.",
-    },
-    {
-        icon: IconPalette,
-        title: "Graphics & 3D Design",
-        description:
-            "Master digital art, animation, and 3D modeling. Learn industry-standard software. Develop skills for careers in game design, film production, architecture visualization, and digital media.",
-    },
-    {
-        icon: IconPuzzle,
-        title: "Scratch & Block Coding",
-        description:
-            "Visual, drag-and-drop programming for ages 5–11. Build animated stories, simple games, and interactive art in Scratch before graduating to Python and JavaScript.",
-    },
-];
+// Resolve a Tabler icon from the program name via keyword matching
+function getIconForName(name = "") {
+    const n = name.toLowerCase();
+    if (n.includes("robot") || n.includes("iot")) return IconCpu;
+    if (n.includes("coding") || n.includes("algorithm")) return IconCode;
+    if (n.includes("ai") || n.includes("machine")) return IconBrain;
+    if (n.includes("web")) return IconWorldWww;
+    if (n.includes("mobile") || n.includes("app")) return IconDeviceMobile;
+    if (n.includes("graphic") || n.includes("3d") || n.includes("design")) return IconPalette;
+    if (n.includes("scratch") || n.includes("block")) return IconPuzzle;
+    return IconBulb;
+}
 
 // Feature Card Component
 function FeatureCard({ feature, primaryColor }) {
+    const ResolvedIcon = getIconForName(feature.name || feature.title);
+    const isHighlight = feature.badge_type === "hot" || feature.highlight;
+
     return (
         <Card
             sx={{
@@ -109,8 +90,8 @@ function FeatureCard({ feature, primaryColor }) {
                 textAlign: "center",
                 borderRadius: 4,
                 bgcolor: "white",
-                border: feature.highlight ? `2px solid ${primaryColor}` : "none",
-                boxShadow: feature.highlight
+                border: isHighlight ? `2px solid ${primaryColor}` : "none",
+                boxShadow: isHighlight
                     ? `0 8px 30px ${hexToRgba(primaryColor, 0.15)}`
                     : "0 4px 20px rgba(0,0,0,0.08)",
                 transition: "all 0.3s ease",
@@ -122,7 +103,7 @@ function FeatureCard({ feature, primaryColor }) {
                 },
             }}
         >
-            {feature.highlight && (
+            {isHighlight && (
                 <Chip
                     label="FLAGSHIP"
                     size="small"
@@ -152,7 +133,7 @@ function FeatureCard({ feature, primaryColor }) {
                     mb: 2,
                 }}
             >
-                <feature.icon size={24} stroke={1.5} />
+                <ResolvedIcon size={24} stroke={1.5} />
             </Box>
             <Typography
                 variant="h6"
@@ -160,7 +141,7 @@ function FeatureCard({ feature, primaryColor }) {
                 gutterBottom
                 sx={{ color: "text.primary", fontSize: "1rem" }}
             >
-                {feature.title}
+                {feature.name || feature.title}
             </Typography>
             <Typography
                 variant="body2"
@@ -169,151 +150,200 @@ function FeatureCard({ feature, primaryColor }) {
             >
                 {feature.description}
             </Typography>
+            
+            
+            {/* Inject SEO keywords specific to this topic */}
+            {(feature.name || feature.title || "").includes("Robotics") && (
+                <VisuallyHidden>Robotics education, IoT learning, Hands-on tech training</VisuallyHidden>
+            )}
+            {(feature.name || feature.title || "").includes("Coding") && (
+                <VisuallyHidden>Coding for kids Africa, Programming for beginners</VisuallyHidden>
+            )}
+            {(feature.name || feature.title || "").includes("AI") && (
+                <VisuallyHidden>AI education, Machine learning courses</VisuallyHidden>
+            )}
+            {(feature.name || feature.title || "").includes("Web") && (
+                <VisuallyHidden>Web design skills, Technology careers</VisuallyHidden>
+            )}
+            {(feature.name || feature.title || "").includes("Graphics") && (
+                <VisuallyHidden>3D modeling education</VisuallyHidden>
+            )}
         </Card>
     );
 }
 
-// Key benefits — from DIGIKATECHAFRICA.md §2 "Why Choose Us"
-const keyBenefits = [
+// Key benefits — rebuilt to map onto UI cards
+const keyBenefitsCards = [
+    { title: "Algorithms and Coding", icon: IconCode, color: "#0B30E5" },
+    { title: "Robotics", icon: IconRobot, color: "#F5A623" },
+    { title: "Application Skills", icon: IconSettings, color: "#9E9E9E" },
+    { title: "Internet and Ecommunications", icon: IconWifi, color: "#00E676" },
+];
+
+const textBenefits = [
     "Hands-on, project-based learning in robotics, IoT, and AI",
     "Online LMS platform with supervised and self-paced courses",
-    "Direct partnerships with schools across Africa for accessible tech education",
+    "Direct partnerships with schools across Africa-Kenya for accessible tech education",
     "Tech hubs and innovation bootcamps in multiple counties and regions",
-    "Mentorship from experienced tech professionals in Africa",
-    "Career-ready skills development for primary and secondary students",
-    "Flexible learning paths: in-person, online, and blended models",
+    "Mentorship from experienced tech professionals in Africa - Kenya",
+    "Career-ready skills development for high school and primary students",
+    "Flexible learning paths: in-person classes, online courses, and blended models",
+    "Industry-recognized certification upon successful program completion",
 ];
 
 export default function FeaturesSection({ platform }) {
     const primaryColor = platform.primaryColor || "#3B82F6";
 
     return (
-        <Box sx={{ py: { xs: 6, md: 10 }, bgcolor: "#F8FAFC" }}>
+        <Box sx={{ pt: { xs: 4, md: 6 }, pb: { xs: 2, md: 3 }, bgcolor: "#F8FAFC" }}>
             <Container maxWidth="lg">
                 {/* ── Why DigikaTech Africa ── */}
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
-                    <motion.div {...fadeInUp}>
-                        <SectionLabel color={primaryColor}>
-                            Why Choose Us
-                        </SectionLabel>
-                        <Typography
-                            variant="h2"
-                            fontWeight={700}
-                            sx={{ mb: 2, color: "text.primary" }}
-                        >
-                            Transforming African Kids and Youth into Tech Innovators
-                        </Typography>
-                        <Typography
-                            variant="body1"
-                            color="text.secondary"
-                            sx={{ maxWidth: 800, mx: "auto", lineHeight: 1.8 }}
-                        >
-                            The Fourth Industrial Revolution demands digital literacy
-                            and technical skills. Africa is home to over 400 million
-                            young people, yet there&apos;s a critical gap in quality tech
-                            education. DigikaTech Africa is closing that gap by
-                            delivering world-class STEM programs — Robotics, Coding,
-                            AI, and Design — to schools, communities, and learners
-                            online. Our mission: reach 500+ schools and 1 million
-                            young Africans by 2030.
-                        </Typography>
-                    </motion.div>
-                </Stack>
-
-                {/* Key Benefits */}
-                <motion.div {...fadeInUp}>
+                <Box>
                     <Box
                         sx={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 1.5,
-                            justifyContent: "center",
-                            mb: 10,
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                            gap: { xs: 6, md: 8 },
+                            alignItems: "stretch",
                         }}
                     >
-                        {keyBenefits.map((benefit, idx) => (
-                            <Chip
-                                key={idx}
-                                label={`✓ ${benefit}`}
-                                size="small"
+                        {/* Left Side: Text Content */}
+                        <motion.div {...fadeInUp}>
+                            <Stack spacing={3} sx={{ height: "100%" }}>
+                                <Box>
+                                    <SectionLabel color={primaryColor}>
+                                        Why DigikaTech
+                                    </SectionLabel>
+                                </Box>
+                                <Typography
+                                    variant="h2"
+                                    fontWeight={800}
+                                    sx={{ 
+                                        color: "text.primary",
+                                        letterSpacing: "-0.02em", 
+                                        lineHeight: 1.2
+                                    }}
+                                >
+                                    Transforming African Kids and Youth into{" "}
+                                    <Box component="span" sx={{ color: "#F5A623" }}>
+                                        Tech Innovators
+                                    </Box>
+                                </Typography>
+                                
+                                <VisuallyHidden component="div">
+                                    The Fourth Industrial Revolution demands digital literacy and technical skills. Africa is home to over 400 million young people, yet there's a critical gap in quality tech education. DigikaTech Africa is closing that gap by delivering world-class STEM programs: Robotics, Coding, AI, and Design—to schools, communities, and learners online. Our mission: reach 500+ schools and 1 million young Africans by 2030.
+                                </VisuallyHidden>
+
+                                <Typography
+                                    variant="body1"
+                                    color="text.secondary"
+                                    sx={{ lineHeight: 1.8, fontSize: "1.05rem" }}
+                                >
+                                    The Fourth Industrial Revolution demands digital literacy and technical skills. Africa is home to over 400 million young people, yet there's a critical gap in quality tech education.
+                                </Typography>
+                                <Typography
+                                    variant="body1"
+                                    color="text.secondary"
+                                    sx={{ lineHeight: 1.8, fontSize: "1.05rem" }}
+                                >
+                                    DigikaTech Africa is closing that gap by delivering world-class STEM programs: Robotics, Coding, AI, and Design—to schools, communities, and learners online.
+                                </Typography>
+
+                                {/* Compact Dark Mission Card */}
+                                <Card
+                                    elevation={0}
+                                    sx={{
+                                        p: 3,
+                                        mt: { xs: 2, md: "auto" },
+                                        borderRadius: 3,
+                                        bgcolor: "#0B1120",
+                                        color: "white",
+                                        boxShadow: "0 10px 30px rgba(11, 17, 32, 0.15)"
+                                    }}
+                                >
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                        <Box sx={{ bgcolor: "rgba(245, 166, 35, 0.1)", p: 1.5, borderRadius: 2 }}>
+                                            <IconRocket size={28} color="#F5A623" />
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="subtitle2" fontWeight={700} sx={{ color: "#F5A623", mb: 0.5, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                                                Our 2030 Mission
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)", lineHeight: 1.4 }}>
+                                                Empowering 1 million young Africans in 500+ schools to build the continent's tech pipeline.
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </Card>
+                            </Stack>
+                        </motion.div>
+
+                        {/* Right Side: Key Benefits Grid */}
+                        <motion.div {...fadeInUp}>
+                            <Box
                                 sx={{
-                                    bgcolor: "white",
-                                    border: "1px solid",
-                                    borderColor: "grey.200",
-                                    color: "text.secondary",
-                                    fontWeight: 500,
-                                    fontSize: "0.8rem",
-                                    py: 2,
-                                    px: 0.5,
+                                    display: "grid",
+                                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                                    gap: 2,
                                 }}
-                            />
-                        ))}
-                    </Box>
-                </motion.div>
-
-                {/* ── Core Programs ── */}
-                <Stack spacing={2} textAlign="center" sx={{ mb: 6 }}>
-                    <motion.div {...fadeInUp}>
-                        <SectionLabel color={primaryColor}>
-                            Core Programs
-                        </SectionLabel>
-                        <Typography
-                            variant="h2"
-                            fontWeight={700}
-                            sx={{ mb: 2, color: "text.primary" }}
-                        >
-                            Core Programs Empowering Young Innovators
-                        </Typography>
-                        <Typography
-                            variant="body1"
-                            color="text.secondary"
-                            sx={{ maxWidth: 700, mx: "auto" }}
-                        >
-                            Our comprehensive tech curriculum combines cutting-edge
-                            robotics, programming, and artificial intelligence with
-                            design thinking and entrepreneurship. Each program is
-                            designed for African students of all levels, from complete
-                            beginners to advanced learners.
-                        </Typography>
-                    </motion.div>
-                </Stack>
-
-                {/* Program cards grid — 3+3+1 layout */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 3,
-                        justifyContent: "center",
-                    }}
-                >
-                    {features.map((feature, idx) => (
-                        <Box
-                            key={idx}
-                            sx={{
-                                flex: { xs: "1 1 100%", sm: "1 1 calc(50% - 12px)", md: "1 1 calc(33.333% - 16px)" },
-                                maxWidth: { xs: "100%", sm: "calc(50% - 12px)", md: "calc(33.333% - 16px)" },
-                                minWidth: 0,
-                            }}
-                        >
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{
-                                    delay: idx * 0.08,
-                                    duration: 0.5,
-                                }}
-                                style={{ height: "100%" }}
                             >
-                                <FeatureCard
-                                    feature={feature}
-                                    primaryColor={primaryColor}
-                                />
-                            </motion.div>
-                        </Box>
-                    ))}
+                                {keyBenefitsCards.map((card, idx) => (
+                                    <Card
+                                        key={idx}
+                                        elevation={0}
+                                        sx={{
+                                            p: 4,
+                                            borderRadius: 3,
+                                            bgcolor: card.color,
+                                            color: "white",
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            textAlign: "center",
+                                            minHeight: { xs: 160, md: 200 },
+                                            transition: "all 0.3s ease",
+                                            boxShadow: "0 4px 14px rgba(0,0,0,0.05)",
+                                            "&:hover": {
+                                                transform: "translateY(-6px)",
+                                                boxShadow: "0 12px 24px rgba(0,0,0,0.12)",
+                                            }
+                                        }}
+                                    >
+                                        <card.icon size={48} stroke={1.5} />
+                                        <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 2, lineHeight: 1.3 }}>
+                                            {card.title}
+                                        </Typography>
+                                    </Card>
+                                ))}
+                            </Box>
+
+                            {/* 2-Column Benefits Grid positioned below the 4 vibrant cards */}
+                            <Box
+                                sx={{
+                                    display: "grid",
+                                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                                    gap: 2,
+                                    mt: 4
+                                }}
+                            >
+                                {textBenefits.map((benefit, idx) => (
+                                    <Box key={idx} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                                        <Box sx={{ color: "#00E676", mt: 0.5, flexShrink: 0 }}>
+                                            <IconCheck size={18} stroke={3} />
+                                        </Box>
+                                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.4, fontSize: "0.9rem" }}>
+                                            {benefit}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        </motion.div>
+                    </Box>
                 </Box>
+
+
+
             </Container>
         </Box>
     );

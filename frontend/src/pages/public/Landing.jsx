@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { IconMenu2, IconX, IconBell, IconDashboard, IconUser, IconLogout } from "@tabler/icons-react";
 import { useState } from "react";
+import VisuallyHidden from "@/components/common/VisuallyHidden";
 
 // Components
 import LazySection from "@/components/LazySection";
@@ -69,10 +70,10 @@ export default function Landing() {
         );
     }
 
-    // Default Crossview marketing landing (for unsetup instances)
+    // Default DigikaTech marketing landing (for unsetup instances)
     return (
         <>
-            <Head title="Crossview LMS - The Chameleon Engine" />
+            <Head title="DigikaTech Africa - Technology Education Platform" />
             <Box
                 sx={{
                     minHeight: "100vh",
@@ -83,7 +84,7 @@ export default function Landing() {
                 {/* Default landing for unconfigured instances */}
                 <Container maxWidth="lg" sx={{ py: 20, textAlign: "center" }}>
                     <Typography variant="h2" fontWeight={700} gutterBottom>
-                        Welcome to Crossview LMS
+                        Welcome to DigikaTech Africa
                     </Typography>
                     <Typography
                         variant="h5"
@@ -171,6 +172,11 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                     overflowX: "hidden",
                 }}
             >
+                {/* Global SEO Injection */}
+                <VisuallyHidden component="h1">
+                    Tech education Africa, STEM learning Africa, EdTech solutions, Youth empowerment technology, Innovation in education, Digital transformation Africa.
+                </VisuallyHidden>
+
                 {/* ================== NAVBAR ================== */}
                 <AppBar
                     position="fixed"
@@ -184,7 +190,7 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                         transition: "all 0.3s ease",
                     }}
                 >
-                    <Container maxWidth="lg">
+                    <Container maxWidth={false} sx={{ px: { xs: 2, sm: 4, md: 8 } }}>
                         <Toolbar
                             disableGutters
                             sx={{ py: 1, justifyContent: "space-between" }}
@@ -450,21 +456,6 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
 
                 {/* ================== LAZY LOADED SECTIONS ================== */}
 
-                {/* Trust Badges */}
-                <LazySection
-                    sections={[
-                        {
-                            importFunc: () =>
-                                import(
-                                    "@/components/sections/landing/TrustBadgesSection"
-                                ).then((m) => ({ default: m.default })),
-                            props: { platform, stats },
-                        },
-                    ]}
-                    offset="100px"
-                    placeholderHeight={150}
-                />
-
                 {/* Features */}
                 <LazySection
                     sections={[
@@ -481,7 +472,7 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                     skeleton={CardGridSkeleton}
                 />
 
-                {/* Programs */}
+                {/* Programs (from backend DB) */}
                 {programs.length > 0 && (
                     <LazySection
                         sections={[

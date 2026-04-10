@@ -10,20 +10,16 @@ import {
     Tabs,
     Tab,
     Paper,
-    Divider,
     Select,
     MenuItem,
     FormControl,
-    InputLabel,
     ThemeProvider,
     CssBaseline,
     createTheme,
 } from "@mui/material";
 import {
     IconChevronRight,
-    IconCalendarEvent,
     IconMapPin,
-    IconClock,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -125,9 +121,6 @@ export default function EventDetail({ event, isRegistered = false, archives = []
             router.visit(`/events/?month=${month}`);
         }
     };
-
-    // Platform mock for footer
-    const platform = { institutionName: "Crossview" };
 
     return (
         <ThemeProvider theme={theme}>
@@ -431,7 +424,7 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                                     fontWeight: 700,
                                                 }}
                                             >
-                                                What's new:
+                                                What&apos;s new:
                                             </Typography>
                                             <Box
                                                 sx={{

@@ -18,9 +18,12 @@ import {
     IconBulb,
     IconSchool,
     IconMapPin,
+    IconPhone,
+    IconMail,
 } from "@tabler/icons-react";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
+import VisuallyHidden from "../../components/common/VisuallyHidden";
 import PublicNavbar from "../../components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
 
@@ -165,6 +168,11 @@ export default function About() {
             </Head>
 
             <Box sx={{ minHeight: "100vh", bgcolor: "#FAFAFA", overflowX: "hidden" }}>
+                {/* Global SEO Injection */}
+                <VisuallyHidden component="h1">
+                    About DigikaTech Africa: Tech education Africa, STEM learning Africa, STEM careers Africa, Tech mentorship, Digital transformation Africa.
+                </VisuallyHidden>
+
                 {/* ═══════ NAVBAR ═══════ */}
                 <PublicNavbar activeLink="/about/" auth={auth} />
 

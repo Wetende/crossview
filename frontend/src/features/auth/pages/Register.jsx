@@ -134,7 +134,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
                                     fontWeight={700}
                                     gutterBottom
                                 >
-                                    {platform?.institutionName || "Crossview LMS"}
+                                    {platform?.institutionName || "DigikaTech Africa"}
                                 </Typography>
                                 <Typography variant="body1" color="text.secondary">
                                     Create your account to get started

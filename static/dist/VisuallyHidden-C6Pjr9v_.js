@@ -1,0 +1,1 @@
+import{j as r}from"./vendor-motion-AUo8QjiA.js";import{B as p}from"./vendor-mui-CQyktAqR.js";function n({children:i,component:o="span"}){return r.jsx(p,{component:o,sx:{position:"absolute",width:"1px",height:"1px",padding:0,margin:"-1px",overflow:"hidden",clip:"rect(0, 0, 0, 0)",whiteSpace:"nowrap",border:0},children:i})}export{n as V};
