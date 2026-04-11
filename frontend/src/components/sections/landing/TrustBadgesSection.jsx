@@ -70,7 +70,7 @@ export default function TrustBadgesSection({ platform, stats = {} }) {
                                 sublabel: "Partner Institutions",
                             },
                         ].map((badge, idx) => (
-                            <Grid item xs={6} sm={3} key={idx}>
+                            <Grid size={{ xs: 6, sm: 3 }} key={idx}>
                                 <Stack
                                     direction="row"
                                     spacing={2}
