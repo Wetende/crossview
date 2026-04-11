@@ -100,7 +100,13 @@ class PlatformSettingsAdmin(admin.ModelAdmin):
         (
             "Platform Configuration",
             {
-                "fields": ("features", "course_levels", "program_categories"),
+                "fields": (
+                    "features",
+                    "course_levels",
+                    "program_categories",
+                    "public_content",
+                    "social_links",
+                ),
                 "description": "JSON-backed flags and lists previously managed through the frontend superadmin screens.",
             },
         ),

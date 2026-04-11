@@ -199,8 +199,16 @@ class PlatformSettingsService:
     def get_settings() -> dict:
         """Get current platform settings."""
         from apps.platform.models import PlatformSettings
-        
+
         settings = PlatformSettings.get_settings()
+        public_content = (
+            settings.public_content
+            if isinstance(settings.public_content, dict)
+            else {}
+        )
+        social_links = (
+            settings.social_links if isinstance(settings.social_links, dict) else {}
+        )
         return {
             "institutionName": settings.institution_name,
             "tagline": settings.tagline,
@@ -217,6 +225,8 @@ class PlatformSettingsService:
             "customCss": settings.custom_css,
             "features": settings.features,
             "isSetupComplete": settings.is_setup_complete,
+            "publicContent": public_content,
+            "socialLinks": social_links,
         }
 
     @staticmethod
