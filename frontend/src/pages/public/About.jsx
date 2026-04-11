@@ -6,7 +6,6 @@ import {
     Grid,
     Stack,
     Button,
-    useTheme,
     ThemeProvider,
     createTheme,
     CssBaseline,
@@ -97,6 +96,70 @@ function AnimatedCounter({ value, suffix = "", duration = 2 }) {
     );
 }
 
+const DEFAULT_STATS = [
+    {
+        key: "campusLocations",
+        value: 5,
+        suffix: "",
+        label: "Campus Locations",
+    },
+    {
+        key: "enrolledStudents",
+        value: 10000,
+        suffix: "",
+        label: "Enrolled Students",
+    },
+    {
+        key: "certifiedTeachers",
+        value: 45,
+        suffix: "",
+        label: "Certified Teachers",
+    },
+    {
+        key: "studentPrograms",
+        value: 50,
+        suffix: "+",
+        label: "Student Programs",
+    },
+];
+
+function buildAboutStats(statsConfig) {
+    if (Array.isArray(statsConfig)) {
+        return statsConfig
+            .filter((item) => item?.label && item?.value !== undefined)
+            .slice(0, 4)
+            .map((item) => ({
+                value: item.value,
+                suffix: item.suffix || "",
+                label: item.label,
+            }));
+    }
+
+    const statsOverrides =
+        statsConfig && typeof statsConfig === "object" ? statsConfig : {};
+
+    return DEFAULT_STATS.map(({ key, ...stat }) => {
+        const override = statsOverrides[key];
+
+        if (override && typeof override === "object" && !Array.isArray(override)) {
+            return {
+                value: override.value ?? stat.value,
+                suffix: override.suffix ?? stat.suffix,
+                label: override.label ?? stat.label,
+            };
+        }
+
+        if (override !== undefined && override !== null) {
+            return {
+                ...stat,
+                value: override,
+            };
+        }
+
+        return stat;
+    });
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Main About Component
 // ═══════════════════════════════════════════════════════════════════
@@ -107,14 +170,20 @@ export default function About() {
     const primaryColor = platform?.primaryColor || "#2563EB";
     const secondaryColor = platform?.secondaryColor || "#1E40AF";
     const institutionName = platform?.institutionName || "Our Institution";
-
-    // Stats data
-    const stats = [
-        { value: 5, suffix: "", label: "Campus Locations" },
-        { value: 10000, suffix: "", label: "Enrolled Students" },
-        { value: 45, suffix: "", label: "Certified Teachers" },
-        { value: 50, suffix: "+", label: "Student Programs" },
-    ];
+    const publicContent =
+        platform?.publicContent && typeof platform.publicContent === "object"
+            ? platform.publicContent
+            : {};
+    const missionText =
+        publicContent.mission ||
+        `${institutionName} is a leading educational institution committed to providing world-class learning experiences. Our mission is to empower students with the knowledge, skills, and confidence they need to thrive in an ever-changing world.`;
+    const visionText =
+        publicContent.vision ||
+        "Founded on the principles of academic excellence and innovation, we have grown into a vibrant community of learners, educators, and thought leaders. Our diverse programs span across multiple disciplines, ensuring that every student finds their path to success.";
+    const impactSchools = Array.isArray(publicContent.impactSchools)
+        ? publicContent.impactSchools.filter(Boolean)
+        : [];
+    const stats = buildAboutStats(publicContent.stats);
 
     return (
         <ThemeProvider theme={lightTheme}>
@@ -255,20 +324,20 @@ export default function About() {
                                         variant="body1"
                                         sx={{ color: "text.secondary", mb: 4, lineHeight: 1.8 }}
                                     >
-                                        {`${institutionName} is a leading educational institution committed to providing world-class learning experiences. Our mission is to empower students with the knowledge, skills, and confidence they need to thrive in an ever-changing world.`}
+                                        {missionText}
                                     </Typography>
 
                                     <Typography
                                         variant="h5"
                                         sx={{ fontWeight: 700, mb: 1.5, color: "text.primary" }}
                                     >
-                                        Our Academic Excellence
+                                        Our Vision
                                     </Typography>
                                     <Typography
                                         variant="body1"
                                         sx={{ color: "text.secondary", mb: 4, lineHeight: 1.8 }}
                                     >
-                                        Founded on the principles of academic excellence and innovation, we have grown into a vibrant community of learners, educators, and thought leaders. Our diverse programs span across multiple disciplines, ensuring that every student finds their path to success.
+                                        {visionText}
                                     </Typography>
 
                                     <Typography
@@ -350,6 +419,55 @@ export default function About() {
                                 </Typography>
                             </Stack>
                         </motion.div>
+
+                        {impactSchools.length > 0 && (
+                            <Stack
+                                spacing={2}
+                                alignItems="center"
+                                sx={{ mb: { xs: 5, md: 7 } }}
+                            >
+                                <Typography
+                                    variant="overline"
+                                    sx={{
+                                        color: primaryColor,
+                                        letterSpacing: 2,
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    Impact Highlights
+                                </Typography>
+                                <Stack
+                                    direction="row"
+                                    spacing={2}
+                                    useFlexGap
+                                    flexWrap="wrap"
+                                    justifyContent="center"
+                                >
+                                    {impactSchools.map((school) => (
+                                        <Box
+                                            key={school}
+                                            sx={{
+                                                px: 2.5,
+                                                py: 1.25,
+                                                bgcolor: "white",
+                                                borderRadius: 999,
+                                                border: "1px solid",
+                                                borderColor: "grey.200",
+                                                boxShadow:
+                                                    "0 2px 12px rgba(0,0,0,0.04)",
+                                            }}
+                                        >
+                                            <Typography
+                                                variant="body2"
+                                                sx={{ color: "text.secondary" }}
+                                            >
+                                                {school}
+                                            </Typography>
+                                        </Box>
+                                    ))}
+                                </Stack>
+                            </Stack>
+                        )}
 
                         {/* Stats Grid */}
                         <Grid container spacing={3} justifyContent="center">

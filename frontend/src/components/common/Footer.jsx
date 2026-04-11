@@ -15,6 +15,7 @@ import {
     IconBrandYoutube,
     IconMail,
     IconMapPin,
+    IconPhone,
 } from "@tabler/icons-react";
 import PlatformLogo from "./PlatformLogo";
 
@@ -39,12 +40,13 @@ export default function Footer() {
     const primaryColor = p.primaryColor || "#3B82F6";
     const currentYear = new Date().getFullYear();
     const institutionName = p.institutionName || "Crossview LMS";
-    const contactEmail = "info@crossviecollege.com";
-    const contactAddress = [
-        "Pioneer Visionary Church of Christ / One Kingdom Mission Center",
-        "Pioneer 3rd Street, Kisumu Road, Eldoret City, Uasin Gishu County, Kenya",
-        "P. BOX 6300-30100, Eldoret",
-    ];
+    const publicContent =
+        p.publicContent && typeof p.publicContent === "object"
+            ? p.publicContent
+            : {};
+    const contactEmail = p.email || "";
+    const contactPhone = p.phone || "";
+    const contactAddress = p.address || "";
 
     const quickLinks = [
         { label: "Programs", href: "/programs/" },
@@ -60,12 +62,30 @@ export default function Footer() {
         { label: "Terms of Service", href: "/terms/" },
     ];
 
+    const platformSocials =
+        p.socialLinks && typeof p.socialLinks === "object" ? p.socialLinks : {};
     const socialLinks = [
-        { icon: IconBrandFacebook, href: "#", label: "Facebook" },
-        { icon: IconBrandTwitter, href: "#", label: "Twitter" },
-        { icon: IconBrandLinkedin, href: "#", label: "LinkedIn" },
-        { icon: IconBrandYoutube, href: "#", label: "YouTube" },
-    ];
+        platformSocials.facebook && {
+            icon: IconBrandFacebook,
+            href: platformSocials.facebook,
+            label: "Facebook",
+        },
+        platformSocials.twitter && {
+            icon: IconBrandTwitter,
+            href: platformSocials.twitter,
+            label: "Twitter",
+        },
+        platformSocials.linkedin && {
+            icon: IconBrandLinkedin,
+            href: platformSocials.linkedin,
+            label: "LinkedIn",
+        },
+        platformSocials.youtube && {
+            icon: IconBrandYoutube,
+            href: platformSocials.youtube,
+            label: "YouTube",
+        },
+    ].filter(Boolean);
 
     return (
         <Box
@@ -102,32 +122,35 @@ export default function Footer() {
                                 variant="body2"
                                 sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}
                             >
-                                {p.description ||
+                                {publicContent.footerDescription ||
+                                    p.description ||
                                     "Empowering learners with quality education and flexible learning options to achieve their goals."}
                             </Typography>
 
                             {/* Social Links */}
-                            <Stack direction="row" spacing={1}>
-                                {socialLinks.map((social, idx) => (
-                                    <IconButton
-                                        key={idx}
-                                        component="a"
-                                        href={social.href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        aria-label={social.label}
-                                        sx={{
-                                            color: "rgba(255,255,255,0.7)",
-                                            "&:hover": {
-                                                color: primaryColor,
-                                                bgcolor: hexToRgba(primaryColor, 0.1),
-                                            },
-                                        }}
-                                    >
-                                        <social.icon size={20} />
-                                    </IconButton>
-                                ))}
-                            </Stack>
+                            {socialLinks.length > 0 && (
+                                <Stack direction="row" spacing={1}>
+                                    {socialLinks.map((social, idx) => (
+                                        <IconButton
+                                            key={idx}
+                                            component="a"
+                                            href={social.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label={social.label}
+                                            sx={{
+                                                color: "rgba(255,255,255,0.7)",
+                                                "&:hover": {
+                                                    color: primaryColor,
+                                                    bgcolor: hexToRgba(primaryColor, 0.1),
+                                                },
+                                            }}
+                                        >
+                                            <social.icon size={20} />
+                                        </IconButton>
+                                    ))}
+                                </Stack>
+                            )}
                         </Stack>
                     </Grid>
 
@@ -204,6 +227,17 @@ export default function Footer() {
                                     </Typography>
                                 </Stack>
                             )}
+                            {contactPhone && (
+                                <Stack direction="row" spacing={2} alignItems="center">
+                                    <IconPhone size={18} color={primaryColor} />
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ color: "rgba(255,255,255,0.7)" }}
+                                    >
+                                        {contactPhone}
+                                    </Typography>
+                                </Stack>
+                            )}
                             {contactAddress && (
                                 <Stack direction="row" spacing={2} alignItems="flex-start">
                                     <IconMapPin size={18} color={primaryColor} style={{ marginTop: 4 }} />
@@ -211,11 +245,11 @@ export default function Footer() {
                                         variant="body2"
                                         sx={{ color: "rgba(255,255,255,0.7)", whiteSpace: "pre-line" }}
                                     >
-                                        {contactAddress.join("\n")}
+                                        {contactAddress}
                                     </Typography>
                                 </Stack>
                             )}
-                            {!contactEmail && !contactAddress && (
+                            {!contactEmail && !contactPhone && !contactAddress && (
                                 <Typography
                                     variant="body2"
                                     sx={{ color: "rgba(255,255,255,0.7)" }}

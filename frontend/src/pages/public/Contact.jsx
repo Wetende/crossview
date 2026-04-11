@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -43,6 +43,9 @@ export default function Contact() {
     const primaryColor = platform?.primaryColor || "#2563EB";
     const secondaryColor = platform?.secondaryColor || "#1E40AF";
     const institutionName = platform?.institutionName || "Our Institution";
+    const contactEmail = platform?.email || "admin@example.com";
+    const contactPhone = platform?.phone || "";
+    const contactAddress = platform?.address || "";
 
     const [form, setForm] = useState({ name: "", email: "", message: "" });
     const [submitted, setSubmitted] = useState(false);
@@ -62,7 +65,12 @@ export default function Contact() {
     return (
         <ThemeProvider theme={lightTheme}>
             <CssBaseline />
-            <Head title={`Contact - ${institutionName}`} />
+            <Head title={`Contact - ${institutionName}`}>
+                <meta
+                    name="description"
+                    content={`Contact ${institutionName} to learn more about programs, enrollment, and learner support.`}
+                />
+            </Head>
 
             <Box sx={{ minHeight: "100vh", bgcolor: "#FAFAFA", overflowX: "hidden" }}>
                 {/* ═══════ NAVBAR ═══════ */}
@@ -184,14 +192,12 @@ export default function Contact() {
                                         >
                                             Address
                                         </Typography>
-                                        <Typography variant="body1" color="text.secondary">
-                                            Pioneer Visionary Church of Christ / One Kingdom Mission Center
-                                        </Typography>
-                                        <Typography variant="body1" color="text.secondary">
-                                            Pioneer 3rd Street, Kisumu Road, Eldoret City, Uasin Gishu County, Kenya
-                                        </Typography>
-                                        <Typography variant="body1" color="text.secondary">
-                                            P. BOX 6300-30100, Eldoret
+                                        <Typography
+                                            variant="body1"
+                                            color="text.secondary"
+                                            sx={{ whiteSpace: "pre-line" }}
+                                        >
+                                            {contactAddress || "Address details coming soon."}
                                         </Typography>
                                     </Box>
 
@@ -204,9 +210,30 @@ export default function Contact() {
                                             Email
                                         </Typography>
                                         <Typography variant="body1" color="text.secondary">
-                                            info@crossviecollege.com
+                                            {contactEmail}
                                         </Typography>
                                     </Box>
+
+                                    {contactPhone && (
+                                        <Box sx={{ mt: 4 }}>
+                                            <Typography
+                                                variant="subtitle1"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    color: primaryColor,
+                                                    mb: 0.5,
+                                                }}
+                                            >
+                                                Phone
+                                            </Typography>
+                                            <Typography
+                                                variant="body1"
+                                                color="text.secondary"
+                                            >
+                                                {contactPhone}
+                                            </Typography>
+                                        </Box>
+                                    )}
                                 </motion.div>
                             </Grid>
 

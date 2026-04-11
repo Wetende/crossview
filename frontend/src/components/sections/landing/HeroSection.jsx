@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "@inertiajs/react";
 import PropTypes from "prop-types";
 import {
@@ -35,16 +34,6 @@ const fadeInScale = {
     whileInView: { opacity: 1, scale: 1 },
     viewport: { once: true },
     transition: { duration: 0.5 },
-};
-
-const staggerContainer = {
-    initial: {},
-    whileInView: {
-        transition: {
-            staggerChildren: 0.1,
-        },
-    },
-    viewport: { once: true },
 };
 
 const statItem = {
@@ -86,7 +75,7 @@ SectionLabel.propTypes = {
 };
 
 // --- Stats Highlight Card Component ---
-function StatsHighlightCard({ primaryColor, stats = {} }) {
+function StatsHighlightCard({ primaryColor }) {
     const statItems = [
         {
             icon: IconUsers,
@@ -186,16 +175,17 @@ function StatsHighlightCard({ primaryColor, stats = {} }) {
 
 StatsHighlightCard.propTypes = {
     primaryColor: PropTypes.string.isRequired,
-    stats: PropTypes.shape({
-        studentCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-        programCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-    }),
 };
 
 // --- Main HeroSection Component ---
-export default function HeroSection({ platform, stats = {} }) {
+export default function HeroSection({ platform }) {
     const primaryColor = platform?.primaryColor || "#3B82F6";
     const secondaryColor = platform?.secondaryColor || "#1E40AF";
+    const publicContent =
+        platform?.publicContent && typeof platform.publicContent === "object"
+            ? platform.publicContent
+            : {};
+    const heroHeadline = publicContent.heroHeadline;
 
     return (
         <Box
@@ -290,20 +280,25 @@ export default function HeroSection({ platform, stats = {} }) {
                                     mb: 3,
                                 }}
                             >
-                                Unlock Your{" "}
-                                <Box
-                                    component="span"
-                                    sx={{
-                                        background:
-                                            "linear-gradient(90deg, #FFD700, #FFA500)",
-                                        WebkitBackgroundClip: "text",
-                                        WebkitTextFillColor: "transparent",
-                                    }}
-                                >
-                                    Potential
-                                </Box>
-                                <br />
-                                Start Learning Today
+                                {heroHeadline || (
+                                    <>
+                                        Unlock Your{" "}
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                background:
+                                                    "linear-gradient(90deg, #FFD700, #FFA500)",
+                                                WebkitBackgroundClip: "text",
+                                                WebkitTextFillColor:
+                                                    "transparent",
+                                            }}
+                                        >
+                                            Potential
+                                        </Box>
+                                        <br />
+                                        Start Learning Today
+                                    </>
+                                )}
                             </Typography>
                             {platform?.tagline && (
                                 <Typography
@@ -317,22 +312,6 @@ export default function HeroSection({ platform, stats = {} }) {
                                     }}
                                 >
                                     {platform.tagline}
-                                </Typography>
-                            )}
-                            {!platform?.tagline && (
-                                <Typography
-                                    variant="h5"
-                                    sx={{
-                                        color: "rgba(255,255,255,0.9)",
-                                        fontWeight: 400,
-                                        mb: 4,
-                                        maxWidth: 480,
-                                        lineHeight: 1.6,
-                                    }}
-                                >
-                                    Quality education designed to help you
-                                    achieve your personal and professional
-                                    goals.
                                 </Typography>
                             )}
 
@@ -444,7 +423,6 @@ export default function HeroSection({ platform, stats = {} }) {
                     <Grid size={{ xs: 12, md: 5 }}>
                         <StatsHighlightCard
                             primaryColor={primaryColor}
-                            stats={stats}
                         />
                     </Grid>
                 </Grid>
@@ -459,10 +437,7 @@ HeroSection.propTypes = {
         secondaryColor: PropTypes.string,
         institutionName: PropTypes.string,
         tagline: PropTypes.string,
-    }),
-    stats: PropTypes.shape({
-        studentCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
-        programCount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+        publicContent: PropTypes.object,
     }),
 };
 
