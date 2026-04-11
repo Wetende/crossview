@@ -118,7 +118,7 @@ export default function PublicProgramCard({
                     variant="subtitle1"
                     fontWeight={600}
                     sx={{
-                        mb: 1,
+                        mb: 0.5,
                         textDecoration: "none",
                         color: "#1F2937",
                         display: "-webkit-box",
@@ -126,7 +126,6 @@ export default function PublicProgramCard({
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
                         "&:hover": { color: theme.palette.primary.main },
-                        minHeight: "3.2em", // approx 2 lines
                     }}
                 >
                     {program.name}
@@ -149,57 +148,59 @@ export default function PublicProgramCard({
                     </Typography>
                 )}
 
-                {/* Rating */}
-                <Stack
-                    direction="row"
-                    spacing={0.5}
-                    alignItems="center"
-                    sx={{ mb: 1.5 }}
-                >
-                    <Rating
-                        value={program.rating || 0}
-                        precision={0.1}
-                        size="small"
-                        readOnly
-                    />
-                    <Typography variant="caption" sx={{ color: "#6B7280" }}>
-                        {program.rating?.toFixed(1) || "0.0"}
-                    </Typography>
-                </Stack>
+                {/* Rating & Price Row */}
+                <Box sx={{ mt: "auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    {/* Rating */}
+                    <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
+                    >
+                        <Rating
+                            value={program.rating || 0}
+                            precision={0.1}
+                            size="small"
+                            readOnly
+                        />
+                        <Typography variant="caption" sx={{ color: "#6B7280" }}>
+                            {program.rating?.toFixed(1) || "0.0"}
+                        </Typography>
+                    </Stack>
 
-                {/* Price */}
-                <Box sx={{ mt: "auto" }}>
-                    {program.price > 0 ? (
-                        <Stack direction="row" spacing={1} alignItems="center">
+                    {/* Price */}
+                    <Box>
+                        {program.price > 0 ? (
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Typography
+                                    variant="body1"
+                                    fontWeight={700}
+                                    color="primary.main"
+                                >
+                                    ${program.price}
+                                </Typography>
+                                {program.original_price &&
+                                    program.original_price > program.price && (
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                textDecoration: "line-through",
+                                                color: "#9CA3AF",
+                                            }}
+                                        >
+                                            ${program.original_price}
+                                        </Typography>
+                                    )}
+                            </Stack>
+                        ) : (
                             <Typography
                                 variant="body1"
                                 fontWeight={700}
-                                color="primary.main"
+                                color="success.main"
                             >
-                                ${program.price}
+                                Free
                             </Typography>
-                            {program.original_price &&
-                                program.original_price > program.price && (
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            textDecoration: "line-through",
-                                            color: "#9CA3AF",
-                                        }}
-                                    >
-                                        ${program.original_price}
-                                    </Typography>
-                                )}
-                        </Stack>
-                    ) : (
-                        <Typography
-                            variant="body1"
-                            fontWeight={700}
-                            color="success.main"
-                        >
-                            Free
-                        </Typography>
-                    )}
+                        )}
+                    </Box>
                 </Box>
 
                 {/* Action Button - only if showEnrollButton is true */}
