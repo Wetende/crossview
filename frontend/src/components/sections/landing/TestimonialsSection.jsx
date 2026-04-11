@@ -77,7 +77,7 @@ const defaultTestimonials = [
 ];
 
 // Testimonial Card Component (reusable)
-function TestimonialCard({ testimonial, primaryColor }) {
+function TestimonialCard({ testimonial, accentColor }) {
     return (
         <Card
             sx={{
@@ -86,15 +86,16 @@ function TestimonialCard({ testimonial, primaryColor }) {
                 display: "flex",
                 flexDirection: "column",
                 borderRadius: 4,
-                bgcolor: "#FFFFFF",
-                border: "none",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                bgcolor: "#0e2f1d",
+                border: "1px solid",
+                borderColor: "rgba(255,255,255,0.05)",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
                 position: "relative",
             }}
         >
             <IconQuote
                 size={40}
-                color={hexToRgba(primaryColor, 0.2)}
+                color={hexToRgba(accentColor, 0.2)}
                 style={{
                     position: "absolute",
                     top: 16,
@@ -114,7 +115,7 @@ function TestimonialCard({ testimonial, primaryColor }) {
                 sx={{
                     mb: 3,
                     lineHeight: 1.8,
-                    color: "#6B7280",
+                    color: "rgba(255,255,255,0.85)",
                     fontStyle: "italic",
                     display: "-webkit-box",
                     WebkitLineClamp: 4,
@@ -131,7 +132,8 @@ function TestimonialCard({ testimonial, primaryColor }) {
                     sx={{
                         width: 48,
                         height: 48,
-                        bgcolor: primaryColor,
+                        bgcolor: accentColor,
+                        color: "white",
                         fontWeight: 700,
                     }}
                 >
@@ -141,11 +143,11 @@ function TestimonialCard({ testimonial, primaryColor }) {
                     <Typography
                         variant="subtitle2"
                         fontWeight={700}
-                        sx={{ color: "#1F2937" }}
+                        sx={{ color: "white" }}
                     >
                         {testimonial.name}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: "#6B7280" }}>
+                    <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)" }}>
                         {testimonial.role}
                     </Typography>
                 </Box>
@@ -155,25 +157,26 @@ function TestimonialCard({ testimonial, primaryColor }) {
 }
 
 export default function TestimonialsSection({ platform }) {
-    const primaryColor = platform.primaryColor || "#3B82F6";
+    // Introduction of a fresh green accent color for this section 
+    const accentGreen = "#10B981"; // Emerald green
 
     // Use platform testimonials if available, otherwise fall back to defaults
-    const testimonials = platform.testimonials?.length > 0
+    const testimonials = platform?.testimonials?.length > 0
         ? platform.testimonials
         : defaultTestimonials;
 
     return (
-        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "white" }}>
+        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#07211c" }}>
             <Container maxWidth="lg">
                 <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
                     <motion.div {...fadeInUp}>
-                        <SectionLabel color={primaryColor}>
+                        <SectionLabel color="#6EE7B7">
                             Testimonials
                         </SectionLabel>
                         <Typography
                             variant="h2"
                             fontWeight={700}
-                            sx={{ mb: 2 }}
+                            sx={{ mb: 2, color: "white" }}
                         >
                             What Our Community Says
                         </Typography>
@@ -204,7 +207,7 @@ export default function TestimonialsSection({ platform }) {
                         <SwiperSlide key={idx}>
                             <TestimonialCard
                                 testimonial={testimonial}
-                                primaryColor={primaryColor}
+                                accentColor={accentGreen}
                             />
                         </SwiperSlide>
                     ))}

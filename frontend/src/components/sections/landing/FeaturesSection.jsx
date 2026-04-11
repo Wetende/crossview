@@ -5,23 +5,10 @@ import {
     Stack,
     Card,
     Chip,
-    useTheme,
 } from "@mui/material";
 import {
-    IconCpu,
     IconCode,
-    IconBrain,
-    IconWorldWww,
-    IconDeviceMobile,
-    IconPalette,
-    IconPuzzle,
     IconRobot,
-    IconDeviceLaptop,
-    IconSchool,
-    IconBulb,
-    IconUsers,
-    IconCertificate,
-    IconRoute,
     IconRocket,
     IconSettings,
     IconWifi,
@@ -64,120 +51,12 @@ function SectionLabel({ children, color = "primary.main", bgColor }) {
     );
 }
 
-// Resolve a Tabler icon from the program name via keyword matching
-function getIconForName(name = "") {
-    const n = name.toLowerCase();
-    if (n.includes("robot") || n.includes("iot")) return IconCpu;
-    if (n.includes("coding") || n.includes("algorithm")) return IconCode;
-    if (n.includes("ai") || n.includes("machine")) return IconBrain;
-    if (n.includes("web")) return IconWorldWww;
-    if (n.includes("mobile") || n.includes("app")) return IconDeviceMobile;
-    if (n.includes("graphic") || n.includes("3d") || n.includes("design")) return IconPalette;
-    if (n.includes("scratch") || n.includes("block")) return IconPuzzle;
-    return IconBulb;
-}
-
-// Feature Card Component
-function FeatureCard({ feature, primaryColor }) {
-    const ResolvedIcon = getIconForName(feature.name || feature.title);
-    const isHighlight = feature.badge_type === "hot" || feature.highlight;
-
-    return (
-        <Card
-            sx={{
-                p: 3,
-                height: "100%",
-                textAlign: "center",
-                borderRadius: 4,
-                bgcolor: "white",
-                border: isHighlight ? `2px solid ${primaryColor}` : "none",
-                boxShadow: isHighlight
-                    ? `0 8px 30px ${hexToRgba(primaryColor, 0.15)}`
-                    : "0 4px 20px rgba(0,0,0,0.08)",
-                transition: "all 0.3s ease",
-                position: "relative",
-                overflow: "visible",
-                "&:hover": {
-                    transform: "translateY(-8px)",
-                    boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
-                },
-            }}
-        >
-            {isHighlight && (
-                <Chip
-                    label="FLAGSHIP"
-                    size="small"
-                    sx={{
-                        position: "absolute",
-                        top: -12,
-                        right: 16,
-                        bgcolor: primaryColor,
-                        color: "white",
-                        fontWeight: 700,
-                        fontSize: "0.65rem",
-                        letterSpacing: 1,
-                    }}
-                />
-            )}
-            <Box
-                sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "50%",
-                    bgcolor: hexToRgba(primaryColor, 0.1),
-                    color: primaryColor,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    mx: "auto",
-                    mb: 2,
-                }}
-            >
-                <ResolvedIcon size={24} stroke={1.5} />
-            </Box>
-            <Typography
-                variant="h6"
-                fontWeight={700}
-                gutterBottom
-                sx={{ color: "text.primary", fontSize: "1rem" }}
-            >
-                {feature.name || feature.title}
-            </Typography>
-            <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ lineHeight: 1.6, fontSize: "0.85rem" }}
-            >
-                {feature.description}
-            </Typography>
-            
-            
-            {/* Inject SEO keywords specific to this topic */}
-            {(feature.name || feature.title || "").includes("Robotics") && (
-                <VisuallyHidden>Robotics education, IoT learning, Hands-on tech training</VisuallyHidden>
-            )}
-            {(feature.name || feature.title || "").includes("Coding") && (
-                <VisuallyHidden>Coding for kids Africa, Programming for beginners</VisuallyHidden>
-            )}
-            {(feature.name || feature.title || "").includes("AI") && (
-                <VisuallyHidden>AI education, Machine learning courses</VisuallyHidden>
-            )}
-            {(feature.name || feature.title || "").includes("Web") && (
-                <VisuallyHidden>Web design skills, Technology careers</VisuallyHidden>
-            )}
-            {(feature.name || feature.title || "").includes("Graphics") && (
-                <VisuallyHidden>3D modeling education</VisuallyHidden>
-            )}
-        </Card>
-    );
-}
-
 // Key benefits — rebuilt to map onto UI cards
 const keyBenefitsCards = [
     { title: "Algorithms and Coding", icon: IconCode, color: "#0B30E5" },
     { title: "Robotics", icon: IconRobot, color: "#F5A623" },
     { title: "Application Skills", icon: IconSettings, color: "#9E9E9E" },
-    { title: "Internet and Ecommunications", icon: IconWifi, color: "#00E676" },
+    { title: "Internet and Ecommunications", icon: IconWifi, color: "#0e2f1d" },
 ];
 
 const textBenefits = [
@@ -195,7 +74,7 @@ export default function FeaturesSection({ platform }) {
     const primaryColor = platform.primaryColor || "#3B82F6";
 
     return (
-        <Box sx={{ pt: { xs: 4, md: 6 }, pb: { xs: 2, md: 3 }, bgcolor: "#F8FAFC" }}>
+        <Box sx={{ pt: { xs: 4, md: 6 }, pb: { xs: 2, md: 3 }, bgcolor: "#f7f4ee" }}>
             <Container maxWidth="lg">
                 {/* ── Why DigikaTech Africa ── */}
                 <Box>
@@ -231,7 +110,7 @@ export default function FeaturesSection({ platform }) {
                                 </Typography>
                                 
                                 <VisuallyHidden component="div">
-                                    The Fourth Industrial Revolution demands digital literacy and technical skills. Africa is home to over 400 million young people, yet there's a critical gap in quality tech education. DigikaTech Africa is closing that gap by delivering world-class STEM programs: Robotics, Coding, AI, and Design—to schools, communities, and learners online. Our mission: reach 500+ schools and 1 million young Africans by 2030.
+                                    The Fourth Industrial Revolution demands digital literacy and technical skills. Africa is home to over 400 million young people, yet there&apos;s a critical gap in quality tech education. DigikaTech Africa is closing that gap by delivering world-class STEM programs: Robotics, Coding, AI, and Design-to schools, communities, and learners online. Our mission: reach 500+ schools and 1 million young Africans by 2030.
                                 </VisuallyHidden>
 
                                 <Typography
@@ -239,7 +118,7 @@ export default function FeaturesSection({ platform }) {
                                     color="text.secondary"
                                     sx={{ lineHeight: 1.8, fontSize: "1.05rem" }}
                                 >
-                                    The Fourth Industrial Revolution demands digital literacy and technical skills. Africa is home to over 400 million young people, yet there's a critical gap in quality tech education.
+                                    The Fourth Industrial Revolution demands digital literacy and technical skills. Africa is home to over 400 million young people, yet there&apos;s a critical gap in quality tech education.
                                 </Typography>
                                 <Typography
                                     variant="body1"
@@ -270,7 +149,7 @@ export default function FeaturesSection({ platform }) {
                                                 Our 2030 Mission
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)", lineHeight: 1.4 }}>
-                                                Empowering 1 million young Africans in 500+ schools to build the continent's tech pipeline.
+                                                Empowering 1 million young Africans in 500+ schools to build the continent&apos;s tech pipeline.
                                             </Typography>
                                         </Box>
                                     </Box>

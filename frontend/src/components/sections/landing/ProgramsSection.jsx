@@ -58,7 +58,7 @@ export default function ProgramsSection({ platform, programs = [] }) {
     if (!programs.length) return null;
 
     return (
-        <Box sx={{ pt: { xs: 4, md: 4 }, pb: { xs: 6, md: 8 }, bgcolor: "#0B1120" }}>
+        <Box sx={{ pt: { xs: 4, md: 4 }, pb: { xs: 6, md: 8 }, bgcolor: "#FFFFFF" }}>
             <Container maxWidth="lg">
                 <Stack spacing={2} textAlign="center" sx={{ mb: 5 }}>
                     <motion.div {...fadeInUp}>
@@ -68,20 +68,17 @@ export default function ProgramsSection({ platform, programs = [] }) {
                         <Typography
                             variant="h2"
                             fontWeight={700}
-                            color="white"
-                            sx={{ mb: 2 }}
+                            sx={{ mb: 2, color: "text.primary" }}
                         >
                             Empowering Young Innovators
                         </Typography>
                         <Typography
                             variant="body1"
-                            color="rgba(255,255,255,0.7)"
+                            color="text.secondary"
                             sx={{ maxWidth: 600, mx: "auto" }}
                         >
-                            Our comprehensive tech curriculum combines
-                            cutting-edge robotics, programming, and AI with
-                            design thinking — built for African students of
-                            all levels.
+                            A complete STEM curriculum: robotics, coding,
+                            design thinking, and Artificial Intelligence for Africa.
                         </Typography>
                     </motion.div>
                 </Stack>

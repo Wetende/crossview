@@ -4,12 +4,9 @@ import {
     Container,
     Typography,
     Stack,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
     Chip,
 } from "@mui/material";
-import { IconChevronDown } from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 
 // --- Animation Variants ---
@@ -82,20 +79,105 @@ const defaultFAQs = [
     },
 ];
 
+const FAQItem = ({ faq, isOpen, onClick, primaryColor }) => {
+    return (
+        <Box sx={{ borderBottom: "1px solid", borderColor: "rgba(0,0,0,0.1)", py: 2 }}>
+            <Box
+                onClick={onClick}
+                sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    "&:hover .faq-icon": {
+                        borderColor: primaryColor,
+                        color: primaryColor,
+                    }
+                }}
+            >
+                <Typography
+                    variant="h6"
+                    sx={{
+                        fontWeight: 600,
+                        fontSize: { xs: "1.1rem", md: "1.15rem" },
+                        color: "text.primary",
+                        fontFamily: "'Newsreader', 'Georgia', serif",
+                        letterSpacing: "-0.01em"
+                    }}
+                >
+                    {faq.question}
+                </Typography>
+                <Box
+                    className="faq-icon"
+                    sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        border: "1px solid",
+                        borderColor: "rgba(0,0,0,0.1)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        transition: "all 0.3s ease",
+                        bgcolor: isOpen ? primaryColor : "transparent",
+                        color: isOpen ? "#fff" : "text.secondary",
+                        ...(isOpen && {
+                            borderColor: primaryColor,
+                        })
+                    }}
+                >
+                    <IconPlus 
+                        size={16} 
+                        style={{ 
+                            transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
+                            transition: "transform 0.3s ease"
+                        }} 
+                    />
+                </Box>
+            </Box>
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateRows: isOpen ? "1fr" : "0fr",
+                    transition: "grid-template-rows 0.3s ease-in-out",
+                }}
+            >
+                <Box sx={{ overflow: "hidden" }}>
+                    <Typography
+                        variant="body1"
+                        sx={{
+                            color: "text.secondary",
+                            lineHeight: 1.8,
+                            pt: isOpen ? 1.5 : 0,
+                            pb: isOpen ? 0.5 : 0,
+                            opacity: isOpen ? 1 : 0,
+                            transition: "all 0.3s ease-in-out",
+                            transform: isOpen ? "translateY(0)" : "translateY(-5px)"
+                        }}
+                    >
+                        {faq.answer}
+                    </Typography>
+                </Box>
+            </Box>
+        </Box>
+    );
+};
+
 export default function FAQSection({ platform, faqs }) {
-    const primaryColor = platform.primaryColor || "#3B82F6";
+    const primaryColor = platform?.primaryColor || "#3B82F6";
     const [expanded, setExpanded] = useState(0);
 
     const faqData = faqs?.length > 0 ? faqs : defaultFAQs;
 
-    const handleChange = (panel) => (event, isExpanded) => {
-        setExpanded(isExpanded ? panel : false);
+    const handleToggle = (idx) => {
+        setExpanded(expanded === idx ? false : idx);
     };
 
     return (
-        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#F8FAFC" }}>
+        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#f7f4ee" }}>
             <Container maxWidth="md">
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
+                <Stack spacing={2} textAlign="center" sx={{ mb: { xs: 4, md: 6 } }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
                             FAQ
@@ -118,7 +200,10 @@ export default function FAQSection({ platform, faqs }) {
                     </motion.div>
                 </Stack>
 
-                <Stack spacing={2}>
+                <Box sx={{ 
+                    borderTop: "1px solid", 
+                    borderColor: "rgba(0,0,0,0.1)" 
+                }}>
                     {faqData.map((faq, idx) => (
                         <motion.div
                             key={idx}
@@ -127,63 +212,15 @@ export default function FAQSection({ platform, faqs }) {
                             viewport={{ once: true }}
                             transition={{ delay: idx * 0.1, duration: 0.5 }}
                         >
-                            <Accordion
-                                expanded={expanded === idx}
-                                onChange={handleChange(idx)}
-                                sx={{
-                                    borderRadius: 3,
-                                    border: "1px solid",
-                                    borderColor: expanded === idx 
-                                        ? primaryColor 
-                                        : "divider",
-                                    boxShadow: expanded === idx 
-                                        ? `0 4px 20px ${hexToRgba(primaryColor, 0.15)}` 
-                                        : "0 2px 8px rgba(0,0,0,0.04)",
-                                    "&:before": { display: "none" },
-                                    mb: 1,
-                                    overflow: "hidden",
-                                }}
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <IconChevronDown
-                                            size={24}
-                                            color={expanded === idx ? primaryColor : "#6B7280"}
-                                        />
-                                    }
-                                    sx={{
-                                        px: 3,
-                                        py: 1,
-                                        "& .MuiAccordionSummary-content": {
-                                            my: 2,
-                                        },
-                                    }}
-                                >
-                                    <Typography
-                                        variant="subtitle1"
-                                        fontWeight={600}
-                                        sx={{
-                                            color: expanded === idx 
-                                                ? primaryColor 
-                                                : "text.primary",
-                                        }}
-                                    >
-                                        {faq.question}
-                                    </Typography>
-                                </AccordionSummary>
-                                <AccordionDetails sx={{ px: 3, pb: 3 }}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ lineHeight: 1.8 }}
-                                    >
-                                        {faq.answer}
-                                    </Typography>
-                                </AccordionDetails>
-                            </Accordion>
+                            <FAQItem 
+                                faq={faq} 
+                                isOpen={expanded === idx} 
+                                onClick={() => handleToggle(idx)} 
+                                primaryColor={primaryColor}
+                            />
                         </motion.div>
                     ))}
-                </Stack>
+                </Box>
             </Container>
         </Box>
     );

@@ -9,6 +9,11 @@ import {
 } from "@mui/material";
 import { motion } from "framer-motion";
 
+// Import images
+import roboticsInstructorImg from "@/assets/images/robotics_instructor.png";
+import codingMentorImg from "@/assets/images/coding_mentor.png";
+import aiDesignLeadImg from "@/assets/images/ai_design_lead.png";
+
 // --- Animation Variants ---
 const fadeInUp = {
     initial: { opacity: 0, y: 30 },
@@ -51,18 +56,21 @@ const defaultInstructors = [
         role: "Lead, Robotics & IoT Program",
         bio: "Experienced robotics engineer guiding students through hands-on builds with Arduino, Raspberry Pi, and LEGO SPIKE kits.",
         avatar: "RI",
+        avatarUrl: roboticsInstructorImg,
     },
     {
         name: "Coding Mentor",
         role: "Lead, Coding & Algorithms",
         bio: "Software developer teaching Python, JavaScript, and C++ through project-based learning and portfolio building.",
         avatar: "CM",
+        avatarUrl: codingMentorImg,
     },
     {
         name: "AI & Design Lead",
         role: "Lead, AI & Creative Tech",
         bio: "AI practitioner and digital artist bridging machine learning with creative design for African students.",
         avatar: "AD",
+        avatarUrl: aiDesignLeadImg,
     },
 ];
 
@@ -93,29 +101,50 @@ function InstructorCard({ instructor, primaryColor }) {
                 },
             }}
         >
-            {/* Avatar placeholder */}
+            {/* Image placeholder */}
             <Box
                 sx={{
-                    height: 140,
+                    height: 220,
                     bgcolor: hexToRgba(primaryColor, 0.1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    position: "relative",
+                    overflow: "hidden",
                 }}
             >
-                <Avatar
-                    src={instructor.avatarUrl || null}
-                    sx={{
-                        width: 70,
-                        height: 70,
-                        bgcolor: hexToRgba(primaryColor, 0.2),
-                        color: primaryColor,
-                        fontSize: "1.5rem",
-                        fontWeight: 700,
-                    }}
-                >
-                    {initials}
-                </Avatar>
+                {instructor.avatarUrl ? (
+                    <Box
+                        component="img"
+                        src={instructor.avatarUrl}
+                        alt={displayName}
+                        sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            objectPosition: "center",
+                        }}
+                    />
+                ) : (
+                    <Box
+                        sx={{
+                            height: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
+                        <Avatar
+                            sx={{
+                                width: 70,
+                                height: 70,
+                                bgcolor: hexToRgba(primaryColor, 0.2),
+                                color: primaryColor,
+                                fontSize: "1.5rem",
+                                fontWeight: 700,
+                            }}
+                        >
+                            {initials}
+                        </Avatar>
+                    </Box>
+                )}
             </Box>
             <Box sx={{ p: 2, textAlign: "left", flexGrow: 1 }}>
                 <Typography
@@ -165,7 +194,7 @@ export default function InstructorsSection({ platform, featuredInstructors }) {
         : defaultInstructors;
 
     return (
-        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#F8FAFC" }}>
+        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#f7f4ee" }}>
             <Container maxWidth="lg">
                 <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
                     <motion.div {...fadeInUp}>

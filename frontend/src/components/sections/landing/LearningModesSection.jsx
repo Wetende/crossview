@@ -94,7 +94,7 @@ export default function LearningModesSection({ platform }) {
     const secondaryColor = platform.secondaryColor || "#1E40AF";
 
     return (
-        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#FAFAFA" }}>
+        <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#0B1120" }}>
             <Container maxWidth="lg">
                 <Box sx={{ textAlign: "center", mb: { xs: 5, md: 8 }, maxWidth: 800, mx: "auto" }}>
                     <motion.div {...fadeInLeft}>
@@ -104,7 +104,7 @@ export default function LearningModesSection({ platform }) {
                         <Typography
                             variant="h2"
                             fontWeight={700}
-                            sx={{ mb: 2, color: "text.primary" }}
+                            sx={{ mb: 2, color: "white" }}
                         >
                             We Meet Learners{" "}
                             <Box
@@ -113,16 +113,6 @@ export default function LearningModesSection({ platform }) {
                             >
                                 Where They Are
                             </Box>
-                        </Typography>
-                        <Typography
-                            variant="body1"
-                            color="text.secondary"
-                            sx={{ lineHeight: 1.8 }}
-                        >
-                            African students have diverse needs and
-                            circumstances. We deliver quality tech education
-                            through flexible methods — ensuring every learner
-                            is reached, whether online or in-person.
                         </Typography>
                     </motion.div>
                 </Box>
@@ -135,15 +125,30 @@ export default function LearningModesSection({ platform }) {
                         gap: { xs: 6, md: 8 },
                     }}
                 >
-                    {/* Left: Image */}
+                    {/* Left: Content & Image */}
                     <Box
                         sx={{
                             flex: 1,
                             width: "100%",
                             maxWidth: { xs: "100%", md: "45%" },
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center"
                         }}
                     >
                         <motion.div {...fadeInLeft}>
+                            <Typography
+                                variant="body1"
+                                color="rgba(255,255,255,0.7)"
+                                sx={{ 
+                                    lineHeight: 1.8, 
+                                    mb: 4, 
+                                    fontSize: { xs: "1rem", md: "1.1rem" } 
+                                }}
+                            >
+                                African students have diverse needs and circumstances. We deliver quality tech education 
+                                through flexible methods — ensuring every learner is reached, whether online or in-person.
+                            </Typography>
                             <Box
                                 sx={{
                                     borderRadius: 4,
@@ -194,12 +199,14 @@ export default function LearningModesSection({ platform }) {
                                                 p: 2,
                                                 borderRadius: 3,
                                                 border: "1px solid",
-                                                borderColor: "grey.100",
+                                                borderColor: "rgba(255,255,255,0.1)",
+                                                bgcolor: "rgba(255,255,255,0.03)",
                                                 boxShadow: "none",
                                                 transition: "all 0.3s ease",
                                                 "&:hover": {
                                                     borderColor: primaryColor,
-                                                    boxShadow: `0 4px 16px ${hexToRgba(primaryColor, 0.1)}`,
+                                                    bgcolor: "rgba(255,255,255,0.05)",
+                                                    boxShadow: `0 4px 16px ${hexToRgba(primaryColor, 0.15)}`,
                                                 },
                                             }}
                                         >
@@ -215,7 +222,7 @@ export default function LearningModesSection({ platform }) {
                                                         borderRadius: 2,
                                                         bgcolor: hexToRgba(
                                                             primaryColor,
-                                                            0.1,
+                                                            0.15,
                                                         ),
                                                         color: primaryColor,
                                                         display: "flex",
@@ -234,7 +241,7 @@ export default function LearningModesSection({ platform }) {
                                                         variant="subtitle2"
                                                         fontWeight={700}
                                                         sx={{
-                                                            color: "text.primary",
+                                                            color: "white",
                                                             mb: 0.5,
                                                         }}
                                                     >
@@ -242,7 +249,7 @@ export default function LearningModesSection({ platform }) {
                                                     </Typography>
                                                     <Typography
                                                         variant="body2"
-                                                        color="text.secondary"
+                                                        color="rgba(255,255,255,0.7)"
                                                         sx={{
                                                             lineHeight: 1.5,
                                                             fontSize: "0.8rem",
@@ -268,7 +275,7 @@ export default function LearningModesSection({ platform }) {
                                 ))}
                             </Stack>
 
-                            <Stack direction="row" spacing={2} flexWrap="wrap">
+                            <Stack direction="row" spacing={2} flexWrap="wrap" justifyContent="center" sx={{ mt: 2 }}>
                                 <ButtonAnimationWrapper>
                                     <Button
                                         variant="contained"
@@ -284,6 +291,25 @@ export default function LearningModesSection({ platform }) {
                                         }}
                                     >
                                         Explore Programs
+                                    </Button>
+                                </ButtonAnimationWrapper>
+                                <ButtonAnimationWrapper>
+                                    <Button
+                                        variant="outlined"
+                                        size="large"
+                                        sx={{
+                                            color: "white",
+                                            borderColor: "rgba(255,255,255,0.3)",
+                                            "&:hover": {
+                                                borderColor: "white",
+                                                bgcolor: "rgba(255,255,255,0.05)",
+                                            },
+                                            borderRadius: 2,
+                                            px: 3,
+                                            py: 1.5,
+                                        }}
+                                    >
+                                        Partner With Us
                                     </Button>
                                 </ButtonAnimationWrapper>
                             </Stack>

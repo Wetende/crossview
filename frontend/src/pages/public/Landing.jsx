@@ -505,6 +505,21 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                     placeholderHeight={400}
                 />
 
+                {/* CTA & Newsletter Section */}
+                <LazySection
+                    sections={[
+                        {
+                            importFunc: () =>
+                                import(
+                                    "@/components/sections/landing/CTANewsletterSection"
+                                ).then((m) => ({ default: m.default })),
+                            props: { platform },
+                        },
+                    ]}
+                    offset="200px"
+                    placeholderHeight={600}
+                />
+
                 {/* Instructors */}
                 <LazySection
                     sections={[
