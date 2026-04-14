@@ -142,6 +142,149 @@ def test_checkout_creates_multi_item_order_and_clears_cart():
     assert checked_out_cart.items.count() == 0
 
 
+def test_checkout_preview_direct_returns_selected_program():
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-PREVIEW-001", price=1200)
+
+    response = client.get(
+        reverse("commerce:checkout_preview"),
+        {"programIds[]": [program.id]},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "direct"
+    assert payload["itemCount"] == 1
+    assert payload["items"][0]["program"]["id"] == program.id
+    assert payload["totalMinor"] == 120000
+
+
+@pytest.mark.parametrize(
+    ("program_kwargs", "expected_error"),
+    [
+        ({"published": False}, "program_unpublished"),
+        ({"price": 0}, "program_free"),
+    ],
+)
+def test_checkout_preview_direct_rejects_unpurchasable_programs(program_kwargs, expected_error):
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-PREVIEW-002", **program_kwargs)
+
+    response = client.get(
+        reverse("commerce:checkout_preview"),
+        {"programIds[]": [program.id]},
+    )
+
+    assert response.status_code in {400, 404}
+    assert response.json()["error"] == expected_error
+
+
+def test_checkout_preview_direct_rejects_duplicate_programs():
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-PREVIEW-003", price=1500)
+
+    response = client.get(
+        reverse("commerce:checkout_preview"),
+        {"programIds[]": [program.id, program.id]},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "duplicate_program"
+
+
+def test_orders_with_program_ids_creates_direct_order_without_mutating_cart():
+    user = UserFactory()
+    client = _login_client(user)
+    cart_program = _create_program("PAY-DIRECT-001", price=1000)
+    direct_program = _create_program("PAY-DIRECT-002", price=2300)
+
+    add_response = client.post(
+        reverse("commerce:cart_add_item"),
+        data=json.dumps({"programId": cart_program.id}),
+        content_type="application/json",
+    )
+    cart_id = add_response.json()["cart"]["id"]
+
+    response = client.post(
+        reverse("commerce:orders"),
+        data=json.dumps({"paymentMethod": "paystack", "programIds": [direct_program.id]}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()["order"]
+    assert payload["items"][0]["program"]["id"] == direct_program.id
+
+    active_cart = Cart.objects.get(pk=cart_id)
+    assert active_cart.status == Cart.STATUS_ACTIVE
+    assert active_cart.items.count() == 1
+    assert active_cart.items.first().program_id == cart_program.id
+
+
+def test_direct_order_reuses_existing_unpaid_single_program_order():
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-DIRECT-003", price=999)
+
+    first = client.post(
+        reverse("commerce:orders"),
+        data=json.dumps({"paymentMethod": "paystack", "programIds": [program.id]}),
+        content_type="application/json",
+    )
+    second = client.post(
+        reverse("commerce:orders"),
+        data=json.dumps({"paymentMethod": "paystack", "programIds": [program.id]}),
+        content_type="application/json",
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["order"]["id"] == second.json()["order"]["id"]
+    assert Order.objects.filter(user=user).count() == 1
+
+
+def test_wishlist_add_remove_list_and_sync_are_idempotent():
+    user = UserFactory()
+    client = _login_client(user)
+    program_one = _create_program("PAY-WISH-001", price=1200)
+    program_two = _create_program("PAY-WISH-002", price=1300)
+
+    add_one = client.post(
+        reverse("commerce:wishlist_add_item"),
+        data=json.dumps({"programId": program_one.id}),
+        content_type="application/json",
+    )
+    add_duplicate = client.post(
+        reverse("commerce:wishlist_add_item"),
+        data=json.dumps({"programId": program_one.id}),
+        content_type="application/json",
+    )
+    sync = client.post(
+        reverse("commerce:wishlist_sync"),
+        data=json.dumps({"programIds": [program_one.id, program_two.id, program_two.id]}),
+        content_type="application/json",
+    )
+    remove_existing = client.delete(
+        reverse("commerce:wishlist_remove_item", args=[program_one.id]),
+    )
+    remove_missing = client.delete(
+        reverse("commerce:wishlist_remove_item", args=[program_one.id]),
+    )
+    listing = client.get(reverse("commerce:wishlist_list"))
+
+    assert add_one.status_code == 201
+    assert add_duplicate.status_code == 201
+    assert sync.status_code == 200
+    assert remove_existing.status_code == 200
+    assert remove_missing.status_code == 200
+    assert listing.status_code == 200
+    assert listing.json()["wishlist"]["itemCount"] == 1
+    assert listing.json()["wishlist"]["items"][0]["program"]["id"] == program_two.id
+
+
 def test_paystack_initialize_endpoint_returns_access_code(monkeypatch):
     user = UserFactory()
     client = _login_client(user)
@@ -286,6 +429,35 @@ def test_paystack_verify_endpoint_rejects_amount_mismatch(monkeypatch):
     assert response.json()["order"]["status"] == "failed"
     assert response.json()["finalized"] is False
     assert not Enrollment.objects.filter(user=user, program=program).exists()
+
+
+def test_paystack_charge_mpesa_returns_provider_http_status(monkeypatch):
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-MPESA-001")
+    order = CheckoutService.create_order_from_programs(user, [program], Order.PROVIDER_PAYSTACK)
+
+    def fake_request(method, url, payload=None):
+        return {
+            "status": False,
+            "message": "Invalid mobile money provider.",
+            "_http_status": 400,
+        }
+
+    monkeypatch.setattr("apps.commerce.services.PaystackGatewayService._request", fake_request)
+
+    response = client.post(
+        reverse("commerce:order_paystack_charge_mpesa", args=[order.id]),
+        data=json.dumps({"phone": "0712345678"}),
+        content_type="application/json",
+    )
+
+    order.refresh_from_db()
+
+    assert response.status_code == 400
+    assert response.json()["ok"] is False
+    assert response.json()["error"] == "paystack_charge_failed"
+    assert order.status == "failed"
 
 
 def test_paystack_webhook_marks_multi_item_order_paid_and_is_idempotent(settings):

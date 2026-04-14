@@ -33,6 +33,7 @@ from .models import (
     RevenueLedgerEntry,
     SettlementParty,
     WebhookEvent,
+    WishlistItem,
 )
 
 logger = logging.getLogger(__name__)
@@ -141,6 +142,22 @@ def serialize_cart(cart: Cart | None) -> dict:
         "items": [serialize_cart_item(item) for item in items],
         "createdAt": cart.created_at.isoformat() if cart.created_at else None,
         "updatedAt": cart.updated_at.isoformat() if cart.updated_at else None,
+    }
+
+
+def serialize_wishlist_item(item: WishlistItem) -> dict:
+    amount_minor, currency = program_price_minor(item.program)
+    return {
+        "id": item.id,
+        "program": {
+            "id": item.program_id,
+            "name": item.program.name if item.program_id else "",
+            "code": item.program.code if item.program_id else "",
+            "thumbnail": item.program.thumbnail.url if item.program_id and item.program.thumbnail else None,
+        },
+        "amountMinor": amount_minor,
+        "currency": currency,
+        "createdAt": item.created_at.isoformat() if item.created_at else None,
     }
 
 
@@ -391,6 +408,70 @@ class CartService:
         return CartService.get_or_create_active_cart(user)
 
 
+class WishlistService:
+    @staticmethod
+    def list_items(user: User) -> list[WishlistItem]:
+        return list(
+            WishlistItem.objects.filter(user=user)
+            .select_related("program")
+            .order_by("-created_at")
+        )
+
+    @staticmethod
+    def serialize_list(user: User) -> dict:
+        items = WishlistService.list_items(user)
+        return {
+            "items": [serialize_wishlist_item(item) for item in items],
+            "itemCount": len(items),
+        }
+
+    @staticmethod
+    def add_program(user: User, program: Program) -> tuple[WishlistItem, bool]:
+        if not program.is_published:
+            raise CommerceError("Program is not available.", code="program_unpublished", status_code=404)
+        item, created = WishlistItem.objects.get_or_create(
+            user=user,
+            program=program,
+        )
+        return item, created
+
+    @staticmethod
+    def remove_program(user: User, program_id: int) -> bool:
+        deleted, _ = WishlistItem.objects.filter(user=user, program_id=program_id).delete()
+        return bool(deleted)
+
+    @staticmethod
+    def sync_program_ids(user: User, program_ids: list[int]) -> int:
+        if not program_ids:
+            return 0
+        normalized_ids = []
+        seen = set()
+        for raw_id in program_ids:
+            try:
+                program_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if program_id <= 0 or program_id in seen:
+                continue
+            seen.add(program_id)
+            normalized_ids.append(program_id)
+        if not normalized_ids:
+            return 0
+
+        programs = list(Program.objects.filter(id__in=normalized_ids, is_published=True))
+        existing_ids = set(
+            WishlistItem.objects.filter(user=user, program_id__in=[p.id for p in programs]).values_list("program_id", flat=True)
+        )
+        to_create = [
+            WishlistItem(user=user, program=program)
+            for program in programs
+            if program.id not in existing_ids
+        ]
+        if to_create:
+            WishlistItem.objects.bulk_create(to_create)
+        return len(to_create)
+
+
 class AccessGrantService:
     @staticmethod
     def _approved_payment_expiry(program: Program, paid_at):
@@ -588,6 +669,59 @@ class CheckoutService:
         return prepared_items
 
     @staticmethod
+    def get_checkout_preview(user: User, program_ids: list[int] | None = None) -> dict:
+        if program_ids:
+            normalized_ids = []
+            for raw_id in program_ids:
+                try:
+                    program_id = int(raw_id)
+                except (TypeError, ValueError):
+                    raise CommerceError("programIds must be integers.", code="invalid_program_ids")
+                if program_id <= 0:
+                    raise CommerceError("programIds must be positive integers.", code="invalid_program_ids")
+                normalized_ids.append(program_id)
+            if not normalized_ids:
+                raise CommerceError("No programs selected for checkout.", code="empty_checkout")
+
+            program_map = Program.objects.in_bulk(set(normalized_ids))
+            missing_ids = [program_id for program_id in normalized_ids if program_id not in program_map]
+            if missing_ids:
+                raise CommerceError("Program not found.", code="program_not_found", status_code=404)
+            programs = [program_map[program_id] for program_id in normalized_ids]
+            prepared_items = CheckoutService._validate_programs_for_checkout(user, programs)
+            items = [
+                {
+                    "program": {
+                        "id": program.id,
+                        "name": program.name,
+                        "code": program.code or "",
+                    },
+                    "amountMinor": amount_minor,
+                    "currency": item_currency,
+                }
+                for program, amount_minor, item_currency in prepared_items
+            ]
+            total_minor = sum(amount_minor for _, amount_minor, _ in prepared_items)
+            currency = prepared_items[0][2] if prepared_items else ""
+            return {
+                "mode": "direct",
+                "items": items,
+                "itemCount": len(items),
+                "totalMinor": total_minor,
+                "currency": currency,
+            }
+
+        cart = CartService.get_or_create_active_cart(user)
+        serialized = serialize_cart(cart)
+        return {
+            "mode": "cart",
+            "items": serialized.get("items", []),
+            "itemCount": serialized.get("itemCount", 0),
+            "totalMinor": serialized.get("totalMinor", 0),
+            "currency": serialized.get("currency", ""),
+        }
+
+    @staticmethod
     def create_order_from_cart(user: User, payment_method: str) -> Order:
         CheckoutService._validate_payment_method(payment_method)
         with transaction.atomic():
@@ -667,6 +801,28 @@ class CheckoutService:
         subtotal_minor = sum(amount_minor for _, amount_minor, _ in prepared_items)
 
         with transaction.atomic():
+            if len(prepared_items) == 1:
+                single_program = prepared_items[0][0]
+                reusable_order = (
+                    Order.objects.filter(
+                        user=user,
+                        provider=payment_method,
+                        status__in=[Order.STATUS_CREATED, Order.STATUS_PENDING_PAYMENT, Order.STATUS_PENDING_MANUAL_PAYMENT],
+                    )
+                    .prefetch_related("items__program")
+                    .order_by("-created_at")
+                    .first()
+                )
+                if reusable_order:
+                    items = list(reusable_order.items.all())
+                    if (
+                        len(items) == 1
+                        and items[0].program_id == single_program.id
+                        and reusable_order.total_minor == subtotal_minor
+                        and reusable_order.currency == currency
+                    ):
+                        return CheckoutService.get_order(reusable_order.id)
+
             order = Order.objects.create(
                 user=user,
                 provider=payment_method,
@@ -680,7 +836,7 @@ class CheckoutService:
                 total_minor=subtotal_minor,
                 currency=currency,
                 reference=CheckoutService._build_reference(),
-                metadata=metadata or {},
+                metadata=metadata or {"source": "direct_checkout"},
             )
 
             for program, amount_minor, item_currency in prepared_items:
@@ -953,7 +1109,7 @@ class PaystackGatewayService:
             headers={
                 "Authorization": f"Bearer {secret_key}",
                 "Content-Type": "application/json",
-                "User-Agent": "DigikaTech-Server/1.0",
+                "User-Agent": "SharedLMS-Server/1.0",
             },
         )
         try:
@@ -962,9 +1118,17 @@ class PaystackGatewayService:
         except url_error.HTTPError as exc:
             raw = exc.read().decode("utf-8") if hasattr(exc, "read") else ""
             try:
-                return json.loads(raw)
+                response_payload = json.loads(raw)
+                if isinstance(response_payload, dict):
+                    response_payload.setdefault("_http_status", exc.code)
+                    return response_payload
+                return {
+                    "status": False,
+                    "message": "Unexpected response format from Paystack.",
+                    "_http_status": exc.code,
+                }
             except Exception:
-                return {"status": False, "message": raw or str(exc)}
+                return {"status": False, "message": raw or str(exc), "_http_status": exc.code}
         except Exception as exc:  # pragma: no cover - network exception fallback
             return {"status": False, "message": str(exc)}
 
@@ -1085,10 +1249,17 @@ class PaystackGatewayService:
                 payload=response if isinstance(response, dict) else {},
                 reason="Failed to charge M-Pesa.",
             )
+            provider_status_code = response.get("_http_status")
+            try:
+                error_status_code = int(provider_status_code)
+            except (TypeError, ValueError):
+                error_status_code = 502
+            if error_status_code < 400 or error_status_code > 599:
+                error_status_code = 502
             raise CommerceError(
                 response.get("message") or "Unable to initiate M-Pesa charge.",
                 code="paystack_charge_failed",
-                status_code=502,
+                status_code=error_status_code,
             )
 
         order.status = Order.STATUS_PENDING_PAYMENT

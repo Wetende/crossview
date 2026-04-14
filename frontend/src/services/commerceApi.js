@@ -43,6 +43,15 @@ export function clearCart() {
     return request("post", "/commerce/cart/clear/");
 }
 
+export function getCheckoutPreview(programIds = null) {
+    const params = new URLSearchParams();
+    if (Array.isArray(programIds) && programIds.length > 0) {
+        programIds.forEach((programId) => params.append("programIds[]", String(programId)));
+    }
+    const qs = params.toString();
+    return request("get", `/commerce/checkout/preview/${qs ? `?${qs}` : ""}`);
+}
+
 // ---------------------------------------------------------------------------
 // Orders (Student)
 // ---------------------------------------------------------------------------
@@ -51,8 +60,12 @@ export function getOrders() {
     return request("get", "/commerce/orders/");
 }
 
-export function createOrder(paymentMethod) {
-    return request("post", "/commerce/orders/", { paymentMethod });
+export function createOrder(paymentMethod, programIds = null) {
+    const payload = { paymentMethod };
+    if (Array.isArray(programIds) && programIds.length > 0) {
+        payload.programIds = programIds;
+    }
+    return request("post", "/commerce/orders/", payload);
 }
 
 export function getOrder(orderId) {
@@ -78,6 +91,26 @@ export function chargePaystackMpesa(orderId, phone) {
 
 export function verifyPaystack(orderId, reference) {
     return request("post", `/commerce/orders/${orderId}/paystack/verify/`, { reference });
+}
+
+// ---------------------------------------------------------------------------
+// Wishlist
+// ---------------------------------------------------------------------------
+
+export function getWishlist() {
+    return request("get", "/commerce/wishlist/");
+}
+
+export function addToWishlist(programId) {
+    return request("post", "/commerce/wishlist/items/", { programId });
+}
+
+export function removeFromWishlist(programId) {
+    return request("delete", `/commerce/wishlist/items/${programId}/`);
+}
+
+export function syncWishlist(programIds = []) {
+    return request("post", "/commerce/wishlist/sync/", { programIds });
 }
 
 // ---------------------------------------------------------------------------

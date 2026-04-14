@@ -99,6 +99,27 @@ class CartItem(TimeStampedModel):
         return f"CartItem(cart={self.cart_id}, program={self.program_id})"
 
 
+class WishlistItem(TimeStampedModel):
+    user = models.ForeignKey("core.User", on_delete=models.CASCADE, related_name="wishlist_items")
+    program = models.ForeignKey("core.Program", on_delete=models.CASCADE, related_name="wishlist_items")
+
+    class Meta:
+        db_table = "commerce_wishlist_items"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "program"],
+                name="commerce_unique_wishlist_user_program",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["program"]),
+        ]
+
+    def __str__(self):
+        return f"WishlistItem(user={self.user_id}, program={self.program_id})"
+
+
 class Order(TimeStampedModel):
     STATUS_CREATED = "created"
     STATUS_PENDING_PAYMENT = "pending_payment"

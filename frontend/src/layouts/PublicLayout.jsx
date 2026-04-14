@@ -7,15 +7,10 @@ import {
     Button,
     Stack,
     Alert,
-    Badge,
-    IconButton,
-    Tooltip,
 } from "@mui/material";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import ThemeProvider from "@/theme";
 import { getFlashMessages, getFlashSeverity } from "@/utils/userMessages";
 import PlatformLogo from "@/components/common/PlatformLogo";
-import { useCart } from "@/contexts/CartContext";
 
 /**
  * PublicLayout - Layout wrapper for public pages with platform branding.
@@ -29,7 +24,6 @@ export default function PublicLayout({
 }) {
     const { platform, flash } = usePage().props;
     const flashMessages = getFlashMessages(flash);
-    const { cartCount } = useCart();
 
     // Handle inactive platform
     if (platform && !platform.isActive) {
@@ -93,22 +87,6 @@ export default function PublicLayout({
                         />
                     </Stack>
                     <Stack direction="row" spacing={2} alignItems="center">
-                        <Tooltip title="Shopping Cart">
-                            <IconButton
-                                component={Link}
-                                href="/checkout/"
-                                sx={{ color: "text.secondary" }}
-                                aria-label="shopping cart"
-                            >
-                                <Badge
-                                    badgeContent={cartCount}
-                                    color="primary"
-                                    max={9}
-                                >
-                                    <ShoppingCartIcon />
-                                </Badge>
-                            </IconButton>
-                        </Tooltip>
                         <Button
                             component={Link}
                             href="/login/"
