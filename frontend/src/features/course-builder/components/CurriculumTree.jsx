@@ -56,6 +56,7 @@ import {
     AssignmentTurnedIn as AssignmentIcon,
     PictureAsPdf as DocumentIcon,
     Close as CloseIcon,
+    Code as CodeLabIcon,
 } from '@mui/icons-material';
 
 // Helper to flatten node tree for diffing
@@ -444,6 +445,9 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
         } else if (lessonType === 'assignment' || node.type === 'Assignment') {
             Icon = AssignmentIcon;
             iconColor = '#ff9800'; // Orange for assignment (same as quiz)
+        } else if (lessonType === 'code') {
+            Icon = CodeLabIcon;
+            iconColor = '#00e676'; // Neon green for code lab
         }
 
         return (
@@ -655,6 +659,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
                                         { id: 'document', icon: <DocumentIcon />, label: 'Document Lesson' },
                                         { id: 'video', icon: <VideoIcon />, label: 'Video Lesson' },
                                         { id: 'live_class', icon: <ZoomIcon />, label: 'Live Class' },
+                                        { id: 'code', icon: <CodeLabIcon />, label: 'Code Lab' },
                                     ].map(type => (
                                         <ListItemButton key={type.id} onClick={() => handleLessonTypeSelect(type.id)}>
                                             <Box component="span" sx={{ mr: 2, color: 'text.secondary', display: 'flex' }}>{type.icon}</Box>

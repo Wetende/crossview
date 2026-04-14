@@ -9,6 +9,7 @@ import TextRenderer from "../Renderers/TextRenderer";
 import AssessmentRenderer from "../Renderers/AssessmentRenderer";
 import DocumentLessonRenderer from "../Renderers/DocumentLessonRenderer";
 import LiveClassRenderer from "../Renderers/LiveClassRenderer";
+import CodeLabRenderer from "../Renderers/CodeLabRenderer";
 import QuizResultsRenderer from "../Renderers/QuizResultsRenderer";
 
 const Whiteboard = ({
@@ -226,7 +227,18 @@ const Whiteboard = ({
             );
         }
 
-        // 6. Text (Default) - render HTML content
+        // 6. Code Lab
+        if (lessonType === 'code') {
+            return (
+                <CodeLabRenderer
+                    node={node}
+                    enrollmentId={courseId}
+                    onComplete={handleComplete}
+                />
+            );
+        }
+
+        // 7. Text (Default) - render HTML content
         return (
             <TextRenderer
                 title={node.title}
