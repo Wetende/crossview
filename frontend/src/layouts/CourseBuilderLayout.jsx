@@ -45,10 +45,7 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', plat
         //     baseTabs.push({ label: 'Prerequisites', value: 'prerequisites', href: `/instructor/programs/${program.id}/manage/prerequisites/` });
         // }
 
-        // Time Limit tab: subscription-based modes (Online, NITA, Driving)
-        if (['online', 'nita', 'driving'].includes(deploymentMode)) {
-            baseTabs.push({ label: 'Access', value: 'access', href: `/instructor/programs/${program.id}/manage/settings/?tab=access` });
-        }
+        // Access tab intentionally hidden from UI for lifetime-access policy.
 
         return baseTabs;
     }, [program.id, platformFeatures.payments, blueprintFlags.practicum, blueprintFlags.portfolio, deploymentMode]);
@@ -61,12 +58,11 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', plat
                 position="fixed"
                 elevation={0}
                 sx={{
-                    bgcolor: 'background.paper',
-                    color: 'text.primary',
+                    bgcolor: '#1e293b',
+                    color: '#f1f5f9',
                     zIndex: 1201,
                     borderRadius: 0,
-                    borderBottom: 1,
-                    borderColor: 'divider'
+                    borderBottom: '1px solid rgba(255,255,255,0.1)',
                 }}
             >
                 <Toolbar sx={{ minHeight: 48, justifyContent: 'space-between' }}>
@@ -75,11 +71,11 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', plat
                             component={Link}
                             href="/instructor/programs/"
                             startIcon={<IconArrowLeft size={20} />}
-                            sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+                            sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: '#fff' } }}
                         >
                             Back to programs
                         </Button>
-                        <Box sx={{ borderLeft: '1px solid', borderColor: 'divider', pl: 2, ml: 2 }}>
+                        <Box sx={{ borderLeft: '1px solid rgba(255,255,255,0.2)', pl: 2, ml: 2 }}>
                             <Typography variant="h6" fontWeight={600}>
                                 {program.name}
                             </Typography>
@@ -105,10 +101,10 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', plat
                                     fontSize: '0.95rem',
                                     minWidth: 'auto',
                                     px: 2,
-                                    color: 'text.secondary',
-                                    '&.Mui-selected': { color: 'primary.main' }
+                                    color: 'rgba(255,255,255,0.6)',
+                                    '&.Mui-selected': { color: '#fff' }
                                 },
-                                '& .MuiTabs-indicator': { backgroundColor: 'primary.main', height: 3 }
+                                '& .MuiTabs-indicator': { backgroundColor: '#fff', height: 3 }
                             }}
                         >
                             {tabs.map((tab) => (
@@ -156,14 +152,14 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', plat
                                     size="small"
                                     startIcon={<IconEye size={18} />}
                                     sx={{
-                                        color: 'text.primary',
-                                        borderColor: 'divider',
+                                        color: '#f1f5f9',
+                                        borderColor: 'rgba(255,255,255,0.3)',
                                         textTransform: 'none',
                                         borderRadius: '0 !important',
                                         borderWidth: '1px !important',
                                         py: 0.75,
                                         px: 2,
-                                        '&:hover': { borderColor: 'text.primary', bgcolor: 'action.hover' }
+                                        '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' }
                                     }}
                                 >
                                     View
