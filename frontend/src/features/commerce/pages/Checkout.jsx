@@ -2,7 +2,7 @@
  * Checkout Page — Custom flow with native M-Pesa STK push and popup Card.
  */
 import { useState, useEffect, useCallback } from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     Alert,
     Box,
@@ -39,15 +39,20 @@ const STEP_MPESA_PENDING = "mpesa_pending";
 const STEP_PAYSTACK_PENDING = "paystack_pending"; // Native JS popup waiting
 
 export default function Checkout({ paystack }) {
+    const { checkout } = usePage().props;
     const { cart, loading: cartLoading, refreshCart } = useCart();
     const [step, setStep] = useState(STEP_REVIEW);
     const [error, setError] = useState("");
     const [order, setOrder] = useState(null);
     const [statusText, setStatusText] = useState("");
+    const [preview, setPreview] = useState({ mode: "cart", items: [], itemCount: 0, totalMinor: 0, currency: "" });
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     // Payment Selection State
     const [paymentMethod, setPaymentMethod] = useState("mpesa");
     const [phoneNumber, setPhoneNumber] = useState("");
+    const isDirectMode = checkout?.mode === "direct" && !!checkout?.programId;
+    const directProgramId = isDirectMode ? Number(checkout.programId) : null;
 
     const handlePaid = useCallback((paidOrder) => {
         if (!paidOrder) {
@@ -57,11 +62,41 @@ export default function Checkout({ paystack }) {
     }, []);
 
     useEffect(() => {
-        refreshCart();
-    }, [refreshCart]);
+        if (!isDirectMode) {
+            refreshCart();
+            return;
+        }
+        let active = true;
+        if (!Number.isFinite(directProgramId) || directProgramId <= 0) {
+            setPreviewLoading(false);
+            setError("Invalid direct checkout program.");
+            return undefined;
+        }
+        setPreviewLoading(true);
+        commerceApi
+            .getCheckoutPreview([directProgramId])
+            .then((res) => {
+                if (!active) return;
+                if (res.ok) {
+                    setPreview(res);
+                } else {
+                    setError(res.message || "Unable to load checkout preview.");
+                }
+            })
+            .finally(() => {
+                if (active) setPreviewLoading(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [refreshCart, isDirectMode, directProgramId]);
 
-    const items = cart?.items || [];
-    const isEmpty = !cartLoading && items.length === 0;
+    const items = isDirectMode ? (preview?.items || []) : (cart?.items || []);
+    const totalMinor = isDirectMode ? preview?.totalMinor : cart?.totalMinor;
+    const totalCurrency = isDirectMode ? preview?.currency : cart?.currency;
+    const isEmpty = isDirectMode
+        ? !previewLoading && items.length === 0
+        : !cartLoading && items.length === 0;
 
     const getOrderPageUrl = useCallback((orderId, paymentError = "") => {
         const params = new URLSearchParams();
@@ -90,7 +125,10 @@ export default function Checkout({ paystack }) {
         setStep(STEP_PROCESSING);
 
         // 1. Create order from cart (always Paystack provider under the hood)
-        const orderRes = await commerceApi.createOrder("paystack");
+        const orderRes = await commerceApi.createOrder(
+            "paystack",
+            isDirectMode ? [directProgramId] : null,
+        );
         if (!orderRes.ok) {
             setError(orderRes.message || "Failed to create order.");
             setStep(STEP_REVIEW);
@@ -99,7 +137,9 @@ export default function Checkout({ paystack }) {
 
         const newOrder = orderRes.order;
         setOrder(newOrder);
-        refreshCart();
+        if (!isDirectMode) {
+            refreshCart();
+        }
 
         // 2. Handle Custom M-Pesa Flow vs Card Popup
         if (paymentMethod === "mpesa") {
@@ -182,7 +222,7 @@ export default function Checkout({ paystack }) {
                 );
             }
         }
-    }, [getOrderPageUrl, handlePaid, paystack, refreshCart, paymentMethod, phoneNumber]);
+    }, [getOrderPageUrl, handlePaid, isDirectMode, directProgramId, paystack, refreshCart, paymentMethod, phoneNumber]);
 
     // Determine primary program ID for "Go to Course" after payment
     const primaryProgramId = order?.items?.[0]?.program?.id || order?.program?.id || null;
@@ -196,11 +236,11 @@ export default function Checkout({ paystack }) {
                 {step === STEP_REVIEW && (
                     <Button
                         component={Link}
-                        href="/programs/"
+                        href={isDirectMode ? `/programs/${directProgramId}/` : "/programs/"}
                         startIcon={<IconArrowLeft size={18} />}
                         sx={{ mb: 2 }}
                     >
-                        Browse More Programs
+                        {isDirectMode ? "Back to Program" : "Browse More Programs"}
                     </Button>
                 )}
 
@@ -264,7 +304,7 @@ export default function Checkout({ paystack }) {
                                     Order Summary
                                 </Typography>
 
-                                {cartLoading && (
+                                {(isDirectMode ? previewLoading : cartLoading) && (
                                     <Stack spacing={1}>
                                         <Skeleton variant="text" width="70%" />
                                         <Skeleton variant="text" width="40%" />
@@ -278,7 +318,7 @@ export default function Checkout({ paystack }) {
                                     </Alert>
                                 )}
 
-                                {!cartLoading && items.length > 0 && (
+                                {!(isDirectMode ? previewLoading : cartLoading) && items.length > 0 && (
                                     <>
                                         {items.map((item) => (
                                             <Stack
@@ -288,7 +328,7 @@ export default function Checkout({ paystack }) {
                                                 sx={{ py: 1 }}
                                             >
                                                 <Typography variant="body2">
-                                                    {item.program.name}
+                                                     {item.program?.name}
                                                 </Typography>
                                                 <Typography variant="body2" fontWeight={600}>
                                                     {formatAmount(item.amountMinor, item.currency)}
@@ -301,7 +341,7 @@ export default function Checkout({ paystack }) {
                                                 Total
                                             </Typography>
                                             <Typography variant="subtitle1" fontWeight={700}>
-                                                {formatAmount(cart?.totalMinor, cart?.currency)}
+                                                 {formatAmount(totalMinor, totalCurrency)}
                                             </Typography>
                                         </Stack>
                                     </>
@@ -380,9 +420,9 @@ export default function Checkout({ paystack }) {
                                 sx={{ py: 1.5, fontWeight: 700 }}
                             >
                                 {paymentMethod === "mpesa" 
-                                    ? `Send STK Push • ${formatAmount(cart?.totalMinor, cart?.currency)}`
-                                    : `Pay securely • ${formatAmount(cart?.totalMinor, cart?.currency)}`
-                                }
+                                     ? `Send STK Push • ${formatAmount(totalMinor, totalCurrency)}`
+                                     : `Pay securely • ${formatAmount(totalMinor, totalCurrency)}`
+                                 }
                             </Button>
                         )}
                     </Stack>

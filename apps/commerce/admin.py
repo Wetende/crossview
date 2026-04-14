@@ -2,8 +2,6 @@ from django.contrib import admin
 
 from .models import (
     BeneficiaryPayout,
-    Cart,
-    CartItem,
     CommerceConfiguration,
     Order,
     OrderEvent,
@@ -71,20 +69,6 @@ class OrderItemAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "currency")
     search_fields = ("order__reference", "program_name", "program_code")
-
-
-@admin.register(Cart)
-class CartAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "status", "currency", "checked_out_at", "created_at")
-    list_filter = ("status", "currency")
-    search_fields = ("user__email",)
-
-
-@admin.register(CartItem)
-class CartItemAdmin(admin.ModelAdmin):
-    list_display = ("id", "cart", "program", "amount_minor", "currency", "created_at")
-    list_filter = ("currency",)
-    search_fields = ("cart__user__email", "program__name")
 
 
 @admin.register(ProgramAccessGrant)

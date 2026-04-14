@@ -101,6 +101,7 @@ const publicMap = {
     "Public/Contact": "./pages/public/Contact.jsx",
     "Public/Programs": "./pages/public/Programs.jsx",
     "Public/ProgramDetail": "./pages/public/ProgramDetail.jsx",
+    "Public/Wishlist": "./pages/public/Wishlist.jsx",
     "Public/CertificateVerify": "./pages/public/CertificateVerify.jsx",
     "Public/VerifyCertificate": "./pages/public/VerifyCertificate.jsx",
     "Public/Events": "./pages/public/Events.jsx",

@@ -21,6 +21,7 @@ from .services import (
     PaystackGatewayService,
     PayoutService,
     RefundService,
+    WishlistService,
     build_paystack_callback_url,
     program_price_minor,
     serialize_cart,
@@ -290,7 +291,24 @@ def commerce_orders(request):
             or data.get("payment_method")
             or Order.PROVIDER_PAYSTACK
         )
-        order = CheckoutService.create_order_from_cart(request.user, payment_method)
+        raw_program_ids = data.get("programIds") or data.get("program_ids")
+        if raw_program_ids is not None:
+            raw_values = raw_program_ids if isinstance(raw_program_ids, list) else [raw_program_ids]
+            try:
+                program_ids = [int(program_id) for program_id in raw_values]
+            except (TypeError, ValueError):
+                raise CommerceError("programIds must be integers.", code="invalid_program_ids")
+            if not program_ids:
+                raise CommerceError("No programs selected for checkout.", code="empty_checkout")
+            programs = [_lookup_program(program_id) for program_id in program_ids]
+            order = CheckoutService.create_order_from_programs(
+                request.user,
+                programs,
+                payment_method,
+                metadata={"source": "direct_checkout"},
+            )
+        else:
+            order = CheckoutService.create_order_from_cart(request.user, payment_method)
         payload = {"order": serialize_order(order)}
         if payment_method == Order.PROVIDER_OFFLINE_BANK_TRANSFER:
             payload["offlinePayment"] = OfflinePaymentService.instructions_payload()
@@ -423,6 +441,65 @@ def commerce_order_paystack_verify(request, order_id: int):
                 "order": serialize_order(order),
                 "finalized": finalized,
                 "transactionStatus": provider_status,
+            }
+        )
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_GET
+def checkout_preview(request):
+    try:
+        raw_program_ids = request.GET.getlist("programIds[]") or request.GET.getlist("programIds")
+        program_ids = [int(program_id) for program_id in raw_program_ids] if raw_program_ids else None
+        preview = CheckoutService.get_checkout_preview(request.user, program_ids=program_ids)
+        return _json_ok(preview)
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_GET
+def wishlist_list(request):
+    return _json_ok({"wishlist": WishlistService.serialize_list(request.user)})
+
+
+@login_required
+@require_POST
+def wishlist_add_item(request):
+    try:
+        data = get_post_data(request)
+        program_id = data.get("programId") or data.get("program_id")
+        if not program_id:
+            raise CommerceError("programId is required.", code="program_id_required")
+        program = _lookup_program(int(program_id))
+        _, _ = WishlistService.add_program(request.user, program)
+        return _json_ok({"wishlist": WishlistService.serialize_list(request.user)}, status=201)
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def wishlist_remove_item(request, program_id: int):
+    WishlistService.remove_program(request.user, program_id)
+    return _json_ok({"wishlist": WishlistService.serialize_list(request.user)})
+
+
+@login_required
+@require_POST
+def wishlist_sync(request):
+    try:
+        data = get_post_data(request)
+        raw_program_ids = data.get("programIds") or data.get("program_ids") or []
+        if not isinstance(raw_program_ids, list):
+            raise CommerceError("programIds must be a list.", code="invalid_program_ids")
+        merged_count = WishlistService.sync_program_ids(request.user, raw_program_ids)
+        return _json_ok(
+            {
+                "wishlist": WishlistService.serialize_list(request.user),
+                "mergedCount": merged_count,
             }
         )
     except CommerceError as error:
@@ -641,6 +718,10 @@ def checkout_page(request):
             "paystack": {
                 "publicKey": getattr(settings, "PAYSTACK_PUBLIC_KEY", ""),
             },
+            "checkout": {
+                "mode": request.GET.get("mode") or "cart",
+                "programId": request.GET.get("programId"),
+            },
         },
     )
 
@@ -669,3 +750,8 @@ def admin_commerce_orders_page(request):
     if admin_err:
         return admin_err
     return render(request, "Admin/Commerce/Orders", {})
+
+
+@require_GET
+def wishlist_page(request):
+    return render(request, "Public/Wishlist", {})

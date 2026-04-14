@@ -48,7 +48,8 @@ import DOMPurify from "dompurify";
 import { CourseDetailsModal } from "@/components/modals";
 import PublicNavbar from "@/components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
-import * as commerceApi from "@/services/commerceApi";
+import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 // --- Helper Components ---
 
@@ -61,7 +62,10 @@ function CourseDetailsSidebar({
     ctaState,
     isAuthenticated,
     onShowDetails,
+    onBuyNow,
     onAddToCart,
+    onToggleWishlist,
+    wishlisted,
     courseLevels = [],
 }) {
     const theme = useTheme();
@@ -176,15 +180,24 @@ function CourseDetailsSidebar({
                         >
                             <Button
                                 startIcon={
-                                    <IconHeartFilled
-                                        size={18}
-                                        color={theme.palette.error.main}
-                                    />
+                                    wishlisted ? (
+                                        <IconHeartFilled
+                                            size={18}
+                                            color={theme.palette.error.main}
+                                        />
+                                    ) : (
+                                        <IconHeart size={18} />
+                                    )
                                 }
                                 size="small"
                                 color="inherit"
+                                onClick={() =>
+                                    onToggleWishlist && onToggleWishlist(program.id)
+                                }
                             >
-                                Remove from wishlist
+                                {wishlisted
+                                    ? "Remove from wishlist"
+                                    : "Add to wishlist"}
                             </Button>
                             <Button
                                 startIcon={<IconShare size={18} />}
@@ -244,25 +257,38 @@ function CourseDetailsSidebar({
                 ) : isAuthenticated ? (
                     <>
                         {ctaState === "not_enrolled_paid" ? (
-                            <Button
-                                variant="contained"
-                                fullWidth
-                                size="large"
-                                startIcon={<IconShoppingCart size={18} />}
-                                onClick={async () => {
-                                    if (onAddToCart) {
-                                        onAddToCart(program.id);
+                            <>
+                                <Button
+                                    variant="contained"
+                                    fullWidth
+                                    size="large"
+                                    onClick={() => onBuyNow && onBuyNow(program.id)}
+                                    sx={{
+                                        mb: 1.5,
+                                        py: 1.5,
+                                        fontWeight: 700,
+                                        bgcolor: theme.palette.primary.main,
+                                    }}
+                                >
+                                    {getCtaText()}
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    fullWidth
+                                    size="large"
+                                    startIcon={<IconShoppingCart size={18} />}
+                                    onClick={() =>
+                                        onAddToCart && onAddToCart(program.id)
                                     }
-                                }}
-                                sx={{
-                                    mb: 2,
-                                    py: 1.5,
-                                    fontWeight: 700,
-                                    bgcolor: theme.palette.primary.main,
-                                }}
-                            >
-                                {getCtaText()}
-                            </Button>
+                                    sx={{
+                                        mb: 2,
+                                        py: 1.5,
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    Add to Cart
+                                </Button>
+                            </>
                         ) : (
                             <Button
                                 component={Link}
@@ -288,11 +314,18 @@ function CourseDetailsSidebar({
                             sx={{ mb: 3 }}
                         >
                             <Button
-                                startIcon={<IconHeart size={18} />}
+                                startIcon={
+                                    wishlisted ? (
+                                        <IconHeartFilled size={18} color={theme.palette.error.main} />
+                                    ) : (
+                                        <IconHeart size={18} />
+                                    )
+                                }
                                 size="small"
                                 color="inherit"
+                                onClick={() => onToggleWishlist && onToggleWishlist(program.id)}
                             >
-                                Add to wishlist
+                                {wishlisted ? "Remove from wishlist" : "Add to wishlist"}
                             </Button>
                             <Button
                                 startIcon={<IconShare size={18} />}
@@ -327,11 +360,18 @@ function CourseDetailsSidebar({
                             sx={{ mb: 3 }}
                         >
                             <Button
-                                startIcon={<IconHeart size={18} />}
+                                startIcon={
+                                    wishlisted ? (
+                                        <IconHeartFilled size={18} color={theme.palette.error.main} />
+                                    ) : (
+                                        <IconHeart size={18} />
+                                    )
+                                }
                                 size="small"
                                 color="inherit"
+                                onClick={() => onToggleWishlist && onToggleWishlist(program.id)}
                             >
-                                Add to wishlist
+                                {wishlisted ? "Remove from wishlist" : "Add to wishlist"}
                             </Button>
                             <Button
                                 startIcon={<IconShare size={18} />}
@@ -547,7 +587,9 @@ export default function ProgramDetail({
     courseLevels = [],
 }) {
     const theme = useTheme();
-    const { auth } = usePage().props;
+    const { auth, platform } = usePage().props;
+    const { addToCart } = useCart();
+    const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const [tabValue, setTabValue] = useState(0);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -555,18 +597,42 @@ export default function ProgramDetail({
     const handleShowDetails = () => setDetailsModalOpen(true);
     const handleCloseDetails = () => setDetailsModalOpen(false);
 
+    const isWishlisted = (wishlist?.items || []).some((item) => item.program?.id === program.id);
+
+    const handleBuyNow = (programId) => {
+        router.visit(`/checkout/?mode=direct&programId=${programId}`);
+    };
+
     const handleAddToCart = async (programId) => {
-        const res = await commerceApi.addToCart(programId);
-        if (res.ok || res.error === "program_in_cart") {
-            router.visit("/checkout/");
-        } else {
-            setCartSnackbar({ open: true, message: res.message || "Could not add to cart.", severity: "error" });
+        const res = await addToCart(programId);
+        if (res.ok) {
+            setCartSnackbar({ open: true, message: "Added to cart.", severity: "success" });
+            return;
+        }
+        if (res.error === "program_in_cart") {
+            setCartSnackbar({ open: true, message: "Program is already in your cart.", severity: "info" });
+            return;
+        }
+        setCartSnackbar({ open: true, message: res.message || "Could not add to cart.", severity: "error" });
+    };
+
+    const handleToggleWishlist = async (programId) => {
+        if (isWishlisted) {
+            const res = await removeFromWishlist(programId);
+            if (!res.ok) {
+                setCartSnackbar({ open: true, message: res.message || "Could not update wishlist.", severity: "error" });
+            }
+            return;
+        }
+        const res = await addToWishlist(programId);
+        if (!res.ok) {
+            setCartSnackbar({ open: true, message: res.message || "Could not update wishlist.", severity: "error" });
         }
     };
 
     return (
         <>
-            <Head title={`${program.name} - Crossview LMS`} />
+            <Head title={`${program.name} - ${platform?.institutionName || "Crossview LMS"}`} />
 
             <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
                 {/* Navbar */}
@@ -606,7 +672,10 @@ export default function ProgramDetail({
                                 ctaState={ctaState}
                                 isAuthenticated={!!auth?.user}
                                 onShowDetails={handleShowDetails}
+                                onBuyNow={handleBuyNow}
                                 onAddToCart={handleAddToCart}
+                                onToggleWishlist={handleToggleWishlist}
+                                wishlisted={isWishlisted}
                                 courseLevels={courseLevels}
                             />
                             <PopularCourses courses={popularPrograms} />

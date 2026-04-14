@@ -5,6 +5,7 @@ from . import views
 app_name = "commerce"
 
 urlpatterns = [
+    path("commerce/checkout/preview/", views.checkout_preview, name="checkout_preview"),
     path("commerce/cart/", views.cart_detail, name="cart_detail"),
     path("commerce/cart/items/", views.cart_add_item, name="cart_add_item"),
     path(
@@ -14,6 +15,14 @@ urlpatterns = [
     ),
     path("commerce/cart/clear/", views.cart_clear, name="cart_clear"),
     path("commerce/orders/", views.commerce_orders, name="orders"),
+    path("commerce/wishlist/", views.wishlist_list, name="wishlist_list"),
+    path("commerce/wishlist/items/", views.wishlist_add_item, name="wishlist_add_item"),
+    path(
+        "commerce/wishlist/items/<int:program_id>/",
+        views.wishlist_remove_item,
+        name="wishlist_remove_item",
+    ),
+    path("commerce/wishlist/sync/", views.wishlist_sync, name="wishlist_sync"),
     path(
         "commerce/orders/<int:order_id>/",
         views.commerce_order_detail,
@@ -87,6 +96,7 @@ urlpatterns = [
     # Inertia page shells (client-side data fetching)
     path("cart/", views.cart_page, name="cart_page"),
     path("checkout/", views.checkout_page, name="checkout_page"),
+    path("wishlist/", views.wishlist_page, name="wishlist_page"),
     path(
         "commerce/orders/<int:order_id>/page/",
         views.order_detail_page,

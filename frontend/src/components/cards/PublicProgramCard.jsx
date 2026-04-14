@@ -10,7 +10,7 @@
  *   Browse → Preview → Buy → Pay
  */
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { Link } from "@inertiajs/react";
 import {
     Box,
@@ -26,36 +26,7 @@ import {
     useTheme,
 } from "@mui/material";
 import { IconHeart, IconHeartFilled } from "@tabler/icons-react";
-
-// ---------------------------------------------------------------------------
-// Wishlist helpers (localStorage-only, no backend persistence)
-// ---------------------------------------------------------------------------
-
-const WISHLIST_KEY = "wishlist_programs";
-
-function getWishlist() {
-    try {
-        return JSON.parse(localStorage.getItem(WISHLIST_KEY) || "[]");
-    } catch {
-        return [];
-    }
-}
-
-function toggleWishlistItem(programId) {
-    const list = getWishlist();
-    const idx = list.indexOf(programId);
-    if (idx === -1) {
-        list.push(programId);
-    } else {
-        list.splice(idx, 1);
-    }
-    localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
-    return list;
-}
-
-function isInWishlist(programId) {
-    return getWishlist().includes(programId);
-}
+import { useWishlist } from "@/contexts/WishlistContext";
 
 // ---------------------------------------------------------------------------
 // Badge colors
@@ -85,17 +56,21 @@ export default function PublicProgramCard({
     showEnrollButton = false,
 }) {
     const theme = useTheme();
-    const [wishlisted, setWishlisted] = useState(false);
+    const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
 
-    useEffect(() => {
-        setWishlisted(isInWishlist(program.id));
-    }, [program.id]);
+    const wishlisted = useMemo(
+        () => (wishlist?.items || []).some((item) => item.program?.id === program.id),
+        [wishlist, program.id],
+    );
 
-    const handleWishlistToggle = (e) => {
+    const handleWishlistToggle = async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggleWishlistItem(program.id);
-        setWishlisted((prev) => !prev);
+        if (wishlisted) {
+            await removeFromWishlist(program.id);
+        } else {
+            await addToWishlist(program.id);
+        }
     };
 
     return (
