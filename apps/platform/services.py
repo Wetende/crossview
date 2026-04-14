@@ -9,7 +9,7 @@ from apps.core.taxonomy import (
     get_mode_builder_hierarchy,
     is_valid_builder_hierarchy,
 )
-from apps.platform.models import PresetBlueprint
+from apps.platform.models import PlatformSettings, PresetBlueprint
 
 
 # Default blueprint templates for each deployment mode
@@ -99,6 +99,154 @@ class PlatformStatsService:
 
 class PresetBlueprintService:
     """Service for preset blueprint management."""
+
+    UNSUPPORTED_GRADING_TYPE_MAP = {
+        "checklist": "competency",
+        "rubric": "points",
+    }
+
+    @staticmethod
+    def _normalize_hierarchy_for_builder(preset: PresetBlueprint) -> list:
+        """
+        Convert preset hierarchy labels to a builder-compatible 2-level hierarchy.
+
+        Preference order:
+        1) Mode defaults inferred from preset code (tvet/theology/online/...)
+        2) Existing first 2 labels if already valid
+        3) Existing last 2 labels if valid
+        4) Custom defaults
+        """
+        mode_hint = (preset.code or "").strip().lower()
+        if mode_hint in MODE_BLUEPRINTS:
+            return get_mode_builder_hierarchy(mode_hint)
+
+        labels = [
+            str(label).strip()
+            for label in (preset.hierarchy_labels or [])
+            if str(label).strip()
+        ]
+
+        candidates = []
+        if len(labels) >= 2:
+            candidates.append(labels[:2])
+            candidates.append(labels[-2:])
+
+        for candidate in candidates:
+            if is_valid_builder_hierarchy(candidate):
+                return candidate
+
+        return get_mode_builder_hierarchy("custom")
+
+    @staticmethod
+    def _normalize_grading_logic(preset: PresetBlueprint) -> dict:
+        """Return grading logic compatible with AcademicBlueprint validation."""
+        grading_logic = dict(preset.grading_config or {})
+        grading_type = str(grading_logic.get("type", "")).strip().lower()
+
+        if not grading_type:
+            grading_logic["type"] = "points"
+            return grading_logic
+
+        if grading_type in PresetBlueprintService.UNSUPPORTED_GRADING_TYPE_MAP:
+            grading_logic["type"] = PresetBlueprintService.UNSUPPORTED_GRADING_TYPE_MAP[
+                grading_type
+            ]
+
+        return grading_logic
+
+    @staticmethod
+    def _find_matching_academic_blueprint(preset: PresetBlueprint):
+        """Find an existing academic blueprint equivalent to the preset payload."""
+        from apps.blueprints.models import AcademicBlueprint
+
+        hierarchy_structure = PresetBlueprintService._normalize_hierarchy_for_builder(
+            preset
+        )
+        grading_logic = PresetBlueprintService._normalize_grading_logic(preset)
+
+        candidates = AcademicBlueprint.objects.filter(
+            hierarchy_structure=hierarchy_structure,
+            grading_logic=grading_logic,
+        ).order_by("id")
+
+        preferred_prefix = f"{preset.name} (Academic"
+        for blueprint in candidates:
+            if blueprint.name == preset.name or blueprint.name.startswith(
+                preferred_prefix
+            ):
+                return blueprint
+
+        return candidates.first()
+
+    @staticmethod
+    def _unique_blueprint_name(base_name: str) -> str:
+        """Generate a stable unique name for copied academic blueprints."""
+        from apps.blueprints.models import AcademicBlueprint
+
+        candidate = f"{base_name} (Academic)"
+        if not AcademicBlueprint.objects.filter(name=candidate).exists():
+            return candidate
+
+        index = 2
+        while True:
+            numbered = f"{base_name} (Academic {index})"
+            if not AcademicBlueprint.objects.filter(name=numbered).exists():
+                return numbered
+            index += 1
+
+    @staticmethod
+    def create_academic_blueprint_from_preset(
+        preset: PresetBlueprint,
+        *,
+        set_as_active: bool = False,
+    ):
+        """Create a new AcademicBlueprint from a preset blueprint template."""
+        from apps.blueprints.models import AcademicBlueprint
+
+        hierarchy_structure = PresetBlueprintService._normalize_hierarchy_for_builder(
+            preset
+        )
+        grading_logic = PresetBlueprintService._normalize_grading_logic(preset)
+        name = PresetBlueprintService._unique_blueprint_name(preset.name)
+
+        blueprint = AcademicBlueprint.objects.create(
+            name=name,
+            description=preset.description or "",
+            hierarchy_structure=hierarchy_structure,
+            grading_logic=grading_logic,
+            progression_rules={},
+            certificate_enabled=True,
+            gamification_enabled=False,
+            feature_flags={},
+        )
+
+        if set_as_active:
+            settings = PlatformSettings.get_settings()
+            settings.active_blueprint = blueprint
+            settings.save(update_fields=["active_blueprint", "updated_at"])
+
+        return blueprint
+
+    @staticmethod
+    def get_or_create_academic_blueprint_from_preset(
+        preset: PresetBlueprint,
+        *,
+        set_as_active: bool = False,
+    ):
+        """Reuse an equivalent academic blueprint when available; otherwise create one."""
+        existing = PresetBlueprintService._find_matching_academic_blueprint(preset)
+        if existing:
+            if set_as_active:
+                settings = PlatformSettings.get_settings()
+                settings.active_blueprint = existing
+                settings.save(update_fields=["active_blueprint", "updated_at"])
+            return existing, False
+
+        created = PresetBlueprintService.create_academic_blueprint_from_preset(
+            preset,
+            set_as_active=set_as_active,
+        )
+        return created, True
 
     @staticmethod
     def list_presets() -> list:
@@ -310,6 +458,36 @@ class PlatformSettingsService:
             progression_rules={},
             certificate_enabled=True,
         )
+
+    @staticmethod
+    def ensure_active_blueprint_for_mode(settings):
+        """
+        Ensure settings.active_blueprint is populated and builder-compatible.
+
+        Returns the active blueprint after normalization/creation, or None when
+        deployment mode is custom and no blueprint is set.
+        """
+        deployment_mode = settings.deployment_mode
+
+        if deployment_mode == "custom" and not settings.active_blueprint:
+            return None
+
+        active = settings.active_blueprint
+        if active and is_valid_builder_hierarchy(active.hierarchy_structure):
+            return active
+
+        if deployment_mode == "custom" and active and not is_valid_builder_hierarchy(
+            active.hierarchy_structure
+        ):
+            return active
+
+        fallback = PlatformSettingsService.get_or_create_blueprint_for_mode(
+            deployment_mode
+        )
+        if fallback and settings.active_blueprint_id != fallback.id:
+            settings.active_blueprint = fallback
+
+        return fallback
 
     @staticmethod
     def update_deployment_mode(

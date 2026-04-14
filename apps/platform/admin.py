@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib import admin
+from django.contrib import messages
 from django.db import models
 from django.shortcuts import redirect
 
@@ -7,6 +8,7 @@ from .models import (
     PresetBlueprint,
     PlatformSettings,
 )
+from .services import PlatformSettingsService, PresetBlueprintService
 
 
 @admin.register(PresetBlueprint)
@@ -53,6 +55,52 @@ class PresetBlueprintAdmin(admin.ModelAdmin):
             )
         }
     }
+    actions = [
+        "create_academic_blueprints",
+        "use_as_active_blueprint",
+    ]
+
+    @admin.action(description="Create Academic Blueprint(s) from selected preset(s)")
+    def create_academic_blueprints(self, request, queryset):
+        created = 0
+        for preset in queryset:
+            PresetBlueprintService.create_academic_blueprint_from_preset(preset)
+            created += 1
+
+        self.message_user(
+            request,
+            f"Created {created} academic blueprint(s) from selected preset(s).",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="Use as Active Blueprint")
+    def use_as_active_blueprint(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                "Select exactly one preset for this action.",
+                level=messages.WARNING,
+            )
+            return
+
+        preset = queryset.first()
+        blueprint, created = PresetBlueprintService.get_or_create_academic_blueprint_from_preset(
+            preset,
+            set_as_active=True,
+        )
+
+        if created:
+            message = (
+                f"Created '{blueprint.name}' and set it as the active platform "
+                "blueprint."
+            )
+        else:
+            message = (
+                f"Set existing '{blueprint.name}' as the active platform blueprint "
+                "(no duplicate created)."
+            )
+
+        self.message_user(request, message, level=messages.SUCCESS)
 
 
 @admin.register(PlatformSettings)
@@ -126,6 +174,26 @@ class PlatformSettingsAdmin(admin.ModelAdmin):
         }
     }
 
+    def _ensure_active_blueprint(self, request, obj: PlatformSettings):
+        """Ensure there is a builder-compatible active blueprint for non-custom modes."""
+        before_id = obj.active_blueprint_id
+        active = PlatformSettingsService.ensure_active_blueprint_for_mode(obj)
+        after_id = active.id if active else None
+        changed = before_id != after_id
+
+        if changed and after_id is not None:
+            self.message_user(
+                request,
+                "A default active blueprint was assigned for this deployment mode.",
+                level=messages.INFO,
+            )
+
+        return active, changed
+
+    def save_model(self, request, obj, form, change):
+        self._ensure_active_blueprint(request, obj)
+        super().save_model(request, obj, form, change)
+
     def has_add_permission(self, request):
         return not PlatformSettings.objects.exists()
 
@@ -134,4 +202,7 @@ class PlatformSettingsAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         settings = PlatformSettings.get_settings()
+        _, changed = self._ensure_active_blueprint(request, settings)
+        if changed:
+            settings.save(update_fields=["active_blueprint", "updated_at"])
         return redirect("admin:platform_platformsettings_change", settings.pk)

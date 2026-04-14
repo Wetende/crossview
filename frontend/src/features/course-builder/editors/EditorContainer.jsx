@@ -3,6 +3,7 @@ import { Box, Typography, Paper } from '@mui/material';
 import { Block as BlockIcon } from '@mui/icons-material';
 import ContentEditor from './ContentEditor';
 import AssessmentEditor from './AssessmentEditor';
+import CodeLabEditor from './CodeLabEditor';
 
 function DisabledFeatureMessage({ feature }) {
     return (
@@ -91,6 +92,11 @@ export default function EditorContainer({
                 categories={categories}
             />
         );
+    }
+
+    // Code Lab
+    if (type === 'code' || lessonType === 'code') {
+        return <CodeLabEditor node={node} onSave={onSave} blueprint={blueprint} />;
     }
 
     return <ContentEditor node={node} onSave={onSave} blueprint={blueprint} />;

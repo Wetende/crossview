@@ -65,6 +65,7 @@ The Course Builder uses a three-tier hierarchical taxonomy to organize education
 - `quiz` - Assessment/quiz
 - `assignment` - Assignment/homework
 - `live` - Live session/webinar
+- `code` - Interactive coding exercise (Code Lab)
 
 **Purpose:** The actual content units that students interact with. All lesson types use the same node type but are differentiated by their `lesson_type` property.
 

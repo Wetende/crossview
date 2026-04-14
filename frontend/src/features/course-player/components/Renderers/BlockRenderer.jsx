@@ -2,6 +2,7 @@ import DOMPurify from "dompurify";
 import VideoRenderer from "./VideoRenderer";
 import TextRenderer from "./TextRenderer";
 import AssessmentRenderer from "./AssessmentRenderer";
+import CodeLabRenderer from "./CodeLabRenderer";
 import PDFRenderer from "./PDFRenderer";
 import { Box, Paper, Typography } from "@mui/material";
 import {
@@ -327,6 +328,17 @@ const BlockRenderer = ({
                         </Typography>
                     )}
                 </Paper>
+            );
+
+        case "CODE":
+            return (
+                <Box sx={{ mb: 3 }}>
+                    <CodeLabRenderer
+                        node={{ id: nodeId, properties: data }}
+                        enrollmentId={enrollmentId}
+                        onComplete={onComplete}
+                    />
+                </Box>
             );
 
         default:
