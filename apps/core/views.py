@@ -607,12 +607,12 @@ def public_program_detail(request, pk: int):
 
     pending_payment = False
     if request.user.is_authenticated:
-        from apps.commerce.models import Order
+        from apps.commerce.models import OrderItem
 
-        pending_payment = Order.objects.filter(
-            user=request.user,
+        pending_payment = OrderItem.objects.filter(
+            order__user=request.user,
             program=program,
-            status__in=["created", "pending_payment"],
+            order__status__in=["created", "pending_payment", "pending_manual_payment"],
         ).exists()
 
     # Calculate price display and enrollment mode
@@ -7243,6 +7243,52 @@ def instructor_program_update_settings(request, pk: int):
             )
         return None
 
+    def _normalize_custom_pricing(pricing_data):
+        if not isinstance(pricing_data, dict):
+            return {}
+
+        normalized = {**pricing_data}
+
+        def _to_non_negative_number(value, *, default=0, allow_none=False):
+            if value in (None, ""):
+                return None if allow_none else default
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                return None if allow_none else default
+            if numeric < 0:
+                numeric = 0
+            return numeric
+
+        price = _to_non_negative_number(normalized.get("price"), default=0)
+        original_price = _to_non_negative_number(
+            normalized.get("original_price"),
+            allow_none=True,
+        )
+        legacy_sale_price = _to_non_negative_number(
+            normalized.get("sale_price"),
+            allow_none=True,
+        )
+
+        # Backward compatibility for legacy payloads that used sale_price.
+        if original_price is None and legacy_sale_price is not None:
+            if price and legacy_sale_price < price:
+                original_price = price
+                price = legacy_sale_price
+            else:
+                original_price = legacy_sale_price
+
+        normalized["price"] = price
+        normalized["currency"] = str(normalized.get("currency") or "KES").upper()
+
+        if original_price is None or original_price <= 0:
+            normalized.pop("original_price", None)
+        else:
+            normalized["original_price"] = original_price
+
+        normalized.pop("sale_price", None)
+        return normalized
+
     def _program_depends_on(
         source_program_id: int, target_program_id: int, seen=None
     ) -> bool:
@@ -7312,7 +7358,7 @@ def instructor_program_update_settings(request, pk: int):
         if "notices" in data:
             program.notices = data["notices"]
         if "custom_pricing" in data:
-            program.custom_pricing = data["custom_pricing"]
+            program.custom_pricing = _normalize_custom_pricing(data["custom_pricing"])
 
         if "prerequisites_enabled" in data:
             program.prerequisites_enabled = _to_bool(data.get("prerequisites_enabled"))

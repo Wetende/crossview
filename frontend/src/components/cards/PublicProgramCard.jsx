@@ -1,8 +1,16 @@
 /**
  * PublicProgramCard - Reusable program card for public pages
  * Used on landing page and programs listing page
+ *
+ * CTA Strategy:
+ *   Listing cards → "Preview This Course" (navigates to detail page)
+ *   Detail page  → "Buy Now" (adds to cart + redirects to /checkout/)
+ *
+ * This keeps the listing page clean and funnels users through:
+ *   Browse → Preview → Buy → Pay
  */
 
+import { useState, useEffect } from "react";
 import { Link } from "@inertiajs/react";
 import {
     Box,
@@ -14,20 +22,55 @@ import {
     Stack,
     Rating,
     Button,
+    IconButton,
     useTheme,
 } from "@mui/material";
+import { IconHeart, IconHeartFilled } from "@tabler/icons-react";
 
+// ---------------------------------------------------------------------------
+// Wishlist helpers (localStorage-only, no backend persistence)
+// ---------------------------------------------------------------------------
+
+const WISHLIST_KEY = "wishlist_programs";
+
+function getWishlist() {
+    try {
+        return JSON.parse(localStorage.getItem(WISHLIST_KEY) || "[]");
+    } catch {
+        return [];
+    }
+}
+
+function toggleWishlistItem(programId) {
+    const list = getWishlist();
+    const idx = list.indexOf(programId);
+    if (idx === -1) {
+        list.push(programId);
+    } else {
+        list.splice(idx, 1);
+    }
+    localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+    return list;
+}
+
+function isInWishlist(programId) {
+    return getWishlist().includes(programId);
+}
+
+// ---------------------------------------------------------------------------
 // Badge colors
+// ---------------------------------------------------------------------------
+
 function getBadgeColor(type) {
     switch (type) {
         case "featured":
-        case "special": // Merged from Programs
-            return "#F59E0B"; // Orange
+        case "special":
+            return "#F59E0B";
         case "new":
-            return "#10B981"; // Emerald
+            return "#10B981";
         case "popular":
-        case "hot": // Merged from Programs
-            return "#EF4444"; // Red
+        case "hot":
+            return "#EF4444";
         case "bestseller":
             return "#8B5CF6";
         default:
@@ -40,9 +83,20 @@ export default function PublicProgramCard({
     program,
     enrollmentStatus = null,
     showEnrollButton = false,
-    isAuthenticated = false,
 }) {
     const theme = useTheme();
+    const [wishlisted, setWishlisted] = useState(false);
+
+    useEffect(() => {
+        setWishlisted(isInWishlist(program.id));
+    }, [program.id]);
+
+    const handleWishlistToggle = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleWishlistItem(program.id);
+        setWishlisted((prev) => !prev);
+    };
 
     return (
         <Card
@@ -61,7 +115,7 @@ export default function PublicProgramCard({
                 },
             }}
         >
-            {/* Thumbnail with badge */}
+            {/* Thumbnail with badge + wishlist heart */}
             <Box sx={{ position: "relative" }}>
                 <CardMedia
                     component="img"
@@ -91,6 +145,33 @@ export default function PublicProgramCard({
                         }}
                     />
                 )}
+
+                {/* Wishlist heart icon */}
+                <IconButton
+                    onClick={handleWishlistToggle}
+                    size="small"
+                    aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    sx={{
+                        position: "absolute",
+                        top: 8,
+                        left: 8,
+                        bgcolor: "rgba(255,255,255,0.85)",
+                        backdropFilter: "blur(4px)",
+                        "&:hover": {
+                            bgcolor: "rgba(255,255,255,0.95)",
+                            transform: "scale(1.1)",
+                        },
+                        transition: "all 0.2s ease",
+                        width: 32,
+                        height: 32,
+                    }}
+                >
+                    {wishlisted ? (
+                        <IconHeartFilled size={18} color={theme.palette.error.main} />
+                    ) : (
+                        <IconHeart size={18} color="#6B7280" />
+                    )}
+                </IconButton>
             </Box>
 
             <CardContent
@@ -203,7 +284,7 @@ export default function PublicProgramCard({
                     </Box>
                 </Box>
 
-                {/* Action Button - only if showEnrollButton is true */}
+                {/* Action Button */}
                 {showEnrollButton && (
                     <Box sx={{ mt: 2 }}>
                         {enrollmentStatus === "enrolled" ? (
@@ -227,22 +308,14 @@ export default function PublicProgramCard({
                                 Enrollment Pending
                             </Button>
                         ) : (
-
                             <Button
                                 component={Link}
                                 href={`/programs/${program.id}/`}
                                 variant="contained"
                                 fullWidth
                                 size="small"
-                                sx={
-                                    isAuthenticated
-                                        ? { bgcolor: "primary.main" } // Highlight for Enroll
-                                        : {}
-                                }
                             >
-                                {isAuthenticated
-                                    ? "Enroll Now"
-                                    : "View Details"}
+                                Preview This Course
                             </Button>
                         )}
                     </Box>

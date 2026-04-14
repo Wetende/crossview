@@ -48,6 +48,9 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import ApprovalIcon from "@mui/icons-material/Approval";
+import ReceiptIcon from "@mui/icons-material/Receipt";
+
+import PaymentsIcon from "@mui/icons-material/Payments";
 
 // Custom Components
 import NotificationPanel from "@/components/NotificationPanel";
@@ -87,6 +90,11 @@ const roleNavigation = {
                     label: "Certificates",
                     href: "/student/certificates/",
                     icon: CardMembershipIcon,
+                },
+                {
+                    label: "Orders",
+                    href: "/student/orders/",
+                    icon: ReceiptIcon,
                 },
                 {
                     label: "Profile",
@@ -202,6 +210,16 @@ const roleNavigation = {
             ],
         },
         {
+            title: "Commerce",
+            items: [
+                {
+                    label: "Orders",
+                    href: "/admin/commerce/orders/page/",
+                    icon: PaymentsIcon,
+                },
+            ],
+        },
+        {
             title: "Settings",
             items: [
                 {
@@ -241,6 +259,7 @@ export default function DashboardLayout({
     const { auth, platform } = usePage().props;
 
     const role = propRole || auth?.user?.role || "student";
+
     const navigation = roleNavigation[role] || roleNavigation.student;
     const currentPath =
         typeof window !== "undefined" ? window.location.pathname : "";
@@ -649,6 +668,9 @@ export default function DashboardLayout({
                                     )}
                                 </IconButton>
                             </Tooltip>
+
+
+
 
                             {/* Notifications Panel */}
                             <NotificationPanel />

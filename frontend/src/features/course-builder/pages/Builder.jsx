@@ -203,7 +203,7 @@ export default function InstructorProgramBuilder({
                         activeTab === "practicum" ||
                         activeTab === "prerequisites" ||
                         activeTab === "access") && (
-                        <Box sx={{ maxWidth: 800, mx: "auto" }}>
+                        <Box sx={{ maxWidth: 640, mx: "auto", pt: 2 }}>
                             <Card>
                                 <CardContent>
                                     <SettingsPanel

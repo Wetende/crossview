@@ -1,126 +1,77 @@
-import hashlib
-import hmac
-import json
-import uuid
-from datetime import timedelta
-from urllib import error as url_error
-from urllib import request as url_request
+import logging
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import redirect
-from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from inertia import render
 
 from apps.core.models import Program
-from apps.progression.models import Enrollment
+from apps.core.utils import get_post_data, is_admin
 
-from .models import Order, PaymentAttempt, WebhookEvent
+from .exceptions import CommerceError
+from .models import Order, Refund, SettlementParty
+from .services import (
+    CartService,
+    CheckoutService,
+    OfflinePaymentService,
+    PaystackGatewayService,
+    PayoutService,
+    RefundService,
+    build_paystack_callback_url,
+    program_price_minor,
+    serialize_cart,
+    serialize_order,
+    serialize_payout,
+    serialize_refund,
+)
 
-PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize"
-PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/{reference}"
+logger = logging.getLogger(__name__)
 
 
-def _program_price_minor(program: Program):
-    custom_pricing = program.custom_pricing or {}
-    amount = custom_pricing.get("price", 0) or 0
-    currency = custom_pricing.get("currency", "KES") or "KES"
-
-    try:
-        amount_float = float(amount)
-    except (TypeError, ValueError):
-        amount_float = 0
-
-    return max(0, int(round(amount_float * 100))), str(currency).upper()
-
-
-def _paystack_request(method: str, url: str, payload: dict | None = None):
-    body = json.dumps(payload or {}).encode("utf-8") if payload is not None else None
-    req = url_request.Request(
-        url,
-        method=method,
-        data=body,
-        headers={
-            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-            "Content-Type": "application/json",
+def _json_error(error: CommerceError):
+    return JsonResponse(
+        {
+            "ok": False,
+            "error": error.code,
+            "message": error.message,
         },
-    )
-    try:
-        with url_request.urlopen(req, timeout=15) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except url_error.HTTPError as exc:
-        raw = exc.read().decode("utf-8") if hasattr(exc, "read") else ""
-        try:
-            return json.loads(raw)
-        except Exception:
-            return {"status": False, "message": raw or str(exc)}
-    except Exception as exc:
-        return {"status": False, "message": str(exc)}
-
-
-def _activate_paid_enrollment(order: Order, paid_at=None):
-    paid_at = paid_at or timezone.now()
-    expires_at = None
-    if order.program.access_duration_days:
-        expires_at = paid_at + timedelta(days=int(order.program.access_duration_days))
-
-    enrollment, _ = Enrollment.objects.get_or_create(
-        user=order.user,
-        program=order.program,
-        defaults={
-            "status": "active",
-            "access_source": "paid",
-            "expires_at": expires_at,
-        },
+        status=error.status_code,
     )
 
-    update_fields = []
-    if enrollment.access_source != "paid":
-        enrollment.access_source = "paid"
-        update_fields.append("access_source")
-    if enrollment.status in {"withdrawn", "suspended"}:
-        enrollment.status = "active"
-        update_fields.append("status")
-    if expires_at:
-        enrollment.expires_at = expires_at
-        update_fields.append("expires_at")
 
-    if update_fields:
-        enrollment.save(update_fields=update_fields + ["updated_at"])
-
-    if order.enrollment_id != enrollment.id:
-        order.enrollment = enrollment
-
-    if order.status != "paid":
-        order.status = "paid"
-        order.paid_at = paid_at
-    elif not order.paid_at:
-        order.paid_at = paid_at
-
-    order.save(update_fields=["status", "paid_at", "enrollment", "updated_at"])
-    return enrollment
+def _json_ok(payload: dict, *, status: int = 200):
+    return JsonResponse({"ok": True, **payload}, status=status)
 
 
-def _finalize_order_from_paystack_data(order: Order, data: dict):
-    status = str((data or {}).get("status") or "").lower()
-    paid_at_raw = (data or {}).get("paid_at")
-    paid_at = timezone.now()
-
-    if paid_at_raw:
-        parsed = timezone.datetime.fromisoformat(str(paid_at_raw).replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
-        paid_at = parsed
-
-    if status == "success":
-        return _activate_paid_enrollment(order, paid_at=paid_at)
-
-    order.status = "failed"
-    order.save(update_fields=["status", "updated_at"])
+def _require_admin(request):
+    if not is_admin(request.user):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": "forbidden",
+                "message": "Admin access is required.",
+            },
+            status=403,
+        )
     return None
+
+
+def _lookup_program(program_id: int) -> Program:
+    program = Program.objects.filter(pk=program_id).first()
+    if not program:
+        raise CommerceError("Program not found.", code="program_not_found", status_code=404)
+    return program
+
+
+def _serialize_orders(queryset, *, include_refunds: bool = False):
+    return [
+        serialize_order(order, include_refunds=include_refunds)
+        for order in queryset
+    ]
 
 
 @login_required
@@ -130,16 +81,24 @@ def program_checkout(request, pk: int):
         messages.error(request, "Program not found.")
         return redirect("core:programs")
 
-    amount_minor, currency = _program_price_minor(program)
+    amount_minor, currency = program_price_minor(program)
     if amount_minor <= 0:
         messages.error(request, "This program does not require paid checkout.")
         return redirect("core:program_detail", pk=pk)
 
-    pending_order = Order.objects.filter(
-        user=request.user,
-        program=program,
-        status__in=["created", "pending_payment"],
-    ).order_by("-created_at").first()
+    pending_order = (
+        Order.objects.filter(
+            user=request.user,
+            program=program,
+            status__in=[
+                Order.STATUS_CREATED,
+                Order.STATUS_PENDING_PAYMENT,
+                Order.STATUS_PENDING_MANUAL_PAYMENT,
+            ],
+        )
+        .order_by("-created_at")
+        .first()
+    )
 
     return render(
         request,
@@ -154,10 +113,15 @@ def program_checkout(request, pk: int):
                 "amountMinor": amount_minor,
                 "currency": currency,
             },
-            "pendingOrder": {
-                "reference": pending_order.reference,
-                "status": pending_order.status,
-            } if pending_order else None,
+            "pendingOrder": (
+                {
+                    "id": pending_order.id,
+                    "reference": pending_order.reference,
+                    "status": pending_order.status,
+                }
+                if pending_order
+                else None
+            ),
             "paystack": {
                 "publicKey": settings.PAYSTACK_PUBLIC_KEY,
             },
@@ -166,82 +130,45 @@ def program_checkout(request, pk: int):
 
 
 @login_required
+@require_POST
 def program_checkout_initialize(request, pk: int):
-    if request.method != "POST":
+    try:
+        program = _lookup_program(pk)
+        order = (
+            Order.objects.filter(
+                user=request.user,
+                program=program,
+                provider=Order.PROVIDER_PAYSTACK,
+                status__in=[
+                    Order.STATUS_CREATED,
+                    Order.STATUS_PENDING_PAYMENT,
+                ],
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if not order:
+            order = CheckoutService.create_order_from_programs(
+                request.user,
+                [program],
+                Order.PROVIDER_PAYSTACK,
+                metadata={"source": "legacy_program_checkout"},
+            )
+
+        response = PaystackGatewayService.initialize_payment(
+            order,
+            callback_url=build_paystack_callback_url(request),
+        )
+    except CommerceError as error:
+        messages.error(request, error.message)
         return redirect("commerce:checkout", pk=pk)
 
-    program = Program.objects.filter(pk=pk, is_published=True).first()
-    if not program:
-        messages.error(request, "Program not found.")
-        return redirect("core:programs")
-
-    amount_minor, currency = _program_price_minor(program)
-    if amount_minor <= 0:
-        messages.error(request, "This program does not require paid checkout.")
-        return redirect("core:program_detail", pk=pk)
-
-    existing = Order.objects.filter(
-        user=request.user,
-        program=program,
-        status__in=["created", "pending_payment"],
-    ).order_by("-created_at").first()
-
-    order = existing
-    if not order:
-        order = Order.objects.create(
-            user=request.user,
-            program=program,
-            provider="paystack",
-            status="created",
-            amount_minor=amount_minor,
-            currency=currency,
-            reference=f"cv-{program.id}-{request.user.id}-{uuid.uuid4().hex[:16]}",
-            metadata={},
-        )
-
-    callback_url = settings.PAYSTACK_CALLBACK_URL or request.build_absolute_uri("/payments/paystack/callback/")
-    payload = {
-        "email": request.user.email or f"user-{request.user.id}@example.com",
-        "amount": order.amount_minor,
-        "currency": order.currency,
-        "reference": order.reference,
-        "callback_url": callback_url,
-        "metadata": {
-            "program_id": program.id,
-            "user_id": request.user.id,
-            "order_id": order.id,
-        },
-    }
-
-    paystack_response = _paystack_request("POST", PAYSTACK_INITIALIZE_URL, payload)
-
-    PaymentAttempt.objects.create(
-        order=order,
-        provider="paystack",
-        state="initialize",
-        provider_reference=order.reference,
-        request_payload=payload,
-        response_payload=paystack_response if isinstance(paystack_response, dict) else {},
-    )
-
-    if not paystack_response.get("status"):
-        order.status = "failed"
-        order.save(update_fields=["status", "updated_at"])
-        messages.error(
-            request,
-            "We could not start payment at the moment. Please try again.",
-        )
-        return redirect("commerce:checkout", pk=pk)
-
-    order.status = "pending_payment"
-    order.save(update_fields=["status", "updated_at"])
-
-    auth_url = (paystack_response.get("data") or {}).get("authorization_url")
-    if not auth_url:
+    authorization_url = (response.get("data") or {}).get("authorization_url")
+    if not authorization_url:
         messages.error(request, "Missing Paystack authorization URL.")
         return redirect("commerce:checkout", pk=pk)
 
-    return redirect(auth_url)
+    return redirect(authorization_url)
 
 
 @login_required
@@ -251,121 +178,494 @@ def paystack_callback(request):
         messages.error(request, "Missing payment reference.")
         return redirect("core:programs")
 
-    order = Order.objects.filter(reference=reference, user=request.user).select_related("program").first()
+    order = Order.objects.filter(reference=reference, user=request.user).first()
     if not order:
         messages.error(request, "Order not found.")
         return redirect("core:programs")
 
-    verify_response = _paystack_request("GET", PAYSTACK_VERIFY_URL.format(reference=reference))
-    PaymentAttempt.objects.create(
-        order=order,
-        provider="paystack",
+    order, verify_response, finalized = PaystackGatewayService.verify_and_finalize_order(
+        order,
+        reference,
         state="callback_verify",
-        provider_reference=reference,
-        request_payload={"reference": reference},
-        response_payload=verify_response if isinstance(verify_response, dict) else {},
+        payload_source="callback",
     )
 
-    if verify_response.get("status"):
-        data = verify_response.get("data") or {}
-        _finalize_order_from_paystack_data(order, data)
-
-    if order.status == "paid":
+    if order.status == Order.STATUS_PAID:
         messages.success(request, "Payment verified. Access has been granted.")
-        return redirect("progression:student.program", pk=order.program_id)
+        if order.program_id:
+            return redirect("progression:student.program", pk=order.program_id)
+        return redirect("commerce:student_orders")
 
-    messages.info(request, "Payment is pending confirmation. We will update your access shortly.")
-    return redirect("core:program_detail", pk=order.program_id)
+    verify_data = verify_response.get("data") or {}
+    provider_status = str(verify_data.get("status") or "").lower()
+    if provider_status in {"failed", "reversed"}:
+        messages.error(request, "Payment was not completed. You can try again.")
+        if order.program_id:
+            return redirect("commerce:checkout", pk=order.program_id)
+        return redirect("commerce:student_orders")
 
-
-def paystack_webhook(request):
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "method_not_allowed"}, status=405)
-
-    raw_body = request.body or b""
-    signature = request.headers.get("x-paystack-signature", "")
-
-    secret = settings.PAYSTACK_WEBHOOK_SECRET or settings.PAYSTACK_SECRET_KEY
-    digest = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha512).hexdigest() if secret else ""
-    signature_valid = bool(secret and signature and hmac.compare_digest(signature, digest))
-
-    try:
-        payload = json.loads(raw_body.decode("utf-8") or "{}")
-    except Exception:
-        payload = {}
-
-    event = str(payload.get("event") or "")
-    data = payload.get("data") or {}
-    reference = str(data.get("reference") or "")
-    event_id = str(payload.get("id") or "")
-    dedupe_key = f"paystack:{event_id or reference or uuid.uuid4().hex}"
-
-    event_obj, created = WebhookEvent.objects.get_or_create(
-        dedupe_key=dedupe_key,
-        defaults={
-            "provider": "paystack",
-            "event_id": event_id,
-            "reference": reference,
-            "signature_valid": signature_valid,
-            "payload": payload if isinstance(payload, dict) else {},
-        },
+    messages.info(
+        request,
+        "Payment is pending confirmation. We will update your access shortly.",
     )
+    if order.program_id:
+        return redirect("core:program_detail", pk=order.program_id)
+    return redirect("commerce:student_orders")
 
-    if not created:
-        return JsonResponse({"ok": True, "duplicate": True})
 
-    if not signature_valid:
-        return JsonResponse({"ok": False, "error": "invalid_signature"}, status=401)
-
-    if event not in {"charge.success", "charge.failed"} or not reference:
-        event_obj.processed_at = timezone.now()
-        event_obj.save(update_fields=["processed_at", "updated_at"])
-        return JsonResponse({"ok": True})
-
-    with transaction.atomic():
-        order = Order.objects.select_for_update().filter(reference=reference).first()
-        if not order:
-            event_obj.processed_at = timezone.now()
-            event_obj.save(update_fields=["processed_at", "updated_at"])
-            return JsonResponse({"ok": True})
-
-        PaymentAttempt.objects.create(
-            order=order,
-            provider="paystack",
-            state=f"webhook_{event}",
-            provider_reference=reference,
-            request_payload={"event": event},
-            response_payload=payload if isinstance(payload, dict) else {},
+@csrf_exempt
+@require_POST
+def paystack_webhook(request):
+    result = PaystackGatewayService.process_webhook(
+        raw_body=request.body or b"",
+        signature=request.headers.get("x-paystack-signature", ""),
+    )
+    if not result.get("ok"):
+        return JsonResponse(
+            {"ok": False, "error": result.get("error", "webhook_error")},
+            status=result.get("status_code", 400),
         )
-
-        _finalize_order_from_paystack_data(order, data)
-
-        event_obj.processed_at = timezone.now()
-        event_obj.save(update_fields=["processed_at", "updated_at"])
-
-    return JsonResponse({"ok": True})
+    if result.get("duplicate"):
+        return JsonResponse({"ok": True, "duplicate": True})
+    return JsonResponse(
+        {
+            "ok": True,
+            "handled": result.get("handled", False),
+            "event": result.get("event_type", ""),
+        },
+        status=result.get("status_code", 200),
+    )
 
 
 @login_required
+@require_GET
+def cart_detail(request):
+    cart = CartService.get_or_create_active_cart(request.user)
+    return _json_ok({"cart": serialize_cart(cart)})
+
+
+@login_required
+@require_POST
+def cart_add_item(request):
+    try:
+        data = get_post_data(request)
+        program_id = data.get("programId") or data.get("program_id")
+        if not program_id:
+            raise CommerceError("programId is required.", code="program_id_required")
+        program = _lookup_program(int(program_id))
+        cart = CartService.add_program(request.user, program)
+        return _json_ok({"cart": serialize_cart(cart)}, status=201)
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def cart_remove_item(request, program_id: int):
+    try:
+        cart = CartService.remove_program(request.user, program_id)
+        return _json_ok({"cart": serialize_cart(cart)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def cart_clear(request):
+    cart = CartService.clear_cart(request.user)
+    return _json_ok({"cart": serialize_cart(cart)})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def commerce_orders(request):
+    if request.method == "GET":
+        orders = CheckoutService.list_user_orders(request.user)[:100]
+        return _json_ok({"orders": _serialize_orders(orders)})
+
+    try:
+        data = get_post_data(request)
+        payment_method = (
+            data.get("paymentMethod")
+            or data.get("payment_method")
+            or Order.PROVIDER_PAYSTACK
+        )
+        order = CheckoutService.create_order_from_cart(request.user, payment_method)
+        payload = {"order": serialize_order(order)}
+        if payment_method == Order.PROVIDER_OFFLINE_BANK_TRANSFER:
+            payload["offlinePayment"] = OfflinePaymentService.instructions_payload()
+        return _json_ok(payload, status=201)
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_GET
+def commerce_order_detail(request, order_id: int):
+    try:
+        order = CheckoutService.get_user_order(request.user, order_id)
+        return _json_ok({"order": serialize_order(order)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_GET
+def commerce_order_status(request, order_id: int):
+    try:
+        order = CheckoutService.get_user_order(request.user, order_id)
+        return _json_ok(
+            {
+                "order": {
+                    "id": order.id,
+                    "reference": order.reference,
+                    "status": order.status,
+                    "provider": order.provider,
+                    "paidAt": order.paid_at.isoformat() if order.paid_at else None,
+                    "refundedMinor": order.refunded_minor,
+                    "totalMinor": order.total_minor,
+                }
+            }
+        )
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def commerce_order_paystack_initialize(request, order_id: int):
+    try:
+        order = CheckoutService.get_user_order(request.user, order_id)
+        data = get_post_data(request)
+        channels = data.get("channels")
+        
+        response = PaystackGatewayService.initialize_payment(
+            order,
+            callback_url="",
+            channels=channels if isinstance(channels, list) else None,
+        )
+        response_data = response.get("data") or {}
+        return _json_ok(
+            {
+                "order": serialize_order(CheckoutService.get_user_order(request.user, order_id)),
+                "accessCode": response_data.get("access_code"),
+                "authorizationUrl": response_data.get("authorization_url"),
+                "reference": response_data.get("reference") or order.reference,
+                "providerReference": response_data.get("reference") or order.reference,
+            }
+        )
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def commerce_order_paystack_charge_mpesa(request, order_id: int):
+    try:
+        order = CheckoutService.get_user_order(request.user, order_id)
+        data = get_post_data(request)
+        raw_phone = str(data.get("phone") or "").strip()
+        
+        if not raw_phone:
+            raise CommerceError("Phone number is required for M-Pesa payments.", code="missing_phone")
+            
+        clean_phone = "".join(c for c in raw_phone if c.isdigit() or c == "+")
+        if clean_phone.startswith("0"):
+            clean_phone = f"+254{clean_phone[1:]}"
+        elif clean_phone.startswith("254"):
+            clean_phone = f"+{clean_phone}"
+        elif not clean_phone.startswith("+"):
+            clean_phone = f"+254{clean_phone}"
+            
+        response = PaystackGatewayService.charge_mpesa(
+            order,
+            phone_number=clean_phone,
+        )
+        
+        response_data = response.get("data") or {}
+        display_text = response_data.get("display_text") or "Please check your phone to complete the payment."
+        status_flag = response_data.get("status") or ""
+        
+        return _json_ok(
+            {
+                "order": serialize_order(CheckoutService.get_user_order(request.user, order_id)),
+                "reference": response_data.get("reference") or order.reference,
+                "providerReference": response_data.get("reference") or order.reference,
+                "statusText": display_text,
+                "providerStatus": status_flag,
+            }
+        )
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def commerce_order_paystack_verify(request, order_id: int):
+    try:
+        order = CheckoutService.get_user_order(request.user, order_id)
+        data = get_post_data(request)
+        reference = (
+            data.get("reference")
+            or data.get("providerReference")
+            or order.provider_reference
+            or order.reference
+        )
+        order, verify_response, finalized = PaystackGatewayService.verify_and_finalize_order(
+            order,
+            str(reference),
+            state="popup_verify",
+            payload_source="popup_verify",
+        )
+        provider_status = str((verify_response.get("data") or {}).get("status") or "").lower()
+        return _json_ok(
+            {
+                "order": serialize_order(order),
+                "finalized": finalized,
+                "transactionStatus": provider_status,
+            }
+        )
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_GET
 def student_orders(request):
-    orders = Order.objects.filter(user=request.user).select_related("program").order_by("-created_at")[:100]
+    """Inertia shell — orders are fetched client-side via commerceApi.getOrders()."""
+    return render(request, "Student/Orders", {})
 
-    orders_data = [
+
+@login_required
+@require_GET
+def student_order_detail(request, order_id: int):
+    try:
+        order = CheckoutService.get_user_order(request.user, order_id)
+        return _json_ok({"order": serialize_order(order)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_GET
+def admin_commerce_orders(request):
+    admin_response = _require_admin(request)
+    if admin_response:
+        return admin_response
+
+    orders = CheckoutService.list_admin_orders(
+        status=request.GET.get("status", ""),
+        provider=request.GET.get("provider", ""),
+    )[:200]
+    return _json_ok({"orders": _serialize_orders(orders, include_refunds=True)})
+
+
+@login_required
+@require_POST
+def admin_mark_order_paid(request, order_id: int):
+    admin_response = _require_admin(request)
+    if admin_response:
+        return admin_response
+
+    try:
+        order = CheckoutService.get_order(order_id)
+        if order.provider != Order.PROVIDER_OFFLINE_BANK_TRANSFER:
+            raise CommerceError(
+                "Only offline bank transfer orders can be manually marked paid.",
+                code="mark_paid_invalid_provider",
+            )
+        if order.status != Order.STATUS_PENDING_MANUAL_PAYMENT:
+            raise CommerceError(
+                "Only pending offline bank transfer orders can be manually marked paid.",
+                code="mark_paid_invalid_status",
+            )
+        order = CheckoutService.mark_order_paid(order, actor=request.user)
+        return _json_ok({"order": serialize_order(order)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def admin_cancel_order(request, order_id: int):
+    admin_response = _require_admin(request)
+    if admin_response:
+        return admin_response
+
+    try:
+        data = get_post_data(request)
+        order = CheckoutService.get_order(order_id)
+        order = CheckoutService.cancel_order(
+            order,
+            actor=request.user,
+            reason=str(data.get("reason") or ""),
+        )
+        return _json_ok({"order": serialize_order(order)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def admin_refund_order(request, order_id: int):
+    admin_response = _require_admin(request)
+    if admin_response:
+        return admin_response
+
+    try:
+        data = get_post_data(request)
+        order = CheckoutService.get_order(order_id)
+        raw_item_ids = data.get("orderItemIds") or data.get("order_item_ids")
+        if raw_item_ids is None:
+            order_item_ids = None
+        elif isinstance(raw_item_ids, list):
+            order_item_ids = [int(item_id) for item_id in raw_item_ids]
+        else:
+            order_item_ids = [int(raw_item_ids)]
+
+        refund = RefundService.request_refund(
+            order,
+            actor=request.user,
+            order_item_ids=order_item_ids,
+            reason=str(data.get("reason") or ""),
+            notes=str(data.get("notes") or ""),
+            refund_account_details=data.get("refundAccountDetails") or data.get("refund_account_details") or {},
+        )
+        return _json_ok({"refund": serialize_refund(refund)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def admin_retry_refund(request, refund_id: int):
+    admin_response = _require_admin(request)
+    if admin_response:
+        return admin_response
+
+    try:
+        data = get_post_data(request)
+        refund = Refund.objects.select_related("order").prefetch_related("items").filter(pk=refund_id).first()
+        if not refund:
+            raise CommerceError("Refund not found.", code="refund_not_found", status_code=404)
+        refund = RefundService.retry_refund(
+            refund,
+            actor=request.user,
+            refund_account_details=data.get("refundAccountDetails")
+            or data.get("refund_account_details")
+            or {},
+        )
+        return _json_ok({"refund": serialize_refund(refund)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def admin_commerce_payouts(request):
+    admin_response = _require_admin(request)
+    if admin_response:
+        return admin_response
+
+    if request.method == "GET":
+        payouts = [serialize_payout(payout) for payout in PayoutService.list_payouts()[:200]]
+        return _json_ok(
+            {
+                "payouts": payouts,
+                "settlementParties": PayoutService.settlement_party_payloads(),
+            }
+        )
+
+    try:
+        data = get_post_data(request)
+        settlement_party_id = data.get("settlementPartyId") or data.get("settlement_party_id")
+        if not settlement_party_id:
+            raise CommerceError(
+                "settlementPartyId is required.",
+                code="settlement_party_id_required",
+            )
+        settlement_party = SettlementParty.objects.filter(pk=int(settlement_party_id)).first()
+        if not settlement_party:
+            raise CommerceError(
+                "Settlement party not found.",
+                code="settlement_party_not_found",
+                status_code=404,
+            )
+        payout = PayoutService.create_payout(
+            settlement_party,
+            amount_minor=int(data.get("amountMinor") or data.get("amount_minor") or 0),
+            currency=str(data.get("currency") or "KES"),
+            actor=request.user,
+            notes=str(data.get("notes") or ""),
+        )
+        return _json_ok({"payout": serialize_payout(payout)}, status=201)
+    except CommerceError as error:
+        return _json_error(error)
+
+
+@login_required
+@require_POST
+def admin_send_payout(request, payout_id: int):
+    admin_response = _require_admin(request)
+    if admin_response:
+        return admin_response
+
+    try:
+        payout = PayoutService.get_payout(payout_id)
+        payout = PayoutService.send_payout(payout, actor=request.user)
+        return _json_ok({"payout": serialize_payout(payout)})
+    except CommerceError as error:
+        return _json_error(error)
+
+
+# =============================================================================
+# Inertia Page Shells (client-side data fetching via commerceApi.js)
+# =============================================================================
+
+
+@login_required
+@require_GET
+def cart_page(request):
+    """Render the cart Inertia page shell."""
+    return render(request, "Commerce/Cart", {})
+
+
+@login_required
+@require_GET
+def checkout_page(request):
+    """Render the checkout Inertia page shell with Paystack public key."""
+    return render(
+        request,
+        "Commerce/Checkout",
         {
-            "id": order.id,
-            "reference": order.reference,
-            "status": order.status,
-            "provider": order.provider,
-            "amountMinor": order.amount_minor,
-            "currency": order.currency,
-            "program": {
-                "id": order.program_id,
-                "name": order.program.name,
+            "paystack": {
+                "publicKey": getattr(settings, "PAYSTACK_PUBLIC_KEY", ""),
             },
-            "createdAt": order.created_at.isoformat() if order.created_at else None,
-            "paidAt": order.paid_at.isoformat() if order.paid_at else None,
-        }
-        for order in orders
-    ]
+        },
+    )
 
-    return render(request, "Student/Orders", {"orders": orders_data})
+
+@login_required
+@require_GET
+def order_detail_page(request, order_id: int):
+    """Render the order detail Inertia page shell."""
+    return render(
+        request,
+        "Commerce/OrderDetail",
+        {
+            "orderId": order_id,
+            "paystack": {
+                "publicKey": getattr(settings, "PAYSTACK_PUBLIC_KEY", ""),
+            },
+        },
+    )
+
+
+@login_required
+@require_GET
+def admin_commerce_orders_page(request):
+    """Render the admin orders Inertia page shell."""
+    admin_err = _require_admin(request)
+    if admin_err:
+        return admin_err
+    return render(request, "Admin/Commerce/Orders", {})

@@ -88,6 +88,11 @@ const featureMap = {
         "./features/assessments/pages/Rubrics/Edit.jsx",
     "Rubrics/Index": "./features/rubrics/pages/Index.jsx",
     "Rubrics/Form": "./features/rubrics/pages/Form.jsx",
+
+    // Commerce
+    "Commerce/Cart": "./features/commerce/pages/Cart.jsx",
+    "Commerce/Checkout": "./features/commerce/pages/Checkout.jsx",
+    "Commerce/OrderDetail": "./features/commerce/pages/OrderDetail.jsx",
 };
 
 const publicMap = {
