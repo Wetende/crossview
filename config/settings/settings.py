@@ -45,8 +45,11 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 # Application Definition
 # =============================================================================
 
+# Toggle modern Django admin theme (django-unfold).
+# Default is disabled so stock Django admin is used unless explicitly enabled.
+ENABLE_UNFOLD = os.getenv("ENABLE_UNFOLD", "False").lower() == "true"
+
 INSTALLED_APPS = [
-    "unfold",  # Modern admin theme - must be before django.contrib.admin
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -74,7 +77,12 @@ INSTALLED_APPS = [
     "apps.commerce",
 ]
 
-if DEBUG and importlib.util.find_spec("debug_toolbar"):
+if ENABLE_UNFOLD:
+    # Must appear before django.contrib.admin when enabled.
+    INSTALLED_APPS.insert(0, "unfold")
+
+ENABLE_DEBUG_TOOLBAR = os.getenv("ENABLE_DEBUG_TOOLBAR", "True").lower() == "true"
+if DEBUG and ENABLE_DEBUG_TOOLBAR and importlib.util.find_spec("debug_toolbar"):
     INSTALLED_APPS.append("debug_toolbar")
 
 MIDDLEWARE = [
@@ -92,7 +100,7 @@ MIDDLEWARE = [
     "apps.core.performance.SlowRequestLoggingMiddleware",
 ]
 
-if DEBUG and "debug_toolbar" in INSTALLED_APPS:
+if DEBUG and ENABLE_DEBUG_TOOLBAR and "debug_toolbar" in INSTALLED_APPS:
     MIDDLEWARE.insert(1, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
 ROOT_URLCONF = "config.urls"

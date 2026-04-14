@@ -42,7 +42,7 @@ cookies.txt
 # Node
 node_modules/
 dist/
-!static/dist/
+static/dist/
 .cache/
 
 # Environment
