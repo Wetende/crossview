@@ -536,13 +536,8 @@ class QuizAttempt(models.Model):
             (points_earned / points_possible * 100) if points_possible > 0 else 0
         )
 
-        retake_count = max(0, (self.attempt_number or 1) - 1)
-        penalty_rate = float(self.quiz.retake_penalty_percent or 0) / 100
-        multiplier = max(0.0, 1 - (retake_count * penalty_rate))
-        penalized_percentage = raw_percentage * multiplier
-
         passed = (
-            penalized_percentage >= self.quiz.pass_threshold
+            raw_percentage >= self.quiz.pass_threshold
             if not needs_manual
             else None
         )
@@ -550,7 +545,7 @@ class QuizAttempt(models.Model):
         return (
             points_earned,
             points_possible,
-            round(penalized_percentage, 2),
+            round(raw_percentage, 2),
             passed,
         )
 

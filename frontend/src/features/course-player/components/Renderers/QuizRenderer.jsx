@@ -467,6 +467,7 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                 pointsEarned: data?.pointsEarned,
                 pointsPossible: data?.pointsPossible,
                 attemptNumber: data?.attemptNumber,
+                maxAttempts: data?.maxAttempts,
                 attemptsRemaining: data?.attemptsRemaining,
                 canRetry: Boolean(data?.canRetry),
                 nextNode: data?.nextNode || null,
@@ -617,6 +618,9 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
                         <Typography color="text.secondary">
                             Attempt #{resultSummary.attemptNumber}
+                            {resultSummary.maxAttempts
+                                ? ` of ${resultSummary.maxAttempts}`
+                                : ''}
                             {typeof resultSummary.pointsEarned === 'number' &&
                             typeof resultSummary.pointsPossible === 'number'
                                 ? ` • ${resultSummary.pointsEarned}/${resultSummary.pointsPossible} points`
@@ -635,12 +639,17 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                         )}
                         {resultSummary.canRetry && (
                             <Button variant="outlined" onClick={handleRetake}>
-                                Retake Quiz
+                                Try Again
                             </Button>
                         )}
                         {!resultSummary.canRetry && runtimeAttemptsRemaining === 0 && (
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                                 No retakes remaining.
+                                {resultSummary.maxAttempts
+                                    ? ` This quiz allows ${resultSummary.maxAttempts} total attempt${
+                                          resultSummary.maxAttempts > 1 ? 's' : ''
+                                      }.`
+                                    : ''}
                             </Typography>
                         )}
                     </Stack>

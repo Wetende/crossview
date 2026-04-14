@@ -4270,6 +4270,7 @@ def student_quiz_submit(request, quiz_id: int):
             {
                 "attemptId": attempt.id,
                 "attemptNumber": attempt.attempt_number,
+                "maxAttempts": quiz.max_attempts,
                 "score": float(percentage),
                 "pointsEarned": points_earned,
                 "pointsPossible": points_possible,
@@ -6413,7 +6414,7 @@ def _sync_quiz_questions(node, questions_data: list):
         QuestionOption,
         Quiz,
     )
-    from decimal import Decimal, InvalidOperation
+    from decimal import Decimal
 
     questions_data = questions_data if isinstance(questions_data, list) else []
     node_props = node.properties if isinstance(node.properties, dict) else {}
@@ -6456,21 +6457,6 @@ def _sync_quiz_questions(node, questions_data: list):
             parsed = maximum
         return parsed
 
-    def to_decimal_or_none(value):
-        if value is None or value == "":
-            return None
-        try:
-            return Decimal(str(value))
-        except (InvalidOperation, TypeError, ValueError):
-            return None
-
-    penalty = to_decimal_or_none(node_props.get("points_cut_after_retake"))
-    if penalty is None:
-        penalty = to_decimal_or_none(node_props.get("retake_penalty"))
-    if penalty is None:
-        penalty = Decimal("0")
-    penalty = min(max(penalty, Decimal("0")), Decimal("100"))
-
     quiz_settings = {
         "description": str(node_props.get("description", "") or "").strip(),
         "pass_threshold": to_int(
@@ -6490,7 +6476,9 @@ def _sync_quiz_questions(node, questions_data: list):
         "show_answers_after_submit": to_bool(
             node_props.get("show_correct_answer"), default=True
         ),
-        "retake_penalty_percent": penalty,
+        # Retake penalties are intentionally disabled so quiz scores reflect
+        # the learner's actual correct answers.
+        "retake_penalty_percent": Decimal("0"),
     }
 
     # Get or create Quiz for this node

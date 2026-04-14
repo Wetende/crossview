@@ -1541,6 +1541,7 @@ class QuizLinkIntegrityTest(TestCase):
         payload = response.json()
         self.assertEqual(payload["score"], 100.0)
         self.assertTrue(payload["passed"])
+        self.assertEqual(payload["maxAttempts"], 3)
         self.assertEqual(payload["attemptsRemaining"], 2)
 
     def test_student_quiz_submit_after_expiry_grades_saved_answers_only(self):
