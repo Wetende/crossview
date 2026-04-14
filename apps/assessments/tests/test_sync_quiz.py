@@ -121,7 +121,7 @@ class SyncQuizQuestionsTest(TestCase):
         self.assertEqual(quiz.description, "Test quiz description")
         self.assertTrue(quiz.shuffle_options)
         self.assertTrue(quiz.show_answers_after_submit)
-        self.assertEqual(float(quiz.retake_penalty_percent), 15.0)
+        self.assertEqual(float(quiz.retake_penalty_percent), 0.0)
 
         self.node.refresh_from_db()
         self.assertEqual((self.node.properties or {}).get("quiz_id"), quiz.id)
@@ -175,7 +175,7 @@ class SyncQuizQuestionsTest(TestCase):
         self.assertTrue(quiz.randomize_questions)
         self.assertTrue(quiz.shuffle_options)
         self.assertTrue(quiz.show_answers_after_submit)
-        self.assertEqual(float(quiz.retake_penalty_percent), 7.0)
+        self.assertEqual(float(quiz.retake_penalty_percent), 0.0)
         self.assertEqual(quiz.questions.count(), 0)
 
     def test_sync_image_matching_question_creates_pairs(self):

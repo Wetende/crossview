@@ -64,7 +64,7 @@ class QuizAttemptScoringTest(TestCase):
             answers={str(self.question.id): answer_value},
         )
 
-    def test_first_attempt_has_no_retake_penalty(self):
+    def test_first_attempt_scores_from_actual_points(self):
         attempt = self._build_attempt(1, self.correct_option.position)
 
         points, possible, percentage, passed = attempt.calculate_score()
@@ -74,30 +74,30 @@ class QuizAttemptScoringTest(TestCase):
         self.assertEqual(percentage, 100.0)
         self.assertTrue(passed)
 
-    def test_second_attempt_applies_retake_penalty(self):
+    def test_second_attempt_keeps_full_score_when_answers_are_correct(self):
         attempt = self._build_attempt(2, self.correct_option.position)
 
         _, _, percentage, passed = attempt.calculate_score()
 
-        self.assertEqual(percentage, 90.0)
+        self.assertEqual(percentage, 100.0)
         self.assertTrue(passed)
 
-    def test_pass_fail_uses_penalized_score(self):
+    def test_pass_fail_uses_actual_score_without_hidden_penalty(self):
         self.quiz.pass_threshold = 95
         self.quiz.save(update_fields=["pass_threshold"])
         attempt = self._build_attempt(2, self.correct_option.position)
 
         _, _, percentage, passed = attempt.calculate_score()
 
-        self.assertEqual(percentage, 90.0)
-        self.assertFalse(passed)
+        self.assertEqual(percentage, 100.0)
+        self.assertTrue(passed)
 
-    def test_penalty_multiplier_clamps_at_zero(self):
+    def test_legacy_penalty_values_no_longer_reduce_scores(self):
         self.quiz.retake_penalty_percent = Decimal("60.00")
         self.quiz.save(update_fields=["retake_penalty_percent"])
         attempt = self._build_attempt(3, self.correct_option.position)
 
         _, _, percentage, passed = attempt.calculate_score()
 
-        self.assertEqual(percentage, 0.0)
-        self.assertFalse(passed)
+        self.assertEqual(percentage, 100.0)
+        self.assertTrue(passed)
