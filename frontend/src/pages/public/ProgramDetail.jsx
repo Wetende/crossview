@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, Link, usePage, router } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -22,6 +22,8 @@ import {
     ListItemText,
     Avatar,
     Divider,
+    Snackbar,
+    Alert as MuiAlert,
     useTheme,
     LinearProgress,
 } from "@mui/material";
@@ -38,6 +40,7 @@ import {
     IconPlayerPlay,
     IconLock,
     IconFolder,
+    IconShoppingCart,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
@@ -45,6 +48,7 @@ import DOMPurify from "dompurify";
 import { CourseDetailsModal } from "@/components/modals";
 import PublicNavbar from "@/components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
+import * as commerceApi from "@/services/commerceApi";
 
 // --- Helper Components ---
 
@@ -57,6 +61,7 @@ function CourseDetailsSidebar({
     ctaState,
     isAuthenticated,
     onShowDetails,
+    onAddToCart,
     courseLevels = [],
 }) {
     const theme = useTheme();
@@ -194,7 +199,7 @@ function CourseDetailsSidebar({
                     <>
                         <Button
                             component={Link}
-                            href={`/programs/${program.id}/checkout/`}
+                            href="/student/orders/"
                             variant="outlined"
                             fullWidth
                             size="large"
@@ -238,30 +243,44 @@ function CourseDetailsSidebar({
                     </>
                 ) : isAuthenticated ? (
                     <>
-                        <Button
-                            component={Link}
-                            href={
-                                ctaState === "not_enrolled_paid"
-                                    ? `/programs/${program.id}/checkout/`
-                                    : `/programs/${program.id}/enroll/`
-                            }
-                            method={
-                                ctaState === "not_enrolled_paid"
-                                    ? undefined
-                                    : "post"
-                            }
-                            variant="contained"
-                            fullWidth
-                            size="large"
-                            sx={{
-                                mb: 2,
-                                py: 1.5,
-                                fontWeight: 700,
-                                bgcolor: theme.palette.primary.main,
-                            }}
-                        >
-                            {getCtaText()}
-                        </Button>
+                        {ctaState === "not_enrolled_paid" ? (
+                            <Button
+                                variant="contained"
+                                fullWidth
+                                size="large"
+                                startIcon={<IconShoppingCart size={18} />}
+                                onClick={async () => {
+                                    if (onAddToCart) {
+                                        onAddToCart(program.id);
+                                    }
+                                }}
+                                sx={{
+                                    mb: 2,
+                                    py: 1.5,
+                                    fontWeight: 700,
+                                    bgcolor: theme.palette.primary.main,
+                                }}
+                            >
+                                {getCtaText()}
+                            </Button>
+                        ) : (
+                            <Button
+                                component={Link}
+                                href={`/programs/${program.id}/enroll/`}
+                                method="post"
+                                variant="contained"
+                                fullWidth
+                                size="large"
+                                sx={{
+                                    mb: 2,
+                                    py: 1.5,
+                                    fontWeight: 700,
+                                    bgcolor: theme.palette.primary.main,
+                                }}
+                            >
+                                {getCtaText()}
+                            </Button>
+                        )}
                         <Stack
                             direction="row"
                             spacing={2}
@@ -531,9 +550,19 @@ export default function ProgramDetail({
     const { auth } = usePage().props;
     const [tabValue, setTabValue] = useState(0);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     const handleShowDetails = () => setDetailsModalOpen(true);
     const handleCloseDetails = () => setDetailsModalOpen(false);
+
+    const handleAddToCart = async (programId) => {
+        const res = await commerceApi.addToCart(programId);
+        if (res.ok || res.error === "program_in_cart") {
+            router.visit("/checkout/");
+        } else {
+            setCartSnackbar({ open: true, message: res.message || "Could not add to cart.", severity: "error" });
+        }
+    };
 
     return (
         <>
@@ -577,6 +606,7 @@ export default function ProgramDetail({
                                 ctaState={ctaState}
                                 isAuthenticated={!!auth?.user}
                                 onShowDetails={handleShowDetails}
+                                onAddToCart={handleAddToCart}
                                 courseLevels={courseLevels}
                             />
                             <PopularCourses courses={popularPrograms} />
@@ -984,6 +1014,23 @@ export default function ProgramDetail({
                 program={program}
                 enrollmentData={enrollmentData}
             />
+
+            {/* Cart Snackbar */}
+            <Snackbar
+                open={cartSnackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setCartSnackbar((s) => ({ ...s, open: false }))}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                <MuiAlert
+                    severity={cartSnackbar.severity}
+                    onClose={() => setCartSnackbar((s) => ({ ...s, open: false }))}
+                    variant="filled"
+                    sx={{ width: "100%" }}
+                >
+                    {cartSnackbar.message}
+                </MuiAlert>
+            </Snackbar>
         </>
     );
 }

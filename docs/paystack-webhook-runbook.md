@@ -8,7 +8,7 @@ Operational guide for verifying, processing, and replaying Paystack webhook even
 
 - Endpoint: `POST /webhooks/paystack/`
 - Provider: Paystack
-- Related callback: `GET /payments/paystack/callback/`
+- Optional legacy callback: `GET /payments/paystack/callback/`
 
 ## Key principles
 
@@ -87,7 +87,15 @@ Each webhook attempt should log:
 
 - `PAYSTACK_SECRET_KEY`
 - `PAYSTACK_WEBHOOK_SECRET`
-- `PAYSTACK_CALLBACK_URL`
+- `PAYSTACK_PUBLIC_KEY`
+- `PAYSTACK_CALLBACK_URL` (optional for legacy redirect flow only)
+
+## Production readiness
+
+1. Rotate the live secret key if it has been pasted into logs, chat, or screenshots.
+2. Update both `PAYSTACK_SECRET_KEY` and `PAYSTACK_WEBHOOK_SECRET` after rotation.
+3. Re-register the production webhook URL in the Paystack dashboard if needed.
+4. Confirm the active live checkout is Popup-driven and the callback route is no longer required for primary checkout.
 
 ## Validation commands
 
