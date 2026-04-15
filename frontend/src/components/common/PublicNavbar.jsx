@@ -112,11 +112,13 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
                             <Stack direction="row" spacing={2} alignItems="center">
                                 {auth?.user && (
                                     <>
+                                        {/* Cart icon hidden for now
                                         <IconButton component={Link} href="/cart/" aria-label="Open cart">
                                             <Badge badgeContent={cartCount || 0} color="primary" max={9}>
                                                 <ShoppingCartIcon fontSize="small" />
                                             </Badge>
                                         </IconButton>
+                                        */}
                                         <IconButton component={Link} href="/wishlist/" aria-label="Open wishlist">
                                             <Badge badgeContent={wishlistCount || 0} color="secondary" max={9}>
                                                 <IconHeart size={20} />

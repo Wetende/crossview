@@ -81,7 +81,7 @@ function CourseDetailsSidebar({
     // Determine CTA button text based on enrollment mode
     const getCtaText = () => {
         if (ctaState === "not_enrolled_paid") {
-            return `BUY NOW - ${program.price}`;
+            return `GET COURSE - KSh ${program.price}`;
         }
         if (enrollmentMode === "approval") {
             return "REQUEST ENROLLMENT";
@@ -271,6 +271,7 @@ function CourseDetailsSidebar({
                                 >
                                     {getCtaText()}
                                 </Button>
+                                {/* Add to Cart hidden for now
                                 <Button
                                     variant="outlined"
                                     fullWidth
@@ -287,6 +288,7 @@ function CourseDetailsSidebar({
                                 >
                                     Add to Cart
                                 </Button>
+                                */}
                             </>
                         ) : (
                             <Button
@@ -510,7 +512,7 @@ function PopularCourses({ courses }) {
                                 variant="caption"
                                 color="text.secondary"
                             >
-                                {course.price > 0 ? `$${course.price}` : "Free"}
+                                {course.price > 0 ? `KSh ${course.price}` : "Free"}
                             </Typography>
                         </CardContent>
                     </Card>
