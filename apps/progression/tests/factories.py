@@ -22,7 +22,7 @@ class AcademicBlueprintFactory(DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Blueprint {n}")
     description = factory.Faker("paragraph")
-    hierarchy_structure = ["Year", "Unit", "Session"]
+    hierarchy_structure = ["Unit", "Session"]
     grading_logic = {
         "type": "weighted",
         "components": [
@@ -30,7 +30,7 @@ class AcademicBlueprintFactory(DjangoModelFactory):
             {"name": "Exam", "weight": 0.7},
         ],
     }
-    progression_rules = {"sequential": False}
+    progression_rules = {"sequential": True}
     gamification_enabled = False
     certificate_enabled = True
 
@@ -66,9 +66,9 @@ class CurriculumNodeFactory(DjangoModelFactory):
     is_published = True
 
     class Params:
-        # Trait for root nodes (Year level)
+        # Trait for root nodes (Unit level)
         root = factory.Trait(
-            node_type="Year",
+            node_type="Unit",
             parent=None,
         )
         # Trait for unit nodes
@@ -231,7 +231,7 @@ class RubricFactory(DjangoModelFactory):
     """Factory for Rubric model."""
 
     class Meta:
-        model = "practicum.Rubric"
+        model = "assessments.Rubric"
 
     name = factory.Sequence(lambda n: f"Rubric {n}")
     description = factory.Faker("paragraph")
@@ -241,6 +241,8 @@ class RubricFactory(DjangoModelFactory):
         {"name": "Technical", "weight": 0.3, "max_score": 25},
     ]
     max_score = 100
+    scope = "course"
+    owner = factory.SubFactory(UserFactory)
 
 
 class SubmissionReviewFactory(DjangoModelFactory):

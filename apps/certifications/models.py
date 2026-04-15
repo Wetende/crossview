@@ -95,7 +95,7 @@ class Certificate(TimeStampedModel):
         """
         Generate a signed URL for downloading the certificate PDF.
         Requirements: 5.2
-        
+
         Args:
             max_age: URL expiration time in seconds (default 1 hour)
         """
@@ -109,6 +109,51 @@ class Certificate(TimeStampedModel):
         Requirements: 5.3
         """
         return reverse('certifications:verify', kwargs={'serial_number': self.serial_number})
+
+
+class CertificateEligibility(TimeStampedModel):
+    """Eligibility queue entry for manual admin certificate release."""
+
+    STATUS_CHOICES = [
+        ("pending", "Pending Release"),
+        ("released", "Released"),
+        ("ineligible", "Ineligible"),
+    ]
+
+    enrollment = models.OneToOneField(
+        "progression.Enrollment",
+        on_delete=models.CASCADE,
+        related_name="certificate_eligibility",
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ineligible")
+    eligible_at = models.DateTimeField(blank=True, null=True)
+    released_at = models.DateTimeField(blank=True, null=True)
+    reviewed_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="released_certificate_eligibilities",
+    )
+    certificate = models.OneToOneField(
+        "Certificate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="eligibility_record",
+    )
+    release_notes = models.TextField(blank=True, default="")
+    eligibility_snapshot = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "certificate_eligibility_queue"
+        indexes = [
+            models.Index(fields=["status"], name="cert_queue_status_idx"),
+            models.Index(fields=["eligible_at"], name="cert_queue_eligible_at_idx"),
+        ]
+
+    def __str__(self):
+        return f"Eligibility {self.enrollment_id} ({self.status})"
 
 
 class VerificationLog(TimeStampedModel):

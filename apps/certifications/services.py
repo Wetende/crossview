@@ -11,9 +11,17 @@ from typing import Optional
 
 from django.conf import settings
 from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+from django.db import transaction
 from django.utils import timezone
 
-from .models import Certificate, CertificateTemplate, VerificationLog
+from apps.assessments.grading_rules import evaluate_result
+
+from .models import (
+    Certificate,
+    CertificateEligibility,
+    CertificateTemplate,
+    VerificationLog,
+)
 
 
 class TemplateValidationError(Exception):
@@ -39,7 +47,7 @@ class TemplateGenerator:
         """
         Validate that template contains all required placeholders.
         Requirements: 1.2, 1.3
-        
+
         Returns:
             dict with 'valid' (bool) and 'missing' (list of missing placeholders)
         """
@@ -64,7 +72,7 @@ class TemplateGenerator:
             template = CertificateTemplate.objects.filter(blueprint=blueprint).first()
             if template:
                 return template
-        
+
         default = self.get_default_template()
         if not default:
             raise TemplateValidationError("No default template configured")
@@ -74,33 +82,33 @@ class TemplateGenerator:
         """
         Generate a PDF certificate from template and data.
         Requirements: 2.2
-        
+
         Args:
             template: The certificate template to use
             data: Dictionary with student_name, program_title, completion_date, serial_number
-            
+
         Returns:
             Path to the generated PDF file
         """
         from weasyprint import HTML
-        
+
         # Replace placeholders with actual values
         html_content = template.template_html
         for key, value in data.items():
             placeholder = f"{{{{{key}}}}}"
             html_content = html_content.replace(placeholder, str(value))
-        
+
         # Ensure certificates directory exists
         cert_dir = os.path.join(settings.MEDIA_ROOT, 'certificates')
         os.makedirs(cert_dir, exist_ok=True)
-        
+
         # Generate PDF
         pdf_filename = f"{data['serial_number']}.pdf"
         pdf_path = os.path.join('certificates', pdf_filename)
         full_path = os.path.join(settings.MEDIA_ROOT, pdf_path)
-        
+
         HTML(string=html_content).write_pdf(full_path)
-        
+
         return pdf_path
 
 
@@ -115,25 +123,25 @@ class SerialNumberGenerator:
         """
         Generate a unique serial number in PREFIX-YEAR-XXXXXX format.
         Requirements: 3.1, 3.2, 3.3
-        
+
         Args:
             prefix: Institution prefix (default: LMS)
-            
+
         Returns:
             Unique serial number string
         """
         prefix = prefix or self.DEFAULT_PREFIX
         year = datetime.now().year
-        
+
         # Generate random alphanumeric code
         random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
         serial = f"{prefix}-{year}-{random_part}"
-        
+
         # Ensure uniqueness
         while not self.is_unique(serial):
             random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
             serial = f"{prefix}-{year}-{random_part}"
-        
+
         return serial
 
     def is_unique(self, serial_number: str) -> bool:
@@ -147,7 +155,7 @@ class SerialNumberGenerator:
         """
         Parse a serial number into its components.
         Requirements: 3.3
-        
+
         Returns:
             dict with 'prefix', 'year', 'code'
         """
@@ -187,7 +195,7 @@ class VerificationService:
         """
         Verify a certificate by its serial number.
         Requirements: 4.1, 4.2, 4.3
-        
+
         Returns:
             VerificationResult with status and certificate details
         """
@@ -213,10 +221,10 @@ class VerificationService:
                 message='Certificate not found'
             )
             certificate = None
-        
+
         # Log the verification attempt
         self.log_attempt(certificate, serial_number, result.status, ip_address, user_agent)
-        
+
         return result
 
     def log_attempt(
@@ -261,29 +269,29 @@ class CertificationEngine:
         """
         Generate a certificate for a completed enrollment.
         Requirements: 2.1, 2.3, 2.4
-        
+
         Args:
             enrollment: The completed enrollment
-            
+
         Returns:
             The created Certificate instance
         """
         template = self.template_generator.get_template_for_enrollment(enrollment)
         serial = self.serial_generator.generate()
-        
+
         completion_date = timezone.now().date()
         if enrollment.completed_at:
             completion_date = enrollment.completed_at.date()
-        
+
         data = {
             'student_name': enrollment.user.get_full_name() or enrollment.user.email,
             'program_title': enrollment.program.name,
             'completion_date': completion_date.strftime('%B %d, %Y'),
             'serial_number': serial,
         }
-        
+
         pdf_path = self.template_generator.generate(template, data)
-        
+
         return Certificate.objects.create(
             enrollment=enrollment,
             template=template,
@@ -295,21 +303,18 @@ class CertificationEngine:
             pdf_path=pdf_path,
         )
 
-    def on_program_completed(self, enrollment) -> Optional[Certificate]:
+    def on_program_completed(self, enrollment) -> Optional[CertificateEligibility]:
         """
         Handler for program completion events.
         Requirements: 2.1
-        
+
         Args:
             enrollment: The enrollment that reached 100% completion
-            
+
         Returns:
-            Certificate if generated, None if certificate_enabled is False
+            Eligibility queue record when refreshed, else None
         """
-        blueprint = enrollment.program.blueprint
-        if blueprint and blueprint.certificate_enabled:
-            return self.generate_certificate(enrollment)
-        return None
+        return CertificateEligibilityService().refresh_enrollment(enrollment)
 
     def get_certificate_for_download(self, certificate: Certificate) -> str:
         """
@@ -322,11 +327,11 @@ class CertificationEngine:
         """
         Revoke a certificate.
         Requirements: 6.1, 6.2, 6.3
-        
+
         Args:
             certificate: The certificate to revoke
             reason: Reason for revocation
-            
+
         Returns:
             The updated certificate
         """
@@ -340,7 +345,7 @@ class CertificationEngine:
         """
         Generate a signed URL for certificate download.
         Requirements: 5.2
-        
+
         Args:
             certificate: The certificate
             max_age: URL expiration in seconds (default 1 hour)
@@ -359,3 +364,164 @@ class CertificationEngine:
             return Certificate.objects.get(id=int(cert_id))
         except (BadSignature, SignatureExpired, Certificate.DoesNotExist, ValueError):
             return None
+
+
+class CertificateEligibilityService:
+    """Compute, queue, and release certificate eligibility records."""
+
+    def _get_program_result(self, enrollment):
+        from apps.assessments.models import AssessmentResult
+
+        enrollment_id = getattr(enrollment, "id", None) or getattr(
+            enrollment, "pk", None
+        )
+        if not isinstance(enrollment_id, int):
+            return None
+
+        return (
+            AssessmentResult.objects.filter(
+                enrollment_id=enrollment_id,
+                node__parent__isnull=True,
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+
+    def compute_eligibility(self, enrollment) -> dict:
+        blueprint = enrollment.program.blueprint
+        grading_logic = blueprint.grading_logic or {} if blueprint else {}
+        result = self._get_program_result(enrollment)
+
+        evaluation = evaluate_result(
+            result.result_data if result and isinstance(result.result_data, dict) else {},
+            grading_logic,
+        )
+        total_score = evaluation.get("total")
+        grade_passed = bool(evaluation.get("passed"))
+
+        progress_ok = False
+        try:
+            from apps.progression.services import ProgressionEngine
+
+            progress_ok = ProgressionEngine().calculate_progress(enrollment) >= 100.0
+        except Exception:
+            progress_ok = enrollment.status == "completed"
+
+        enrollment_complete = enrollment.status == "completed"
+        certificate_enabled = bool(blueprint and blueprint.certificate_enabled)
+
+        eligible = (
+            certificate_enabled
+            and enrollment_complete
+            and progress_ok
+            and grade_passed
+        )
+
+        return {
+            "eligible": eligible,
+            "certificateEnabled": certificate_enabled,
+            "enrollmentComplete": enrollment_complete,
+            "progressSatisfied": progress_ok,
+            "gradePassed": grade_passed,
+            "overallScore": total_score,
+            "gradingType": evaluation.get("grading_type"),
+            "gradeStatus": evaluation.get("status"),
+            "passMark": evaluation.get("numeric_threshold"),
+            "passThreshold": evaluation.get("pass_threshold"),
+            "resultId": result.id if result else None,
+        }
+
+    def refresh_enrollment(self, enrollment) -> Optional[CertificateEligibility]:
+        enrollment_id = getattr(enrollment, "id", None) or getattr(
+            enrollment, "pk", None
+        )
+        if not isinstance(enrollment_id, int):
+            return None
+
+        snapshot = self.compute_eligibility(enrollment)
+        existing_certificate = Certificate.objects.filter(
+            enrollment_id=enrollment_id
+        ).first()
+
+        record, _ = CertificateEligibility.objects.get_or_create(
+            enrollment_id=enrollment_id,
+            defaults={
+                "status": "ineligible",
+                "eligibility_snapshot": {},
+            },
+        )
+
+        record.eligibility_snapshot = snapshot
+
+        if existing_certificate:
+            record.status = "released"
+            record.certificate = existing_certificate
+            if not record.released_at:
+                record.released_at = timezone.now()
+            if not record.eligible_at:
+                record.eligible_at = record.released_at
+        elif snapshot["eligible"]:
+            record.status = "pending"
+            if not record.eligible_at:
+                record.eligible_at = timezone.now()
+            record.released_at = None
+            record.certificate = None
+            record.reviewed_by = None
+            record.release_notes = ""
+        else:
+            record.status = "ineligible"
+            record.released_at = None
+            record.certificate = None
+
+        record.save()
+        return record
+
+    def refresh_program(self, program) -> list[CertificateEligibility]:
+        from apps.progression.models import Enrollment
+
+        records = []
+        enrollments = Enrollment.objects.filter(
+            program=program,
+            status__in=["active", "completed"],
+        ).select_related("program", "program__blueprint", "user")
+        for enrollment in enrollments:
+            record = self.refresh_enrollment(enrollment)
+            if record is not None:
+                records.append(record)
+        return records
+
+    @transaction.atomic
+    def release(self, eligibility: CertificateEligibility, approved_by, notes: str = "") -> Certificate:
+        eligibility = CertificateEligibility.objects.select_for_update().select_related(
+            "enrollment",
+            "enrollment__program",
+            "enrollment__program__blueprint",
+            "enrollment__user",
+            "certificate",
+        ).get(pk=eligibility.pk)
+
+        if not (getattr(approved_by, "is_staff", False) or getattr(approved_by, "is_superuser", False)):
+            raise ValueError("Only admins can release certificates")
+
+        if eligibility.status != "pending":
+            raise ValueError("Only pending eligibility records can be released")
+
+        existing_certificate = Certificate.objects.filter(
+            enrollment=eligibility.enrollment
+        ).first()
+        if existing_certificate:
+            certificate = existing_certificate
+        else:
+            certificate = CertificationEngine().generate_certificate(eligibility.enrollment)
+
+        eligibility.status = "released"
+        eligibility.certificate = certificate
+        eligibility.reviewed_by = approved_by
+        eligibility.released_at = timezone.now()
+        if notes:
+            eligibility.release_notes = notes
+        if not eligibility.eligible_at:
+            eligibility.eligible_at = eligibility.released_at
+        eligibility.save()
+
+        return certificate

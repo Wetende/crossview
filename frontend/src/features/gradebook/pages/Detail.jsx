@@ -51,7 +51,6 @@ export default function Gradebook({
         });
         return initial;
     });
-    const [hasChanges, setHasChanges] = useState(false);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishDialogOpen, setPublishDialogOpen] = useState(false);
@@ -67,7 +66,6 @@ export default function Gradebook({
                 preserveScroll: true,
                 onFinish: () => {
                     setSaving(false);
-                    setHasChanges(false);
                 },
             },
         );
@@ -177,9 +175,9 @@ export default function Gradebook({
                                 variant="outlined"
                                 startIcon={<SaveIcon />}
                                 onClick={handleSave}
-                                disabled={!hasChanges || saving}
+                                disabled={saving}
                             >
-                                {saving ? "Saving..." : "Save"}
+                                {saving ? "Regenerating..." : "Regenerate"}
                             </Button>
                             <Button
                                 variant="contained"
@@ -194,12 +192,10 @@ export default function Gradebook({
                         </Stack>
                     </Box>
 
-                    {hasChanges && (
-                        <Alert severity="warning">
-                            You have unsaved changes. Click Save to keep your
-                            work.
-                        </Alert>
-                    )}
+                    <Alert severity="info">
+                        Scores are auto-calculated from official quiz and assignment results.
+                        Use Regenerate to recompute and sync totals.
+                    </Alert>
 
                     {/* Gradebook Table */}
                     <TableContainer

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def on_enrollment_completed(sender, instance, **kwargs):
     """
     Signal handler for enrollment completion.
-    Generates certificate when enrollment reaches 100% completion.
+    Refreshes certificate eligibility queue when enrollment reaches completion.
     Requirements: 2.1
     """
     # Only process if status changed to 'completed'

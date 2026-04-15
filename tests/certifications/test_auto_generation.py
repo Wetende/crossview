@@ -1,262 +1,296 @@
-"""
-Property tests for auto-generation on 100% completion.
-**Property 4: Auto-Generation on 100% Completion**
-**Validates: Requirements 2.1, 2.3, 2.4**
-"""
-import pytest
-from hypothesis import given, strategies as st, settings
-from unittest.mock import patch, MagicMock
-import logging
+"""Tests for certificate eligibility queue and manual release workflow."""
 
-from apps.certifications.services import CertificationEngine
-from apps.certifications.models import Certificate, CertificateTemplate
+from uuid import uuid4
+from unittest.mock import patch
+
+import pytest
+from django.utils import timezone
+
+from apps.assessments.models import AssessmentResult
+from apps.blueprints.models import AcademicBlueprint
+from apps.certifications.models import (
+    Certificate,
+    CertificateEligibility,
+    CertificateTemplate,
+)
+from apps.certifications.services import CertificationEngine, CertificateEligibilityService
+from apps.certifications.signals import on_enrollment_completed
+from apps.core.models import Program, User
+from apps.curriculum.models import CurriculumNode
+from apps.progression.models import Enrollment
+
+
+def _create_blueprint(certificate_enabled: bool = True, pass_mark: int = 50):
+    return AcademicBlueprint.objects.create(
+        name=f"Blueprint {uuid4().hex[:8]}",
+        hierarchy_structure=["Section", "Lesson"],
+        grading_logic={
+            "type": "weighted",
+            "components": [{"key": "overall", "label": "Overall", "weight": 1.0}],
+            "pass_mark": pass_mark,
+        },
+        certificate_enabled=certificate_enabled,
+    )
+
+
+def _create_program(blueprint):
+    return Program.objects.create(
+        name=f"Program {uuid4().hex[:6]}",
+        code=f"PRG-{uuid4().hex[:10].upper()}",
+        level="beginner",
+        blueprint=blueprint,
+    )
+
+
+def _create_enrollment_with_result(
+    *, certificate_enabled: bool = True, total: float = 75.0, pass_mark: int = 50
+):
+    blueprint = _create_blueprint(
+        certificate_enabled=certificate_enabled,
+        pass_mark=pass_mark,
+    )
+    program = _create_program(blueprint)
+    user = User.objects.create(
+        email=f"learner-{uuid4().hex[:8]}@example.com",
+        username=f"learner_{uuid4().hex[:10]}",
+        first_name="Learner",
+        last_name="One",
+    )
+    enrollment = Enrollment.objects.create(
+        user=user,
+        program=program,
+        status="completed",
+        completed_at=timezone.now(),
+    )
+
+    root_node = CurriculumNode.objects.create(
+        program=program,
+        node_type="Section",
+        title="Root Section",
+        position=0,
+        is_published=True,
+    )
+
+    AssessmentResult.objects.create(
+        enrollment=enrollment,
+        node=root_node,
+        result_data={
+            "components": {"overall": total},
+            "total": total,
+            "status": "Pass" if total >= pass_mark else "Fail",
+        },
+    )
+
+    return enrollment
+
+
+def _create_competency_enrollment_with_result(*, certificate_enabled: bool = True):
+    blueprint = AcademicBlueprint.objects.create(
+        name=f"Competency Blueprint {uuid4().hex[:8]}",
+        hierarchy_structure=["Section", "Lesson"],
+        grading_logic={
+            "type": "competency",
+            "levels": ["Not Yet Competent", "Competent"],
+            "pass_threshold": "Competent",
+        },
+        certificate_enabled=certificate_enabled,
+    )
+    program = _create_program(blueprint)
+    user = User.objects.create(
+        email=f"competency-{uuid4().hex[:8]}@example.com",
+        username=f"competency_{uuid4().hex[:10]}",
+        first_name="Competency",
+        last_name="Learner",
+    )
+    enrollment = Enrollment.objects.create(
+        user=user,
+        program=program,
+        status="completed",
+        completed_at=timezone.now(),
+    )
+
+    root_node = CurriculumNode.objects.create(
+        program=program,
+        node_type="Section",
+        title="Root Section",
+        position=0,
+        is_published=True,
+    )
+
+    AssessmentResult.objects.create(
+        enrollment=enrollment,
+        node=root_node,
+        result_data={
+            "components": {"Skill 1": "Competent", "Skill 2": "Competent"},
+            "total": None,
+            "status": "Competent",
+        },
+    )
+
+    return enrollment
 
 
 @pytest.mark.django_db
-class TestAutoGenerationOnCompletion:
-    """
-    Property tests for automatic certificate generation on completion.
-    Feature: certification-engine, Property 4: Auto-Generation on 100% Completion
-    """
+def test_program_completion_creates_pending_eligibility_when_requirements_met():
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=True,
+        total=82.0,
+    )
 
-    @patch('apps.certifications.services.TemplateGenerator.generate')
-    def test_certificate_created_on_program_completion(self, mock_generate):
-        """
-        Property: For any enrollment reaching 100% with certificate_enabled=True,
-        a Certificate record SHALL be created.
-        **Validates: Requirements 2.1, 2.3, 2.4**
-        """
-        from apps.blueprints.models import AcademicBlueprint
-        from apps.progression.models import Enrollment
-        from apps.core.models import User, Program
+    engine = CertificationEngine()
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        record = engine.on_program_completed(enrollment)
 
-        mock_generate.return_value = "certificates/test.pdf"
+    assert isinstance(record, CertificateEligibility)
+    assert record.status == "pending"
+    assert Certificate.objects.filter(enrollment=enrollment).exists() is False
 
-        # Create blueprint with certificate_enabled=True
-        blueprint = AcademicBlueprint.objects.create(
-            name="Test Blueprint",
-            hierarchy_structure=["Year"],
-            grading_logic={"type": "weighted", "components": []},
-            certificate_enabled=True
-        )
 
-        # Create default template
-        CertificateTemplate.objects.create(
-            name="Default Template",
-            template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
-            is_default=True
-        )
+@pytest.mark.django_db
+def test_program_completion_marks_ineligible_when_grade_fails():
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=True,
+        total=30.0,
+        pass_mark=50,
+    )
 
-        # Create user and program
-        user = User.objects.create(email="test@example.com", first_name="Test", last_name="User")
-        program = Program.objects.create(name="Test Program", blueprint=blueprint)
-        enrollment = Enrollment.objects.create(user=user, program=program, status='completed')
+    engine = CertificationEngine()
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        record = engine.on_program_completed(enrollment)
 
-        engine = CertificationEngine()
-        certificate = engine.on_program_completed(enrollment)
+    assert isinstance(record, CertificateEligibility)
+    assert record.status == "ineligible"
+    assert record.eligibility_snapshot.get("gradePassed") is False
 
-        # Verify certificate was created
-        assert certificate is not None
-        assert Certificate.objects.filter(enrollment=enrollment).exists()
-        assert certificate.serial_number is not None
-        assert certificate.pdf_path == "certificates/test.pdf"
 
-    @patch('apps.certifications.services.TemplateGenerator.generate')
-    def test_certificate_has_serial_number(self, mock_generate):
-        """
-        Property: For any generated certificate, it SHALL have a unique serial number.
-        **Validates: Requirements 2.3**
-        """
-        from apps.blueprints.models import AcademicBlueprint
-        from apps.progression.models import Enrollment
-        from apps.core.models import User, Program
+@pytest.mark.django_db
+def test_program_completion_marks_ineligible_when_certificate_disabled():
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=False,
+        total=90.0,
+    )
 
-        mock_generate.return_value = "certificates/test.pdf"
+    engine = CertificationEngine()
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        record = engine.on_program_completed(enrollment)
 
-        blueprint = AcademicBlueprint.objects.create(
-            name="Test Blueprint",
-            hierarchy_structure=["Year"],
-            grading_logic={"type": "weighted", "components": []},
-            certificate_enabled=True
-        )
+    assert isinstance(record, CertificateEligibility)
+    assert record.status == "ineligible"
+    assert record.eligibility_snapshot.get("certificateEnabled") is False
 
-        CertificateTemplate.objects.create(
-            name="Default Template",
-            template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
-            is_default=True
-        )
 
-        user = User.objects.create(email="test@example.com", first_name="Test", last_name="User")
-        program = Program.objects.create(name="Test Program", blueprint=blueprint)
-        enrollment = Enrollment.objects.create(user=user, program=program, status='completed')
+@pytest.mark.django_db
+@patch("apps.certifications.services.TemplateGenerator.generate")
+def test_admin_release_creates_certificate_once(mock_generate):
+    mock_generate.return_value = "certificates/test-release.pdf"
 
-        engine = CertificationEngine()
-        certificate = engine.on_program_completed(enrollment)
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=True,
+        total=88.0,
+    )
+    CertificateTemplate.objects.create(
+        name="Default Template",
+        template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
+        is_default=True,
+    )
 
-        # Verify serial number format
-        assert certificate.serial_number is not None
-        assert '-' in certificate.serial_number
-        parts = certificate.serial_number.split('-')
-        assert len(parts) == 3
+    eligibility_service = CertificateEligibilityService()
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        eligibility = eligibility_service.refresh_enrollment(enrollment)
 
-    @patch('apps.certifications.services.TemplateGenerator.generate')
-    def test_certificate_has_pdf_path(self, mock_generate):
-        """
-        Property: For any generated certificate, it SHALL have a pdf_path.
-        **Validates: Requirements 2.4**
-        """
-        from apps.blueprints.models import AcademicBlueprint
-        from apps.progression.models import Enrollment
-        from apps.core.models import User, Program
+    admin = User.objects.create(
+        email=f"admin-{uuid4().hex[:8]}@example.com",
+        username=f"admin_{uuid4().hex[:10]}",
+        first_name="Admin",
+        last_name="User",
+        is_staff=True,
+    )
 
-        mock_generate.return_value = "certificates/generated.pdf"
+    certificate = eligibility_service.release(eligibility, approved_by=admin)
+    eligibility.refresh_from_db()
 
-        blueprint = AcademicBlueprint.objects.create(
-            name="Test Blueprint",
-            hierarchy_structure=["Year"],
-            grading_logic={"type": "weighted", "components": []},
-            certificate_enabled=True
-        )
+    assert certificate is not None
+    assert eligibility.status == "released"
+    assert eligibility.certificate_id == certificate.id
+    assert Certificate.objects.filter(enrollment=enrollment).count() == 1
 
-        CertificateTemplate.objects.create(
-            name="Default Template",
-            template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
-            is_default=True
-        )
+    with pytest.raises(ValueError):
+        eligibility_service.release(eligibility, approved_by=admin)
 
-        user = User.objects.create(email="test@example.com", first_name="Test", last_name="User")
-        program = Program.objects.create(name="Test Program", blueprint=blueprint)
-        enrollment = Enrollment.objects.create(user=user, program=program, status='completed')
 
-        engine = CertificationEngine()
-        certificate = engine.on_program_completed(enrollment)
+@pytest.mark.django_db
+def test_completion_signal_refreshes_queue_without_auto_issuing_certificate():
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=True,
+        total=79.0,
+    )
 
-        # Verify PDF path
-        assert certificate.pdf_path is not None
-        assert certificate.pdf_path.endswith('.pdf')
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        on_enrollment_completed(Enrollment, enrollment)
 
-    def test_no_certificate_when_certificate_disabled(self):
-        """
-        Property: For any enrollment with certificate_enabled=False,
-        no certificate SHALL be generated.
-        **Validates: Requirements 2.1**
-        """
-        from apps.blueprints.models import AcademicBlueprint
+    queue = CertificateEligibility.objects.filter(enrollment=enrollment).first()
+    assert queue is not None
+    assert queue.status == "pending"
+    assert Certificate.objects.filter(enrollment=enrollment).exists() is False
 
-        blueprint = AcademicBlueprint.objects.create(
-            name="Test Blueprint",
-            hierarchy_structure=["Year"],
-            grading_logic={"type": "weighted", "components": []},
-            certificate_enabled=False  # Disabled
-        )
 
-        enrollment = MagicMock()
-        enrollment.program.blueprint = blueprint
+@pytest.mark.django_db
+def test_competency_results_can_make_certificate_queue_eligible():
+    enrollment = _create_competency_enrollment_with_result(certificate_enabled=True)
 
-        engine = CertificationEngine()
-        result = engine.on_program_completed(enrollment)
+    service = CertificateEligibilityService()
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        eligibility = service.refresh_enrollment(enrollment)
 
-        assert result is None
+    assert eligibility.status == "pending"
+    assert eligibility.eligibility_snapshot.get("gradePassed") is True
+    assert eligibility.eligibility_snapshot.get("gradeStatus") == "Competent"
 
-    @given(st.booleans())
-    @settings(max_examples=100)
-    def test_certificate_generation_respects_enabled_flag(self, certificate_enabled):
-        """
-        Property: Certificate generation SHALL respect the certificate_enabled flag.
-        **Validates: Requirements 2.1**
-        """
-        blueprint = MagicMock()
-        blueprint.certificate_enabled = certificate_enabled
 
-        enrollment = MagicMock()
-        enrollment.program.blueprint = blueprint
+@pytest.mark.django_db
+def test_non_admin_release_is_rejected():
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=True,
+        total=88.0,
+    )
+    CertificateTemplate.objects.create(
+        name="Default Template",
+        template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
+        is_default=True,
+    )
 
-        engine = CertificationEngine()
+    service = CertificateEligibilityService()
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        eligibility = service.refresh_enrollment(enrollment)
 
-        # Track if generate_certificate is called
-        original_generate = engine.generate_certificate
-        generate_called = [False]
+    instructor = User.objects.create(
+        email=f"instructor-{uuid4().hex[:8]}@example.com",
+        username=f"instructor_{uuid4().hex[:10]}",
+        first_name="Instructor",
+        last_name="User",
+        is_staff=False,
+    )
 
-        def mock_generate(enroll):
-            generate_called[0] = True
-            return MagicMock()
-
-        engine.generate_certificate = mock_generate
-
-        result = engine.on_program_completed(enrollment)
-
-        if certificate_enabled:
-            assert generate_called[0] is True
-        else:
-            assert generate_called[0] is False
-            assert result is None
-
-    @patch('apps.certifications.services.TemplateGenerator.generate')
-    def test_certificate_record_stored_in_database(self, mock_generate):
-        """
-        Property: For any generated certificate, the record SHALL be stored in database.
-        **Validates: Requirements 2.4**
-        """
-        from apps.blueprints.models import AcademicBlueprint
-        from apps.progression.models import Enrollment
-        from apps.core.models import User, Program
-
-        mock_generate.return_value = "certificates/test.pdf"
-
-        blueprint = AcademicBlueprint.objects.create(
-            name="Test Blueprint",
-            hierarchy_structure=["Year"],
-            grading_logic={"type": "weighted", "components": []},
-            certificate_enabled=True
-        )
-
-        CertificateTemplate.objects.create(
-            name="Default Template",
-            template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
-            is_default=True
-        )
-
-        user = User.objects.create(email="test@example.com", first_name="Test", last_name="User")
-        program = Program.objects.create(name="Test Program", blueprint=blueprint)
-        enrollment = Enrollment.objects.create(user=user, program=program, status='completed')
-
-        initial_count = Certificate.objects.count()
-
-        engine = CertificationEngine()
-        certificate = engine.on_program_completed(enrollment)
-
-        # Verify record was stored
-        assert Certificate.objects.count() == initial_count + 1
-        assert Certificate.objects.filter(id=certificate.id).exists()
-
-    def test_enrollment_completion_signal_does_not_crash_when_template_missing(self, caplog):
-        """
-        Regression: Enrollment completion flow SHALL not fail when certificate template config is missing.
-        """
-        from apps.blueprints.models import AcademicBlueprint
-        from apps.progression.models import Enrollment
-        from apps.core.models import User, Program
-        from apps.certifications.signals import on_enrollment_completed
-
-        blueprint = AcademicBlueprint.objects.create(
-            name="Signal Blueprint",
-            hierarchy_structure=["Section", "Lesson"],
-            grading_logic={"type": "weighted", "components": []},
-            certificate_enabled=True,
-        )
-
-        user = User.objects.create(
-            email="signal-test@example.com",
-            first_name="Signal",
-            last_name="Tester",
-        )
-        program = Program.objects.create(name="Signal Program", blueprint=blueprint)
-        enrollment = Enrollment.objects.create(user=user, program=program, status="completed")
-
-        CertificateTemplate.objects.all().delete()
-
-        with caplog.at_level(logging.ERROR):
-            on_enrollment_completed(Enrollment, enrollment)
-
-        assert Certificate.objects.filter(enrollment=enrollment).exists() is False
-        assert "Certificate generation failed for enrollment_id=" in caplog.text
+    with pytest.raises(ValueError, match="Only admins can release certificates"):
+        service.release(eligibility, approved_by=instructor)

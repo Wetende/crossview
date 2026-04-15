@@ -206,7 +206,7 @@ class TestInstructorGradebook:
         root_node = CurriculumNodeFactory(
             program=assignment.program,
             parent=None,
-            node_type="Year",
+            node_type="Unit",
         )
 
         response = client.post(
@@ -237,7 +237,7 @@ class TestInstructorGradebook:
         root_node = CurriculumNodeFactory(
             program=assignment.program,
             parent=None,
-            node_type="Year",
+            node_type="Unit",
         )
         result = AssessmentResultFactory(
             enrollment=enrollment,

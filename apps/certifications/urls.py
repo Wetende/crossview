@@ -16,5 +16,15 @@ urlpatterns = [
     ),
     # Admin certificate management
     path("admin/certificates/", views.admin_certificates, name="admin.certificates"),
+    path(
+        "admin/certificates/refresh/",
+        views.admin_certificate_refresh_queue,
+        name="admin.certificates.refresh",
+    ),
+    path(
+        "admin/certificates/release/<int:eligibility_id>/",
+        views.admin_certificate_release,
+        name="admin.certificates.release",
+    ),
 ]
 

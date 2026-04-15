@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
   Box,
   Paper,
@@ -22,8 +22,7 @@ import {
   IconButton,
   Tooltip,
   Grid,
-  Card,
-  CardContent,
+  Button,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 
@@ -32,8 +31,10 @@ import SearchIcon from '@mui/icons-material/Search';
 import CardMembershipIcon from '@mui/icons-material/CardMembership';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import BlockIcon from '@mui/icons-material/Block';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import DownloadIcon from '@mui/icons-material/Download';
 
 import DashboardLayout from '@/layouts/DashboardLayout';
 
@@ -66,6 +67,8 @@ function StatCard({ title, value, icon: Icon, color = 'primary' }) {
 
 export default function CertificatesIndex({ certificates = [], stats = {} }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [processingEligibilityId, setProcessingEligibilityId] = useState(null);
+  const [refreshingQueue, setRefreshingQueue] = useState(false);
 
   // Filter certificates based on search query
   const filteredCertificates = certificates.filter(cert => {
@@ -87,6 +90,32 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
     });
   };
 
+  const handleRefreshQueue = () => {
+    setRefreshingQueue(true);
+    router.post('/admin/certificates/refresh/', {}, {
+      preserveScroll: true,
+      onFinish: () => setRefreshingQueue(false),
+    });
+  };
+
+  const handleRelease = (eligibilityId) => {
+    if (!eligibilityId) {
+      return;
+    }
+    setProcessingEligibilityId(eligibilityId);
+    router.post(`/admin/certificates/release/${eligibilityId}/`, {}, {
+      preserveScroll: true,
+      onFinish: () => setProcessingEligibilityId(null),
+    });
+  };
+
+  const queueStatusLabel = (status) => {
+    if (status === 'pending') return 'Pending Release';
+    if (status === 'released') return 'Released';
+    if (status === 'ineligible') return 'Ineligible';
+    return 'Unknown';
+  };
+
   return (
     <DashboardLayout role="admin">
       <Head title="Certificates Management" />
@@ -98,13 +127,24 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
             Certificates Management
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            View and manage all issued certificates
+            Manage certificate eligibility and admin releases
           </Typography>
         </Box>
 
+        <Stack direction="row" justifyContent="flex-end">
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefreshQueue}
+            disabled={refreshingQueue}
+          >
+            {refreshingQueue ? 'Refreshing...' : 'Refresh Eligibility Queue'}
+          </Button>
+        </Stack>
+
         {/* Stats Cards */}
         <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -118,7 +158,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -132,7 +172,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -143,6 +183,20 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                 value={stats.revoked || 0}
                 icon={BlockIcon}
                 color="error"
+              />
+            </motion.div>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <StatCard
+                title="Pending Queue"
+                value={stats.pendingQueue || 0}
+                icon={HourglassEmptyIcon}
+                color="warning"
               />
             </motion.div>
           </Grid>
@@ -180,6 +234,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                   <TableCell>Student</TableCell>
                   <TableCell>Program</TableCell>
                   <TableCell>Issued Date</TableCell>
+                  <TableCell>Queue Status</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -187,7 +242,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
               <TableBody>
                 {filteredCertificates.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">
                         {certificates.length === 0 
                           ? 'No certificates have been issued yet.'
@@ -212,6 +267,24 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                       <TableCell>{cert.programTitle}</TableCell>
                       <TableCell>{formatDate(cert.issuedAt)}</TableCell>
                       <TableCell>
+                        <Chip
+                          label={queueStatusLabel(cert.queueStatus)}
+                          size="small"
+                          color={
+                            cert.queueStatus === 'pending'
+                              ? 'warning'
+                              : cert.queueStatus === 'released'
+                              ? 'success'
+                              : 'default'
+                          }
+                          variant={
+                            cert.queueStatus === 'ineligible'
+                              ? 'outlined'
+                              : 'filled'
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
                         {cert.isRevoked ? (
                           <Chip 
                             label="Revoked" 
@@ -229,16 +302,34 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                       </TableCell>
                       <TableCell align="right">
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Tooltip title="View Certificate">
-                            <IconButton
-                              size="small"
-                              component={Link}
-                              href={`/verify/${cert.serialNumber}/`}
-                              target="_blank"
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          {cert.canRelease && (
+                            <Tooltip title="Release Certificate">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="success"
+                                  onClick={() => handleRelease(cert.eligibilityId)}
+                                  disabled={
+                                    processingEligibilityId === cert.eligibilityId
+                                  }
+                                >
+                                  <CheckCircleIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )}
+                          {cert.serialNumber && cert.queueStatus === 'released' && (
+                            <Tooltip title="View Certificate">
+                              <IconButton
+                                size="small"
+                                component={Link}
+                                href={`/verify/${cert.serialNumber}/`}
+                                target="_blank"
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Stack>
                       </TableCell>
                     </TableRow>

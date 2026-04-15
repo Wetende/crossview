@@ -18,8 +18,22 @@ from apps.progression.models import Enrollment, NodeCompletion, InstructorAssign
 from apps.content.models import ContentBlock
 from apps.assessments.models import AssessmentResult
 from apps.assessments.models import Rubric
+from apps.assessments.grading_rules import (
+    component_aliases,
+    component_config_key,
+    evaluate_result,
+    normalize_component_key,
+    normalize_grading_type,
+    normalize_weight,
+)
+from apps.assessments.official_results import (
+    assignment_attempt_passed,
+    can_start_quiz_attempt,
+    get_official_assignment_attempt,
+    get_official_quiz_attempt,
+)
 from apps.practicum.models import PracticumSubmission, SubmissionReview
-from apps.certifications.models import Certificate
+from apps.certifications.models import Certificate, CertificateEligibility
 from apps.progression.services import ProgressionEngine
 from apps.core.utils import serialize_user, should_render_inertia_prop
 from apps.notifications.services import NotificationService
@@ -123,16 +137,18 @@ def _record_inline_quiz_attempt(
     if in_progress:
         attempt = in_progress
     else:
-        existing_attempts = QuizAttempt.objects.filter(
+        allowed, _, _ = can_start_quiz_attempt(quiz, enrollment)
+        if not allowed:
+            return None
+        submitted_attempts = QuizAttempt.objects.filter(
             enrollment=enrollment,
             quiz=quiz,
+            submitted_at__isnull=False,
         ).count()
-        if existing_attempts >= quiz.max_attempts:
-            return None
         attempt = QuizAttempt.objects.create(
             enrollment=enrollment,
             quiz=quiz,
-            attempt_number=existing_attempts + 1,
+            attempt_number=submitted_attempts + 1,
             started_at=timezone.now(),
         )
 
@@ -291,8 +307,10 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
 
     # Build question review
     question_review = []
-    if show_correct_answer:
-        latest_attempt = attempts[0]
+    official_attempt = get_official_quiz_attempt(enrollment, quiz)
+    review_attempt = official_attempt or attempts[0]
+
+    if show_correct_answer and review_attempt:
         review_questions = quiz.questions.all().prefetch_related(
             "options",
             "matching_pairs",
@@ -300,12 +318,12 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
             "image_matching_pairs",
         )
         for question in review_questions:
-            student_answer = latest_attempt.answers.get(str(question.id))
+            student_answer = review_attempt.answers.get(str(question.id))
             if student_answer is None:
                 is_correct, points_earned = False, 0
             else:
                 is_correct, points_earned = question.check_answer(
-                    student_answer, attempt_id=latest_attempt.id
+                    student_answer, attempt_id=review_attempt.id
                 )
 
             # Format student answer for display
@@ -385,6 +403,8 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
                 }
             )
 
+    can_retry, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
+
     return {
         "quiz": {
             "id": quiz.id,
@@ -413,8 +433,30 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
             }
             for a in attempts
         ],
+        "officialAttempt": (
+            {
+                "id": official_attempt.id,
+                "attemptNumber": official_attempt.attempt_number,
+                "score": (
+                    float(official_attempt.score)
+                    if official_attempt.score is not None
+                    else None
+                ),
+                "pointsEarned": official_attempt.points_earned,
+                "pointsPossible": official_attempt.points_possible,
+                "passed": official_attempt.passed,
+                "submittedAt": (
+                    official_attempt.submitted_at.isoformat()
+                    if official_attempt.submitted_at
+                    else None
+                ),
+            }
+            if official_attempt
+            else None
+        ),
         "questionReview": question_review,
-        "canRetry": len(attempts) < quiz.max_attempts,
+        "attemptsRemaining": attempts_remaining,
+        "canRetry": can_retry,
     }
 
 
@@ -817,24 +859,39 @@ def session_viewer(request, pk: int, node_id: int):
             completion_type = "view"
 
             if is_assignment:
-                from apps.assessments.models import AssignmentSubmission, QuizAttempt
+                from apps.assessments.models import Assignment, Quiz
 
                 assignment_id = _safe_int(props.get("assignment_id"))
                 quiz_id = _safe_int(props.get("quiz_id"))
-                has_submission = bool(
-                    assignment_id
-                    and AssignmentSubmission.objects.filter(
-                        enrollment=enrollment,
-                        assignment_id=assignment_id,
-                    ).exists()
+                assignment = (
+                    Assignment.objects.filter(pk=assignment_id).first()
+                    if assignment_id
+                    else None
                 )
+                quiz = Quiz.objects.filter(pk=quiz_id).first() if quiz_id else None
+                typed_response_mode = _normalize_typed_response_mode(
+                    props.get("typed_response_mode")
+                )
+
+                official_assignment = (
+                    get_official_assignment_attempt(enrollment, assignment)
+                    if assignment
+                    else None
+                )
+                official_quiz = (
+                    get_official_quiz_attempt(enrollment, quiz) if quiz else None
+                )
+
+                has_submission = assignment_attempt_passed(official_assignment)
                 has_question_attempt = bool(
-                    quiz_id
-                    and QuizAttempt.objects.filter(
-                        enrollment=enrollment,
-                        quiz_id=quiz_id,
-                        submitted_at__isnull=False,
-                    ).exists()
+                    official_quiz
+                    and (
+                        official_quiz.passed is True
+                        or (
+                            typed_response_mode == "short_answer_question"
+                            and official_quiz.submitted_at is not None
+                        )
+                    )
                 )
 
                 if _assignment_requires_submission(
@@ -849,41 +906,50 @@ def session_viewer(request, pk: int, node_id: int):
                     should_mark_complete = has_question_attempt
                     completion_type = "quiz_pass"
             elif is_quiz and isinstance(quiz_answers, dict):
-                if recorded_quiz_attempt:
+                quiz_id = _safe_int(props.get("quiz_id"))
+                if quiz_id:
+                    from apps.assessments.models import Quiz
+
+                    quiz = Quiz.objects.filter(pk=quiz_id).first()
+                    official_quiz_attempt = (
+                        get_official_quiz_attempt(enrollment, quiz) if quiz else None
+                    )
                     should_mark_complete = bool(
-                        recorded_quiz_attempt.get("passed") is True
+                        official_quiz_attempt and official_quiz_attempt.passed is True
                     )
                 else:
                     should_mark_complete = False
                 completion_type = "quiz_pass"
             elif is_quiz:
-                from apps.assessments.models import QuizAttempt
-
                 quiz_id = _safe_int(props.get("quiz_id"))
-                should_mark_complete = bool(
-                    quiz_id
-                    and QuizAttempt.objects.filter(
-                        enrollment=enrollment,
-                        quiz_id=quiz_id,
-                        passed=True,
-                        submitted_at__isnull=False,
-                    ).exists()
-                )
+                if quiz_id:
+                    from apps.assessments.models import Quiz
+
+                    quiz = Quiz.objects.filter(pk=quiz_id).first()
+                    official_quiz_attempt = (
+                        get_official_quiz_attempt(enrollment, quiz) if quiz else None
+                    )
+                    should_mark_complete = bool(
+                        official_quiz_attempt and official_quiz_attempt.passed is True
+                    )
+                else:
+                    should_mark_complete = False
                 completion_type = "quiz_pass"
 
             if is_quiz:
-                from apps.assessments.models import QuizAttempt
-
                 quiz_id = _safe_int(props.get("quiz_id"))
-                has_passed_quiz_attempt = bool(
-                    quiz_id
-                    and QuizAttempt.objects.filter(
-                        enrollment=enrollment,
-                        quiz_id=quiz_id,
-                        passed=True,
-                        submitted_at__isnull=False,
-                    ).exists()
-                )
+                if quiz_id:
+                    from apps.assessments.models import Quiz
+
+                    quiz = Quiz.objects.filter(pk=quiz_id).first()
+                    official_quiz_attempt = (
+                        get_official_quiz_attempt(enrollment, quiz) if quiz else None
+                    )
+                    has_passed_quiz_attempt = bool(
+                        official_quiz_attempt and official_quiz_attempt.passed is True
+                    )
+                else:
+                    has_passed_quiz_attempt = False
                 if not has_passed_quiz_attempt:
                     NodeCompletion.objects.filter(
                         enrollment=enrollment,
@@ -1886,7 +1952,6 @@ def certificates_list(request):
         Enrollment.objects.filter(user=user).values_list("id", flat=True)
     )
 
-    # Get certificates
     certificates = (
         Certificate.objects.filter(
             enrollment_id__in=enrollment_ids,
@@ -1895,8 +1960,20 @@ def certificates_list(request):
         .order_by("-issue_date")
     )
 
+    eligibility_records = {
+        record.enrollment_id: record
+        for record in CertificateEligibility.objects.filter(
+            enrollment_id__in=enrollment_ids,
+        ).select_related("enrollment__program", "enrollment__user", "certificate")
+    }
+
     certificates_data = []
     for cert in certificates:
+        queue_status = "released"
+        queue_record = eligibility_records.get(cert.enrollment_id)
+        if queue_record is not None:
+            queue_status = queue_record.status
+
         certificates_data.append(
             {
                 "id": cert.id,
@@ -1908,6 +1985,47 @@ def certificates_list(request):
                 "isRevoked": cert.is_revoked,
                 "revocationReason": cert.revocation_reason if cert.is_revoked else None,
                 "verificationUrl": cert.get_verification_url(),
+                "downloadUrl": cert.get_signed_download_url(),
+                "queueStatus": queue_status,
+                "isPendingRelease": queue_status == "pending",
+            }
+        )
+
+    issued_enrollment_ids = {
+        cert.enrollment_id for cert in certificates if cert.enrollment_id is not None
+    }
+
+    for enrollment_id in enrollment_ids:
+        if enrollment_id in issued_enrollment_ids:
+            continue
+
+        record = eligibility_records.get(enrollment_id)
+        if not record:
+            continue
+
+        program_title = record.enrollment.program.name
+        student_name = (
+            record.enrollment.user.get_full_name() or record.enrollment.user.email
+        )
+
+        certificates_data.append(
+            {
+                "id": f"queue-{record.id}",
+                "serialNumber": None,
+                "programTitle": program_title,
+                "studentName": student_name,
+                "completionDate": (
+                    record.enrollment.completed_at.isoformat()
+                    if record.enrollment.completed_at
+                    else None
+                ),
+                "issueDate": None,
+                "isRevoked": False,
+                "revocationReason": None,
+                "verificationUrl": None,
+                "downloadUrl": None,
+                "queueStatus": record.status,
+                "isPendingRelease": record.status == "pending",
             }
         )
 
@@ -1935,13 +2053,14 @@ def profile_settings(request):
     errors = {}
 
     if request.method == "POST":
-        action = request.POST.get("action", "update_profile")
+        post_data = _get_post_data(request)
+        action = post_data.get("action", "update_profile")
 
         if action == "update_profile":
             # Update name and phone only
-            first_name = request.POST.get("first_name", "").strip()
-            last_name = request.POST.get("last_name", "").strip()
-            phone = request.POST.get("phone", "").strip()
+            first_name = str(post_data.get("first_name", "")).strip()
+            last_name = str(post_data.get("last_name", "")).strip()
+            phone = str(post_data.get("phone", "")).strip()
 
             if not first_name:
                 errors["first_name"] = "First name is required"
@@ -1965,21 +2084,27 @@ def profile_settings(request):
                 )
 
         elif action == "change_password":
-            current_password = request.POST.get("current_password", "")
-            new_password = request.POST.get("new_password", "")
-            confirm_password = request.POST.get("confirm_password", "")
+            current_password = post_data.get("current_password", "")
+            new_password = post_data.get("new_password", "")
+            confirm_password = post_data.get("confirm_password", "")
 
             # Verify current password
             if not user.check_password(current_password):
                 errors["current_password"] = "Current password is incorrect"
             elif len(new_password) < 8:
                 errors["new_password"] = "Password must be at least 8 characters"
+            elif new_password == current_password:
+                errors["new_password"] = "New password cannot be the same as the current password"
             elif new_password != confirm_password:
                 errors["confirm_password"] = "Passwords do not match"
 
             if not errors:
                 user.set_password(new_password)
                 user.save()
+                
+                # Keep the user logged in after password change (Industry Standard)
+                from django.contrib.auth import update_session_auth_hash
+                update_session_auth_hash(request, user)
 
                 return render(
                     request,
@@ -2520,6 +2645,655 @@ def instructor_student_detail(request, pk: int, enrollment_id: int):
     )
 
 
+def _get_or_create_program_root_node(program: Program) -> CurriculumNode:
+    root_node = CurriculumNode.objects.filter(
+        program=program,
+        parent__isnull=True,
+    ).first()
+    if root_node:
+        return root_node
+
+    hierarchy = []
+    if program.blueprint and isinstance(program.blueprint.hierarchy_structure, list):
+        hierarchy = [
+            str(label).strip()
+            for label in program.blueprint.hierarchy_structure
+            if str(label).strip()
+        ]
+
+    root_node_type = hierarchy[0] if hierarchy else "Section"
+
+    return CurriculumNode.objects.create(
+        program=program,
+        title=program.name,
+        node_type=root_node_type,
+        position=0,
+    )
+
+
+def _resolve_gradebook_columns(program: Program) -> tuple[list[dict], list[dict]]:
+    from apps.assessments.models import Assignment, Quiz
+
+    quiz_ids: list[int] = []
+    assignment_ids: list[int] = []
+
+    assessment_nodes = CurriculumNode.objects.filter(
+        program=program,
+        is_published=True,
+    ).only("id", "title", "node_type", "properties")
+
+    for node in assessment_nodes:
+        props = node.properties if isinstance(node.properties, dict) else {}
+        node_type = str(node.node_type or "").lower()
+        lesson_type = str(props.get("lesson_type") or "").lower()
+        is_assignment = node_type == "assignment" or lesson_type == "assignment"
+        is_quiz = node_type == "quiz" or lesson_type == "quiz"
+
+        quiz_id = _safe_int(props.get("quiz_id"))
+        assignment_id = _safe_int(props.get("assignment_id"))
+
+        if (is_quiz or (is_assignment and _assignment_requires_questions(props))) and quiz_id:
+            if quiz_id not in quiz_ids:
+                quiz_ids.append(quiz_id)
+
+        if is_assignment and _assignment_requires_submission(props) and assignment_id:
+            if assignment_id not in assignment_ids:
+                assignment_ids.append(assignment_id)
+
+    quizzes_by_id = {
+        quiz.id: quiz
+        for quiz in Quiz.objects.filter(id__in=quiz_ids).only(
+            "id",
+            "title",
+            "pass_threshold",
+            "max_attempts",
+            "allow_retake_after_pass",
+        )
+    }
+    assignments_by_id = {
+        assignment.id: assignment
+        for assignment in Assignment.objects.filter(id__in=assignment_ids).only(
+            "id",
+            "title",
+            "weight",
+            "pass_threshold",
+        )
+    }
+
+    quizzes = []
+    for quiz_id in quiz_ids:
+        quiz = quizzes_by_id.get(quiz_id)
+        if not quiz:
+            continue
+        quizzes.append(
+            {
+                "id": quiz.id,
+                "title": quiz.title,
+                "passThreshold": quiz.pass_threshold,
+                "maxAttempts": quiz.max_attempts,
+                "allowRetakeAfterPass": bool(quiz.allow_retake_after_pass),
+            }
+        )
+
+    assignments = []
+    for assignment_id in assignment_ids:
+        assignment = assignments_by_id.get(assignment_id)
+        if not assignment:
+            continue
+        assignments.append(
+            {
+                "id": assignment.id,
+                "title": assignment.title,
+                "weight": assignment.weight,
+                "passThreshold": assignment.pass_threshold,
+            }
+        )
+
+    return quizzes, assignments
+
+
+def _build_gradebook_attempt_maps(
+    enrollment_ids: list[int],
+    quiz_ids: list[int],
+    assignment_ids: list[int],
+):
+    from apps.assessments.models import AssignmentSubmission, QuizAttempt
+
+    official_quiz_map: dict[tuple[int, int], QuizAttempt] = {}
+    if enrollment_ids and quiz_ids:
+        quiz_attempts = (
+            QuizAttempt.objects.filter(
+                enrollment_id__in=enrollment_ids,
+                quiz_id__in=quiz_ids,
+                submitted_at__isnull=False,
+            )
+            .order_by("enrollment_id", "quiz_id", "-score", "-attempt_number")
+        )
+        for attempt in quiz_attempts:
+            key = (attempt.enrollment_id, attempt.quiz_id)
+            official_quiz_map.setdefault(key, attempt)
+
+    official_assignment_map: dict[tuple[int, int], AssignmentSubmission] = {}
+    latest_assignment_map: dict[tuple[int, int], AssignmentSubmission] = {}
+    if enrollment_ids and assignment_ids:
+        official_assignment_attempts = (
+            AssignmentSubmission.objects.filter(
+                enrollment_id__in=enrollment_ids,
+                assignment_id__in=assignment_ids,
+                status__in=["graded", "returned"],
+                score__isnull=False,
+            )
+            .order_by("enrollment_id", "assignment_id", "-score", "-attempt_number")
+        )
+        for attempt in official_assignment_attempts:
+            key = (attempt.enrollment_id, attempt.assignment_id)
+            official_assignment_map.setdefault(key, attempt)
+
+        latest_assignment_attempts = (
+            AssignmentSubmission.objects.filter(
+                enrollment_id__in=enrollment_ids,
+                assignment_id__in=assignment_ids,
+            )
+            .order_by("enrollment_id", "assignment_id", "-attempt_number")
+        )
+        for attempt in latest_assignment_attempts:
+            key = (attempt.enrollment_id, attempt.assignment_id)
+            latest_assignment_map.setdefault(key, attempt)
+
+    return official_quiz_map, official_assignment_map, latest_assignment_map
+
+
+def _gradebook_letter_grade(total: float | None, grading_config: dict) -> Optional[str]:
+    if total is None:
+        return None
+
+    grading_type = normalize_grading_type(grading_config)
+    if grading_type not in {"weighted", "percentage", "pass_fail"}:
+        return None
+
+    custom_scale = grading_config.get("letter_scale") or grading_config.get(
+        "letter_grades"
+    )
+    if isinstance(custom_scale, list):
+        for item in custom_scale:
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get("letter") or item.get("grade") or "").strip()
+            min_score = item.get("min")
+            if min_score in (None, ""):
+                continue
+            try:
+                threshold = float(str(min_score))
+            except (TypeError, ValueError):
+                continue
+            if label and total >= threshold:
+                return label
+
+    if total >= 80:
+        return "A"
+    if total >= 70:
+        return "B"
+    if total >= 60:
+        return "C"
+    if total >= 50:
+        return "D"
+    return "F"
+
+
+def _coerce_gradebook_entry_pass(entry: dict, grading_type: str) -> Optional[bool]:
+    passed = entry.get("passed")
+    if passed is not None:
+        return bool(passed)
+
+    score = entry.get("score")
+    threshold = entry.get("passThreshold")
+    if score is None or threshold is None:
+        return None
+
+    try:
+        numeric_score = float(score)
+        numeric_threshold = float(threshold)
+    except (TypeError, ValueError):
+        return None
+
+    if grading_type in {"competency", "checklist"}:
+        return numeric_score >= 100.0
+    return numeric_score >= numeric_threshold
+
+
+def _gradebook_entry_label(passed: Optional[bool], grading_type: str) -> Optional[str]:
+    if passed is None:
+        return None
+    if grading_type == "competency":
+        return "Competent" if passed else "Not Yet Competent"
+    return "Pass" if passed else "Fail"
+
+
+def _build_gradebook_entries(
+    quizzes: list[dict],
+    assignments: list[dict],
+    quiz_scores: list[dict],
+    assignment_scores: list[dict],
+    grading_type: str,
+) -> list[dict]:
+    quiz_meta = {quiz["id"]: quiz for quiz in quizzes}
+    assignment_meta = {assignment["id"]: assignment for assignment in assignments}
+    entries: list[dict] = []
+
+    for score_item in quiz_scores:
+        score = score_item.get("score")
+        if score is None:
+            continue
+        quiz = quiz_meta.get(score_item.get("quizId"), {})
+        title = str(quiz.get("title") or f"Quiz {score_item.get('quizId')}").strip()
+        normalized_title = normalize_component_key(title)
+        tokens = {token for token in normalized_title.split("_") if token}
+        entry = {
+            "kind": "quiz",
+            "title": title,
+            "normalizedTitle": normalized_title,
+            "tokens": tokens,
+            "score": float(score),
+            "passThreshold": quiz.get("passThreshold"),
+            "passed": score_item.get("passed"),
+        }
+        entry["passed"] = _coerce_gradebook_entry_pass(entry, grading_type)
+        entries.append(entry)
+
+    for score_item in assignment_scores:
+        score = score_item.get("score")
+        if score is None:
+            continue
+        assignment = assignment_meta.get(score_item.get("assignmentId"), {})
+        title = str(
+            assignment.get("title") or f"Assignment {score_item.get('assignmentId')}"
+        ).strip()
+        normalized_title = normalize_component_key(title)
+        tokens = {token for token in normalized_title.split("_") if token}
+        entry = {
+            "kind": "assignment",
+            "title": title,
+            "normalizedTitle": normalized_title,
+            "tokens": tokens,
+            "score": float(score),
+            "passThreshold": assignment.get("passThreshold"),
+            "weight": float(assignment.get("weight") or 0),
+            "passed": score_item.get("passed"),
+        }
+        entry["passed"] = _coerce_gradebook_entry_pass(entry, grading_type)
+        entries.append(entry)
+
+    return entries
+
+
+def _match_gradebook_entries(entries: list[dict], aliases: set[str]) -> list[dict]:
+    matched: list[dict] = []
+    for entry in entries:
+        normalized_title = entry.get("normalizedTitle") or ""
+        tokens = entry.get("tokens") or set()
+        if normalized_title in aliases or tokens.intersection(aliases):
+            matched.append(entry)
+            continue
+        if any(alias and f"_{alias}_" in f"_{normalized_title}_" for alias in aliases):
+            matched.append(entry)
+    return matched
+
+
+def _average_gradebook_scores(entries: list[dict]) -> Optional[float]:
+    numeric_scores = [
+        float(entry["score"])
+        for entry in entries
+        if entry.get("score") is not None
+    ]
+    if not numeric_scores:
+        return None
+    return round(sum(numeric_scores) / len(numeric_scores), 2)
+
+
+def _build_gradebook_component_scores(
+    grading_config: dict,
+    entries: list[dict],
+    generic_values: dict[str, Optional[float]],
+    grading_type: str,
+) -> dict:
+    configured_components = grading_config.get("components")
+    component_scores: dict = {}
+
+    if isinstance(configured_components, list):
+        for component in configured_components:
+            if not isinstance(component, dict):
+                continue
+            component_key = component_config_key(component) or "Component"
+            aliases = component_aliases(component)
+            matched = _match_gradebook_entries(entries, aliases)
+
+            value = None
+            if grading_type in {"competency", "checklist"}:
+                flags = [
+                    entry["passed"]
+                    for entry in matched
+                    if entry.get("passed") is not None
+                ]
+                if flags:
+                    value = _gradebook_entry_label(
+                        all(flags) if grading_type == "competency" else all(flags),
+                        grading_type,
+                    )
+            else:
+                value = _average_gradebook_scores(matched)
+
+            if value is None:
+                for alias in aliases:
+                    if alias in generic_values and generic_values[alias] is not None:
+                        value = generic_values[alias]
+                        break
+
+            if value is not None:
+                component_scores[component_key] = value
+
+    if component_scores:
+        return component_scores
+
+    if grading_type in {"competency", "checklist"}:
+        for entry in entries:
+            label = _gradebook_entry_label(entry.get("passed"), grading_type)
+            if label is not None:
+                component_scores[entry["title"]] = label
+        return component_scores
+
+    for entry in entries:
+        if entry.get("score") is not None:
+            component_scores[entry["title"]] = round(float(entry["score"]), 2)
+
+    if component_scores:
+        return component_scores
+
+    if generic_values.get("overall") is not None:
+        component_scores["overall"] = generic_values["overall"]
+    return component_scores
+
+
+def _calculate_competency_like_total(
+    component_scores: dict,
+    entries: list[dict],
+) -> Optional[float]:
+    flags = [
+        entry["passed"] for entry in entries if entry.get("passed") is not None
+    ]
+
+    if not flags:
+        for value in component_scores.values():
+            normalized = normalize_component_key(value)
+            if normalized in {"competent", "pass", "passed"}:
+                flags.append(True)
+            elif normalized in {"not_yet_competent", "fail", "failed"}:
+                flags.append(False)
+
+    if not flags:
+        return None
+
+    return round((sum(1 for flag in flags if flag) / len(flags)) * 100, 2)
+
+
+def _calculate_gradebook_totals(
+    grading_config: dict,
+    quizzes: list[dict],
+    assignments: list[dict],
+    quiz_scores: list[dict],
+    assignment_scores: list[dict],
+) -> dict:
+    grading_type = normalize_grading_type(grading_config)
+
+    quiz_values = [
+        float(item["score"]) for item in quiz_scores if item.get("score") is not None
+    ]
+    assignment_values = [
+        (float(item["score"]), float(item.get("weight") or 0))
+        for item in assignment_scores
+        if item.get("score") is not None
+    ]
+
+    quiz_average = (sum(quiz_values) / len(quiz_values)) if quiz_values else None
+
+    weighted_assignment_total = 0.0
+    weighted_assignment_weight = 0.0
+    plain_assignment_values = []
+    for score, weight in assignment_values:
+        plain_assignment_values.append(score)
+        if weight > 0:
+            weighted_assignment_total += score * weight
+            weighted_assignment_weight += weight
+
+    if weighted_assignment_weight > 0:
+        assignment_average = weighted_assignment_total / weighted_assignment_weight
+    elif plain_assignment_values:
+        assignment_average = sum(plain_assignment_values) / len(plain_assignment_values)
+    else:
+        assignment_average = None
+
+    combined_values = quiz_values + plain_assignment_values
+    aggregate_average = (
+        sum(combined_values) / len(combined_values) if combined_values else None
+    )
+
+    component_values = {
+        "quizzes": quiz_average,
+        "quiz": quiz_average,
+        "quiz_average": quiz_average,
+        "assignments": assignment_average,
+        "assignment": assignment_average,
+        "assignment_average": assignment_average,
+        "overall": aggregate_average,
+        "overall_average": aggregate_average,
+    }
+
+    entries = _build_gradebook_entries(
+        quizzes,
+        assignments,
+        quiz_scores,
+        assignment_scores,
+        grading_type,
+    )
+    component_scores = _build_gradebook_component_scores(
+        grading_config,
+        entries,
+        component_values,
+        grading_type,
+    )
+
+    total = aggregate_average
+    if grading_type == "weighted":
+        weighted_total = 0.0
+        seen_component = False
+        for component in grading_config.get("components", []):
+            if not isinstance(component, dict):
+                continue
+            component_key = component_config_key(component)
+            component_score = component_scores.get(component_key)
+            if component_score is None:
+                aliases = component_aliases(component)
+                for alias in aliases:
+                    if component_values.get(alias) is not None:
+                        component_score = component_values[alias]
+                        break
+            if component_score is None:
+                continue
+            try:
+                numeric_score = float(component_score)
+            except (TypeError, ValueError):
+                continue
+            weighted_total += numeric_score * normalize_weight(component.get("weight", 0))
+            seen_component = True
+        if seen_component:
+            total = weighted_total
+    elif grading_type in {"competency", "checklist"}:
+        total = _calculate_competency_like_total(component_scores, entries)
+
+    if total is not None:
+        total = round(float(total), 2)
+
+    evaluation = evaluate_result(
+        {
+            "components": component_scores,
+            "total": total,
+        },
+        grading_config,
+    )
+    status = evaluation.get("status")
+
+    return {
+        "components": component_scores,
+        "total": total,
+        "status": status,
+        "letter_grade": _gradebook_letter_grade(total, grading_config),
+    }
+
+
+def _build_program_gradebook_payload(program: Program, enrollments, grading_config: dict):
+    from apps.certifications.models import CertificateEligibility
+
+    quizzes, assignments = _resolve_gradebook_columns(program)
+
+    enrollment_ids = [enrollment.id for enrollment in enrollments]
+    quiz_ids = [quiz["id"] for quiz in quizzes]
+    assignment_ids = [assignment["id"] for assignment in assignments]
+
+    official_quiz_map, official_assignment_map, latest_assignment_map = (
+        _build_gradebook_attempt_maps(enrollment_ids, quiz_ids, assignment_ids)
+    )
+
+    root_node = _get_or_create_program_root_node(program)
+    existing_results = {
+        result.enrollment_id: result
+        for result in AssessmentResult.objects.filter(
+            enrollment_id__in=enrollment_ids,
+            node=root_node,
+        )
+    }
+    eligibility_by_enrollment = {
+        record.enrollment_id: record
+        for record in CertificateEligibility.objects.filter(
+            enrollment_id__in=enrollment_ids,
+        ).only("enrollment_id", "status", "eligible_at", "released_at")
+    }
+
+    students_data = []
+    calculated_results = {}
+
+    for enrollment in enrollments:
+        quiz_scores = []
+        for quiz in quizzes:
+            official_attempt = official_quiz_map.get((enrollment.id, quiz["id"]))
+            quiz_scores.append(
+                {
+                    "quizId": quiz["id"],
+                    "score": (
+                        float(official_attempt.score)
+                        if official_attempt and official_attempt.score is not None
+                        else None
+                    ),
+                    "passed": (
+                        bool(official_attempt.passed)
+                        if official_attempt is not None
+                        else None
+                    ),
+                    "attemptNumber": (
+                        official_attempt.attempt_number
+                        if official_attempt is not None
+                        else None
+                    ),
+                }
+            )
+
+        assignment_scores = []
+        for assignment in assignments:
+            official_attempt = official_assignment_map.get((enrollment.id, assignment["id"]))
+            latest_attempt = latest_assignment_map.get((enrollment.id, assignment["id"]))
+
+            if official_attempt is not None:
+                assignment_scores.append(
+                    {
+                        "assignmentId": assignment["id"],
+                        "weight": assignment["weight"],
+                        "score": official_attempt.get_final_score(),
+                        "passed": official_attempt.passed,
+                        "status": official_attempt.status,
+                        "isLate": bool(official_attempt.is_late),
+                        "attemptNumber": official_attempt.attempt_number,
+                        "isOfficial": True,
+                    }
+                )
+            elif latest_attempt is not None:
+                assignment_scores.append(
+                    {
+                        "assignmentId": assignment["id"],
+                        "weight": assignment["weight"],
+                        "score": None,
+                        "passed": None,
+                        "status": latest_attempt.status,
+                        "isLate": bool(latest_attempt.is_late),
+                        "attemptNumber": latest_attempt.attempt_number,
+                        "isOfficial": False,
+                    }
+                )
+            else:
+                assignment_scores.append(
+                    {
+                        "assignmentId": assignment["id"],
+                        "weight": assignment["weight"],
+                        "score": None,
+                        "passed": None,
+                        "status": "not_submitted",
+                        "isLate": False,
+                        "attemptNumber": None,
+                        "isOfficial": False,
+                    }
+                )
+
+        calculated = _calculate_gradebook_totals(
+            grading_config,
+            quizzes,
+            assignments,
+            quiz_scores,
+            assignment_scores,
+        )
+        calculated_results[enrollment.id] = calculated
+
+        existing_result = existing_results.get(enrollment.id)
+        eligibility = eligibility_by_enrollment.get(enrollment.id)
+
+        students_data.append(
+            {
+                "enrollmentId": enrollment.id,
+                "name": enrollment.user.get_full_name() or enrollment.user.email,
+                "email": enrollment.user.email,
+                "quizScores": quiz_scores,
+                "assignmentScores": assignment_scores,
+                "overallScore": calculated.get("total"),
+                "status": calculated.get("status"),
+                "letterGrade": calculated.get("letter_grade"),
+                "grades": calculated,
+                "isPublished": existing_result.is_published if existing_result else False,
+                "certificateQueueStatus": (
+                    eligibility.status if eligibility is not None else "ineligible"
+                ),
+                "certificateEligibleAt": (
+                    eligibility.eligible_at.isoformat()
+                    if eligibility is not None and eligibility.eligible_at
+                    else None
+                ),
+            }
+        )
+
+    return {
+        "rootNode": root_node,
+        "quizzes": quizzes,
+        "assignments": assignments,
+        "students": students_data,
+        "calculatedResults": calculated_results,
+    }
+
+
 @login_required
 def instructor_gradebook(request, pk: int):
     """
@@ -2535,43 +3309,18 @@ def instructor_gradebook(request, pk: int):
         return redirect("progression:instructor.programs")
 
     # Get grading config from blueprint
-    grading_config = {}
+    grading_config: dict = {}
     if program.blueprint:
         grading_config = program.blueprint.grading_logic or {}
 
-    # Get all active enrollments with grades
+    # Get all active enrollments with derived grades
     enrollments = (
         Enrollment.objects.filter(program=program, status__in=["active", "completed"])
         .select_related("user")
         .order_by("user__last_name", "user__first_name")
     )
 
-    students_data = []
-    for enrollment in enrollments:
-        # Get assessment result for this enrollment (program-level)
-        result = AssessmentResult.objects.filter(
-            enrollment=enrollment,
-            node__parent__isnull=True,  # Root node = program level
-        ).first()
-
-        grades = {}
-        if result and result.result_data:
-            grades = {
-                "components": result.result_data.get("components", {}),
-                "total": result.result_data.get("total"),
-                "status": result.result_data.get("status"),
-                "letterGrade": result.result_data.get("letter_grade"),
-            }
-
-        students_data.append(
-            {
-                "enrollmentId": enrollment.id,
-                "name": enrollment.user.get_full_name() or enrollment.user.email,
-                "email": enrollment.user.email,
-                "grades": grades,
-                "isPublished": result.is_published if result else False,
-            }
-        )
+    payload = _build_program_gradebook_payload(program, list(enrollments), grading_config)
 
     return render(
         request,
@@ -2579,7 +3328,9 @@ def instructor_gradebook(request, pk: int):
         {
             "program": {"id": program.id, "name": program.name},
             "gradingConfig": grading_config,
-            "students": students_data,
+            "quizzes": payload["quizzes"],
+            "assignments": payload["assignments"],
+            "students": payload["students"],
         },
     )
 
@@ -2601,66 +3352,42 @@ def instructor_gradebook_save(request, pk: int):
         messages.error(request, "You do not have access to this gradebook.")
         return redirect("progression:instructor.programs")
 
-    # Parse grades from request
     data = _get_post_data(request)
-    grades = data.get("grades", {})
+    requested_ids = {
+        _safe_int(enrollment_id)
+        for enrollment_id in (data.get("grades") or {}).keys()
+    }
+    requested_ids.discard(None)
 
-    # Get or create root node for program-level grades
-    root_node = CurriculumNode.objects.filter(
-        program=program, parent__isnull=True
-    ).first()
+    grading_config = program.blueprint.grading_logic if program.blueprint else {}
+    enrollments = list(
+        Enrollment.objects.filter(program=program, status__in=["active", "completed"])
+        .select_related("user")
+        .order_by("user__last_name", "user__first_name")
+    )
+    if requested_ids:
+        enrollments = [e for e in enrollments if e.id in requested_ids]
 
-    if not root_node:
-        # Create a virtual root node if none exists
-        root_node = CurriculumNode.objects.create(
-            program=program, title=program.name, node_type="Program", position=0
-        )
+    payload = _build_program_gradebook_payload(program, enrollments, grading_config)
+    root_node = payload["rootNode"]
+    from apps.certifications.services import CertificateEligibilityService
 
-    # Update grades for each enrollment
-    for enrollment_id, grade_data in grades.items():
-        try:
-            enrollment = Enrollment.objects.get(pk=enrollment_id, program=program)
+    eligibility_service = CertificateEligibilityService()
 
-            # Calculate total based on grading config
-            grading_config = (
-                program.blueprint.grading_logic if program.blueprint else {}
-            )
-            components = grade_data.get("components", {})
-
-            total = 0
-            if grading_config.get("mode") == "summative":
-                # Weighted sum
-                for comp in grading_config.get("components", []):
-                    key = comp.get("key")
-                    weight = comp.get("weight", 0)
-                    score = float(components.get(key, 0) or 0)
-                    total += score * weight
-            else:
-                # Simple average or sum
-                scores = [float(v) for v in components.values() if v]
-                total = sum(scores) / len(scores) if scores else 0
-
-            # Determine status
-            pass_mark = grading_config.get("pass_mark", 40)
-            status = "Pass" if total >= pass_mark else "Fail"
-
-            # Update or create result
-            result_data = {
-                "components": components,
-                "total": round(total, 2),
-                "status": status,
-            }
-
-            AssessmentResult.objects.update_or_create(
-                enrollment=enrollment,
-                node=root_node,
-                defaults={
-                    "result_data": result_data,
-                    "graded_by": user,
-                },
-            )
-        except (Enrollment.DoesNotExist, ValueError):
+    for enrollment in enrollments:
+        result_data = payload["calculatedResults"].get(enrollment.id)
+        if not result_data:
             continue
+
+        AssessmentResult.objects.update_or_create(
+            enrollment=enrollment,
+            node=root_node,
+            defaults={
+                "result_data": result_data,
+                "graded_by": user,
+            },
+        )
+        eligibility_service.refresh_enrollment(enrollment)
 
     return redirect("progression:instructor.gradebook", pk=pk)
 
@@ -2682,16 +3409,48 @@ def instructor_gradebook_publish(request, pk: int):
         messages.error(request, "You do not have access to this gradebook.")
         return redirect("progression:instructor.programs")
 
+    grading_config = program.blueprint.grading_logic if program.blueprint else {}
+    enrollments = list(
+        Enrollment.objects.filter(program=program, status__in=["active", "completed"])
+        .select_related("user")
+        .order_by("user__last_name", "user__first_name")
+    )
+    payload = _build_program_gradebook_payload(program, enrollments, grading_config)
+    root_node = payload["rootNode"]
+    from apps.certifications.services import CertificateEligibilityService
+
+    eligibility_service = CertificateEligibilityService()
+
+    for enrollment in enrollments:
+        result_data = payload["calculatedResults"].get(enrollment.id)
+        if not result_data:
+            continue
+        AssessmentResult.objects.update_or_create(
+            enrollment=enrollment,
+            node=root_node,
+            defaults={
+                "result_data": result_data,
+                "graded_by": user,
+            },
+        )
+        eligibility_service.refresh_enrollment(enrollment)
+
     # Collect enrollments whose grades are about to be published
     enrollment_ids = list(
-        AssessmentResult.objects.filter(enrollment__program=program, is_published=False)
+        AssessmentResult.objects.filter(
+            enrollment__program=program,
+            node=root_node,
+            is_published=False,
+        )
         .values_list("enrollment_id", flat=True)
         .distinct()
     )
 
     # Publish all unpublished results
     AssessmentResult.objects.filter(
-        enrollment__program=program, is_published=False
+        enrollment__program=program,
+        node=root_node,
+        is_published=False,
     ).update(is_published=True, published_at=timezone.now())
 
     if enrollment_ids:
@@ -2927,13 +3686,14 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
 
     assignment_ids = list(set(assignment_submission_nodes.values()))
     if assignment_ids:
-        submissions_by_assignment_id = {
-            submission.assignment_id: submission
-            for submission in AssignmentSubmission.objects.filter(
-                enrollment=enrollment,
-                assignment_id__in=assignment_ids,
-            )
-        }
+        submissions_by_assignment_id: dict[int, AssignmentSubmission] = {}
+        submission_qs = AssignmentSubmission.objects.filter(
+            enrollment=enrollment,
+            assignment_id__in=assignment_ids,
+        ).order_by("assignment_id", "-is_official", "-score", "-attempt_number")
+        for submission in submission_qs:
+            submissions_by_assignment_id.setdefault(submission.assignment_id, submission)
+
         for node_id, assignment_id in assignment_submission_nodes.items():
             submission = submissions_by_assignment_id.get(assignment_id)
             if submission is None:
@@ -2947,6 +3707,8 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                 "assignmentId": assignment_id,
                 "submitted": True,
                 "status": submission.status,
+                "attemptNumber": submission.attempt_number,
+                "isOfficial": bool(submission.is_official),
                 "submittedAt": (
                     submission.submitted_at.isoformat()
                     if submission.submitted_at
@@ -2958,6 +3720,7 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                 "score": float(submission.score)
                 if submission.score is not None
                 else None,
+                "passed": submission.passed,
                 "feedback": submission.feedback or "",
             }
 
@@ -3006,6 +3769,9 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
     assignments_submitted = sum(
         1 for data in assignment_submissions_data.values() if data.get("submitted")
     )
+    assignments_passed = sum(
+        1 for data in assignment_submissions_data.values() if data.get("passed") is True
+    )
 
     return render(
         request,
@@ -3024,7 +3790,7 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                 "totalNodes": total_nodes,
                 "quizzesPassed": quizzes_passed,
                 "quizzesTotal": quiz_count,
-                "assignmentsPassed": assignments_submitted,
+                "assignmentsPassed": assignments_passed,
                 "assignmentsTotal": assignment_count,
             },
             "curriculum": curriculum_tree,

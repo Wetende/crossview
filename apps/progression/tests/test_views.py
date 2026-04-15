@@ -10,6 +10,7 @@ import pytest
 from hypothesis import given, strategies as st, settings, HealthCheck
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.progression.models import Enrollment, NodeCompletion
 from apps.progression.tests.factories import (
@@ -398,22 +399,21 @@ class TestBreadcrumbPathGeneration:
 
     @HYPOTHESIS_SETTINGS
     @given(
-        depth=st.integers(min_value=1, max_value=3),
+        depth=st.integers(min_value=1, max_value=2),
     )
     def test_breadcrumb_path_includes_all_ancestors(self, depth):
         """
         Feature: student-portal, Property 9: Breadcrumb Path Generation
 
         Breadcrumbs should include all ancestors from root to current node.
-        Note: depth is limited to 3 to match the blueprint hierarchy ["Year", "Unit", "Session"]
+        Note: depth is limited to 2 to match the builder hierarchy ["Unit", "Session"].
         """
         # Create program and enrollment
         program = ProgramFactory()
         enrollment = EnrollmentFactory(program=program)
 
-        # Create nested nodes - must match blueprint hierarchy_structure
-        # AcademicBlueprintFactory uses ["Year", "Unit", "Session"]
-        node_types = ["Year", "Unit", "Session"]
+        # Create nested nodes matching the builder hierarchy structure.
+        node_types = ["Unit", "Session"]
         parent = None
         nodes = []
 
@@ -870,7 +870,7 @@ class TestSubmissionDisplayCompleteness:
 
         # Create review if needed
         if has_review:
-            reviewer = UserFactory(tenant=enrollment.user.tenant)
+            reviewer = UserFactory()
             SubmissionReview.objects.create(
                 submission=submission,
                 reviewer=reviewer,

@@ -21,6 +21,7 @@ import {
     Share as ShareIcon,
     Verified as VerifiedIcon,
     Warning as WarningIcon,
+    HourglassEmpty as PendingIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -33,14 +34,21 @@ const fadeIn = {
 };
 
 function CertificateCard({ certificate }) {
+    const isPendingRelease = certificate.queueStatus === "pending";
+    const isIneligible = certificate.queueStatus === "ineligible";
+    const isIssued = Boolean(certificate.issueDate);
+
     // Download URL is now passed directly from backend as certificate.downloadUrl
     const handleDownload = () => {
-        if (certificate.downloadUrl) {
+        if (certificate.downloadUrl && isIssued) {
             window.open(certificate.downloadUrl, "_blank");
         }
     };
 
     const handleShare = () => {
+        if (!certificate.verificationUrl) {
+            return;
+        }
         const url = `${window.location.origin}${certificate.verificationUrl}`;
         if (navigator.share) {
             navigator.share({
@@ -83,6 +91,8 @@ function CertificateCard({ certificate }) {
                             >
                                 {certificate.isRevoked ? (
                                     <WarningIcon color="error" />
+                                ) : isPendingRelease ? (
+                                    <PendingIcon color="warning" />
                                 ) : (
                                     <VerifiedIcon color="success" />
                                 )}
@@ -94,6 +104,21 @@ function CertificateCard({ certificate }) {
                                         label="Revoked"
                                         color="error"
                                         size="small"
+                                    />
+                                )}
+                                {isPendingRelease && (
+                                    <Chip
+                                        label="Pending Release"
+                                        color="warning"
+                                        size="small"
+                                    />
+                                )}
+                                {isIneligible && (
+                                    <Chip
+                                        label="Not Eligible"
+                                        color="default"
+                                        size="small"
+                                        variant="outlined"
                                     />
                                 )}
                             </Box>
@@ -118,7 +143,7 @@ function CertificateCard({ certificate }) {
                                         variant="body2"
                                         fontFamily="monospace"
                                     >
-                                        {certificate.serialNumber}
+                                        {certificate.serialNumber || "Pending release"}
                                     </Typography>
                                 </Box>
                                 <Box>
@@ -129,9 +154,11 @@ function CertificateCard({ certificate }) {
                                         Completion Date
                                     </Typography>
                                     <Typography variant="body2">
-                                        {new Date(
-                                            certificate.completionDate,
-                                        ).toLocaleDateString()}
+                                        {certificate.completionDate
+                                            ? new Date(
+                                                  certificate.completionDate,
+                                              ).toLocaleDateString()
+                                            : "-"}
                                     </Typography>
                                 </Box>
                                 <Box>
@@ -142,9 +169,11 @@ function CertificateCard({ certificate }) {
                                         Issue Date
                                     </Typography>
                                     <Typography variant="body2">
-                                        {new Date(
-                                            certificate.issueDate,
-                                        ).toLocaleDateString()}
+                                        {certificate.issueDate
+                                            ? new Date(
+                                                  certificate.issueDate,
+                                              ).toLocaleDateString()
+                                            : "Not issued yet"}
                                     </Typography>
                                 </Box>
                             </Stack>
@@ -156,15 +185,32 @@ function CertificateCard({ certificate }) {
                                         {certificate.revocationReason}
                                     </Alert>
                                 )}
+
+                            {isPendingRelease && (
+                                <Alert severity="info" sx={{ mt: 2 }}>
+                                    You have completed this program. Your certificate is
+                                    pending admin approval for release.
+                                </Alert>
+                            )}
+
+                            {isIneligible && (
+                                <Alert severity="warning" sx={{ mt: 2 }}>
+                                    Certificate requirements are not yet met for this
+                                    program.
+                                </Alert>
+                            )}
                         </Box>
 
                         <Stack direction="row" spacing={1}>
                             <Tooltip title="Share verification link">
-                                <IconButton onClick={handleShare}>
+                                <IconButton
+                                    onClick={handleShare}
+                                    disabled={!certificate.verificationUrl}
+                                >
                                     <ShareIcon />
                                 </IconButton>
                             </Tooltip>
-                            {!certificate.isRevoked && (
+                            {!certificate.isRevoked && isIssued && (
                                 <Tooltip title="Download PDF">
                                     <IconButton
                                         onClick={handleDownload}
