@@ -1,0 +1,95 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, test, vi, beforeEach } from "vitest";
+
+import DashboardLayout from "./index";
+
+const { mockUsePage, mockUseLogoutOptions, mockSharedLogoutAction } = vi.hoisted(
+    () => ({
+        mockUsePage: vi.fn(),
+        mockUseLogoutOptions: vi.fn(),
+        mockSharedLogoutAction: vi.fn(),
+    })
+);
+
+vi.mock("@inertiajs/react", () => ({
+    Link: ({ children, href, ...props }) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
+    usePage: () => mockUsePage(),
+}));
+
+vi.mock("@/hooks/useLogout", () => ({
+    default: (options = {}) => {
+        mockUseLogoutOptions(options);
+        return () => {
+            options.onBefore?.();
+            mockSharedLogoutAction();
+        };
+    },
+}));
+
+vi.mock("@/components/NotificationPanel", () => ({
+    default: () => <div data-testid="notification-panel" />,
+}));
+
+vi.mock("@/components/common/PlatformLogo", () => ({
+    default: () => <div data-testid="platform-logo" />,
+}));
+
+vi.mock("@/theme", () => ({
+    useThemeMode: () => ({ isDark: false, toggleMode: vi.fn() }),
+}));
+
+describe("DashboardLayout logout", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockUsePage.mockReturnValue({
+            props: {
+                auth: {
+                    user: {
+                        firstName: "Ada",
+                        email: "ada@example.com",
+                        role: "student",
+                    },
+                },
+                platform: {
+                    institutionName: "DigikaTech Africa",
+                    features: {},
+                },
+            },
+        });
+    });
+
+    test("dashboard logout control triggers the shared logout action", () => {
+        render(
+            <DashboardLayout>
+                <div>Dashboard content</div>
+            </DashboardLayout>
+        );
+
+        fireEvent.click(screen.getByLabelText("user menu"));
+        fireEvent.click(screen.getByText("Logout"));
+
+        expect(mockUseLogoutOptions).toHaveBeenCalled();
+        expect(mockSharedLogoutAction).toHaveBeenCalledTimes(1);
+    });
+
+    test("dashboard menu closes immediately when logout is clicked", async () => {
+        render(
+            <DashboardLayout>
+                <div>Dashboard content</div>
+            </DashboardLayout>
+        );
+
+        fireEvent.click(screen.getByLabelText("user menu"));
+        expect(screen.getByText("Logout")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText("Logout"));
+
+        await waitFor(() => {
+            expect(screen.queryByText("Logout")).not.toBeInTheDocument();
+        });
+    });
+});

@@ -84,6 +84,19 @@ class TestRoleBasedRedirect:
         assert response.status_code == 302
         assert response.url == "/dashboard/"
 
+
+@pytest.mark.django_db
+def test_logout_requires_post_contract_and_redirects_to_login(client):
+    """Authenticated POST logout should clear session and redirect to login."""
+    user = UserFactory(password="TestPass123")
+    client.force_login(user)
+
+    response = client.post("/logout/")
+
+    assert response.status_code == 302
+    assert response.url == "/login/"
+    assert "_auth_user_id" not in client.session
+
     @given(role=st.sampled_from(["student", "admin", "superadmin", "instructor"]))
     @settings(max_examples=100)
     def test_get_dashboard_url_returns_valid_path(self, role):

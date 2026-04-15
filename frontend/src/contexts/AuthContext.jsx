@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import { router } from "@inertiajs/react";
+import useLogout from "@/hooks/useLogout";
 
 const AuthContext = createContext(undefined);
 
@@ -9,6 +10,7 @@ const AuthContext = createContext(undefined);
  */
 export function AuthProvider({ children, initialUser = null }) {
     const [user, setUser] = useState(initialUser);
+    const triggerLogout = useLogout();
 
     const login = useCallback(async (credentials) => {
         return new Promise((resolve, reject) => {
@@ -23,19 +25,16 @@ export function AuthProvider({ children, initialUser = null }) {
     }, []);
 
     const logout = useCallback(async () => {
-        return new Promise((resolve) => {
-            router.post(
-                "/logout/",
-                {},
-                {
-                    onSuccess: () => {
-                        setUser(null);
-                        resolve();
-                    },
-                }
-            );
+        return new Promise((resolve, reject) => {
+            triggerLogout({
+                onSuccess: () => {
+                    setUser(null);
+                    resolve();
+                },
+                onError: (errors) => reject(errors),
+            });
         });
-    }, []);
+    }, [triggerLogout]);
 
     const refreshUser = useCallback(() => {
         router.reload({ only: ["auth"] });

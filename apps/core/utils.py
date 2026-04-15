@@ -134,6 +134,9 @@ def serialize_user(user: User) -> dict:
     return {
         "id": user.id,
         "email": user.email,
+        "first_name": getattr(user, 'first_name', ''),
+        "last_name": getattr(user, 'last_name', ''),
+        "phone": getattr(user, 'phone', ''),
         "name": user.get_full_name() or user.email,
         "avatar": None,
     }
