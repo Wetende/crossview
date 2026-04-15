@@ -36,7 +36,7 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
     class Meta:
         model = DiscussionThread
         fields = ['id', 'node', 'user', 'title', 'content', 'is_pinned', 'is_locked', 'created_at', 'updated_at', 'posts_count', 'latest_post_at', 'is_owner']
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at', 'posts_count', 'latest_post_at', 'is_owner']
+        read_only_fields = ['id', 'user', 'is_pinned', 'is_locked', 'created_at', 'updated_at', 'posts_count', 'latest_post_at', 'is_owner']
 
     def get_latest_post_at(self, obj):
         latest = obj.posts.order_by('-created_at').first()

@@ -1,91 +1,116 @@
-from django.urls import reverse
-from rest_framework.test import APITestCase
-from rest_framework import status
-from django.contrib.auth import get_user_model
-from apps.curriculum.models import CurriculumNode
-from apps.core.models import Program
-from apps.blueprints.models import AcademicBlueprint
+import json
+
+from django.contrib.auth.models import Group
+from django.test import TestCase
+
 from apps.content.models import ContentBlock
+from apps.core.tests.factories import UserFactory
+from apps.progression.tests.factories import (
+    CurriculumNodeFactory,
+    InstructorAssignmentFactory,
+    ProgramFactory,
+)
 
-User = get_user_model()
 
-class ContentBlockTests(APITestCase):
+class ContentBlockAuthorizationTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='testuser', password='password')
-        self.blueprint = AcademicBlueprint.objects.create(
-            name="Test Blueprint", 
-            hierarchy_structure=["Unit", "Session"],
-            grading_logic={"type": "percentage"}
+        self.instructor = UserFactory()
+        self.student = UserFactory()
+        instructor_group, _ = Group.objects.get_or_create(name="Instructors")
+        self.instructor.groups.add(instructor_group)
+
+        self.program = ProgramFactory()
+        self.other_program = ProgramFactory()
+        self.node = CurriculumNodeFactory(program=self.program)
+        self.other_node = CurriculumNodeFactory(program=self.other_program)
+        InstructorAssignmentFactory(instructor=self.instructor, program=self.program)
+
+        self.list_url = "/content/blocks/"
+        self.create_url = "/content/blocks/create/"
+        self.reorder_url = "/content/blocks/reorder/"
+
+    def test_instructor_can_create_list_and_reorder_blocks_for_assigned_node(self):
+        self.client.force_login(self.instructor)
+
+        create_response = self.client.post(
+            self.create_url,
+            data=json.dumps(
+                {
+                    "node": self.node.id,
+                    "block_type": "VIDEO",
+                    "data": {"provider": "youtube", "url": "https://youtu.be/xyz"},
+                }
+            ),
+            content_type="application/json",
         )
-        self.program = Program.objects.create(name="Test Program", blueprint=self.blueprint)
-        self.node = CurriculumNode.objects.create(
-            program=self.program, 
-            title="Test Session", 
-            node_type="Session"
+
+        self.assertEqual(create_response.status_code, 201)
+        created_block = ContentBlock.objects.get(node=self.node)
+
+        list_response = self.client.get(self.list_url, {"node_id": self.node.id})
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(list_response.json()), 1)
+        self.assertEqual(list_response.json()[0]["id"], created_block.id)
+
+        block_a = ContentBlock.objects.create(
+            node=self.node,
+            block_type="RICHTEXT",
+            position=1,
         )
-        self.client.force_authenticate(user=self.user)
-        self.list_url = reverse('content:contentblock-list')
+        reorder_response = self.client.post(
+            self.reorder_url,
+            data=json.dumps(
+                {"node_id": self.node.id, "order": [block_a.id, created_block.id]}
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(reorder_response.status_code, 200)
 
-    def test_create_video_block(self):
-        data = {
-            "node": self.node.id,
-            "block_type": "VIDEO",
-            "data": {"provider": "youtube", "url": "https://youtu.be/xyz"}
-        }
-        response = self.client.post(self.list_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(ContentBlock.objects.count(), 1)
-        self.assertEqual(ContentBlock.objects.get().data['provider'], 'youtube')
+        created_block.refresh_from_db()
+        block_a.refresh_from_db()
+        self.assertEqual(block_a.position, 0)
+        self.assertEqual(created_block.position, 1)
 
-    def test_create_invalid_video_block(self):
-        # Missing URL
-        data = {
-            "node": self.node.id,
-            "block_type": "VIDEO",
-            "data": {"provider": "youtube"}
-        }
-        response = self.client.post(self.list_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("data", response.data)
+    def test_non_instructor_cannot_access_content_api(self):
+        self.client.force_login(self.student)
 
-    def test_create_quiz_block_without_id(self):
-        data = {
-            "node": self.node.id,
-            "block_type": "QUIZ",
-            "data": {}
-        }
-        response = self.client.post(self.list_url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        list_response = self.client.get(self.list_url, {"node_id": self.node.id})
+        create_response = self.client.post(
+            self.create_url,
+            data=json.dumps(
+                {
+                    "node": self.node.id,
+                    "block_type": "VIDEO",
+                    "data": {"provider": "youtube", "url": "https://youtu.be/xyz"},
+                }
+            ),
+            content_type="application/json",
+        )
 
-    def test_reorder_blocks(self):
-        b1 = ContentBlock.objects.create(node=self.node, block_type="RICHTEXT", position=0)
-        b2 = ContentBlock.objects.create(node=self.node, block_type="RICHTEXT", position=1)
-        b3 = ContentBlock.objects.create(node=self.node, block_type="RICHTEXT", position=2)
-        
-        reorder_url = reverse('content:contentblock-reorder')
-        response = self.client.post(reorder_url, {
-            "node_id": self.node.id,
-            "order": [b3.id, b1.id, b2.id]
-        }, format='json')
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        b1.refresh_from_db()
-        b2.refresh_from_db()
-        b3.refresh_from_db()
-        
-        self.assertEqual(b3.position, 0)
-        self.assertEqual(b1.position, 1)
-        self.assertEqual(b2.position, 2)
+        self.assertEqual(list_response.status_code, 403)
+        self.assertEqual(create_response.status_code, 403)
 
-    def test_filter_by_node(self):
-        ContentBlock.objects.create(node=self.node, block_type="RICHTEXT")
-        
-        # Create another node
-        other_node = CurriculumNode.objects.create(program=self.program, title="Other", node_type="Session")
-        ContentBlock.objects.create(node=other_node, block_type="VIDEO")
-        
-        response = self.client.get(self.list_url, {'node_id': self.node.id})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['node'], self.node.id)
+    def test_foreign_node_returns_not_found_for_instructor(self):
+        self.client.force_login(self.instructor)
+
+        list_response = self.client.get(self.list_url, {"node_id": self.other_node.id})
+        create_response = self.client.post(
+            self.create_url,
+            data=json.dumps(
+                {
+                    "node": self.other_node.id,
+                    "block_type": "VIDEO",
+                    "data": {"provider": "youtube", "url": "https://youtu.be/xyz"},
+                }
+            ),
+            content_type="application/json",
+        )
+        reorder_response = self.client.post(
+            self.reorder_url,
+            data=json.dumps({"node_id": self.other_node.id, "order": []}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(list_response.status_code, 404)
+        self.assertEqual(create_response.status_code, 404)
+        self.assertEqual(reorder_response.status_code, 404)

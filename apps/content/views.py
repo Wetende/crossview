@@ -1,12 +1,12 @@
 """Content app views - JSON endpoints for Course Builder."""
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.http import Http404, JsonResponse
 from django.views.decorators.http import require_POST
 
 from .models import ContentBlock
 from apps.curriculum.models import CurriculumNode
-from apps.core.utils import get_post_data, is_instructor, get_instructor_program_ids
+from apps.core.api_permissions import get_object_in_instructor_scope
+from apps.core.utils import get_post_data, is_instructor
 
 
 def _json_error(
@@ -22,6 +22,24 @@ def _json_error(
             "error": message,
         },
         status=status,
+    )
+
+
+def _get_accessible_node(user, node_id):
+    return get_object_in_instructor_scope(
+        CurriculumNode.objects.select_related("program"),
+        user,
+        "program_id",
+        pk=node_id,
+    )
+
+
+def _get_accessible_block(user, block_id):
+    return get_object_in_instructor_scope(
+        ContentBlock.objects.select_related("node", "node__program"),
+        user,
+        "node__program_id",
+        pk=block_id,
     )
 
 
@@ -44,16 +62,16 @@ def content_blocks_list(request):
             code="permission_denied",
         )
 
-    program_ids = get_instructor_program_ids(request.user)
-    node = get_object_or_404(CurriculumNode, pk=node_id)
-    if node.program_id not in program_ids:
+    try:
+        node = _get_accessible_node(request.user, node_id)
+    except Http404:
         return _json_error(
-            "You do not have access to this content.",
-            status=403,
-            code="permission_denied",
+            "Node not found.",
+            status=404,
+            code="not_found",
         )
 
-    blocks = ContentBlock.objects.filter(node_id=node_id).order_by('position')
+    blocks = ContentBlock.objects.filter(node_id=node.id).order_by('position')
     data = [{
         'id': b.id,
         'node': b.node_id,
@@ -94,14 +112,13 @@ def content_block_create(request):
             code="permission_denied",
         )
 
-    program_ids = get_instructor_program_ids(request.user)
-    node = get_object_or_404(CurriculumNode, pk=node_id)
-
-    if node.program_id not in program_ids:
+    try:
+        node = _get_accessible_node(request.user, node_id)
+    except Http404:
         return _json_error(
-            "You do not have access to this content.",
-            status=403,
-            code="permission_denied",
+            "Node not found.",
+            status=404,
+            code="not_found",
         )
 
     # Auto-position if not provided
@@ -136,14 +153,13 @@ def content_block_update(request, pk: int):
             code="permission_denied",
         )
 
-    block = get_object_or_404(ContentBlock, pk=pk)
-    program_ids = get_instructor_program_ids(request.user)
-
-    if block.node.program_id not in program_ids:
+    try:
+        block = _get_accessible_block(request.user, pk)
+    except Http404:
         return _json_error(
-            "You do not have access to this content.",
-            status=403,
-            code="permission_denied",
+            "Content block not found.",
+            status=404,
+            code="not_found",
         )
 
     if 'block_type' in data:
@@ -173,14 +189,13 @@ def content_block_delete(request, pk: int):
             code="permission_denied",
         )
 
-    block = get_object_or_404(ContentBlock, pk=pk)
-    program_ids = get_instructor_program_ids(request.user)
-
-    if block.node.program_id not in program_ids:
+    try:
+        block = _get_accessible_block(request.user, pk)
+    except Http404:
         return _json_error(
-            "You do not have access to this content.",
-            status=403,
-            code="permission_denied",
+            "Content block not found.",
+            status=404,
+            code="not_found",
         )
 
     block.delete()
@@ -215,14 +230,13 @@ def content_blocks_reorder(request):
             code="permission_denied",
         )
 
-    program_ids = get_instructor_program_ids(request.user)
-    node = get_object_or_404(CurriculumNode, pk=node_id)
-
-    if node.program_id not in program_ids:
+    try:
+        node = _get_accessible_node(request.user, node_id)
+    except Http404:
         return _json_error(
-            "You do not have access to this content.",
-            status=403,
-            code="permission_denied",
+            "Node not found.",
+            status=404,
+            code="not_found",
         )
 
     blocks = ContentBlock.objects.filter(node=node)
