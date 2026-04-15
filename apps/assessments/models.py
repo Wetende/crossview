@@ -146,6 +146,7 @@ class Quiz(TimeStampedModel):
     # Enhanced Quiz Settings
     randomize_questions = models.BooleanField(default=False)
     show_answers_after_submit = models.BooleanField(default=True)
+    allow_retake_after_pass = models.BooleanField(default=False)
     retake_penalty_percent = models.DecimalField(
         max_digits=5, decimal_places=2, default=0
     )
@@ -569,6 +570,7 @@ class Assignment(TimeStampedModel):
     description = models.TextField()
     instructions = models.TextField()
     weight = models.PositiveIntegerField(help_text="Percentage weight in final grade")
+    pass_threshold = models.PositiveIntegerField(default=50)
     due_date = models.DateTimeField(null=True, blank=True)
     allow_late_submission = models.BooleanField(default=False)
     late_penalty_percent = models.PositiveIntegerField(default=0)
@@ -608,6 +610,7 @@ class AssignmentSubmission(models.Model):
     """
 
     STATUS_CHOICES = [
+        ("started", "Started"),
         ("submitted", "Submitted"),
         ("graded", "Graded"),
         ("returned", "Returned for Revision"),
@@ -621,8 +624,9 @@ class AssignmentSubmission(models.Model):
     assignment = models.ForeignKey(
         Assignment, on_delete=models.CASCADE, related_name="submissions"
     )
+    attempt_number = models.PositiveIntegerField(default=1)
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="submitted"
+        max_length=20, choices=STATUS_CHOICES, default="started"
     )
 
     # Submission content
@@ -634,6 +638,7 @@ class AssignmentSubmission(models.Model):
 
     # Grading
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    passed = models.BooleanField(null=True, blank=True)
     dimension_scores = models.JSONField(
         null=True, blank=True, help_text="Rubric dimension scores"
     )
@@ -646,16 +651,36 @@ class AssignmentSubmission(models.Model):
         related_name="graded_assignments",
     )
     graded_at = models.DateTimeField(null=True, blank=True)
+    is_official = models.BooleanField(default=False)
 
     class Meta:
         db_table = "assignment_submissions"
-        unique_together = ["enrollment", "assignment"]
+        unique_together = ["enrollment", "assignment", "attempt_number"]
         indexes = [
+            models.Index(fields=["enrollment", "assignment", "attempt_number"]),
             models.Index(fields=["assignment", "status"]),
+            models.Index(fields=["enrollment", "assignment", "is_official"]),
         ]
 
     def __str__(self):
-        return f"Submission for {self.assignment.title}"
+        return f"Submission #{self.attempt_number} for {self.assignment.title}"
+
+    @classmethod
+    def get_official_attempt(cls, enrollment, assignment):
+        """
+        Official assignment result is the highest graded finalized attempt.
+        Pending or ungraded attempts never displace a graded official attempt.
+        """
+        return (
+            cls.objects.filter(
+                enrollment=enrollment,
+                assignment=assignment,
+                status__in=["graded", "returned"],
+                score__isnull=False,
+            )
+            .order_by("-score", "-attempt_number")
+            .first()
+        )
 
     def get_final_score(self) -> Optional[float]:
         """Calculate final score after late penalty if applicable."""
@@ -686,6 +711,75 @@ class QuestionOption(models.Model):
 
     def __str__(self):
         return f"{self.question.id} Option: {self.text[:30]}"
+
+
+class AssignmentSubmissionMedia(models.Model):
+    """Media assets attached to a learner assignment attempt."""
+
+    MEDIA_TYPE_CHOICES = [
+        ("file", "File"),
+        ("audio", "Audio"),
+        ("video", "Video"),
+    ]
+
+    submission = models.ForeignKey(
+        AssignmentSubmission,
+        on_delete=models.CASCADE,
+        related_name="media_assets",
+    )
+    media_type = models.CharField(max_length=20, choices=MEDIA_TYPE_CHOICES)
+    file_path = models.CharField(max_length=500)
+    file_name = models.CharField(max_length=255)
+    file_size = models.PositiveBigIntegerField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "assignment_submission_media"
+        indexes = [
+            models.Index(fields=["submission", "media_type"]),
+        ]
+
+    def __str__(self):
+        return f"{self.media_type}:{self.file_name}"
+
+
+class AssignmentReviewMedia(models.Model):
+    """Media assets attached by instructors during assignment review."""
+
+    MEDIA_TYPE_CHOICES = [
+        ("file", "File"),
+        ("audio", "Audio"),
+        ("video", "Video"),
+    ]
+
+    submission = models.ForeignKey(
+        AssignmentSubmission,
+        on_delete=models.CASCADE,
+        related_name="review_media_assets",
+    )
+    uploaded_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assignment_review_media",
+    )
+    media_type = models.CharField(max_length=20, choices=MEDIA_TYPE_CHOICES)
+    file_path = models.CharField(max_length=500)
+    file_name = models.CharField(max_length=255)
+    file_size = models.PositiveBigIntegerField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "assignment_review_media"
+        indexes = [
+            models.Index(fields=["submission", "media_type"]),
+        ]
+
+    def __str__(self):
+        return f"review-{self.media_type}:{self.file_name}"
 
 
 class QuestionMatchingPair(models.Model):

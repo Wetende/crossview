@@ -19,6 +19,7 @@ import {
   IconButton,
   Chip,
   Alert,
+  TextField,
 } from '@mui/material';
 import {
   IconArrowLeft,
@@ -28,15 +29,28 @@ import { motion } from 'framer-motion';
 import DashboardLayout from '@/layouts/DashboardLayout';
 
 export default function Grade({ submission, assignment }) {
+  const passThreshold = assignment.passThreshold ?? 50;
   const [gradeStatus, setGradeStatus] = useState(
-    submission.score !== null && submission.score >= 50 ? 'passed' : 'failed'
+    submission.passed === true ||
+      (submission.score !== null && submission.score >= passThreshold)
+      ? 'passed'
+      : 'failed'
   );
   
-  const { data, setData, post, processing } = useForm({
-    score: submission.score || '',
+  const { data, setData, post, processing, transform } = useForm({
+    score: submission.score ?? '',
     feedback: submission.feedback || '',
     status: 'graded',
+    review_attachments: [],
+    review_audio: null,
+    review_video: null,
   });
+
+  const resolveMediaUrl = (path) => {
+    if (!path) return "";
+    if (/^https?:\/\//i.test(path) || path.startsWith("/")) return path;
+    return `/media/${path}`;
+  };
 
   const breadcrumbs = [
     { label: 'Assignments', href: '/instructor/assignments/' },
@@ -46,15 +60,27 @@ export default function Grade({ submission, assignment }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Set score based on passed/failed status
-    const finalScore = gradeStatus === 'passed' ? Math.max(data.score || 50, 50) : Math.min(data.score || 0, 49);
-    setData('score', finalScore);
-    post(`/instructor/submissions/${submission.id}/grade/`);
+    transform((currentData) => {
+      const enteredScore = parseFloat(currentData.score) || 0;
+      const passingFloor = Math.max(0, passThreshold);
+      const failingCeiling = Math.max(passingFloor - 1, 0);
+      const finalScore =
+        gradeStatus === 'passed'
+          ? Math.max(enteredScore || passingFloor, passingFloor)
+          : Math.min(enteredScore || 0, failingCeiling);
+      return {
+        ...currentData,
+        score: finalScore,
+      };
+    });
+    post(`/instructor/submissions/${submission.id}/grade/`, {
+      forceFormData: true,
+    });
   };
 
   const getStatusBadge = () => {
     if (submission.status === 'graded') {
-      if (submission.score >= 50) {
+      if (submission.passed === true || submission.finalScore >= passThreshold) {
         return <Chip label="PASSED" size="small" sx={{ bgcolor: '#10b981', color: 'white', fontWeight: 600 }} />;
       } else {
         return <Chip label="FAILED" size="small" sx={{ bgcolor: '#ef4444', color: 'white', fontWeight: 600 }} />;
@@ -105,7 +131,7 @@ export default function Grade({ submission, assignment }) {
           </Stack>
           <Stack direction="row" alignItems="center" spacing={2}>
             <Typography variant="body2">
-              ATTEMPT: 1
+              ATTEMPT: {submission.attemptNumber || 1}
             </Typography>
             {getStatusBadge()}
           </Stack>
@@ -151,17 +177,68 @@ export default function Grade({ submission, assignment }) {
               >
                 {submission.textContent}
               </Typography>
-            ) : submission.fileName ? (
+            ) : Array.isArray(submission.media) && submission.media.length > 0 ? (
               <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="subtitle2">Uploaded File:</Typography>
-                <Typography>{submission.fileName}</Typography>
-                {/* TODO: Add download link */}
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Submitted media
+                </Typography>
+                <Stack spacing={1}>
+                  {submission.media.map((media) => (
+                    <Stack
+                      key={media.id}
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
+                      <Typography>{media.name}</Typography>
+                      <Button
+                        component="a"
+                        href={resolveMediaUrl(media.path)}
+                        size="small"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open
+                      </Button>
+                    </Stack>
+                  ))}
+                </Stack>
               </Paper>
             ) : (
               <Typography color="text.secondary" fontStyle="italic">
                 No response submitted
               </Typography>
             )}
+            {Array.isArray(submission.media) && submission.media.length > 0 && submission.textContent ? (
+              <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Submitted media
+                </Typography>
+                <Stack spacing={1}>
+                  {submission.media.map((media) => (
+                    <Stack
+                      key={media.id}
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      justifyContent="space-between"
+                    >
+                      <Typography>{media.name}</Typography>
+                      <Button
+                        component="a"
+                        href={resolveMediaUrl(media.path)}
+                        size="small"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open
+                      </Button>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Paper>
+            ) : null}
           </Box>
 
           <Divider sx={{ my: 4 }} />
@@ -222,6 +299,15 @@ export default function Grade({ submission, assignment }) {
               />
             </RadioGroup>
 
+            <TextField
+              label={`Score (pass mark ${passThreshold}%)`}
+              type="number"
+              value={data.score}
+              onChange={(e) => setData('score', e.target.value)}
+              inputProps={{ min: 0, max: 100, step: 0.5 }}
+              sx={{ mb: 3, maxWidth: 220 }}
+            />
+
             {/* Feedback Text Editor */}
             <Paper
               variant="outlined"
@@ -267,6 +353,71 @@ export default function Grade({ submission, assignment }) {
                 }}
               />
             </Paper>
+
+            <Stack spacing={2} sx={{ mb: 3 }}>
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Review attachments
+                </Typography>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) =>
+                    setData('review_attachments', Array.from(e.target.files || []))
+                  }
+                  accept={assignment.allowedFileTypes?.map((type) => `.${type}`).join(',')}
+                />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Review audio
+                </Typography>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => setData('review_audio', e.target.files?.[0] || null)}
+                />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Review video
+                </Typography>
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => setData('review_video', e.target.files?.[0] || null)}
+                />
+              </Box>
+              {Array.isArray(submission.reviewMedia) && submission.reviewMedia.length > 0 && (
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Existing review media
+                  </Typography>
+                  <Stack spacing={1}>
+                    {submission.reviewMedia.map((media) => (
+                      <Stack
+                        key={media.id}
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <Typography>{media.name}</Typography>
+                        <Button
+                          component="a"
+                          href={resolveMediaUrl(media.path)}
+                          size="small"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Open
+                        </Button>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Paper>
+              )}
+            </Stack>
 
             {/* Submit Button */}
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>

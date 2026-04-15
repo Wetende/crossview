@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     Box,
     Typography,
@@ -14,12 +14,6 @@ import {
     Paper,
     Chip,
     IconButton,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Radio,
-    RadioGroup,
     Snackbar,
     Alert,
     Menu,
@@ -33,17 +27,11 @@ import {
     Quiz as QuizIcon,
     Assignment as AssignmentIcon,
     LibraryBooks as LibraryIcon,
-    Edit as EditIcon,
-    Help as HelpIcon,
     KeyboardArrowDown as ArrowDownIcon,
     AccountBalance as BankIcon,
 } from "@mui/icons-material";
 import { router } from "@inertiajs/react";
 
-// Import specialized editors from Quizzes feature
-import MatchingPairsEditor from "@/features/quizzes/components/MatchingPairsEditor";
-import FillBlankEditor from "@/features/quizzes/components/FillBlankEditor";
-import OrderingEditor from "@/features/quizzes/components/OrderingEditor";
 import QuestionsLibraryDrawer from "../components/QuestionsLibraryDrawer";
 import QuestionBankDialog from "../components/QuestionBankDialog";
 import QuestionEditorCard from "../components/QuestionEditorCard";
@@ -167,13 +155,11 @@ export default function AssessmentEditor({
     // Common state
     const [title, setTitle] = useState(node.title);
     const [activeTab, setActiveTab] = useState("questions");
-    const [errors, setErrors] = useState({});
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: "",
         severity: "success",
     });
-    const [touched, setTouched] = useState({});
 
     // Quiz-specific state
     const [description, setDescription] = useState(
@@ -182,7 +168,7 @@ export default function AssessmentEditor({
     const [quizDuration, setQuizDuration] = useState(
         node.properties?.quiz_duration || 30,
     );
-    const [quizTimeUnit, setQuizTimeUnit] = useState(
+    const [quizTimeUnit] = useState(
         node.properties?.quiz_time_unit || "Minutes",
     );
     const [quizStyle, setQuizStyle] = useState(
@@ -206,16 +192,16 @@ export default function AssessmentEditor({
     const [quizAttemptHistory, setQuizAttemptHistory] = useState(
         node.properties?.quiz_attempt_history || false,
     );
-    const [retakeAfterPass, setRetakeAfterPass] = useState(
+    const [retakeAfterPass] = useState(
         node.properties?.retake_after_pass || false,
     );
-    const [limitedRetakeAttempts, setLimitedRetakeAttempts] = useState(
+    const [limitedRetakeAttempts] = useState(
         node.properties?.limited_retake_attempts || false,
     );
-    const [retakePenalty, setRetakePenalty] = useState(
+    const [retakePenalty] = useState(
         node.properties?.retake_penalty || 0,
     );
-    const [pointsCutAfterRetake, setPointsCutAfterRetake] = useState(
+    const [pointsCutAfterRetake] = useState(
         node.properties?.points_cut_after_retake || 0,
     );
     const [questions, setQuestions] = useState(
@@ -241,14 +227,25 @@ export default function AssessmentEditor({
     const [assignmentAttempts, setAssignmentAttempts] = useState(
         node.properties?.assignment_attempts ?? "",
     );
-    const [points, setPoints] = useState(node.properties?.points || 100);
+    const [points] = useState(node.properties?.points || 100);
     const [weight, setWeight] = useState(
         node.properties?.weight ?? (isQuiz ? 0 : 20),
     );
-    const [allowLate, setAllowLate] = useState(
+    const [allowLate] = useState(
         node.properties?.allow_late_submission ?? node.properties?.allow_late ?? false,
     );
-    const [materialFiles, setMaterialFiles] = useState(
+    const [assignmentSubmissionType, setAssignmentSubmissionType] = useState(
+        node.properties?.submission_type || "text",
+    );
+    const [allowedFileTypes, setAllowedFileTypes] = useState(
+        Array.isArray(node.properties?.allowed_file_types)
+            ? node.properties.allowed_file_types.join(", ")
+            : "",
+    );
+    const [maxFileSizeMb, setMaxFileSizeMb] = useState(
+        node.properties?.max_file_size_mb ?? 10,
+    );
+    const [materialFiles] = useState(
         Array.isArray(node.properties?.files) ? node.properties.files : [],
     );
 
@@ -256,8 +253,6 @@ export default function AssessmentEditor({
     const [libraryDrawerOpen, setLibraryDrawerOpen] = useState(false);
     const [questionBankDialogOpen, setQuestionBankDialogOpen] = useState(false);
     const [addQuestionMenuAnchor, setAddQuestionMenuAnchor] = useState(null);
-    const [addDialogOpen, setAddDialogOpen] = useState(false);
-    const [newQuestionType, setNewQuestionType] = useState("mcq");
     const [confirmDialog, setConfirmDialog] = useState({
         open: false,
         title: "Confirm Action",
@@ -265,34 +260,10 @@ export default function AssessmentEditor({
         actionType: null,
         actionId: null,
     });
-    const [newQuestion, setNewQuestion] = useState({
-        text: "",
-        points: 1,
-        options: ["", "", "", ""],
-        correctAnswer: 0,
-        keywords: [],
-        pairs: [],
-        gaps: [],
-        items: ["", "", "", ""],
-    });
-
-    const isNew =
-        !node.id ||
-        node.id.toString().startsWith("temp_") ||
-        node.title === "Untitled Quiz" ||
-        node.title === "Untitled Assignment";
 
     const totalQuestionCount =
         questions.length +
         questionBanks.reduce((sum, bank) => sum + bank.questionCount, 0);
-
-    const handleBlur = (fieldName) => {
-        setTouched((prev) => ({ ...prev, [fieldName]: true }));
-    };
-
-    const getFieldError = (fieldName) => {
-        return touched[fieldName] ? errors[fieldName] : undefined;
-    };
 
     const handleCloseSnackbar = () => {
         setSnackbar({ ...snackbar, open: false });
@@ -347,6 +318,10 @@ export default function AssessmentEditor({
             Object.assign(properties, questionSettings);
         } else {
             const parsedAttempts = parseInt(String(assignmentAttempts).trim(), 10);
+            const normalizedAllowedFileTypes = allowedFileTypes
+                .split(",")
+                .map((value) => value.trim().replace(/^\./, "").toLowerCase())
+                .filter(Boolean);
             properties.assignment_mode = "submission_only";
             properties.typed_response_mode = "submission_text";
             properties.assessment_prompt = assessmentPrompt;
@@ -360,7 +335,12 @@ export default function AssessmentEditor({
             properties.files = materialFiles;
             properties.allow_late_submission = allowLate;
             properties.allow_late = allowLate;
-            properties.submission_type = "text";
+            properties.submission_type = assignmentSubmissionType;
+            properties.allowed_file_types = normalizedAllowedFileTypes;
+            properties.max_file_size_mb = Math.max(
+                1,
+                parseInt(maxFileSizeMb, 10) || 10,
+            );
             properties.questions = [];
             properties.question_banks = [];
             delete properties.quiz_id;
@@ -404,41 +384,6 @@ export default function AssessmentEditor({
         };
         setQuestions([...questions, newQuestionItem]);
         setAddQuestionMenuAnchor(null);
-    };
-
-    // Legacy handler - kept for compatibility but not used with inline editing
-    const handleAddQuestion = () => {
-        const questionToAdd = {
-            id: Date.now(),
-            db_id: null,
-            type: newQuestionType,
-            text: newQuestion.text,
-            points: newQuestion.points,
-            options: newQuestion.options.filter((o) => o.trim() !== ""),
-            correct: newQuestion.correctAnswer,
-            keywords: newQuestion.keywords,
-            pairs: newQuestion.pairs,
-            gaps: newQuestion.gaps,
-            items: newQuestion.items.filter((i) => i && i.trim() !== ""),
-            required: true,
-        };
-
-        setQuestions([...questions, questionToAdd]);
-        setAddDialogOpen(false);
-        resetQuestionForm();
-    };
-
-    const resetQuestionForm = () => {
-        setNewQuestion({
-            text: "",
-            points: 1,
-            options: ["", "", "", ""],
-            correctAnswer: 0,
-            keywords: [],
-            pairs: [],
-            gaps: [],
-            items: ["", "", "", ""],
-        });
     };
 
     const openDeleteDialog = ({ title, message, actionType, actionId }) => {
@@ -579,7 +524,7 @@ export default function AssessmentEditor({
         });
     };
 
-    const loadQaThreads = async () => {
+    const loadQaThreads = useCallback(async () => {
         if (!node?.id || String(node.id).startsWith("temp_")) {
             setQaThreads([]);
             return;
@@ -605,7 +550,7 @@ export default function AssessmentEditor({
         } finally {
             setQaLoading(false);
         }
-    };
+    }, [node?.id]);
 
     const handleCreateQaQuestion = () => {
         const content = newQAQuestion.trim();
@@ -684,15 +629,6 @@ export default function AssessmentEditor({
         );
     };
 
-    const getQuestionTypeInfo = (typeValue) => {
-        return (
-            QUESTION_TYPES.find((t) => t.value === typeValue) || {
-                label: typeValue,
-                color: "#757575",
-            }
-        );
-    };
-
     const assignmentHasQuestionSection = false;
     const tabs = [
         ...(isQuiz || assignmentHasQuestionSection
@@ -703,17 +639,21 @@ export default function AssessmentEditor({
     ];
 
     useEffect(() => {
-        const tabValues = new Set(tabs.map((tab) => tab.value));
+        const tabValues = new Set(
+            isQuiz || assignmentHasQuestionSection
+                ? ["questions", "settings", "qa"]
+                : ["settings", "qa"],
+        );
         if (!tabValues.has(activeTab)) {
             setActiveTab("settings");
         }
-    }, [activeTab, tabs]);
+    }, [activeTab, assignmentHasQuestionSection, isQuiz]);
 
     useEffect(() => {
         if (activeTab === "qa") {
             loadQaThreads();
         }
-    }, [activeTab, node?.id]);
+    }, [activeTab, loadQaThreads]);
 
     return (
         <Box>
@@ -765,7 +705,6 @@ export default function AssessmentEditor({
                         placeholder={`${isQuiz ? "Quiz" : "Assignment"} Title`}
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        onBlur={() => handleBlur("title")}
                         sx={{ flex: 1, maxWidth: 400 }}
                         InputProps={{
                             sx: { fontSize: "1rem" },
@@ -970,6 +909,52 @@ export default function AssessmentEditor({
                                 InputProps={{ inputProps: { min: 1 } }}
                                 helperText="Leave empty for unlimited attempts"
                             />
+                            <Stack direction="row" spacing={2} flexWrap="wrap">
+                                <FormControl sx={{ minWidth: 220 }}>
+                                    <InputLabel>Submission type</InputLabel>
+                                    <Select
+                                        value={assignmentSubmissionType}
+                                        label="Submission type"
+                                        onChange={(e) =>
+                                            setAssignmentSubmissionType(
+                                                e.target.value,
+                                            )
+                                        }
+                                    >
+                                        <MenuItem value="text">
+                                            Text response
+                                        </MenuItem>
+                                        <MenuItem value="file">
+                                            File upload
+                                        </MenuItem>
+                                        <MenuItem value="both">
+                                            Text + file upload
+                                        </MenuItem>
+                                    </Select>
+                                </FormControl>
+                                <TextField
+                                    label="Allowed file types"
+                                    value={allowedFileTypes}
+                                    onChange={(e) =>
+                                        setAllowedFileTypes(e.target.value)
+                                    }
+                                    placeholder="pdf, docx, mp3, mp4"
+                                    disabled={assignmentSubmissionType === "text"}
+                                    helperText="Comma-separated extensions"
+                                    sx={{ minWidth: 260 }}
+                                />
+                                <TextField
+                                    label="Max file size (MB)"
+                                    type="number"
+                                    value={maxFileSizeMb}
+                                    onChange={(e) =>
+                                        setMaxFileSizeMb(e.target.value)
+                                    }
+                                    disabled={assignmentSubmissionType === "text"}
+                                    sx={{ width: 180 }}
+                                    InputProps={{ inputProps: { min: 1, max: 500 } }}
+                                />
+                            </Stack>
                             <Box>
                                 <Typography
                                     variant="subtitle2"
@@ -1170,7 +1155,8 @@ export default function AssessmentEditor({
 
                     {isAssignment && (
                         <Alert severity="info">
-                            Students will click Start Assignment, review requirements, and submit a text response.
+                            Students can submit text, files, or both based on these settings.
+                            Audio and video evidence can also be added from the learner submission page.
                         </Alert>
                     )}
                 </Stack>

@@ -8,6 +8,58 @@ from django.utils import timezone
 
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import NodeCompletion, Enrollment
+from apps.assessments.official_results import (
+    assignment_attempt_passed,
+    get_official_assignment_attempt,
+    get_official_quiz_attempt,
+)
+
+
+ASSIGNMENT_MODES = {"submission_only", "question_only", "mixed"}
+
+
+def _safe_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_typed_response_mode(raw_value) -> str:
+    normalized = str(raw_value or "").strip().lower()
+    if normalized == "short_answer_question":
+        return "short_answer_question"
+    return "submission_text"
+
+
+def _normalize_assignment_mode(props: dict) -> str:
+    if not isinstance(props, dict):
+        return "submission_only"
+
+    explicit_mode = str(props.get("assignment_mode") or "").strip().lower()
+    if explicit_mode in ASSIGNMENT_MODES:
+        return explicit_mode
+
+    questions = props.get("questions", [])
+    return (
+        "mixed"
+        if isinstance(questions, list) and len(questions) > 0
+        else "submission_only"
+    )
+
+
+def _assignment_requires_questions(props: dict) -> bool:
+    mode = _normalize_assignment_mode(props)
+    typed = _normalize_typed_response_mode((props or {}).get("typed_response_mode"))
+    return mode in {"question_only", "mixed"} or (
+        mode == "submission_only" and typed == "short_answer_question"
+    )
+
+
+def _assignment_requires_submission(props: dict) -> bool:
+    mode = _normalize_assignment_mode(props)
+    typed = _normalize_typed_response_mode((props or {}).get("typed_response_mode"))
+    return mode == "mixed" or (mode == "submission_only" and typed == "submission_text")
 
 
 @dataclass
@@ -633,28 +685,71 @@ class ProgressionEngine:
         Returns:
             List of newly created NodeCompletion records
         """
-        # Find nodes that track this assignment
+        from apps.assessments.models import Assignment, Quiz
+
+        # Find assignment nodes linked to this assignment.
         nodes = CurriculumNode.objects.filter(
             program=submission.assignment.program,
-            completion_rules__assignment_id=submission.assignment.id
-        )
+        ).only("id", "node_type", "properties")
 
         completions = []
         for node in nodes:
-            # Check if this grade satisfies the rule
-            can_complete = self.completion_handler.can_complete(
-                node,
-                'assignment_pass',
-                {'score': submission.get_final_score()}
+            props = node.properties if isinstance(node.properties, dict) else {}
+            rules = (
+                node.completion_rules
+                if isinstance(getattr(node, "completion_rules", None), dict)
+                else {}
             )
+            node_type = str(node.node_type or "").lower()
+            lesson_type = str(props.get("lesson_type") or "").lower()
+            is_assignment = node_type == "assignment" or lesson_type == "assignment"
+            if not is_assignment:
+                continue
 
+            assignment_id = _safe_int(props.get("assignment_id") or rules.get("assignment_id"))
+            if assignment_id != submission.assignment.id:
+                continue
+
+            requires_submission = _assignment_requires_submission(props)
+            requires_questions = _assignment_requires_questions(props)
+
+            submission_passed = True
+            if requires_submission:
+                assignment = Assignment.objects.filter(pk=assignment_id).first()
+                official_assignment_attempt = (
+                    get_official_assignment_attempt(submission.enrollment, assignment)
+                    if assignment
+                    else None
+                )
+                submission_passed = assignment_attempt_passed(official_assignment_attempt)
+
+            question_passed = True
+            if requires_questions:
+                quiz_id = _safe_int(props.get("quiz_id") or rules.get("quiz_id"))
+                quiz = Quiz.objects.filter(pk=quiz_id).first() if quiz_id else None
+                official_quiz_attempt = (
+                    get_official_quiz_attempt(submission.enrollment, quiz) if quiz else None
+                )
+                question_passed = bool(
+                    official_quiz_attempt and official_quiz_attempt.passed is True
+                )
+
+            can_complete = submission_passed and question_passed
             if can_complete:
                 completion = self.mark_complete(
                     submission.enrollment,
                     node,
-                    'assignment_pass',
-                    {'submission_id': submission.id, 'score': submission.get_final_score()}
+                    "assignment_pass",
+                    {
+                        "submission_id": submission.id,
+                        "score": submission.get_final_score(),
+                    },
                 )
                 completions.append(completion)
+            else:
+                NodeCompletion.objects.filter(
+                    enrollment=submission.enrollment,
+                    node=node,
+                ).delete()
 
         return completions

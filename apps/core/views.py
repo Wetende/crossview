@@ -20,6 +20,7 @@ from django.shortcuts import redirect
 from django.utils.dateparse import parse_date, parse_datetime
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
+from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import ensure_csrf_cookie
 from inertia import render
@@ -29,6 +30,14 @@ from apps.assessments.text_normalization import (
     normalize_assessment_text_list,
     normalize_assessment_text_mapping,
     normalize_question_answer_data,
+)
+from apps.assessments.official_results import (
+    assignment_attempt_passed,
+    can_start_quiz_attempt,
+    get_assignment_attempts_remaining,
+    get_official_assignment_attempt,
+    get_official_quiz_attempt,
+    refresh_assignment_official_flags,
 )
 from apps.certifications.models import Certificate, VerificationLog
 from apps.core.learning_outcomes import extract_learning_outcome_items_from_html
@@ -3714,6 +3723,56 @@ def _assignment_requires_submission(props):
     )
 
 
+def _assignment_node_completion_state(node, enrollment):
+    """Compute assignment-node completion predicates from official assessment results."""
+    from apps.assessments.models import Assignment, Quiz
+
+    props = node.properties if isinstance(node.properties, dict) else {}
+    requires_submission = _assignment_requires_submission(props)
+    requires_questions = _assignment_requires_questions(props)
+
+    submission_passed = not requires_submission
+    official_assignment_attempt = None
+
+    if requires_submission:
+        assignment_id = _safe_int(props.get("assignment_id"))
+        assignment = (
+            Assignment.objects.filter(pk=assignment_id).first()
+            if assignment_id
+            else None
+        )
+        if assignment:
+            official_assignment_attempt = refresh_assignment_official_flags(
+                enrollment,
+                assignment,
+            )
+            submission_passed = assignment_attempt_passed(official_assignment_attempt)
+        else:
+            submission_passed = False
+
+    question_passed = not requires_questions
+    official_quiz_attempt = None
+
+    if requires_questions:
+        quiz_id = _safe_int(props.get("quiz_id"))
+        quiz = Quiz.objects.filter(pk=quiz_id).first() if quiz_id else None
+        if quiz:
+            official_quiz_attempt = get_official_quiz_attempt(enrollment, quiz)
+            question_passed = bool(
+                official_quiz_attempt and official_quiz_attempt.passed is True
+            )
+        else:
+            question_passed = False
+
+    return {
+        "submission_passed": submission_passed,
+        "question_passed": question_passed,
+        "is_complete": submission_passed and question_passed,
+        "official_assignment_attempt": official_assignment_attempt,
+        "official_quiz_attempt": official_quiz_attempt,
+    }
+
+
 def _quiz_attempt_deadline(quiz, attempt):
     time_limit_minutes = getattr(quiz, "time_limit_minutes", None)
     if not time_limit_minutes:
@@ -3765,19 +3824,26 @@ def _resolve_in_progress_quiz_attempt(quiz, enrollment, create_if_missing=True):
             _finalize_quiz_attempt(in_progress)
             in_progress = None
 
-        attempts_used = attempts_qs.count()
+        submitted_attempts = attempts_qs.filter(submitted_at__isnull=False).count()
+
         if not in_progress:
-            if attempts_used >= quiz.max_attempts:
-                return None, attempts_used, 0
+            allowed, attempts_used, attempts_remaining = can_start_quiz_attempt(
+                quiz,
+                enrollment,
+            )
+            if not allowed:
+                return None, attempts_used, attempts_remaining
             if create_if_missing:
                 in_progress = QuizAttempt.objects.create(
                     enrollment=enrollment,
                     quiz=quiz,
-                    attempt_number=attempts_used + 1,
+                    attempt_number=submitted_attempts + 1,
                     started_at=timezone.now(),
                     runtime_state={},
                 )
                 attempts_used += 1
+        else:
+            attempts_used = submitted_attempts + 1
 
     return in_progress, attempts_used, max(0, quiz.max_attempts - attempts_used)
 
@@ -3956,7 +4022,7 @@ def student_quiz_start(request, quiz_id: int):
     """
     Start a quiz attempt.
     """
-    from apps.assessments.models import Quiz
+    from apps.assessments.models import Quiz, QuizAttempt
     from apps.progression.models import Enrollment
 
     try:
@@ -4008,6 +4074,12 @@ def student_quiz_start(request, quiz_id: int):
     )
 
     if not attempt:
+        has_passed_attempt = QuizAttempt.objects.filter(
+            enrollment=enrollment,
+            quiz=quiz,
+            submitted_at__isnull=False,
+            passed=True,
+        ).exists()
         redirect_url = (
             f"/student/quiz/{quiz_id}/results/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
             if in_course_player_context
@@ -4016,7 +4088,11 @@ def student_quiz_start(request, quiz_id: int):
         if wants_json:
             return JsonResponse(
                 {
-                    "error": "max_attempts_reached",
+                    "error": (
+                        "retry_locked_after_pass"
+                        if has_passed_attempt and not quiz.allow_retake_after_pass
+                        else "max_attempts_reached"
+                    ),
                     "attemptsRemaining": 0,
                     "redirectUrl": redirect_url,
                 },
@@ -4208,32 +4284,19 @@ def student_quiz_submit(request, quiz_id: int):
         node_type = str(quiz.node.node_type or "").lower()
         is_assignment_node = node_type == "assignment" or lesson_type == "assignment"
         is_quiz_node = node_type == "quiz" or lesson_type == "quiz"
-        assignment_mode = _normalize_assignment_mode(quiz.node.properties or {})
+        official_quiz_attempt = get_official_quiz_attempt(enrollment, quiz)
+        has_official_quiz_pass = bool(
+            official_quiz_attempt and official_quiz_attempt.passed is True
+        )
 
-        should_mark_complete = has_passed_attempt if is_quiz_node else True
+        should_mark_complete = has_official_quiz_pass if is_quiz_node else True
+        completion_type = "quiz_pass"
         if is_assignment_node:
-            from apps.assessments.models import AssignmentSubmission
+            completion_state = _assignment_node_completion_state(quiz.node, enrollment)
+            should_mark_complete = completion_state["is_complete"]
+            completion_type = "manual"
 
-            typed_response_mode = _normalize_typed_response_mode(
-                (quiz.node.properties or {}).get("typed_response_mode")
-            )
-            if assignment_mode == "mixed":
-                assignment_id = _safe_int(
-                    (quiz.node.properties or {}).get("assignment_id")
-                )
-                should_mark_complete = (
-                    bool(assignment_id)
-                    and AssignmentSubmission.objects.filter(
-                        enrollment=enrollment,
-                        assignment_id=assignment_id,
-                    ).exists()
-                )
-            elif assignment_mode == "question_only":
-                should_mark_complete = True
-            else:
-                should_mark_complete = typed_response_mode == "short_answer_question"
-
-        if is_quiz_node and not has_passed_attempt:
+        if (is_quiz_node or is_assignment_node) and not should_mark_complete:
             NodeCompletion.objects.filter(
                 enrollment=enrollment,
                 node=quiz.node,
@@ -4245,7 +4308,7 @@ def student_quiz_submit(request, quiz_id: int):
             ProgressionEngine().mark_complete(
                 enrollment=enrollment,
                 node=quiz.node,
-                completion_type="quiz_pass",
+                completion_type=completion_type,
             )
 
         redirect_url = (
@@ -4258,12 +4321,10 @@ def student_quiz_submit(request, quiz_id: int):
         except Exception:
             next_node = None
 
-    attempts_used = QuizAttempt.objects.filter(
-        enrollment=enrollment,
-        quiz=quiz,
-        submitted_at__isnull=False,
-    ).count()
-    attempts_remaining = max(0, quiz.max_attempts - attempts_used)
+    can_retry, _, attempts_remaining = can_start_quiz_attempt(
+        quiz,
+        enrollment,
+    )
 
     if wants_json:
         return JsonResponse(
@@ -4277,7 +4338,7 @@ def student_quiz_submit(request, quiz_id: int):
                 "passed": passed,
                 "expired": expired,
                 "attemptsRemaining": attempts_remaining,
-                "canRetry": attempts_remaining > 0,
+                "canRetry": can_retry,
                 "passThreshold": quiz.pass_threshold,
                 "nextNode": next_node,
                 "redirectUrl": redirect_url,
@@ -4342,12 +4403,12 @@ def student_quiz_save(request, quiz_id: int):
         now = timezone.now()
         if attempt and _is_quiz_attempt_expired(quiz, attempt, now=now):
             _finalize_quiz_attempt(attempt, submitted_at=now)
-            attempts_used = attempts_qs.count()
+            _, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
             return JsonResponse(
                 {
                     "expired": True,
                     "saved": False,
-                    "attemptsRemaining": max(0, quiz.max_attempts - attempts_used),
+                    "attemptsRemaining": attempts_remaining,
                     "redirectUrl": (
                         f"/student/quiz/{quiz_id}/results/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
                         if in_course_player_context
@@ -4358,13 +4419,26 @@ def student_quiz_save(request, quiz_id: int):
             )
 
         if not attempt:
-            attempts_used = attempts_qs.count()
-            if attempts_used >= quiz.max_attempts:
+            allowed, attempts_used, attempts_remaining = can_start_quiz_attempt(
+                quiz,
+                enrollment,
+            )
+            if not allowed:
+                has_passed_attempt = QuizAttempt.objects.filter(
+                    enrollment=enrollment,
+                    quiz=quiz,
+                    submitted_at__isnull=False,
+                    passed=True,
+                ).exists()
                 return JsonResponse(
                     {
-                        "error": "max_attempts_reached",
+                        "error": (
+                            "retry_locked_after_pass"
+                            if has_passed_attempt and not quiz.allow_retake_after_pass
+                            else "max_attempts_reached"
+                        ),
                         "saved": False,
-                        "attemptsRemaining": 0,
+                        "attemptsRemaining": attempts_remaining,
                         "redirectUrl": (
                             f"/student/quiz/{quiz_id}/results/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
                             if in_course_player_context
@@ -4380,7 +4454,6 @@ def student_quiz_save(request, quiz_id: int):
                 started_at=now,
                 runtime_state={},
             )
-            attempts_used += 1
 
         runtime_state = _ensure_quiz_attempt_runtime_state(quiz, attempt)
         if incoming_runtime_state:
@@ -4397,7 +4470,7 @@ def student_quiz_save(request, quiz_id: int):
         attempt.answers = incoming_answers
         attempt.runtime_state = runtime_state
         attempt.save(update_fields=["answers", "runtime_state"])
-        attempts_remaining = max(0, quiz.max_attempts - attempts_qs.count())
+        _, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
 
     return JsonResponse(
         {
@@ -4464,6 +4537,7 @@ def student_quiz_results(request, quiz_id: int):
             enrollment=enrollment, quiz=quiz, submitted_at__isnull=False
         ).order_by("-attempt_number")
     )
+    official_attempt = get_official_quiz_attempt(enrollment, quiz)
 
     def _normalize_option_label(question, raw_value):
         token = str(raw_value).strip()
@@ -4619,8 +4693,8 @@ def student_quiz_results(request, quiz_id: int):
         return "N/A"
 
     question_review = []
-    if show_correct_answer and attempts:
-        latest_attempt = attempts[0]
+    review_attempt = official_attempt or (attempts[0] if attempts else None)
+    if show_correct_answer and review_attempt:
         review_questions = quiz.questions.all().prefetch_related(
             "options",
             "matching_pairs",
@@ -4628,12 +4702,12 @@ def student_quiz_results(request, quiz_id: int):
             "image_matching_pairs",
         )
         for question in review_questions:
-            student_answer = latest_attempt.answers.get(str(question.id))
+            student_answer = review_attempt.answers.get(str(question.id))
             if student_answer is None:
                 is_correct, points_earned = False, 0
             else:
                 is_correct, points_earned = question.check_answer(
-                    student_answer, attempt_id=latest_attempt.id
+                    student_answer, attempt_id=review_attempt.id
                 )
 
             question_review.append(
@@ -4642,16 +4716,18 @@ def student_quiz_results(request, quiz_id: int):
                     "questionType": question.question_type,
                     "questionText": _normalize_question_text(question.text),
                     "studentAnswer": _format_student_answer(
-                        question, student_answer, latest_attempt.id
+                        question, student_answer, review_attempt.id
                     ),
                     "correctAnswer": _format_correct_answer(
-                        question, latest_attempt.id
+                        question, review_attempt.id
                     ),
                     "isCorrect": is_correct,
                     "pointsEarned": points_earned,
                     "pointsPossible": question.points,
                 }
             )
+
+    can_retry, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
 
     return render(
         request,
@@ -4685,8 +4761,30 @@ def student_quiz_results(request, quiz_id: int):
                 }
                 for a in attempts
             ],
+            "officialAttempt": (
+                {
+                    "id": official_attempt.id,
+                    "attemptNumber": official_attempt.attempt_number,
+                    "score": (
+                        float(official_attempt.score)
+                        if official_attempt.score is not None
+                        else None
+                    ),
+                    "pointsEarned": official_attempt.points_earned,
+                    "pointsPossible": official_attempt.points_possible,
+                    "passed": official_attempt.passed,
+                    "submittedAt": (
+                        official_attempt.submitted_at.isoformat()
+                        if official_attempt.submitted_at
+                        else None
+                    ),
+                }
+                if official_attempt
+                else None
+            ),
             "questionReview": question_review,
-            "canRetry": len(attempts) < quiz.max_attempts,
+            "attemptsRemaining": attempts_remaining,
+            "canRetry": can_retry,
             "coursePlayer": (
                 {
                     "sessionUrl": (
@@ -4734,14 +4832,14 @@ def instructor_assignments_global(request):
             total_count=Count("submissions"),
             passed_count=Count(
                 "submissions",
-                filter=Q(submissions__status="graded", submissions__score__gte=50),
+                filter=Q(submissions__is_official=True, submissions__passed=True),
             ),
             failed_count=Count(
                 "submissions",
-                filter=Q(submissions__status="graded", submissions__score__lt=50),
+                filter=Q(submissions__is_official=True, submissions__passed=False),
             ),
             pending_count=Count(
-                "submissions", filter=Q(submissions__status="submitted")
+                "submissions", filter=Q(submissions__status__in=["started", "submitted"])
             ),
         )
         .order_by("-created_at")
@@ -5024,6 +5122,8 @@ def instructor_assignment_submissions(request, assignment_id: int):
             "submissions": [
                 {
                     "id": s.id,
+                    "attemptNumber": s.attempt_number,
+                    "isOfficial": bool(s.is_official),
                     "studentId": s.enrollment.user.id,
                     "studentName": s.enrollment.user.get_full_name()
                     or s.enrollment.user.email,
@@ -5048,13 +5148,22 @@ def instructor_assignment_grade(request, submission_id: int):
     """
     Grade a single submission.
     """
+    import os
+    import uuid
+
+    from django.conf import settings
+
     from apps.assessments.models import AssignmentSubmission
+    from apps.assessments.models import AssignmentReviewMedia
     from apps.progression.models import InstructorAssignment
     from apps.notifications.services import NotificationService
 
     try:
         submission = AssignmentSubmission.objects.select_related(
             "assignment", "assignment__program", "enrollment", "enrollment__user"
+        ).prefetch_related(
+            "media_assets",
+            "review_media_assets",
         ).get(pk=submission_id)
     except AssignmentSubmission.DoesNotExist:
         messages.error(request, "Submission not found")
@@ -5073,19 +5182,105 @@ def instructor_assignment_grade(request, submission_id: int):
     if request.method == "POST":
         data = get_post_data(request)
 
+        review_media = []
+
+        def _save_review_media(uploaded_file, media_type="file"):
+            original_name = uploaded_file.name
+            ext = (
+                original_name.rsplit(".", 1)[-1].lower()
+                if "." in original_name
+                else ""
+            )
+            if (
+                submission.assignment.allowed_file_types
+                and ext not in submission.assignment.allowed_file_types
+            ):
+                raise ValueError(f"File type .{ext} is not allowed")
+
+            max_size_bytes = int(submission.assignment.max_file_size_mb or 0) * 1024 * 1024
+            if (
+                max_size_bytes > 0
+                and int(getattr(uploaded_file, "size", 0) or 0) > max_size_bytes
+            ):
+                raise ValueError(
+                    f"{original_name} exceeds the maximum size of "
+                    f"{submission.assignment.max_file_size_mb} MB"
+                )
+
+            upload_dir = os.path.join(
+                settings.MEDIA_ROOT,
+                "review_media",
+                str(submission.assignment.id),
+                str(submission.id),
+            )
+            os.makedirs(upload_dir, exist_ok=True)
+            unique_name = f"{uuid.uuid4().hex}_{original_name}"
+            absolute_path = os.path.join(upload_dir, unique_name)
+
+            with open(absolute_path, "wb+") as dest:
+                for chunk in uploaded_file.chunks():
+                    dest.write(chunk)
+
+            relative_path = os.path.relpath(absolute_path, settings.MEDIA_ROOT)
+            review_media.append(
+                AssignmentReviewMedia(
+                    submission=submission,
+                    uploaded_by=request.user,
+                    media_type=media_type,
+                    file_name=original_name,
+                    file_path=relative_path,
+                    file_size=int(getattr(uploaded_file, "size", 0) or 0),
+                    metadata={},
+                )
+            )
+
+        try:
+            for uploaded_file in request.FILES.getlist("review_attachments"):
+                _save_review_media(uploaded_file, media_type="file")
+
+            if "review_audio" in request.FILES:
+                _save_review_media(request.FILES["review_audio"], media_type="audio")
+
+            if "review_video" in request.FILES:
+                _save_review_media(request.FILES["review_video"], media_type="video")
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(
+                "core:instructor.assignment_grade",
+                submission_id=submission.id,
+            )
+
         submission.score = float(data.get("score", 0))
         submission.feedback = data.get("feedback", "")
         submission.status = data.get("status", "graded")
         submission.graded_by = request.user
         submission.graded_at = timezone.now()
-        submission.graded_at = timezone.now()
+
+        if submission.status in {"graded", "returned"}:
+            final_score = submission.get_final_score()
+            if final_score is None:
+                submission.passed = None
+            else:
+                submission.passed = (
+                    float(final_score) >= float(submission.assignment.pass_threshold)
+                )
+        else:
+            submission.passed = None
+            submission.is_official = False
+
         submission.save()
+        if review_media:
+            AssignmentReviewMedia.objects.bulk_create(review_media)
+        official_submission = refresh_assignment_official_flags(
+            submission.enrollment,
+            submission.assignment,
+        )
 
         # Trigger progression check
         from apps.progression.services import ProgressionEngine
 
         engine = ProgressionEngine()
-        engine.handle_assignment_grading(submission)
+        engine.handle_assignment_grading(official_submission or submission)
         NotificationService.notify_assignment_graded(submission)
 
         messages.success(request, "Submission graded")
@@ -5100,23 +5295,52 @@ def instructor_assignment_grade(request, submission_id: int):
         {
             "submission": {
                 "id": submission.id,
+                "attemptNumber": submission.attempt_number,
                 "studentName": submission.enrollment.user.get_full_name()
                 or submission.enrollment.user.email,
                 "studentEmail": submission.enrollment.user.email,
                 "status": submission.status,
                 "submittedAt": submission.submitted_at.isoformat(),
                 "isLate": submission.is_late,
+                "isOfficial": bool(submission.is_official),
                 "filePath": submission.file_path,
                 "fileName": submission.file_name,
                 "textContent": submission.text_content,
-                "score": float(submission.score) if submission.score else None,
+                "score": float(submission.score) if submission.score is not None else None,
+                "finalScore": submission.get_final_score(),
+                "passed": submission.passed,
                 "feedback": submission.feedback,
+                "media": [
+                    {
+                        "id": media.id,
+                        "type": media.media_type,
+                        "name": media.file_name,
+                        "path": media.file_path,
+                        "size": media.file_size,
+                    }
+                    for media in submission.media_assets.all().order_by("created_at")
+                ],
+                "reviewMedia": [
+                    {
+                        "id": media.id,
+                        "type": media.media_type,
+                        "name": media.file_name,
+                        "path": media.file_path,
+                        "size": media.file_size,
+                    }
+                    for media in submission.review_media_assets.all().order_by(
+                        "created_at"
+                    )
+                ],
             },
             "assignment": {
                 "id": submission.assignment.id,
                 "title": submission.assignment.title,
                 "instructions": submission.assignment.instructions,
                 "latePenalty": submission.assignment.late_penalty_percent,
+                "passThreshold": submission.assignment.pass_threshold,
+                "allowedFileTypes": submission.assignment.allowed_file_types,
+                "maxFileSizeMb": submission.assignment.max_file_size_mb,
             },
         },
     )
@@ -5147,13 +5371,16 @@ def student_assignments(request, program_id: int):
         program_id=program_id, is_published=True
     ).order_by("due_date")
 
-    # Get existing submissions
-    submissions = {
-        s.assignment_id: s
-        for s in AssignmentSubmission.objects.filter(
-            enrollment=enrollment, assignment__in=assignments
+    # Get latest attempt per assignment for display.
+    submissions = {}
+    for submission in (
+        AssignmentSubmission.objects.filter(
+            enrollment=enrollment,
+            assignment__in=assignments,
         )
-    }
+        .order_by("assignment_id", "-attempt_number")
+    ):
+        submissions.setdefault(submission.assignment_id, submission)
 
     return render(
         request,
@@ -5172,9 +5399,15 @@ def student_assignments(request, program_id: int):
                     "weight": a.weight,
                     "submissionType": a.submission_type,
                     "submitted": a.id in submissions,
+                    "attemptsUsed": AssignmentSubmission.objects.filter(
+                        enrollment=enrollment,
+                        assignment=a,
+                        submitted_at__isnull=False,
+                    ).count(),
                     "submission": (
                         {
                             "id": submissions[a.id].id,
+                            "attemptNumber": submissions[a.id].attempt_number,
                             "status": submissions[a.id].status,
                             "score": (
                                 float(submissions[a.id].score)
@@ -5285,10 +5518,63 @@ def student_assignment_view(request, assignment_id: int):
         files = []
     quiz_id = _safe_int(source_props.get("quiz_id"))
 
-    # Get existing submission
-    existing = AssignmentSubmission.objects.filter(
-        enrollment=enrollment, assignment=assignment
-    ).first()
+    attempts = list(
+        AssignmentSubmission.objects.filter(
+            enrollment=enrollment,
+            assignment=assignment,
+        )
+        .prefetch_related("media_assets", "review_media_assets")
+        .order_by("-attempt_number")
+    )
+    existing = attempts[0] if attempts else None
+    official_attempt = refresh_assignment_official_flags(enrollment, assignment)
+    max_attempts, attempts_used, attempts_remaining = get_assignment_attempts_remaining(
+        enrollment,
+        assignment,
+        source_props,
+    )
+
+    def _serialize_attempt(attempt):
+        return {
+            "id": attempt.id,
+            "attemptNumber": attempt.attempt_number,
+            "status": attempt.status,
+            "submittedAt": (
+                attempt.submitted_at.isoformat() if attempt.submitted_at else None
+            ),
+            "isLate": bool(attempt.is_late),
+            "fileName": attempt.file_name,
+            "textContent": attempt.text_content,
+            "score": float(attempt.score) if attempt.score is not None else None,
+            "finalScore": attempt.get_final_score(),
+            "passed": attempt.passed,
+            "feedback": attempt.feedback,
+            "isOfficial": bool(attempt.is_official),
+            "media": [
+                {
+                    "id": media.id,
+                    "type": media.media_type,
+                    "name": media.file_name,
+                    "path": media.file_path,
+                    "size": media.file_size,
+                    "metadata": media.metadata or {},
+                }
+                for media in attempt.media_assets.all().order_by("created_at")
+            ],
+            "reviewMedia": [
+                {
+                    "id": media.id,
+                    "type": media.media_type,
+                    "name": media.file_name,
+                    "path": media.file_path,
+                    "size": media.file_size,
+                    "metadata": media.metadata or {},
+                }
+                for media in attempt.review_media_assets.all().order_by("created_at")
+            ],
+        }
+
+    review_status = existing.status if existing else "not_started"
 
     return render(
         request,
@@ -5310,24 +5596,47 @@ def student_assignment_view(request, assignment_id: int):
                 "quizId": quiz_id,
                 "materials": files,
                 "allowedFileTypes": assignment.allowed_file_types,
+                "maxFileSizeMb": assignment.max_file_size_mb,
                 "allowLateSubmission": assignment.allow_late_submission,
                 "latePenalty": assignment.late_penalty_percent,
+                "maxAttempts": max_attempts,
+                "attemptsUsed": attempts_used,
+                "attemptsRemaining": attempts_remaining,
                 "programName": assignment.program.name,
             },
             "submission": (
                 {
                     "id": existing.id,
+                    "attemptNumber": existing.attempt_number,
                     "status": existing.status,
-                    "submittedAt": existing.submitted_at.isoformat(),
+                    "submittedAt": (
+                        existing.submitted_at.isoformat()
+                        if existing.submitted_at
+                        else None
+                    ),
                     "isLate": existing.is_late,
                     "fileName": existing.file_name,
                     "textContent": existing.text_content,
-                    "score": float(existing.score) if existing.score else None,
+                    "score": (
+                        float(existing.score)
+                        if existing.score is not None
+                        else None
+                    ),
+                    "finalScore": existing.get_final_score(),
+                    "passed": existing.passed,
                     "feedback": existing.feedback,
+                    "isOfficial": existing.is_official,
                 }
                 if existing
                 else None
             ),
+            "attempts": [_serialize_attempt(attempt) for attempt in attempts],
+            "maxAttempts": max_attempts,
+            "attemptsRemaining": attempts_remaining,
+            "officialAttempt": (
+                _serialize_attempt(official_attempt) if official_attempt else None
+            ),
+            "reviewStatus": review_status,
             "coursePlayer": course_player,
         },
     )
@@ -5341,7 +5650,11 @@ def student_assignment_submit(request, assignment_id: int):
     import os
     import uuid
 
-    from apps.assessments.models import Assignment, AssignmentSubmission, QuizAttempt
+    from apps.assessments.models import (
+        Assignment,
+        AssignmentSubmission,
+        AssignmentSubmissionMedia,
+    )
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import Enrollment, NodeCompletion
 
@@ -5389,12 +5702,33 @@ def student_assignment_submit(request, assignment_id: int):
         messages.error(request, "This assignment is not available")
         return redirect("/dashboard/")
 
-    # Check for existing submission
-    existing = AssignmentSubmission.objects.filter(
-        enrollment=enrollment, assignment=assignment
-    ).first()
-    if existing and existing.status == "graded":
-        messages.error(request, "This assignment has already been graded")
+    attempt_limit_props = (
+        context_node.properties
+        if context_node and isinstance(context_node.properties, dict)
+        else {}
+    )
+    if not attempt_limit_props:
+        source_nodes = CurriculumNode.objects.filter(
+            program=assignment.program,
+            is_published=True,
+        ).only("properties")
+        for source_node in source_nodes:
+            source_props = (
+                source_node.properties
+                if isinstance(source_node.properties, dict)
+                else {}
+            )
+            if _safe_int(source_props.get("assignment_id")) == assignment.id:
+                attempt_limit_props = source_props
+                break
+
+    max_attempts, attempts_used, attempts_remaining = get_assignment_attempts_remaining(
+        enrollment,
+        assignment,
+        attempt_limit_props,
+    )
+    if attempts_remaining is not None and attempts_remaining <= 0:
+        messages.error(request, "You have used all allowed attempts for this assignment")
         if in_course_player_context and context_node:
             return redirect(
                 f"/student/programs/{enrollment.id}/session/{context_node.id}/"
@@ -5413,117 +5747,130 @@ def student_assignment_submit(request, assignment_id: int):
             return redirect("core:student.assignment", assignment_id=assignment_id)
         is_late = True
 
-    # Handle file upload
+    # Handle media uploads (files/audio/video) and persist metadata per attempt.
     file_path = None
     file_name = None
-    if "file" in request.FILES:
-        uploaded_file = request.FILES["file"]
-        file_name = uploaded_file.name
+    uploaded_media = []
 
-        # Validate file type
-        ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+    def _save_uploaded_media(uploaded_file, media_type="file"):
+        nonlocal file_path, file_name
+        original_name = uploaded_file.name
+
+        ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
         if assignment.allowed_file_types and ext not in assignment.allowed_file_types:
-            messages.error(request, f"File type .{ext} is not allowed")
-            if in_course_player_context and context_node:
-                return redirect(
-                    f"/student/programs/{enrollment.id}/session/{context_node.id}/"
-                )
-            return redirect("core:student.assignment", assignment_id=assignment_id)
+            raise ValueError(f"File type .{ext} is not allowed")
 
-        # Save file
+        max_size_bytes = int(assignment.max_file_size_mb or 0) * 1024 * 1024
+        if max_size_bytes > 0 and int(getattr(uploaded_file, "size", 0) or 0) > max_size_bytes:
+            raise ValueError(
+                f"{original_name} exceeds the maximum size of {assignment.max_file_size_mb} MB"
+            )
+
         from django.conf import settings
 
         upload_dir = os.path.join(
-            settings.MEDIA_ROOT, "submissions", str(assignment.id)
+            settings.MEDIA_ROOT,
+            "submissions",
+            str(assignment.id),
+            str(enrollment.id),
         )
         os.makedirs(upload_dir, exist_ok=True)
-        unique_name = f"{uuid.uuid4().hex}_{file_name}"
-        file_path = os.path.join(upload_dir, unique_name)
+        unique_name = f"{uuid.uuid4().hex}_{original_name}"
+        absolute_path = os.path.join(upload_dir, unique_name)
 
-        with open(file_path, "wb+") as dest:
+        with open(absolute_path, "wb+") as dest:
             for chunk in uploaded_file.chunks():
                 dest.write(chunk)
 
+        relative_path = os.path.relpath(absolute_path, settings.MEDIA_ROOT)
+        media_record = {
+            "media_type": media_type,
+            "file_name": original_name,
+            "file_path": relative_path,
+            "file_size": int(getattr(uploaded_file, "size", 0) or 0),
+        }
+        uploaded_media.append(media_record)
+
+        if file_path is None:
+            file_path = relative_path
+            file_name = original_name
+
+    try:
+        if "file" in request.FILES:
+            _save_uploaded_media(request.FILES["file"], media_type="file")
+
+        for extra_file in request.FILES.getlist("attachments"):
+            _save_uploaded_media(extra_file, media_type="file")
+
+        if "audio" in request.FILES:
+            _save_uploaded_media(request.FILES["audio"], media_type="audio")
+
+        if "video" in request.FILES:
+            _save_uploaded_media(request.FILES["video"], media_type="video")
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        if in_course_player_context and context_node:
+            return redirect(
+                f"/student/programs/{enrollment.id}/session/{context_node.id}/"
+            )
+        return redirect("core:student.assignment", assignment_id=assignment_id)
+
     # Get text content
     text_content = request.POST.get("text_content", "")
+    if not uploaded_media and not str(text_content or "").strip():
+        messages.error(request, "Add a response, file, or media attachment before submitting")
+        if in_course_player_context and context_node:
+            return redirect(
+                f"/student/programs/{enrollment.id}/session/{context_node.id}/"
+            )
+        return redirect("core:student.assignment", assignment_id=assignment_id)
 
-    if existing:
-        # Update existing submission
-        existing.file_path = file_path or existing.file_path
-        existing.file_name = file_name or existing.file_name
-        existing.text_content = text_content or existing.text_content
-        existing.submitted_at = timezone.now()
-        existing.is_late = is_late
-        existing.status = "submitted"
-        existing.save()
-        messages.success(request, "Assignment resubmitted")
-    else:
-        # Create new submission
-        AssignmentSubmission.objects.create(
-            enrollment=enrollment,
-            assignment=assignment,
-            file_path=file_path,
-            file_name=file_name,
-            text_content=text_content,
-            submitted_at=timezone.now(),
-            is_late=is_late,
+    new_attempt = AssignmentSubmission.objects.create(
+        enrollment=enrollment,
+        assignment=assignment,
+        attempt_number=attempts_used + 1,
+        status="submitted",
+        file_path=file_path,
+        file_name=file_name,
+        text_content=text_content,
+        submitted_at=timezone.now(),
+        is_late=is_late,
+        is_official=False,
+    )
+
+    if uploaded_media:
+        AssignmentSubmissionMedia.objects.bulk_create(
+            [
+                AssignmentSubmissionMedia(
+                    submission=new_attempt,
+                    media_type=item["media_type"],
+                    file_name=item["file_name"],
+                    file_path=item["file_path"],
+                    file_size=item.get("file_size"),
+                    metadata={},
+                )
+                for item in uploaded_media
+            ]
         )
-        messages.success(request, "Assignment submitted!")
+
+    refresh_assignment_official_flags(enrollment, assignment)
+    messages.success(request, f"Assignment submitted (attempt #{new_attempt.attempt_number})")
+
     if in_course_player_context and context_node:
-        assignment_props = (
-            context_node.properties if isinstance(context_node.properties, dict) else {}
-        )
-        assignment_mode = _normalize_assignment_mode(assignment_props)
-        typed_response_mode = _normalize_typed_response_mode(
-            assignment_props.get("typed_response_mode")
-        )
-        should_mark_complete = (
-            assignment_mode == "submission_only"
-            and typed_response_mode == "submission_text"
-        )
-
-        if assignment_mode == "mixed":
-            quiz_id = _safe_int(assignment_props.get("quiz_id"))
-            should_mark_complete = bool(
-                quiz_id
-                and QuizAttempt.objects.filter(
-                    enrollment=enrollment,
-                    quiz_id=quiz_id,
-                    submitted_at__isnull=False,
-                ).exists()
-            )
-        elif assignment_mode == "question_only":
-            quiz_id = _safe_int(assignment_props.get("quiz_id"))
-            should_mark_complete = bool(
-                quiz_id
-                and QuizAttempt.objects.filter(
-                    enrollment=enrollment,
-                    quiz_id=quiz_id,
-                    submitted_at__isnull=False,
-                ).exists()
-            )
-        elif (
-            assignment_mode == "submission_only"
-            and typed_response_mode == "short_answer_question"
-        ):
-            quiz_id = _safe_int(assignment_props.get("quiz_id"))
-            should_mark_complete = bool(
-                quiz_id
-                and QuizAttempt.objects.filter(
-                    enrollment=enrollment,
-                    quiz_id=quiz_id,
-                    submitted_at__isnull=False,
-                ).exists()
-            )
-
-        if should_mark_complete:
+        completion_state = _assignment_node_completion_state(context_node, enrollment)
+        if completion_state["is_complete"]:
             from apps.progression.services import ProgressionEngine
 
             ProgressionEngine().mark_complete(
                 enrollment=enrollment,
                 node=context_node,
-                completion_type="upload",
+                completion_type="manual",
             )
+        else:
+            NodeCompletion.objects.filter(
+                enrollment=enrollment,
+                node=context_node,
+            ).delete()
 
         return redirect(f"/student/programs/{enrollment.id}/session/{context_node.id}/")
 
@@ -6476,6 +6823,9 @@ def _sync_quiz_questions(node, questions_data: list):
         "show_answers_after_submit": to_bool(
             node_props.get("show_correct_answer"), default=True
         ),
+        "allow_retake_after_pass": to_bool(
+            node_props.get("retake_after_pass"), default=False
+        ),
         # Retake penalties are intentionally disabled so quiz scores reflect
         # the learner's actual correct answers.
         "retake_penalty_percent": Decimal("0"),
@@ -6882,6 +7232,17 @@ def _sync_assignment(node):
 
     props = node.properties.copy() if isinstance(node.properties, dict) else {}
 
+    def to_int(value, default=0, minimum=None, maximum=None):
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return default
+        if minimum is not None and parsed < minimum:
+            parsed = minimum
+        if maximum is not None and parsed > maximum:
+            parsed = maximum
+        return parsed
+
     assignment_mode = _normalize_assignment_mode(props)
     typed_response_mode = _normalize_typed_response_mode(
         props.get("typed_response_mode")
@@ -6904,12 +7265,28 @@ def _sync_assignment(node):
         else props.get("allow_late", False)
     )
     allow_late_submission = bool(allow_late_submission)
+    assignment_attempts = props.get("assignment_attempts")
+    try:
+        assignment_attempts = int(assignment_attempts)
+        if assignment_attempts <= 0:
+            assignment_attempts = None
+    except (TypeError, ValueError):
+        assignment_attempts = None
+
+    pass_threshold = to_int(
+        props.get("pass_threshold", props.get("passing_grade", 50)),
+        default=50,
+        minimum=0,
+        maximum=100,
+    )
 
     props["assignment_mode"] = assignment_mode
     props["typed_response_mode"] = typed_response_mode
     props["assessment_prompt"] = assessment_prompt
     props["submission_type"] = submission_type
     props["allow_late_submission"] = allow_late_submission
+    props["assignment_attempts"] = assignment_attempts
+    props["pass_threshold"] = pass_threshold
 
     assignment_id = _safe_int(props.get("assignment_id"))
     assignment = None
@@ -6930,6 +7307,7 @@ def _sync_assignment(node):
             description=node.description or "",
             instructions=props.get("instructions", ""),
             weight=props.get("weight", 10),
+            pass_threshold=pass_threshold,
             due_date=props.get("due_date"),
             allow_late_submission=allow_late_submission,
             late_penalty_percent=props.get("late_penalty", 0),
@@ -6942,6 +7320,7 @@ def _sync_assignment(node):
         assignment.description = node.description or assignment.description
         assignment.instructions = props.get("instructions", assignment.instructions)
         assignment.weight = props.get("weight", assignment.weight)
+        assignment.pass_threshold = pass_threshold
         assignment.due_date = props.get("due_date", assignment.due_date)
         assignment.allow_late_submission = allow_late_submission
         assignment.late_penalty_percent = props.get(

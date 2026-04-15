@@ -819,7 +819,7 @@ class QuizLinkIntegrityTest(TestCase):
         self.assertEqual(generated.get("type"), "short_answer")
         self.assertTrue(generated.get("generated_from_assessment_prompt"))
 
-    def test_student_quiz_submit_completes_submission_only_short_answer_assignment(
+    def test_student_quiz_submit_does_not_complete_submission_only_short_answer_assignment_without_grading(
         self,
     ):
         program = self._create_program(name="Prompt Completion", code="PROMPT-COMP")
@@ -895,7 +895,7 @@ class QuizLinkIntegrityTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(
+        self.assertFalse(
             NodeCompletion.objects.filter(
                 enrollment=enrollment,
                 node=node,
@@ -1497,6 +1497,7 @@ class QuizLinkIntegrityTest(TestCase):
             is_published=True,
             max_attempts=3,
             pass_threshold=70,
+            allow_retake_after_pass=True,
         )
         node.properties["quiz_id"] = quiz.id
         node.save(update_fields=["properties"])

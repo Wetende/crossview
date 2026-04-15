@@ -178,6 +178,28 @@ class SyncQuizQuestionsTest(TestCase):
         self.assertEqual(float(quiz.retake_penalty_percent), 0.0)
         self.assertEqual(quiz.questions.count(), 0)
 
+    def test_sync_defaults_retake_after_pass_to_false_when_unspecified(self):
+        self.node.properties = {
+            "passing_grade": 70,
+            "max_attempts": 3,
+            "questions": [
+                {
+                    "id": "temp_1",
+                    "type": "mcq",
+                    "text": "Sample question",
+                    "points": 1,
+                    "options": ["A", "B"],
+                    "correct": 0,
+                }
+            ],
+        }
+        self.node.save(update_fields=["properties"])
+
+        _sync_quiz_questions(self.node, self.node.properties.get("questions", []))
+
+        quiz = Quiz.objects.get(node=self.node)
+        self.assertFalse(quiz.allow_retake_after_pass)
+
     def test_sync_image_matching_question_creates_pairs(self):
         questions_data = [
             {

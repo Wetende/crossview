@@ -24,8 +24,19 @@ import {
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 
-export default function View({ assignment, submission, coursePlayer = null }) {
+export default function View({
+  assignment,
+  submission,
+  attempts = [],
+  maxAttempts = null,
+  attemptsRemaining = null,
+  officialAttempt = null,
+  coursePlayer = null,
+}) {
   const [file, setFile] = useState(null);
+  const [attachments, setAttachments] = useState([]);
+  const [audioFile, setAudioFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
   const [textContent, setTextContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,6 +53,24 @@ export default function View({ assignment, submission, coursePlayer = null }) {
     typedResponseMode === "short_answer_question";
   const promptHtml = DOMPurify.sanitize(assignment.assessmentPrompt || "");
   const instructionsHtml = DOMPurify.sanitize(assignment.instructions || "");
+  const effectiveAttemptsRemaining =
+    attemptsRemaining ?? assignment.attemptsRemaining ?? null;
+  const effectiveMaxAttempts = maxAttempts ?? assignment.maxAttempts ?? null;
+  const canSubmit =
+    !usesShortAnswerPrompt &&
+    (effectiveAttemptsRemaining === null || effectiveAttemptsRemaining > 0);
+  const hasSubmissionContent =
+    Boolean(file) ||
+    Boolean(textContent.trim()) ||
+    attachments.length > 0 ||
+    Boolean(audioFile) ||
+    Boolean(videoFile);
+
+  const resolveMediaUrl = (path) => {
+    if (!path) return "";
+    if (/^https?:\/\//i.test(path) || path.startsWith("/")) return path;
+    return `/media/${path}`;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -49,6 +78,11 @@ export default function View({ assignment, submission, coursePlayer = null }) {
 
     const formData = new FormData();
     if (file) formData.append('file', file);
+    attachments.forEach((attachment) => {
+      formData.append("attachments", attachment);
+    });
+    if (audioFile) formData.append("audio", audioFile);
+    if (videoFile) formData.append("video", videoFile);
     if (textContent) formData.append('text_content', textContent);
     if (coursePlayer?.enrollmentId) {
       formData.append("enrollment_id", String(coursePlayer.enrollmentId));
@@ -169,19 +203,70 @@ export default function View({ assignment, submission, coursePlayer = null }) {
 
             {/* Sidebar */}
             <Grid item xs={12} md={4}>
-              {/* Submission Status */}
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Attempt Summary
+                  </Typography>
+                  <Stack spacing={1}>
+                    <Typography variant="body2" color="text.secondary">
+                      {effectiveMaxAttempts === null
+                        ? "Unlimited attempts"
+                        : `${effectiveAttemptsRemaining ?? 0} of ${effectiveMaxAttempts} attempts remaining`}
+                    </Typography>
+                    {officialAttempt ? (
+                      <>
+                        <Chip
+                          label={`Official attempt #${officialAttempt.attemptNumber}`}
+                          color="success"
+                          size="small"
+                        />
+                        {officialAttempt.finalScore !== null && officialAttempt.finalScore !== undefined && (
+                          <Typography variant="body2">
+                            Best graded score: {officialAttempt.finalScore}%
+                          </Typography>
+                        )}
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No graded official result yet.
+                      </Typography>
+                    )}
+                    {!canSubmit && (
+                      <Alert severity="info">
+                        You have used all available attempts for this assignment.
+                      </Alert>
+                    )}
+                  </Stack>
+                </CardContent>
+              </Card>
+
               {submission ? (
                 <Card sx={{ mb: 3 }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Your Submission
+                      Latest Attempt
                     </Typography>
                     <Stack spacing={1}>
                       <Chip
                         icon={submission.status === 'graded' ? <IconCheck size={14} /> : <IconClock size={14} />}
-                        label={submission.status === 'graded' ? 'Graded' : submission.status === 'returned' ? 'Returned' : 'Submitted'}
+                        label={
+                          submission.status === 'graded'
+                            ? 'Graded'
+                            : submission.status === 'returned'
+                              ? 'Returned'
+                              : 'Submitted'
+                        }
                         color={submission.status === 'graded' ? 'success' : 'default'}
                       />
+                      <Typography variant="body2" color="text.secondary">
+                        Attempt #{submission.attemptNumber}
+                      </Typography>
+                      {submission.submittedAt && (
+                        <Typography variant="body2" color="text.secondary">
+                          Submitted: {new Date(submission.submittedAt).toLocaleString()}
+                        </Typography>
+                      )}
                       {submission.isLate && (
                         <Chip
                           icon={<IconAlertTriangle size={14} />}
@@ -190,22 +275,19 @@ export default function View({ assignment, submission, coursePlayer = null }) {
                           size="small"
                         />
                       )}
-                      <Typography variant="body2" color="text.secondary">
-                        Submitted: {new Date(submission.submittedAt).toLocaleString()}
-                      </Typography>
                       {submission.fileName && (
                         <Typography variant="body2">
                           File: {submission.fileName}
                         </Typography>
                       )}
-                      {submission.score !== null && (
+                      {submission.finalScore !== null && submission.finalScore !== undefined && (
                         <Typography variant="h5" color="primary">
-                          Score: {submission.score}%
+                          Score: {submission.finalScore}%
                         </Typography>
                       )}
                       {submission.feedback && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography variant="subtitle2">Feedback:</Typography>
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="subtitle2">Feedback</Typography>
                           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                             {submission.feedback}
                           </Typography>
@@ -215,6 +297,69 @@ export default function View({ assignment, submission, coursePlayer = null }) {
                   </CardContent>
                 </Card>
               ) : null}
+
+              {attempts.length > 0 && (
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Attempt History
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {attempts.map((attempt) => (
+                        <Paper key={attempt.id} variant="outlined" sx={{ p: 1.5 }}>
+                          <Stack spacing={1}>
+                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                              <Typography variant="subtitle2">
+                                Attempt #{attempt.attemptNumber}
+                              </Typography>
+                              {attempt.isOfficial && (
+                                <Chip label="Official" size="small" color="success" />
+                              )}
+                              <Chip label={attempt.status} size="small" variant="outlined" />
+                            </Stack>
+                            {attempt.submittedAt && (
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(attempt.submittedAt).toLocaleString()}
+                              </Typography>
+                            )}
+                            {attempt.finalScore !== null && attempt.finalScore !== undefined && (
+                              <Typography variant="body2">
+                                Final score: {attempt.finalScore}%
+                              </Typography>
+                            )}
+                            {Array.isArray(attempt.media) && attempt.media.length > 0 && (
+                              <Stack spacing={0.5}>
+                                {attempt.media.map((media) => (
+                                  <Stack
+                                    key={media.id}
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    justifyContent="space-between"
+                                  >
+                                    <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
+                                      {media.name}
+                                    </Typography>
+                                    <Button
+                                      component="a"
+                                      href={resolveMediaUrl(media.path)}
+                                      size="small"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      Open
+                                    </Button>
+                                  </Stack>
+                                ))}
+                              </Stack>
+                            )}
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Submit Form */}
               {usesShortAnswerPrompt && (
@@ -237,7 +382,7 @@ export default function View({ assignment, submission, coursePlayer = null }) {
                 </Card>
               )}
 
-              {allowsSubmission && (!submission || submission.status !== 'graded') && (
+              {allowsSubmission && (
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
@@ -257,10 +402,18 @@ export default function View({ assignment, submission, coursePlayer = null }) {
                             </Alert>
                           )}
 
+                          {effectiveMaxAttempts !== null && (
+                            <Alert severity={canSubmit ? "info" : "warning"}>
+                              {canSubmit
+                                ? `${effectiveAttemptsRemaining} of ${effectiveMaxAttempts} attempts remaining.`
+                                : "No attempts remaining."}
+                            </Alert>
+                          )}
+
                           {(assignment.submissionType === 'file' || assignment.submissionType === 'both') && (
                             <Box>
                               <Typography variant="subtitle2" gutterBottom>
-                                Upload File
+                                Main File
                               </Typography>
                               <input
                                 type="file"
@@ -272,6 +425,11 @@ export default function View({ assignment, submission, coursePlayer = null }) {
                                   Allowed: {assignment.allowedFileTypes.join(', ')}
                                 </Typography>
                               )}
+                              {assignment.maxFileSizeMb ? (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  Max size: {assignment.maxFileSizeMb} MB
+                                </Typography>
+                              ) : null}
                             </Box>
                           )}
 
@@ -286,11 +444,45 @@ export default function View({ assignment, submission, coursePlayer = null }) {
                             />
                           )}
 
+                          <Box>
+                            <Typography variant="subtitle2" gutterBottom>
+                              Supporting Attachments
+                            </Typography>
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+                              accept={assignment.allowedFileTypes?.map(t => `.${t}`).join(',')}
+                            />
+                          </Box>
+
+                          <Box>
+                            <Typography variant="subtitle2" gutterBottom>
+                              Audio Evidence
+                            </Typography>
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                            />
+                          </Box>
+
+                          <Box>
+                            <Typography variant="subtitle2" gutterBottom>
+                              Video Evidence
+                            </Typography>
+                            <input
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                            />
+                          </Box>
+
                           <Button
                             type="submit"
                             variant="contained"
                             startIcon={<IconUpload />}
-                            disabled={submitting || (!file && !textContent)}
+                            disabled={submitting || !canSubmit || !hasSubmissionContent}
                           >
                             {submitting ? 'Submitting...' : submission ? 'Resubmit' : 'Submit'}
                           </Button>
