@@ -9,11 +9,19 @@ import "@/config"; // Load fonts
 import "./styles/app.css";
 import "nprogress/nprogress.css";
 
-const pages = import.meta.glob("./Pages/**/*.jsx");
+const pages = import.meta.glob([
+    "./Pages/**/*.jsx",
+    "!**/*.test.jsx",
+    "!**/*.spec.jsx",
+]);
 const features = import.meta.glob(
     ["./features/**/pages/**/*.jsx", "!**/*.test.jsx", "!**/*.spec.jsx"],
 );
-const publicPages = import.meta.glob("./pages/public/*.jsx");
+const publicPages = import.meta.glob([
+    "./pages/public/*.jsx",
+    "!**/*.test.jsx",
+    "!**/*.spec.jsx",
+]);
 
 const featureMap = {
     // Auth
