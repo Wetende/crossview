@@ -12,10 +12,6 @@ import {
 } from "@mui/material";
 import {
     IconArrowRight,
-    IconCheck,
-    IconUsers,
-    IconSchool,
-    IconCertificate,
     IconRobot,
     IconCode,
     IconApps,
@@ -24,7 +20,6 @@ import {
 import { motion } from "framer-motion";
 import ButtonAnimationWrapper from "../../common/ButtonAnimationWrapper";
 import VisuallyHidden from "../../common/VisuallyHidden";
-import heroBgImage from "../../../assets/images/hero1.jpg";
 
 // --- Animation Variants ---
 const fadeInUp = {
@@ -193,14 +188,18 @@ StatsHighlightCard.propTypes = {
 // --- Main HeroSection Component ---
 export default function HeroSection({ platform }) {
     const primaryColor = platform?.primaryColor || "#3B82F6";
-    const secondaryColor = platform?.secondaryColor || "#1E40AF";
-    const publicContent = platform?.publicContent || {};
-    // Hero background: platform upload > bundled default
-    const bgImage = platform?.heroImageUrl || heroBgImage;
+    const publicContent =
+        platform?.publicContent && typeof platform.publicContent === "object"
+            ? platform.publicContent
+            : {};
     // Hero headline parts — configurable via SuperAdmin
-    const heroHeadline = publicContent.heroHeadline || "Unlock the Future: Tech Education for Every African Child";
+    const heroHeadline =
+        typeof publicContent.heroHeadline === "string" && publicContent.heroHeadline.trim()
+            ? publicContent.heroHeadline
+            : "Unlock the Future: Tech Education for Every African Child";
     // Hero subheadline comes from platform settings only.
-    const heroSubheadline = platform?.tagline || "";
+    const heroSubheadline =
+        typeof platform?.tagline === "string" ? platform.tagline : "";
 
     return (
         <Box
@@ -434,6 +433,7 @@ HeroSection.propTypes = {
         secondaryColor: PropTypes.string,
         institutionName: PropTypes.string,
         tagline: PropTypes.string,
+        publicContent: PropTypes.object,
     }),
 };
 

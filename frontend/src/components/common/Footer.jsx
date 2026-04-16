@@ -15,6 +15,7 @@ import {
     IconBrandYoutube,
     IconMail,
     IconMapPin,
+    IconPhone,
 } from "@tabler/icons-react";
 import PlatformLogo from "./PlatformLogo";
 
@@ -39,10 +40,17 @@ export default function Footer() {
     const primaryColor = p.primaryColor || "#3B82F6";
     const currentYear = new Date().getFullYear();
     const institutionName = p.institutionName || "DigikaTech Africa";
+    const publicContent =
+        p.publicContent && typeof p.publicContent === "object"
+            ? p.publicContent
+            : {};
     const contactEmail = p.email || "info@digikatech.com";
-    const contactAddress = p.address
-        ? [p.address]
-        : ["Nairobi, Kenya"];
+    const contactPhone = p.phone || "";
+    const contactAddress = Array.isArray(p.address)
+        ? p.address
+        : p.address
+            ? [p.address]
+            : ["Nairobi, Kenya"];
 
     const quickLinks = [
         { label: "Programs", href: "/programs/" },
@@ -58,7 +66,8 @@ export default function Footer() {
         { label: "Terms of Service", href: "/terms/" },
     ];
 
-    const platformSocials = p.socialLinks || {};
+    const platformSocials =
+        p.socialLinks && typeof p.socialLinks === "object" ? p.socialLinks : {};
     const socialLinks = [
         platformSocials.facebook && { icon: IconBrandFacebook, href: platformSocials.facebook, label: "Facebook" },
         platformSocials.twitter && { icon: IconBrandTwitter, href: platformSocials.twitter, label: "Twitter" },
@@ -101,33 +110,35 @@ export default function Footer() {
                                 variant="body2"
                                 sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.8 }}
                             >
-                                {p.publicContent?.footerDescription
+                                {publicContent.footerDescription
                                     || p.description
                                     || "Empowering African youth with world-class technology education in robotics, coding, AI, and design."}
                             </Typography>
 
                             {/* Social Links */}
-                            <Stack direction="row" spacing={1}>
-                                {socialLinks.map((social, idx) => (
-                                    <IconButton
-                                        key={idx}
-                                        component="a"
-                                        href={social.href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        aria-label={social.label}
-                                        sx={{
-                                            color: "rgba(255,255,255,0.7)",
-                                            "&:hover": {
-                                                color: primaryColor,
-                                                bgcolor: hexToRgba(primaryColor, 0.1),
-                                            },
-                                        }}
-                                    >
-                                        <social.icon size={20} />
-                                    </IconButton>
-                                ))}
-                            </Stack>
+                            {socialLinks.length > 0 && (
+                                <Stack direction="row" spacing={1}>
+                                    {socialLinks.map((social, idx) => (
+                                        <IconButton
+                                            key={idx}
+                                            component="a"
+                                            href={social.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label={social.label}
+                                            sx={{
+                                                color: "rgba(255,255,255,0.7)",
+                                                "&:hover": {
+                                                    color: primaryColor,
+                                                    bgcolor: hexToRgba(primaryColor, 0.1),
+                                                },
+                                            }}
+                                        >
+                                            <social.icon size={20} />
+                                        </IconButton>
+                                    ))}
+                                </Stack>
+                            )}
                         </Stack>
                     </Grid>
 
@@ -204,6 +215,17 @@ export default function Footer() {
                                     </Typography>
                                 </Stack>
                             )}
+                            {contactPhone && (
+                                <Stack direction="row" spacing={2} alignItems="center">
+                                    <IconPhone size={18} color={primaryColor} />
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ color: "rgba(255,255,255,0.7)" }}
+                                    >
+                                        {contactPhone}
+                                    </Typography>
+                                </Stack>
+                            )}
                             {contactAddress && (
                                 <Stack direction="row" spacing={2} alignItems="flex-start">
                                     <IconMapPin size={18} color={primaryColor} style={{ marginTop: 4 }} />
@@ -215,7 +237,7 @@ export default function Footer() {
                                     </Typography>
                                 </Stack>
                             )}
-                            {!contactEmail && !contactAddress && (
+                            {!contactEmail && !contactPhone && !contactAddress && (
                                 <Typography
                                     variant="body2"
                                     sx={{ color: "rgba(255,255,255,0.7)" }}

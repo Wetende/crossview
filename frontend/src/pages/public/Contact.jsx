@@ -42,7 +42,10 @@ export default function Contact() {
 
     const primaryColor = platform?.primaryColor || "#2563EB";
     const secondaryColor = platform?.secondaryColor || "#1E40AF";
-    const institutionName = platform?.institutionName || "Our Institution";
+    const institutionName = platform?.institutionName || "DigikaTech Africa";
+    const contactEmail = platform?.email || "info@digikatech.com";
+    const contactPhone = platform?.phone || "";
+    const contactAddress = platform?.address || "Nairobi, Kenya";
 
     const [form, setForm] = useState({ name: "", email: "", message: "" });
     const [submitted, setSubmitted] = useState(false);
@@ -189,8 +192,12 @@ export default function Contact() {
                                         >
                                             Address
                                         </Typography>
-                                        <Typography variant="body1" color="text.secondary">
-                                            {platform?.address || "Nairobi, Kenya"}
+                                        <Typography
+                                            variant="body1"
+                                            color="text.secondary"
+                                            sx={{ whiteSpace: "pre-line" }}
+                                        >
+                                            {contactAddress}
                                         </Typography>
                                     </Box>
 
@@ -203,12 +210,12 @@ export default function Contact() {
                                             Email
                                         </Typography>
                                         <Typography variant="body1" color="text.secondary">
-                                            {platform?.email || "info@digikatech.com"}
+                                            {contactEmail}
                                         </Typography>
                                     </Box>
 
                                     {/* Phone */}
-                                    {platform?.phone && (
+                                    {contactPhone && (
                                         <Box sx={{ mt: 4 }}>
                                             <Typography
                                                 variant="subtitle1"
@@ -217,7 +224,7 @@ export default function Contact() {
                                                 Phone
                                             </Typography>
                                             <Typography variant="body1" color="text.secondary">
-                                                {platform.phone}
+                                                {contactPhone}
                                             </Typography>
                                         </Box>
                                     )}

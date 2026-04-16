@@ -15,12 +15,10 @@ import {
     ListItem,
     ListItemText,
 } from "@mui/material";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { IconHeart, IconMenu2, IconX } from "@tabler/icons-react";
 import { cloneElement, useState } from "react";
 import ButtonAnimationWrapper from "./ButtonAnimationWrapper";
 import PlatformLogo from "./PlatformLogo";
-import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 
 // Navigation links - Single source of truth
@@ -58,7 +56,6 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
     const theme = useTheme();
     const { platform } = usePage().props;
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const { cartCount } = useCart();
     const { wishlistCount } = useWishlist();
 
     const isActive = (href) => activeLink === href;
@@ -112,13 +109,6 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
                             <Stack direction="row" spacing={2} alignItems="center">
                                 {auth?.user && (
                                     <>
-                                        {/* Cart icon hidden for now
-                                        <IconButton component={Link} href="/cart/" aria-label="Open cart">
-                                            <Badge badgeContent={cartCount || 0} color="primary" max={9}>
-                                                <ShoppingCartIcon fontSize="small" />
-                                            </Badge>
-                                        </IconButton>
-                                        */}
                                         <IconButton component={Link} href="/wishlist/" aria-label="Open wishlist">
                                             <Badge badgeContent={wishlistCount || 0} color="secondary" max={9}>
                                                 <IconHeart size={20} />

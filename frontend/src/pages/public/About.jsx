@@ -18,8 +18,6 @@ import {
     IconBulb,
     IconSchool,
     IconMapPin,
-    IconPhone,
-    IconMail,
 } from "@tabler/icons-react";
 import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
@@ -141,13 +139,22 @@ export default function About() {
     const institutionName = platform?.institutionName || "DigikaTech Africa";
 
     // Content from platform.publicContent (DB/SuperAdmin) with Digika defaults
-    const publicContent = platform?.publicContent || {};
+    const publicContent =
+        platform?.publicContent && typeof platform.publicContent === "object"
+            ? platform.publicContent
+            : {};
     const missionText = publicContent.mission || DEFAULT_MISSION(institutionName);
     const visionText = publicContent.vision || DEFAULT_VISION(institutionName);
-    const impactSchools = publicContent.impactSchools || DEFAULT_IMPACT_SCHOOLS;
+    const impactSchools =
+        Array.isArray(publicContent.impactSchools) && publicContent.impactSchools.length > 0
+            ? publicContent.impactSchools
+            : DEFAULT_IMPACT_SCHOOLS;
 
     // Stats — mix of real DB queries (future) and admin overrides
-    const statsOverrides = publicContent.stats || {};
+    const statsOverrides =
+        publicContent.stats && typeof publicContent.stats === "object"
+            ? publicContent.stats
+            : {};
     const stats = [
         { value: statsOverrides.partnerSchools ?? 3, suffix: "", label: "Partner Schools" },
         { value: statsOverrides.targetSchools ?? 500, suffix: "+", label: "Target Schools by 2030" },

@@ -39,7 +39,6 @@ import {
     IconPlayerPlay,
     IconLock,
     IconFolder,
-    IconShoppingCart,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
@@ -47,7 +46,6 @@ import DOMPurify from "dompurify";
 import { CourseDetailsModal } from "@/components/modals";
 import PublicNavbar from "@/components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
-import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 
 // --- Helper Components ---
@@ -62,7 +60,6 @@ function CourseDetailsSidebar({
     isAuthenticated,
     onShowDetails,
     onBuyNow,
-    onAddToCart,
     onToggleWishlist,
     wishlisted,
     courseLevels = [],
@@ -588,7 +585,6 @@ export default function ProgramDetail({
     courseLevels = [],
 }) {
     const { auth, platform } = usePage().props;
-    const { addToCart } = useCart();
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const [tabValue, setTabValue] = useState(0);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -601,19 +597,6 @@ export default function ProgramDetail({
 
     const handleBuyNow = (programId) => {
         router.visit(`/checkout/?mode=direct&programId=${programId}`);
-    };
-
-    const handleAddToCart = async (programId) => {
-        const res = await addToCart(programId);
-        if (res.ok) {
-            setCartSnackbar({ open: true, message: "Added to cart.", severity: "success" });
-            return;
-        }
-        if (res.error === "program_in_cart") {
-            setCartSnackbar({ open: true, message: "Program is already in your cart.", severity: "info" });
-            return;
-        }
-        setCartSnackbar({ open: true, message: res.message || "Could not add to cart.", severity: "error" });
     };
 
     const handleToggleWishlist = async (programId) => {
@@ -673,7 +656,6 @@ export default function ProgramDetail({
                                 isAuthenticated={!!auth?.user}
                                 onShowDetails={handleShowDetails}
                                 onBuyNow={handleBuyNow}
-                                onAddToCart={handleAddToCart}
                                 onToggleWishlist={handleToggleWishlist}
                                 wishlisted={isWishlisted}
                                 courseLevels={courseLevels}

@@ -108,6 +108,26 @@ class PlatformSettings(TimeStampedModel):
         help_text='List of available program categories: ["Biblical Studies", "Theology", ...]'
     )
 
+    # Public content (admin-configurable)
+    public_content = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Optional public page content overrides such as heroHeadline, "
+            "mission, vision, impactSchools, stats, and footerDescription."
+        ),
+    )
+
+    # Social links (admin-configurable)
+    social_links = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Optional social links such as facebook, twitter, linkedin, and "
+            "youtube."
+        ),
+    )
+
     # Setup Status
     is_setup_complete = models.BooleanField(
         default=False,
@@ -151,6 +171,14 @@ class PlatformSettings(TimeStampedModel):
         features = settings.get_default_features_for_mode()
         if settings.features:
             features.update(settings.features)
+        public_content = (
+            settings.public_content
+            if isinstance(settings.public_content, dict)
+            else {}
+        )
+        social_links = (
+            settings.social_links if isinstance(settings.social_links, dict) else {}
+        )
 
         payload = {
             "institutionName": settings.institution_name,
@@ -165,6 +193,8 @@ class PlatformSettings(TimeStampedModel):
             "deploymentMode": settings.deployment_mode,
             "isSetupComplete": settings.is_setup_complete,
             "features": features,
+            "publicContent": public_content,
+            "socialLinks": social_links,
         }
         cache.set(PLATFORM_PAYLOAD_CACHE_KEY, payload, timeout=900)
         return payload
