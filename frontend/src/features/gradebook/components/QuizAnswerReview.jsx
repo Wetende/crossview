@@ -23,6 +23,7 @@ import {
     IconCircleCheck,
     IconCircleX,
 } from "@tabler/icons-react";
+import { formatPoints } from "@/lib/formatPoints";
 
 /**
  * Single question review card
@@ -257,7 +258,7 @@ const QuestionReviewCard = ({
                     />
                 </Stack>
                 <Chip
-                    label={`${pointsEarned}/${pointsTotal} pts`}
+                    label={`${formatPoints(pointsEarned)}/${formatPoints(pointsTotal)} pts`}
                     color={isCorrect ? "success" : "error"}
                     size="small"
                 />

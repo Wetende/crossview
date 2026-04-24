@@ -23,6 +23,7 @@ import {
   IconArrowLeft,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import { formatPoints } from '@/lib/formatPoints';
 
 export default function Results({
   quiz,
@@ -103,7 +104,7 @@ export default function Results({
                 <Box sx={{ flex: 1 }} />
                 <Box textAlign="right">
                   <Typography variant="body2">
-                    {bestAttempt.pointsEarned} / {bestAttempt.pointsPossible} points
+                    {formatPoints(bestAttempt.pointsEarned)} / {formatPoints(bestAttempt.pointsPossible)} points
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     Best of {attempts.length} attempt{attempts.length > 1 ? 's' : ''}
@@ -172,7 +173,7 @@ export default function Results({
                       Correct answer: {item.correctAnswer || 'N/A'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Points: {item.pointsEarned ?? '—'} / {item.pointsPossible ?? '—'}
+                      Points: {formatPoints(item.pointsEarned)} / {formatPoints(item.pointsPossible)}
                     </Typography>
                     {index < questionReview.length - 1 && <Divider sx={{ mt: 1.5 }} />}
                   </Box>
@@ -202,7 +203,7 @@ export default function Results({
                           {a.score !== null ? `${a.score.toFixed(1)}%` : 'Pending'}
                         </TableCell>
                         <TableCell>
-                          {a.pointsEarned ?? '—'} / {a.pointsPossible ?? '—'}
+                          {formatPoints(a.pointsEarned)} / {formatPoints(a.pointsPossible)}
                         </TableCell>
                         <TableCell>
                           {a.passed === true && (

@@ -20,6 +20,7 @@ import MatchingQuestion from '@/features/quizzes/components/MatchingQuestion';
 import OrderingQuestion from '@/features/quizzes/components/OrderingQuestion';
 import FillBlankQuestion from '@/features/quizzes/components/FillBlankQuestion';
 import ImageMatchingQuestion from '@/features/quizzes/components/ImageMatchingQuestion';
+import { formatPoints } from '@/lib/formatPoints';
 import { getCsrfHeaders } from '@/utils/csrf';
 import {
     evaluateQuizAnswers,
@@ -623,7 +624,7 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                                 : ''}
                             {typeof resultSummary.pointsEarned === 'number' &&
                             typeof resultSummary.pointsPossible === 'number'
-                                ? ` • ${resultSummary.pointsEarned}/${resultSummary.pointsPossible} points`
+                                ? ` • ${formatPoints(resultSummary.pointsEarned)}/${formatPoints(resultSummary.pointsPossible)} points`
                                 : ''}
                         </Typography>
                     </Box>

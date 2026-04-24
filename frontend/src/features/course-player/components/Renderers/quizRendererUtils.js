@@ -386,9 +386,14 @@ const compareSets = (leftValues, rightValues) => {
     return true;
 };
 
+const roundTo2 = (value) => {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+};
+
 const scoreByRatio = (points, correctCount, totalCount) => {
     if (!totalCount || totalCount <= 0) return 0;
-    return Math.floor(points * (correctCount / totalCount));
+    if (correctCount === totalCount) return points;
+    return roundTo2(points * (correctCount / totalCount));
 };
 
 const normalizeFillBlankAnswer = (value) =>
@@ -459,11 +464,45 @@ const evaluateQuestion = (question, answer) => {
 
     if (question.type === 'mcq_multi') {
         const submitted = Array.isArray(answer) ? answer.map((value) => String(value)) : [];
+        const correctSet = new Set(question.correctOptionIds || []);
+        const submittedSet = new Set(submitted);
         const isCorrect = compareSets(submitted, question.correctOptionIds || []);
+
+        if (isCorrect) {
+            return {
+                graded: true,
+                isCorrect: true,
+                pointsEarned: question.points,
+                pointsPossible: question.points,
+            };
+        }
+
+        // Penalized partial credit:
+        // ratio = clamp((correct_selected - incorrect_selected) / total_correct, 0, 1)
+        const totalCorrect = correctSet.size;
+        if (totalCorrect === 0) {
+            return {
+                graded: true,
+                isCorrect: false,
+                pointsEarned: 0,
+                pointsPossible: question.points,
+            };
+        }
+        let correctSelected = 0;
+        let incorrectSelected = 0;
+        submittedSet.forEach((value) => {
+            if (correctSet.has(value)) {
+                correctSelected += 1;
+            } else {
+                incorrectSelected += 1;
+            }
+        });
+        const ratio = Math.min(1, Math.max(0, (correctSelected - incorrectSelected) / totalCorrect));
+        const pointsEarned = roundTo2(question.points * ratio);
         return {
             graded: true,
-            isCorrect,
-            pointsEarned: isCorrect ? question.points : 0,
+            isCorrect: false,
+            pointsEarned,
             pointsPossible: question.points,
         };
     }
@@ -544,10 +583,22 @@ const evaluateQuestion = (question, answer) => {
             submitted.length === expected.length &&
             submitted.every((item, index) => normalizeText(item) === normalizeText(expected[index]));
 
+        // Score by correct final position count
+        let correctCount = 0;
+        expected.forEach((expectedItem, index) => {
+            if (index < submitted.length && normalizeText(submitted[index]) === normalizeText(expectedItem)) {
+                correctCount += 1;
+            }
+        });
+
+        const pointsEarned = isCorrect
+            ? question.points
+            : scoreByRatio(question.points, correctCount, expected.length);
+
         return {
             graded: true,
             isCorrect,
-            pointsEarned: isCorrect ? question.points : 0,
+            pointsEarned,
             pointsPossible: question.points,
         };
     }
@@ -717,11 +768,13 @@ export const evaluateQuizAnswers = (questions, answers) => {
         (total, entry) => total + entry.pointsPossible,
         0,
     );
-    const pointsEarned = gradedEvaluations.reduce(
-        (total, entry) => total + entry.pointsEarned,
-        0,
+    const pointsEarned = roundTo2(
+        gradedEvaluations.reduce(
+            (total, entry) => total + entry.pointsEarned,
+            0,
+        ),
     );
-    const score = pointsPossible > 0 ? Math.round((pointsEarned / pointsPossible) * 100) : 0;
+    const score = pointsPossible > 0 ? roundTo2((pointsEarned / pointsPossible) * 100) : 0;
 
     return {
         evaluations,
