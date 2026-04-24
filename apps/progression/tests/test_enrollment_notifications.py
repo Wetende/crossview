@@ -94,3 +94,52 @@ class EnrollmentNotificationFlowTests(TestCase):
         self.assertEqual(notification.notification_type, "enrollment_confirmed")
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(student.email, mail.outbox[0].to)
+
+    def test_admin_enrollment_create_approves_matching_pending_request(self):
+        admin = UserFactory(admin=True)
+        student = UserFactory()
+        program = self._create_program("ADMIN-PENDING")
+        enrollment_request = EnrollmentRequest.objects.create(
+            user=student,
+            program=program,
+            status="pending",
+        )
+
+        self.client.force_login(admin)
+        response = self.client.post(
+            reverse("progression:admin.enrollment.create"),
+            data={
+                "userId": student.id,
+                "programId": program.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        enrollment_request.refresh_from_db()
+        self.assertEqual(enrollment_request.status, "approved")
+        self.assertEqual(enrollment_request.reviewed_by, admin)
+        self.assertIsNotNone(enrollment_request.reviewed_at)
+
+    def test_admin_enrollment_create_does_not_change_rejected_request(self):
+        admin = UserFactory(admin=True)
+        student = UserFactory()
+        program = self._create_program("ADMIN-REJECTED")
+        enrollment_request = EnrollmentRequest.objects.create(
+            user=student,
+            program=program,
+            status="rejected",
+        )
+
+        self.client.force_login(admin)
+        response = self.client.post(
+            reverse("progression:admin.enrollment.create"),
+            data={
+                "userId": student.id,
+                "programId": program.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        enrollment_request.refresh_from_db()
+        self.assertEqual(enrollment_request.status, "rejected")
+        self.assertIsNone(enrollment_request.reviewed_by)

@@ -416,7 +416,7 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
                     "studentAnswer": student_display,
                     "correctAnswer": correct_display,
                     "isCorrect": is_correct,
-                    "pointsEarned": points_earned,
+                    "pointsEarned": float(points_earned) if points_earned is not None else 0,
                     "pointsPossible": question.points,
                 }
             )
@@ -442,7 +442,7 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
                 "id": a.id,
                 "attemptNumber": a.attempt_number,
                 "score": float(a.score) if a.score is not None else None,
-                "pointsEarned": a.points_earned,
+                "pointsEarned": float(a.points_earned) if a.points_earned is not None else None,
                 "pointsPossible": a.points_possible,
                 "passed": a.passed,
                 "submittedAt": (a.submitted_at.isoformat() if a.submitted_at else None),
@@ -458,7 +458,7 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
                     if official_attempt.score is not None
                     else None
                 ),
-                "pointsEarned": official_attempt.points_earned,
+                "pointsEarned": float(official_attempt.points_earned) if official_attempt.points_earned is not None else None,
                 "pointsPossible": official_attempt.points_possible,
                 "passed": official_attempt.passed,
                 "submittedAt": (
@@ -3680,7 +3680,7 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                         "questionId": question.id,
                         "isCorrect": is_correct if is_correct is not None else False,
                         "correctAnswer": correct_answer,
-                        "pointsEarned": points or 0,
+                        "pointsEarned": float(points) if points is not None else 0,
                     }
                 )
 
@@ -4240,6 +4240,28 @@ def admin_enrollments(request):
     )
 
 
+def _reconcile_enrollment_request(user_id, program_id, reviewed_by):
+    """
+    If a pending EnrollmentRequest exists for this user/program,
+    mark it as approved so it disappears from instructor/admin pending-request views.
+    Only touches pending requests — rejected/history states are left unchanged.
+    """
+    from apps.progression.models import EnrollmentRequest
+
+    try:
+        pending_request = EnrollmentRequest.objects.get(
+            user_id=user_id,
+            program_id=program_id,
+            status="pending",
+        )
+        pending_request.status = "approved"
+        pending_request.reviewed_by = reviewed_by
+        pending_request.reviewed_at = timezone.now()
+        pending_request.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+    except EnrollmentRequest.DoesNotExist:
+        pass
+
+
 @login_required
 def admin_enrollment_create(request):
     """
@@ -4288,6 +4310,9 @@ def admin_enrollment_create(request):
             enrolled_at=timezone.now(),
         )
         NotificationService.notify_enrollment_confirmed(enrollment)
+
+        # Reconcile any pending enrollment request
+        _reconcile_enrollment_request(user_id, program_id, reviewed_by=request.user)
 
         return redirect("progression:admin.enrollments")
 
@@ -4340,6 +4365,10 @@ def admin_enrollment_bulk(request):
                     enrolled_at=timezone.now(),
                 )
                 NotificationService.notify_enrollment_confirmed(enrollment)
+                # Reconcile any pending enrollment request
+                _reconcile_enrollment_request(
+                    user_id, program_id, reviewed_by=request.user
+                )
                 created += 1
             else:
                 skipped += 1

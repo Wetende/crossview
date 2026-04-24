@@ -4716,7 +4716,7 @@ def student_quiz_submit(request, quiz_id: int):
                 "attemptNumber": attempt.attempt_number,
                 "maxAttempts": quiz.max_attempts,
                 "score": float(percentage),
-                "pointsEarned": points_earned,
+                "pointsEarned": float(points_earned),
                 "pointsPossible": points_possible,
                 "passed": passed,
                 "expired": expired,
@@ -5104,7 +5104,7 @@ def student_quiz_results(request, quiz_id: int):
                         question, review_attempt.id
                     ),
                     "isCorrect": is_correct,
-                    "pointsEarned": points_earned,
+                    "pointsEarned": float(points_earned) if points_earned is not None else 0,
                     "pointsPossible": question.points,
                 }
             )
@@ -5134,7 +5134,7 @@ def student_quiz_results(request, quiz_id: int):
                     "id": a.id,
                     "attemptNumber": a.attempt_number,
                     "score": float(a.score) if a.score is not None else None,
-                    "pointsEarned": a.points_earned,
+                    "pointsEarned": float(a.points_earned) if a.points_earned is not None else None,
                     "pointsPossible": a.points_possible,
                     "passed": a.passed,
                     "submittedAt": (
@@ -5152,7 +5152,7 @@ def student_quiz_results(request, quiz_id: int):
                         if official_attempt.score is not None
                         else None
                     ),
-                    "pointsEarned": official_attempt.points_earned,
+                    "pointsEarned": float(official_attempt.points_earned) if official_attempt.points_earned is not None else None,
                     "pointsPossible": official_attempt.points_possible,
                     "passed": official_attempt.passed,
                     "submittedAt": (

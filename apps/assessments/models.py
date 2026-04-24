@@ -2,12 +2,18 @@
 Assessment models - Grading strategies and results.
 """
 
-from typing import Optional
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Optional, Union
 
 from django.db import models
 from django.utils.crypto import salted_hmac
 
 from apps.core.models import TimeStampedModel
+
+
+def _round2(value) -> Decimal:
+    """Round a numeric value to 2 decimal places using ROUND_HALF_UP."""
+    return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 class AssessmentResult(TimeStampedModel):
@@ -221,10 +227,10 @@ class Question(TimeStampedModel):
 
     def check_answer(
         self, student_answer, attempt_id: Optional[int] = None
-    ) -> tuple[bool, int]:
+    ) -> tuple[bool, Union[Decimal, int]]:
         """
         Check if student answer is correct.
-        Returns (is_correct, points_earned).
+        Returns (is_correct, points_earned) where points_earned is a Decimal.
 
         Refactored to support new question types.
         """
@@ -244,9 +250,9 @@ class Question(TimeStampedModel):
 
             is_completely_correct = correct_count == len(pairs)
             points_earned = (
-                self.points
+                Decimal(self.points)
                 if is_completely_correct
-                else int(self.points * correct_count / len(pairs))
+                else _round2(Decimal(self.points) * correct_count / len(pairs))
             )
             return is_completely_correct, points_earned
 
@@ -279,9 +285,9 @@ class Question(TimeStampedModel):
 
             is_completely_correct = correct_count == len(pairs)
             points_earned = (
-                self.points
+                Decimal(self.points)
                 if is_completely_correct
-                else int(self.points * correct_count / len(pairs))
+                else _round2(Decimal(self.points) * correct_count / len(pairs))
             )
             return is_completely_correct, points_earned
 
@@ -306,9 +312,9 @@ class Question(TimeStampedModel):
 
             is_completely_correct = correct_count == len(gaps)
             points_earned = (
-                self.points
+                Decimal(self.points)
                 if is_completely_correct
-                else int(self.points * correct_count / len(gaps))
+                else _round2(Decimal(self.points) * correct_count / len(gaps))
             )
             return is_completely_correct, points_earned
 
@@ -320,10 +326,22 @@ class Question(TimeStampedModel):
             if not isinstance(expected_order, list) or not isinstance(
                 student_answer, list
             ):
-                return False, 0
+                return False, Decimal(0)
+
+            # Score by correct final position count
+            correct_count = 0
+            for i, expected_item in enumerate(expected_order):
+                if i < len(student_answer) and student_answer[i] == expected_item:
+                    correct_count += 1
 
             is_correct = student_answer == expected_order
-            return is_correct, self.points if is_correct else 0
+            if is_correct:
+                points_earned = Decimal(self.points)
+            else:
+                points_earned = _round2(
+                    Decimal(self.points) * correct_count / len(expected_order)
+                ) if len(expected_order) > 0 else Decimal(0)
+            return is_correct, points_earned
 
         # 5. Multi-Select MCQ
         elif self.question_type == "mcq_multi":
@@ -368,7 +386,20 @@ class Question(TimeStampedModel):
                         submitted_set.add(mapped)
 
             is_correct = submitted_set == correct_positions
-            return is_correct, self.points if is_correct else 0
+            if is_correct:
+                return True, Decimal(self.points)
+
+            # Penalized partial credit:
+            # ratio = clamp((correct_selected - incorrect_selected) / total_correct, 0, 1)
+            total_correct = len(correct_positions)
+            if total_correct == 0:
+                return False, Decimal(0)
+            correct_selected = len(submitted_set & correct_positions)
+            incorrect_selected = len(submitted_set - correct_positions)
+            ratio = max(Decimal(0), Decimal(correct_selected - incorrect_selected) / total_correct)
+            ratio = min(ratio, Decimal(1))
+            points_earned = _round2(Decimal(self.points) * ratio)
+            return False, points_earned
 
         # 6. Standard MCQ
         elif self.question_type == "mcq":
@@ -413,7 +444,7 @@ class Question(TimeStampedModel):
                     submitted_position = matched_option.position
 
             is_correct = submitted_position == correct_option.position
-            return is_correct, self.points if is_correct else 0
+            return is_correct, Decimal(self.points) if is_correct else Decimal(0)
 
         # 7. True/False
         elif self.question_type == "true_false":
@@ -461,7 +492,7 @@ class Question(TimeStampedModel):
                 and correct_bool is not None
                 and submitted_bool == correct_bool
             )
-            return is_correct, self.points if is_correct else 0
+            return is_correct, Decimal(self.points) if is_correct else Decimal(0)
 
         # 8. Short Answer
         elif self.question_type == "short_answer":
@@ -470,9 +501,9 @@ class Question(TimeStampedModel):
             keywords = self.answer_data.get("keywords", [])
             answer_lower = str(student_answer).lower()
             is_correct = any(kw.lower() in answer_lower for kw in keywords)
-            return is_correct, self.points if is_correct else 0
+            return is_correct, Decimal(self.points) if is_correct else Decimal(0)
 
-        return False, 0
+        return False, Decimal(0)
 
 
 class QuizAttempt(models.Model):
@@ -497,7 +528,9 @@ class QuizAttempt(models.Model):
 
     # Grading results
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    points_earned = models.PositiveIntegerField(null=True, blank=True)
+    points_earned = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
     points_possible = models.PositiveIntegerField(null=True, blank=True)
     passed = models.BooleanField(null=True)
 
@@ -513,12 +546,13 @@ class QuizAttempt(models.Model):
     def __str__(self):
         return f"Attempt #{self.attempt_number} on {self.quiz.title}"
 
-    def calculate_score(self) -> tuple[int, int, float, bool]:
+    def calculate_score(self) -> tuple[Decimal, int, float, bool]:
         """
         Grade the quiz attempt.
         Returns (points_earned, points_possible, percentage, passed).
+        points_earned is a Decimal with 2 decimal places.
         """
-        points_earned = 0
+        points_earned = Decimal(0)
         points_possible = 0
         needs_manual = False
 
@@ -531,10 +565,13 @@ class QuizAttempt(models.Model):
                 if is_correct is None:
                     needs_manual = True
                 else:
-                    points_earned += max(0, int(pts or 0))
+                    points_earned += max(Decimal(0), Decimal(str(pts or 0)))
+
+        # Round accumulated points_earned to 2 decimal places
+        points_earned = _round2(points_earned)
 
         raw_percentage = (
-            (points_earned / points_possible * 100) if points_possible > 0 else 0
+            (float(points_earned) / points_possible * 100) if points_possible > 0 else 0
         )
 
         passed = (

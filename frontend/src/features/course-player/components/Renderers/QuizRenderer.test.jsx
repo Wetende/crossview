@@ -199,9 +199,46 @@ describe('QuizRenderer', () => {
 
         const result = evaluateQuizAnswers(normalized, answers);
 
-        expect(result.pointsEarned).toBe(13);
+        expect(result.pointsEarned).toBe(14);
         expect(result.pointsPossible).toBe(22);
-        expect(result.score).toBe(59);
+        expect(result.score).toBe(63.64);
         expect(result.ungradedCount).toBe(1);
+    });
+
+    test('applies penalized partial credit for multi-select and position-based credit for ordering', () => {
+        const normalized = normalizeQuestions([
+            {
+                id: 'multi',
+                type: 'mcq_multi',
+                text: 'Select all valid items',
+                options: ['A', 'B', 'C', 'D'],
+                correctAnswers: [0, 1, 2],
+                points: 4,
+            },
+            {
+                id: 'order',
+                type: 'ordering',
+                text: 'Order the steps',
+                items: ['First', 'Second', 'Third'],
+                points: 3,
+            },
+        ]);
+
+        const byId = Object.fromEntries(normalized.map((q) => [q.id, q]));
+        const answers = {
+            multi: [
+                byId.multi.correctOptionIds[0],
+                byId.multi.correctOptionIds[1],
+                byId.multi.options.find((option) => !byId.multi.correctOptionIds.includes(option.id)).id,
+            ],
+            order: ['Third', 'Second', 'First'],
+        };
+
+        const result = evaluateQuizAnswers(normalized, answers);
+
+        expect(result.evaluations[0].pointsEarned).toBe(1.33);
+        expect(result.evaluations[1].pointsEarned).toBe(1);
+        expect(result.pointsEarned).toBe(2.33);
+        expect(result.score).toBe(33.29);
     });
 });
