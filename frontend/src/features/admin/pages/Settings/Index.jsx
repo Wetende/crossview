@@ -31,6 +31,9 @@ export default function SettingsIndex({ platform, settings, subscription }) {
   const { data, setData, post, processing } = useForm({
     registrationEnabled: settings?.registrationEnabled ?? true,
   });
+  const institutionName = platform?.institutionName || 'LMS';
+  const portalHost =
+    platform?.host || (typeof window !== 'undefined' ? window.location.host : '');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -74,14 +77,14 @@ export default function SettingsIndex({ platform, settings, subscription }) {
                       <Typography variant="body2" color="text.secondary">
                         Name
                       </Typography>
-                      <Typography variant="body1">{platform?.name}</Typography>
+                      <Typography variant="body1">{institutionName}</Typography>
                     </Box>
                     <Box>
                       <Typography variant="body2" color="text.secondary">
-                        Subdomain
+                        Portal Domain
                       </Typography>
                       <Typography variant="body1">
-                        {platform?.subdomain}.crossview.edu
+                        {portalHost || '-'}
                       </Typography>
                     </Box>
                     <Box>

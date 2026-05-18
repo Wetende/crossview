@@ -42,6 +42,7 @@ const fadeInUp = {
  */
 export default function Register({ registrationEnabled, errors = {} }) {
     const { platform } = usePage().props;
+    const institutionName = platform?.institutionName || "LMS";
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
@@ -134,7 +135,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
                                     fontWeight={700}
                                     gutterBottom
                                 >
-                                    {platform?.institutionName || "Crossview LMS"}
+                                    {institutionName}
                                 </Typography>
                                 <Typography variant="body1" color="text.secondary">
                                     Create your account to get started

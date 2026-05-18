@@ -1,6 +1,4 @@
-"""
-Custom authentication backends for Crossview LMS.
-"""
+"""Custom authentication backends for the LMS."""
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend

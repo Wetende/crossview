@@ -648,7 +648,7 @@ export default function ProgramDetail({
 
     return (
         <>
-            <Head title={`${program.name} - ${platform?.institutionName || "Crossview LMS"}`} />
+            <Head title={`${program.name} - ${platform?.institutionName || "LMS"}`} />
 
             <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
                 {/* Navbar */}

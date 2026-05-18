@@ -1,5 +1,5 @@
 /**
- * Crossview LMS Color Palette
+ * LMS color palette
  * Supports both light and dark modes
  *
  * Primary: Deep Blue (#2563EB) - Trust and professionalism

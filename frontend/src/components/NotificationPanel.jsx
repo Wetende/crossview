@@ -35,7 +35,7 @@ import SchoolIcon from "@mui/icons-material/School";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 
 const POLL_INTERVAL_MS = 60_000;
-const COUNT_CACHE_KEY = "crossview.notification.unread_count";
+const COUNT_CACHE_KEY = "lms.notification.unread_count";
 const COUNT_CACHE_TTL_MS = 60_000;
 
 const notificationIcons = {

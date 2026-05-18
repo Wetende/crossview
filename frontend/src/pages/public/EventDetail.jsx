@@ -108,7 +108,7 @@ function TabPanel({ children, value, index, ...other }) {
 }
 
 export default function EventDetail({ event, isRegistered = false, archives = [], about = "" }) {
-    const { auth } = usePage().props;
+    const { auth, platform } = usePage().props;
     const [tabValue, setTabValue] = useState(1); // Default to 'Event Target' (index 1)
 
     const handleChangeTab = (event, newValue) => {
@@ -127,8 +127,6 @@ export default function EventDetail({ event, isRegistered = false, archives = []
     };
 
     // Platform mock for footer
-    const platform = { institutionName: "Crossview" };
-
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />

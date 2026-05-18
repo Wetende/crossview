@@ -5,7 +5,7 @@ import { Badge, IconButton, Tooltip } from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 
 const POLL_INTERVAL_MS = 60_000;
-const COUNT_CACHE_KEY = "crossview.messages.unread_count";
+const COUNT_CACHE_KEY = "lms.messages.unread_count";
 const COUNT_CACHE_TTL_MS = 60_000;
 
 function loadCachedUnreadCount() {

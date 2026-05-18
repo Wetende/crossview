@@ -1,6 +1,6 @@
 """
 Unified Django settings - controlled by environment variables.
-Crossview LMS - Django + Inertia.js + React
+LMS - Django + Inertia.js + React
 
 Set DEBUG=True for development, DEBUG=False for production.
 All configuration is done via environment variables (12-factor app pattern).
@@ -104,6 +104,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.csrf",
+                "apps.platform.context_processors.platform_branding",
             ],
         },
     },
@@ -136,7 +137,7 @@ elif DB_ENGINE == "mysql":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.mysql",
-            "NAME": os.getenv("DB_NAME", "crossview"),
+            "NAME": os.getenv("DB_NAME", "lms"),
             "USER": os.getenv("DB_USER", "root"),
             "PASSWORD": os.getenv("DB_PASSWORD", ""),
             "HOST": os.getenv("DB_HOST", "localhost"),
@@ -148,7 +149,7 @@ elif DB_ENGINE == "postgresql":
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME", "crossview"),
+            "NAME": os.getenv("DB_NAME", "lms"),
             "USER": os.getenv("DB_USER", "postgres"),
             "PASSWORD": os.getenv("DB_PASSWORD", ""),
             "HOST": os.getenv("DB_HOST", "localhost"),

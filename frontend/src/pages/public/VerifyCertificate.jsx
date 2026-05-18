@@ -1,4 +1,4 @@
-import { Head, useForm } from "@inertiajs/react";
+import { Head, useForm, usePage } from "@inertiajs/react";
 import Footer from "@/components/common/Footer";
 import {
     Box,
@@ -37,6 +37,8 @@ const fadeInUp = {
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.6
  */
 export default function VerifyCertificate({ result }) {
+    const { platform } = usePage().props;
+    const institutionName = platform?.institutionName || "LMS";
     const { data, setData, post, processing } = useForm({
         serial_number: "",
     });
@@ -121,7 +123,7 @@ export default function VerifyCertificate({ result }) {
                         {/* Info */}
                         <Box sx={{ mt: 6, textAlign: "center" }}>
                             <Typography variant="body2" color="text.secondary">
-                                This verification service is provided by Crossview LMS.
+                                This verification service is provided by {institutionName}.
                                 <br />
                                 All verification attempts are logged for security purposes.
                             </Typography>

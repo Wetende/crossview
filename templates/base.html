@@ -5,7 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token }}">
-    <title>Crossview LMS</title>
+    <title>{{ platform_branding.institution_name|default:"LMS" }}</title>
+    {% if platform_branding.favicon_url %}
+    <link rel="icon" href="{{ platform_branding.favicon_url }}">
+    <link rel="shortcut icon" href="{{ platform_branding.favicon_url }}">
+    {% endif %}
     {% vite_assets 'src/main.jsx' %}
 </head>
 <body>

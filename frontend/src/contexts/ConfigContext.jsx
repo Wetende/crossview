@@ -10,7 +10,7 @@ const ConfigContext = createContext(undefined);
  */
 export function ConfigProvider({ children }) {
     const [config, setConfig] = useLocalStorage(
-        "crossview-lms-config",
+        "lms-config",
         defaultConfig
     );
 

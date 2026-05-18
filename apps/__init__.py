@@ -1,1 +1,1 @@
-# Crossview LMS Apps Package
+# LMS Apps Package

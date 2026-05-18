@@ -83,7 +83,7 @@ def detail(request, slug):
 
     # Global "About Us" content
     about_text = (
-        "Crossview is a comprehensive Learning Management System (LMS) designed for "
+        "This is a comprehensive Learning Management System (LMS) designed for "
         "online education. Empowering students and instructors with "
         "modern tools for seamless learning experiences."
     )

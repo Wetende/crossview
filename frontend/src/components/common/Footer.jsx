@@ -39,7 +39,7 @@ export default function Footer() {
     const p = platform || {};
     const primaryColor = p.primaryColor || "#3B82F6";
     const currentYear = new Date().getFullYear();
-    const institutionName = p.institutionName || "Crossview LMS";
+    const institutionName = p.institutionName || "LMS";
     const publicContent =
         p.publicContent && typeof p.publicContent === "object"
             ? p.publicContent
@@ -280,7 +280,7 @@ export default function Footer() {
                         variant="body2"
                         sx={{ color: "rgba(255,255,255,0.5)" }}
                     >
-                        Powered by Crossview LMS
+                        Powered by LMS
                     </Typography>
                 </Stack>
             </Container>

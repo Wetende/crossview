@@ -39,7 +39,7 @@ export default function Events({ events }) {
     const { auth, platform } = usePage().props;
 
     const primaryColor = platform?.primaryColor || "#2563EB";
-    const institutionName = platform?.institutionName || "Crossview";
+    const institutionName = platform?.institutionName || "LMS";
 
     return (
         <ThemeProvider theme={lightTheme}>

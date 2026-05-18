@@ -1,7 +1,7 @@
 import { FONT_ARCHIVO, FONT_FIGTREE } from "@/config";
 
 /**
- * Crossview LMS Typography
+ * LMS typography
  *
  * Headings (h1-h4): Archivo - Bold, professional
  * Body text: Figtree - Clean, readable

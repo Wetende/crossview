@@ -43,7 +43,8 @@ export default function Programs({
   pagination = {},
 }) {
   const theme = useTheme();
-  const { auth } = usePage().props;
+  const { auth, platform } = usePage().props;
+  const institutionName = platform?.institutionName || 'LMS';
   const [search, setSearch] = useState(filters.search || "");
   const [selectedCategory, setSelectedCategory] = useState(
     filters.category || "",
@@ -126,7 +127,7 @@ export default function Programs({
 
   return (
     <>
-      <Head title="Academic Programs - Crossview LMS" />
+      <Head title={`Academic Programs - ${institutionName}`} />
 
       <Box
         sx={{

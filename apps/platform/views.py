@@ -57,6 +57,7 @@ def admin_settings(request):
             "platform": {
                 "institutionName": settings.get("institutionName", ""),
                 "deploymentMode": settings.get("deploymentMode", "custom"),
+                "host": request.get_host(),
             },
             "settings": {
                 "registrationEnabled": settings.get("features", {}).get(

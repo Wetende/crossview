@@ -1,6 +1,4 @@
-"""
-WSGI config for Crossview LMS project.
-"""
+"""WSGI config for LMS project."""
 
 import os
 

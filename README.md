@@ -1,10 +1,10 @@
-# Crossview LMS - Blueprint-Driven Learning Management System
+# LMS - Blueprint-Driven Learning Management System
 
 A flexible, **single-tenant deployable** Learning Management System built with Django and React. Designed as a "Chameleon Engine" that adapts to different educational models through configurable blueprints.
 
 ## Overview
 
-Crossview LMS solves the fragmentation in the Kenyan education market by abstracting academic structure into a configuration layer called "The Blueprint." The same codebase can power:
+This LMS solves the fragmentation in the Kenyan education market by abstracting academic structure into a configuration layer called "The Blueprint." The same codebase can power:
 
 - **Theological Programs** - Session-based, reflective learning
 - **TVET Programs** - CDACC-compliant competency-based training
@@ -55,7 +55,7 @@ No code changes required per client — only dashboard configuration!
 ## Project Structure
 
 ```
-crossview/
+lms/
 ├── apps/                    # Django apps
 │   ├── core/               # User, Program models
 │   ├── blueprints/         # Academic blueprint configuration
@@ -94,7 +94,7 @@ crossview/
 
 1. **Clone/Fork the repository**
    ```bash
-   git clone https://github.com/Wetende/crossview.git client-lms
+   git clone https://github.com/Wetende/lms.git client-lms
    cd client-lms
    ```
 

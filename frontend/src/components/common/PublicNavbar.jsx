@@ -74,7 +74,7 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
                                 <PlatformLogo
                                     platform={platform}
                                     href="/"
-                                    fallbackName="Crossview"
+                                    fallbackName="LMS"
                                     logoHeight={40}
                                     logoMaxWidth={160}
                                     iconContainerSize={40}

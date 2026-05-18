@@ -1,6 +1,4 @@
-"""
-Pytest configuration for Crossview LMS.
-"""
+"""Pytest configuration for the LMS project."""
 import os
 import django
 import pytest

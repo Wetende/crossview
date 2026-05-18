@@ -160,6 +160,9 @@ function NotFoundCertificate({ serialNumber }) {
 }
 
 export default function CertificateVerify({ serialNumber, result, certificate }) {
+  const { platform } = usePage().props;
+  const institutionName = platform?.institutionName || "LMS";
+
   return (
     <>
       <Head title={`Verify Certificate - ${serialNumber}`} />
@@ -170,7 +173,7 @@ export default function CertificateVerify({ serialNumber, result, certificate })
             Certificate Verification
           </Typography>
           <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 4 }}>
-            Crossview Learning Management System
+            {institutionName}
           </Typography>
 
           {result === 'valid' && <ValidCertificate certificate={certificate} />}

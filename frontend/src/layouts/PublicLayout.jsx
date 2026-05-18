@@ -122,8 +122,8 @@ export default function PublicLayout({
                 >
                     <Typography variant="body2" color="text.secondary">
                         {platform
-                            ? `Powered by Crossview LMS`
-                            : `© ${new Date().getFullYear()} Crossview LMS`}
+                            ? `Powered by LMS`
+                            : `© ${new Date().getFullYear()} LMS`}
                     </Typography>
                 </Box>
             )}

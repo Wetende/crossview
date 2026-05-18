@@ -1,4 +1,4 @@
-# Project Genesis: The Crossview "Universal" LMS
+# Project Genesis: The Universal LMS
 
 ## 1. Executive Summary: The Chameleon Engine
 
@@ -39,10 +39,10 @@ You are building a **SaaS Template Asset**:
     Fork │               Fork │               Fork │
          ▼                    ▼                    ▼
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ Angel Beauty    │  │ Netty Tech      │  │ Crossview       │
-│ angelbeauty.com │  │ netty.com       │  │ crossview.edu   │
-│ TVET Mode       │  │ Online Mode     │  │ Theology Mode   │
-│ Pink Branding   │  │ Blue Branding   │  │ Green Branding  │
+│ Angel Beauty    │  │ Netty Tech      │  │ Future Client   │
+│ angelbeauty.com │  │ netty.com       │  │ theirdomain.com │
+│ TVET Mode       │  │ Online Mode     │  │ Custom Mode     │
+│ Pink Branding   │  │ Blue Branding   │  │ Custom Branding │
 └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
@@ -64,7 +64,7 @@ You are building a **SaaS Template Asset**:
 
 The defining innovation is the **separation of Content from Structure**.
 
-| Feature | Traditional LMS | Crossview Engine |
+| Feature | Traditional LMS | LMS Engine |
 |---------|-----------------|------------------|
 | Academic Hierarchy | Fixed: Year > Semester > Course | Flexible: Defined by JSON |
 | Grading Logic | Fixed: (CAT + Exam) / 2 | Configurable formulas |
@@ -232,7 +232,7 @@ class CurriculumNode(models.Model):
 
 ## 9. Final Verdict
 
-This architecture secures the future of Crossview College AND your Agency business:
+This architecture secures the future of your institution and your agency business:
 
 - **Regulation changes?** Update a config
 - **New client?** Fork, deploy, configure via wizard

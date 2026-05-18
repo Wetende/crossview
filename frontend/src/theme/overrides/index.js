@@ -1,6 +1,6 @@
 /**
  * MUI Component Overrides
- * Customizes default MUI component styles for Crossview branding
+ * Customizes default MUI component styles for platform branding
  */
 
 export default function componentsOverride(theme) {

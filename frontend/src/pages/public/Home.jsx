@@ -1,5 +1,5 @@
 import React from 'react'
-import { Head } from '@inertiajs/react'
+import { Head, usePage } from '@inertiajs/react'
 import ArchitectureIcon from '@mui/icons-material/Architecture'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -9,14 +9,17 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import Footer from '@/components/common/Footer'
 
 export default function Home({ message }) {
+  const { platform } = usePage().props;
+  const institutionName = platform?.institutionName || 'LMS';
+
   return (
     <>
-      <Head title="Home - Crossview LMS" />
+      <Head title={`Home - ${institutionName}`} />
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100">
         <div className="container mx-auto px-4 py-16">
           <div className="text-center">
             <h1 className="text-5xl font-bold text-emerald-800 mb-4">
-              Crossview LMS
+              {institutionName}
             </h1>
             <p className="text-xl text-emerald-600 mb-8">
               {message || 'Modern Learning Management System'}

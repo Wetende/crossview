@@ -70,10 +70,10 @@ export default function Landing() {
         );
     }
 
-    // Default Crossview marketing landing (for unsetup instances)
+    // Default marketing landing for unconfigured instances
     return (
         <>
-            <Head title="Crossview LMS - The Chameleon Engine" />
+            <Head title="LMS - The Chameleon Engine" />
             <Box
                 sx={{
                     minHeight: "100vh",
@@ -84,7 +84,7 @@ export default function Landing() {
                 {/* Default landing for unconfigured instances */}
                 <Container maxWidth="lg" sx={{ py: 20, textAlign: "center" }}>
                     <Typography variant="h2" fontWeight={700} gutterBottom>
-                        Welcome to Crossview LMS
+                        Welcome to the LMS
                     </Typography>
                     <Typography
                         variant="h5"

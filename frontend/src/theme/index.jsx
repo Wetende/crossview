@@ -59,7 +59,7 @@ function ThemeProviderInner({ children }) {
 
 /**
  * ThemeProvider - Wraps the application with MUI theme
- * Applies Crossview branding colors, typography, and component overrides
+ * Applies platform branding colors, typography, and component overrides
  * Supports dark/light mode switching
  */
 export default function ThemeProvider({
