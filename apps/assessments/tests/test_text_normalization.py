@@ -42,6 +42,15 @@ class AssessmentTextNormalizationTests(TestCase):
             },
         )
 
+    def test_normalize_question_answer_data_promotes_legacy_correct_order(self):
+        self.assertEqual(
+            normalize_question_answer_data(
+                "ordering",
+                {"correct_order": ["First&nbsp;step", "Second&#39;s step"]},
+            )["items"],
+            ["First step", "Second's step"],
+        )
+
     def test_question_serializer_normalizes_question_and_nested_text(self):
         serializer = QuestionSerializer(
             data={

@@ -241,4 +241,27 @@ describe('QuizRenderer', () => {
         expect(result.pointsEarned).toBe(2.33);
         expect(result.score).toBe(33.29);
     });
+
+    test('uses backend-compatible true/false values when options are omitted', () => {
+        const normalized = normalizeQuestions([
+            {
+                id: 'tf',
+                type: 'true_false',
+                text: 'It is important to develop a PR strategy.',
+                correct: true,
+                points: 1,
+            },
+        ]);
+
+        expect(normalized[0].options.map((option) => option.id)).toEqual([
+            'true',
+            'false',
+        ]);
+        expect(normalized[0].correctOptionId).toBe('true');
+
+        const result = evaluateQuizAnswers(normalized, { tf: 'true' });
+
+        expect(result.pointsEarned).toBe(1);
+        expect(result.score).toBe(100);
+    });
 });

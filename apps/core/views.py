@@ -30,6 +30,8 @@ from apps.assessments.text_normalization import (
     normalize_assessment_text_list,
     normalize_assessment_text_mapping,
     normalize_question_answer_data,
+    normalize_true_false_choice,
+    true_false_choice_to_index,
 )
 from apps.assessments.official_results import (
     assignment_attempt_passed,
@@ -4935,7 +4937,14 @@ def student_quiz_results(request, quiz_id: int):
 
         q_type = question.question_type
         if q_type in {"mcq", "true_false"}:
-            return _normalize_option_label(question, answer)
+            option_label = _normalize_option_label(question, answer)
+            if option_label != str(answer).strip():
+                return option_label
+            if q_type == "true_false":
+                normalized = normalize_true_false_choice(answer)
+                if normalized is not None:
+                    return "True" if normalized else "False"
+            return option_label
 
         if q_type == "mcq_multi":
             if not isinstance(answer, list):
@@ -5008,23 +5017,9 @@ def student_quiz_results(request, quiz_id: int):
             return option.text if option else "N/A"
 
         if q_type == "true_false":
-
-            def normalize_bool(value):
-                if isinstance(value, bool):
-                    return value
-                if isinstance(value, (int, float)):
-                    if int(value) in {0, 1}:
-                        return bool(int(value))
-                    return None
-                if isinstance(value, str):
-                    normalized = value.strip().lower()
-                    if normalized in {"true", "1", "yes"}:
-                        return True
-                    if normalized in {"false", "0", "no"}:
-                        return False
-                return None
-
-            correct_bool = normalize_bool(question.answer_data.get("correct"))
+            correct_bool = normalize_true_false_choice(
+                question.answer_data.get("correct")
+            )
             if correct_bool is None:
                 return "N/A"
             return "True" if correct_bool else "False"
@@ -7354,7 +7349,12 @@ def _sync_quiz_questions(node, questions_data: list):
                 "correct_indices": q_data.get("correct_indices", []),
             }
         elif backend_type == "true_false":
-            answer_data = {"correct": q_data.get("correct", True)}
+            answer_data = {
+                "correct": normalize_true_false_choice(
+                    q_data.get("correct"),
+                    default=True,
+                )
+            }
         elif backend_type == "short_answer":
             answer_data = {
                 "keywords": normalize_assessment_text_list(q_data.get("keywords", [])),
@@ -7556,7 +7556,10 @@ def _sync_quiz_questions(node, questions_data: list):
                 q_entry["correct_indices"] = [o.position for o in opts if o.is_correct]
 
         elif q.question_type == "true_false":
-            q_entry["correct"] = q.answer_data.get("correct", True)
+            q_entry["correct"] = true_false_choice_to_index(
+                q.answer_data.get("correct"),
+                default=0,
+            )
             opts = list(q.options.all().order_by("position"))
             if opts:
                 q_entry["options"] = [o.text for o in opts]

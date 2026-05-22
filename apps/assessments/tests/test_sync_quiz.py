@@ -200,6 +200,39 @@ class SyncQuizQuestionsTest(TestCase):
         quiz = Quiz.objects.get(node=self.node)
         self.assertFalse(quiz.allow_retake_after_pass)
 
+    def test_sync_true_false_stores_boolean_but_preserves_editor_index(self):
+        self.node.properties = {
+            "questions": [
+                {
+                    "id": "temp_tf_1",
+                    "type": "true_false",
+                    "text": "PR strategy matters.",
+                    "points": 1,
+                    "correct": 0,
+                }
+            ],
+        }
+        self.node.save(update_fields=["properties"])
+
+        _sync_quiz_questions(self.node, self.node.properties.get("questions", []))
+
+        quiz = Quiz.objects.get(node=self.node)
+        question = quiz.questions.get()
+        self.assertIs(question.answer_data.get("correct"), True)
+
+        self.node.refresh_from_db()
+        self.assertEqual(self.node.properties["questions"][0]["correct"], 0)
+
+        self.node.properties["questions"][0]["correct"] = 1
+        self.node.save(update_fields=["properties"])
+        _sync_quiz_questions(self.node, self.node.properties.get("questions", []))
+
+        question.refresh_from_db()
+        self.assertIs(question.answer_data.get("correct"), False)
+
+        self.node.refresh_from_db()
+        self.assertEqual(self.node.properties["questions"][0]["correct"], 1)
+
     def test_sync_image_matching_question_creates_pairs(self):
         questions_data = [
             {

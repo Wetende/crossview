@@ -446,7 +446,7 @@ export default function QuizAnswerReview({
                                     question={question}
                                     studentAnswer={answers[String(question.id)]}
                                     correctAnswer={
-                                        result.correctAnswer ||
+                                        result.correctAnswer ??
                                         question.correctAnswer
                                     }
                                     isCorrect={result.isCorrect ?? false}

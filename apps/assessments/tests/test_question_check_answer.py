@@ -24,7 +24,7 @@ class QuestionCheckAnswerTest(TestCase):
         )
         self.quiz = Quiz.objects.create(node=self.node, title="Grading Quiz")
 
-    def test_ordering_requires_items_array(self):
+    def test_ordering_accepts_legacy_correct_order_array(self):
         question = Question.objects.create(
             quiz=self.quiz,
             question_type="ordering",
@@ -36,8 +36,8 @@ class QuestionCheckAnswerTest(TestCase):
 
         is_correct, points = question.check_answer(["Step 1", "Step 2"])
 
-        self.assertFalse(is_correct)
-        self.assertEqual(points, 0)
+        self.assertTrue(is_correct)
+        self.assertEqual(points, 3)
 
     def test_mcq_accepts_option_position_or_id(self):
         question = Question.objects.create(
@@ -174,6 +174,21 @@ class QuestionCheckAnswerTest(TestCase):
         self.assertFalse(is_correct)
         self.assertEqual(points, Decimal("1.00"))
 
+    def test_ordering_without_expected_items_fails_closed(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_type="ordering",
+            text="Order missing steps",
+            points=3,
+            position=5,
+            answer_data={"items": []},
+        )
+
+        is_correct, points = question.check_answer([])
+
+        self.assertFalse(is_correct)
+        self.assertEqual(points, 0)
+
     def test_matching_awards_fractional_partial_credit(self):
         question = Question.objects.create(
             quiz=self.quiz,
@@ -215,6 +230,27 @@ class QuestionCheckAnswerTest(TestCase):
         self.assertFalse(is_correct)
         self.assertEqual(points, Decimal("1.50"))
 
+    def test_matching_malformed_answer_fails_closed(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_type="matching",
+            text="Match them",
+            points=2,
+            position=6,
+            answer_data={},
+        )
+        QuestionMatchingPair.objects.create(
+            question=question,
+            left_text="One",
+            right_text="1",
+            position=0,
+        )
+
+        is_correct, points = question.check_answer("One -> 1")
+
+        self.assertFalse(is_correct)
+        self.assertEqual(points, 0)
+
     def test_fill_blank_awards_fractional_partial_credit(self):
         question = Question.objects.create(
             quiz=self.quiz,
@@ -251,3 +287,92 @@ class QuestionCheckAnswerTest(TestCase):
 
         self.assertFalse(is_correct)
         self.assertEqual(points, Decimal("1.50"))
+
+    def test_fill_blank_malformed_answer_fails_closed(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_type="fill_blank",
+            text="Complete the sentence",
+            points=2,
+            position=7,
+            answer_data={},
+        )
+        QuestionGapAnswer.objects.create(
+            question=question,
+            gap_index=0,
+            accepted_answers=["Paris"],
+        )
+
+        is_correct, points = question.check_answer("Paris")
+
+        self.assertFalse(is_correct)
+        self.assertEqual(points, 0)
+
+    def test_true_false_accepts_inline_player_option_values(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_type="true_false",
+            text="PR strategy matters.",
+            points=1,
+            position=7,
+            answer_data={"correct": True},
+        )
+
+        true_selected, true_points = question.check_answer("0")
+
+        question.answer_data = {"correct": False}
+        question.save(update_fields=["answer_data"])
+        false_selected, false_points = question.check_answer("1")
+
+        self.assertTrue(true_selected)
+        self.assertEqual(true_points, Decimal("1"))
+        self.assertTrue(false_selected)
+        self.assertEqual(false_points, Decimal("1"))
+
+    def test_true_false_malformed_option_token_fails_closed(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_type="true_false",
+            text="PR strategy matters.",
+            points=1,
+            position=9,
+            answer_data={"correct": True},
+        )
+        QuestionOption.objects.create(
+            question=question,
+            text="True",
+            is_correct=True,
+            position=0,
+        )
+        QuestionOption.objects.create(
+            question=question,
+            text="False",
+            is_correct=False,
+            position=1,
+        )
+
+        is_correct, points = question.check_answer("not-an-option-id")
+
+        self.assertFalse(is_correct)
+        self.assertEqual(points, 0)
+
+    def test_true_false_accepts_legacy_builder_correct_indices(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_type="true_false",
+            text="PR strategy matters.",
+            points=1,
+            position=8,
+            answer_data={"correct": 0},
+        )
+
+        true_selected, true_points = question.check_answer(True)
+
+        question.answer_data = {"correct": 1}
+        question.save(update_fields=["answer_data"])
+        false_selected, false_points = question.check_answer(False)
+
+        self.assertTrue(true_selected)
+        self.assertEqual(true_points, Decimal("1"))
+        self.assertTrue(false_selected)
+        self.assertEqual(false_points, Decimal("1"))

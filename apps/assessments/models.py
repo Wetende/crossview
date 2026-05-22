@@ -8,6 +8,7 @@ from typing import Optional, Union
 from django.db import models
 from django.utils.crypto import salted_hmac
 
+from apps.assessments.text_normalization import normalize_true_false_choice
 from apps.core.models import TimeStampedModel
 
 
@@ -240,6 +241,8 @@ class Question(TimeStampedModel):
             pairs = list(self.matching_pairs.all())
             if not pairs:
                 return False, 0
+            if not isinstance(student_answer, dict):
+                return False, 0
 
             correct_count = 0
             for pair in pairs:
@@ -297,6 +300,8 @@ class Question(TimeStampedModel):
             gaps = list(self.gap_answers.all())
             if not gaps:
                 return False, 0
+            if not isinstance(student_answer, dict):
+                return False, 0
 
             def normalize_fill_blank(value):
                 return " ".join(str(value or "").lower().strip().split())
@@ -322,10 +327,14 @@ class Question(TimeStampedModel):
         elif self.question_type == "ordering":
             # student_answer: ["Step 1", "Step 2"]
             expected_order = self.answer_data.get("items", [])
+            if not isinstance(expected_order, list) or len(expected_order) == 0:
+                expected_order = self.answer_data.get("correct_order", [])
 
             if not isinstance(expected_order, list) or not isinstance(
                 student_answer, list
             ):
+                return False, Decimal(0)
+            if len(expected_order) == 0:
                 return False, Decimal(0)
 
             # Score by correct final position count
@@ -448,40 +457,48 @@ class Question(TimeStampedModel):
 
         # 7. True/False
         elif self.question_type == "true_false":
-
-            def normalize_bool(value):
-                if isinstance(value, bool):
-                    return value
-                if isinstance(value, (int, float)):
-                    if int(value) in {0, 1}:
-                        return bool(int(value))
-                    return None
-                if isinstance(value, str):
-                    normalized = value.strip().lower()
-                    if normalized in {"true", "1", "yes"}:
-                        return True
-                    if normalized in {"false", "0", "no"}:
-                        return False
-                return None
-
             correct_val = self.answer_data.get("correct")
-            correct_bool = normalize_bool(correct_val)
+            correct_bool = normalize_true_false_choice(correct_val)
             submitted_bool = None
 
-            parsed_direct = normalize_bool(student_answer)
+            parsed_direct = normalize_true_false_choice(student_answer)
             if parsed_direct is not None:
                 submitted_bool = parsed_direct
             elif self.options.exists():
-                if isinstance(student_answer, (str, int, float)):
-                    option = self.options.filter(
-                        models.Q(id=student_answer) | models.Q(position=student_answer)
-                    ).first()
-                    if option is None and isinstance(student_answer, str):
-                        normalized = student_answer.strip().lower()
-                        option = self.options.filter(text__iexact=normalized).first()
+                if isinstance(student_answer, (str, int, float)) and not isinstance(
+                    student_answer, bool
+                ):
+                    options = list(self.options.all())
+                    token = str(student_answer).strip()
+                    option = None
+                    numeric = None
+                    if isinstance(student_answer, (int, float)):
+                        numeric = int(student_answer)
+                    elif token.lstrip("-").isdigit():
+                        numeric = int(token)
+
+                    if numeric is not None:
+                        option = next(
+                            (
+                                opt
+                                for opt in options
+                                if opt.id == numeric or opt.position == numeric
+                            ),
+                            None,
+                        )
+                    if option is None and token:
+                        normalized = token.lower()
+                        option = next(
+                            (
+                                opt
+                                for opt in options
+                                if str(opt.text or "").strip().lower() == normalized
+                            ),
+                            None,
+                        )
 
                     if option is not None:
-                        by_text = normalize_bool(option.text)
+                        by_text = normalize_true_false_choice(option.text)
                         if by_text is not None:
                             submitted_bool = by_text
                         elif option.position in {0, 1}:

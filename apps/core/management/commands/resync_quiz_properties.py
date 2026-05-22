@@ -6,6 +6,8 @@ Usage: python manage.py resync_quiz_properties
 """
 from django.core.management.base import BaseCommand
 
+from apps.assessments.text_normalization import true_false_choice_to_index
+
 
 class Command(BaseCommand):
     help = "Resync quiz node.properties.questions from DB records"
@@ -51,7 +53,10 @@ class Command(BaseCommand):
                     else:
                         entry["correct_indices"] = [o.position for o in opts if o.is_correct]
                 elif q.question_type == "true_false":
-                    entry["correct"] = q.answer_data.get("correct", True)
+                    entry["correct"] = true_false_choice_to_index(
+                        q.answer_data.get("correct"),
+                        default=0,
+                    )
                     opts = list(q.options.all().order_by("position"))
                     if opts:
                         entry["options"] = [o.text for o in opts]

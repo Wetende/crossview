@@ -279,8 +279,8 @@ export const normalizeQuestions = (rawQuestions = []) => {
 
             if (type === 'true_false' && options.length === 0) {
                 options = [
-                    normalizeOption('True', 0),
-                    normalizeOption('False', 1),
+                    normalizeOption({ id: 'true', text: 'True', position: 0 }, 0),
+                    normalizeOption({ id: 'false', text: 'False', position: 1 }, 1),
                 ];
             }
 

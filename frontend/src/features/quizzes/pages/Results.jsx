@@ -25,6 +25,12 @@ import {
 import { motion } from 'framer-motion';
 import { formatPoints } from '@/lib/formatPoints';
 
+const formatReviewValue = (value, fallback) => {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value === 'boolean') return value ? 'True' : 'False';
+  return value;
+};
+
 export default function Results({
   quiz,
   attempts,
@@ -167,10 +173,10 @@ export default function Results({
                     </Stack>
                     <Typography variant="subtitle2">{item.questionText}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Your answer: {item.studentAnswer || 'Not answered'}
+                      Your answer: {formatReviewValue(item.studentAnswer, 'Not answered')}
                     </Typography>
                     <Typography variant="body2" color="success.main">
-                      Correct answer: {item.correctAnswer || 'N/A'}
+                      Correct answer: {formatReviewValue(item.correctAnswer, 'N/A')}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       Points: {formatPoints(item.pointsEarned)} / {formatPoints(item.pointsPossible)}

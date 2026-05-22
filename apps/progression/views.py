@@ -32,6 +32,7 @@ from apps.assessments.official_results import (
     get_official_assignment_attempt,
     get_official_quiz_attempt,
 )
+from apps.assessments.text_normalization import normalize_true_false_choice
 from apps.practicum.models import PracticumSubmission, SubmissionReview
 from apps.certifications.models import Certificate, CertificateEligibility
 from apps.progression.services import ProgressionEngine
@@ -354,6 +355,11 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
                     if str(opt.id) == token or str(opt.position) == token:
                         student_display = opt.text
                         break
+                else:
+                    if question.question_type == "true_false":
+                        normalized = normalize_true_false_choice(student_answer)
+                        if normalized is not None:
+                            student_display = "True" if normalized else "False"
             elif question.question_type == "mcq_multi" and isinstance(
                 student_answer, list
             ):
@@ -381,14 +387,9 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
                 correct_display = opt.text if opt else "N/A"
             elif q_type == "true_false":
                 correct_val = (question.answer_data or {}).get("correct")
-                if isinstance(correct_val, bool):
-                    correct_display = "True" if correct_val else "False"
-                elif isinstance(correct_val, str):
-                    correct_display = (
-                        "True"
-                        if correct_val.strip().lower() in {"true", "1", "yes"}
-                        else "False"
-                    )
+                normalized = normalize_true_false_choice(correct_val)
+                if normalized is not None:
+                    correct_display = "True" if normalized else "False"
                 else:
                     correct_display = "N/A"
             elif q_type == "mcq_multi":
@@ -3629,7 +3630,7 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                     return correct_positions or answer_data.get("correct_indices", [])
 
                 if q_type == "true_false":
-                    return answer_data.get("correct")
+                    return normalize_true_false_choice(answer_data.get("correct"))
 
                 if q_type == "short_answer":
                     return answer_data.get("keywords", [])
