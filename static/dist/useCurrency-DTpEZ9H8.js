@@ -1,1 +1,0 @@
-import{k as t}from"./main-B5ilTmSD.js";function y(){const{platform:e}=t().props,o=e?.currencyCode||"KES",r=e?.currencySymbol||"KSh ",u=n=>{if(n==null)return`${r}0`;const c=Number(n);return Number.isNaN(c)?`${r}0`:`${r}${c.toLocaleString()}`};return{currencyCode:o,currencySymbol:r,formatCurrency:u,formatMinorCurrency:n=>n==null?`${r}0`:u(Number(n)/100)}}export{y as u};
