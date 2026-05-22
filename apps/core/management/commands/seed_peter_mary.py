@@ -129,7 +129,8 @@ class Command(BaseCommand):
         if not blueprint:
             blueprint = AcademicBlueprint.objects.create(
                 name="Default Blueprint",
-                hierarchy_structure=["Module", "Lesson"]
+                hierarchy_structure=["Module", "Lesson"],
+                grading_logic={"type": "weighted", "components": []}
             )
 
         program, created = Program.objects.get_or_create(
