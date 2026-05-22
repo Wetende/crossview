@@ -46,6 +46,23 @@ const normalizeTypedResponseMode = (value) => {
         : "submission_text";
 };
 
+const assignmentRequiresQuestions = (mode, typedResponseMode) => {
+    return (
+        mode === "question_only" ||
+        mode === "mixed" ||
+        (mode === "submission_only" &&
+            typedResponseMode === "short_answer_question")
+    );
+};
+
+const assignmentRequiresSubmission = (mode, typedResponseMode) => {
+    return (
+        mode === "mixed" ||
+        (mode === "submission_only" &&
+            typedResponseMode === "submission_text")
+    );
+};
+
 const stripHtml = (value) => String(value || "").replace(/<[^>]*>/g, "").trim();
 
 const buildQuizStartUrl = ({ quizId, enrollmentId, nodeId }) => {
@@ -97,8 +114,13 @@ const AssessmentRenderer = ({
         assignmentMode === "submission_only" &&
         typedResponseMode === "short_answer_question";
 
-    const shouldShowQuestions = isQuiz;
-    const shouldShowSubmission = isAssignment;
+    const shouldShowQuestions =
+        isQuiz ||
+        (isAssignment &&
+            assignmentRequiresQuestions(assignmentMode, typedResponseMode));
+    const shouldShowSubmission =
+        isAssignment &&
+        assignmentRequiresSubmission(assignmentMode, typedResponseMode);
 
     const handleSubmission = () => {
         if (!hasAssignmentLink || isSubmitting) return;
@@ -136,45 +158,6 @@ const AssessmentRenderer = ({
     const renderQuestionsSection = () => {
         if (!shouldShowQuestions) return null;
 
-        if (isQuiz && hasQuizLink) {
-            return (
-                <QuizRenderer
-                    node={{
-                        ...node,
-                        properties: {
-                            ...properties,
-                            quiz_id: properties.quiz_id,
-                            questions: Array.isArray(properties.questions)
-                                ? properties.questions
-                                : [],
-                        },
-                    }}
-                    enrollmentId={enrollmentId}
-                    discussions={discussions}
-                    onComplete={onComplete}
-                    useBackendRuntime
-                />
-            );
-        }
-
-        if (shouldShowPromptQuestionPath && hasQuestions) {
-            return (
-                <QuizRenderer
-                    node={{
-                        ...node,
-                        properties: {
-                            ...properties,
-                            quiz_id: null,
-                            questions: properties.questions,
-                        },
-                    }}
-                    enrollmentId={enrollmentId}
-                    discussions={discussions}
-                    onComplete={onComplete}
-                />
-            );
-        }
-
         if (hasQuestions) {
             return (
                 <QuizRenderer
@@ -182,12 +165,14 @@ const AssessmentRenderer = ({
                         ...node,
                         properties: {
                             ...properties,
+                            quiz_id: properties.quiz_id || null,
                             questions: properties.questions,
                         },
                     }}
                     enrollmentId={enrollmentId}
                     discussions={discussions}
                     onComplete={onComplete}
+                    useBackendRuntime={hasQuizLink}
                 />
             );
         }
@@ -272,7 +257,7 @@ const AssessmentRenderer = ({
                             : "Attempts allowed: Unlimited"}
                     </Typography>
 
-                    {!assignmentStarted ? (
+                    {shouldShowSubmission && !assignmentStarted ? (
                         <Box>
                             <Button
                                 variant="contained"

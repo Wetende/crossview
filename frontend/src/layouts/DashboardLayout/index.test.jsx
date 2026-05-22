@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
 import DashboardLayout from "./index";
@@ -74,7 +74,7 @@ describe("DashboardLayout logout", () => {
         );
 
         fireEvent.click(screen.getByLabelText("user menu"));
-        fireEvent.click(screen.getByText("Logout"));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Logout" }));
 
         expect(mockUseLogoutOptions).toHaveBeenCalled();
         expect(mockSharedLogoutAction).toHaveBeenCalledTimes(1);
@@ -88,12 +88,12 @@ describe("DashboardLayout logout", () => {
         );
 
         fireEvent.click(screen.getByLabelText("user menu"));
-        expect(screen.getByText("Logout")).toBeInTheDocument();
+        expect(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Logout" })).toBeInTheDocument();
 
-        fireEvent.click(screen.getByText("Logout"));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Logout" }));
 
         await waitFor(() => {
-            expect(screen.queryByText("Logout")).not.toBeInTheDocument();
+            expect(screen.queryByRole("menuitem", { name: "Logout" })).not.toBeInTheDocument();
         });
     });
 });

@@ -1,4 +1,5 @@
-import { describe, expect, test, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import AssessmentRenderer from "./AssessmentRenderer";
@@ -9,6 +10,30 @@ vi.mock("@inertiajs/react", () => ({
         post: vi.fn(),
     },
 }));
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
+
+const mockQuizRuntime = (questions) => {
+    vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: async () => ({
+                questions,
+                attempt: {
+                    answers: {},
+                    runtimeState: {
+                        current_question_index: 0,
+                    },
+                },
+                attemptsRemaining: null,
+            }),
+        }),
+    );
+};
 
 describe("AssessmentRenderer", () => {
     test("renders prompt, instructions, and materials for assignments", () => {
@@ -32,7 +57,7 @@ describe("AssessmentRenderer", () => {
             />,
         );
 
-        expect(html).toContain("Assignment Question");
+        expect(html).toContain("Requirements");
         expect(html).toContain("Write your final reflection.");
         expect(html).toContain("Instructions");
         expect(html).toContain("Use examples from your project work.");
@@ -42,7 +67,7 @@ describe("AssessmentRenderer", () => {
     });
 
     test("renders submission section for submission-only assignment", () => {
-        const html = renderToStaticMarkup(
+        render(
             <AssessmentRenderer
                 node={{
                     id: 1,
@@ -58,12 +83,16 @@ describe("AssessmentRenderer", () => {
             />,
         );
 
-        expect(html).toContain("Submit");
-        expect(html).not.toContain("Answer Questions");
+        expect(screen.getByRole("button", { name: "Start Assignment" })).toBeInTheDocument();
+        expect(screen.queryByText("Finish Quiz")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Start Assignment" }));
+
+        expect(screen.getByRole("button", { name: "Submit Assignment" })).toBeInTheDocument();
     });
 
     test("renders inline short-answer prompt path without submission controls", () => {
-        const html = renderToStaticMarkup(
+        render(
             <AssessmentRenderer
                 node={{
                     id: 10,
@@ -87,13 +116,19 @@ describe("AssessmentRenderer", () => {
             />,
         );
 
-        expect(html).toContain("Explain your leadership style.");
-        expect(html).not.toContain("Upload File");
-        expect(html).not.toContain("Text Response");
+        expect(screen.getAllByText("Explain your leadership style.").length).toBeGreaterThan(0);
+        expect(screen.getByText("QUESTION 1 OF 1")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Finish Quiz" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Start Assignment" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Submit Assignment" })).not.toBeInTheDocument();
     });
 
-    test("renders question section only for question-only assignment", () => {
-        const html = renderToStaticMarkup(
+    test("renders question section only for question-only assignment", async () => {
+        mockQuizRuntime([
+            { id: "q1", type: "mcq", text: "Q", options: ["A"], correct: 0 },
+        ]);
+
+        render(
             <AssessmentRenderer
                 node={{
                     id: 2,
@@ -109,13 +144,18 @@ describe("AssessmentRenderer", () => {
             />,
         );
 
-        expect(html).toContain("QUESTION 1 OF 1");
-        expect(html).toContain("Finish Quiz");
-        expect(html).not.toContain("Upload File");
+        expect(await screen.findByText("QUESTION 1 OF 1")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Finish Quiz" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Start Assignment" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Submit Assignment" })).not.toBeInTheDocument();
     });
 
-    test("renders both sections for mixed assignment", () => {
-        const html = renderToStaticMarkup(
+    test("renders both sections for mixed assignment", async () => {
+        mockQuizRuntime([
+            { id: "q1", type: "mcq", text: "Q", options: ["A"], correct: 0 },
+        ]);
+
+        render(
             <AssessmentRenderer
                 node={{
                     id: 3,
@@ -133,8 +173,12 @@ describe("AssessmentRenderer", () => {
             />,
         );
 
-        expect(html).toContain("QUESTION 1 OF 1");
-        expect(html).toContain("Finish Quiz");
-        expect(html).toContain("Submit");
+        expect(await screen.findByText("QUESTION 1 OF 1")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Finish Quiz" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Start Assignment" })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Start Assignment" }));
+
+        expect(screen.getByRole("button", { name: "Submit Assignment" })).toBeInTheDocument();
     });
 });
