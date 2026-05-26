@@ -1545,6 +1545,81 @@ class QuizLinkIntegrityTest(TestCase):
         self.assertEqual(payload["maxAttempts"], 3)
         self.assertEqual(payload["attemptsRemaining"], 2)
 
+    def test_student_quiz_submit_empty_payload_grades_saved_answers(self):
+        program = self._create_program(
+            name="Quiz Submit Saved Answers",
+            code="QUIZ-SUBMIT-SAVED",
+        )
+        student = User.objects.create_user(
+            username="student.submit.saved",
+            email="student.submit.saved@test.com",
+            password="password123",
+        )
+        enrollment = Enrollment.objects.create(
+            user=student,
+            program=program,
+            status="active",
+        )
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Saved Answer Quiz Node",
+            node_type="Session",
+            properties={"lesson_type": "quiz"},
+            is_published=True,
+        )
+        quiz = Quiz.objects.create(
+            node=node,
+            title="Saved Answer Quiz",
+            is_published=True,
+            max_attempts=3,
+            pass_threshold=70,
+        )
+        question = Question.objects.create(
+            quiz=quiz,
+            question_type="mcq",
+            text="Pick one",
+            points=1,
+            position=0,
+            answer_data={"correct": 0},
+        )
+        correct_option = QuestionOption.objects.create(
+            question=question,
+            text="Correct",
+            is_correct=True,
+            position=0,
+        )
+        QuizAttempt.objects.create(
+            enrollment=enrollment,
+            quiz=quiz,
+            attempt_number=1,
+            started_at=timezone.now(),
+            answers={str(question.id): str(correct_option.id)},
+            runtime_state={"current_question_index": 0},
+        )
+
+        self.client.force_login(student)
+        response = self.client.post(
+            reverse("core:student.quiz_submit", kwargs={"quiz_id": quiz.id}),
+            data=json.dumps(
+                {
+                    "response": "json",
+                    "enrollment_id": enrollment.id,
+                    "node_id": node.id,
+                    "answers": {},
+                    "runtime_state": {"current_question_index": 0},
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["score"], 100.0)
+        self.assertTrue(payload["passed"])
+
+        attempt = QuizAttempt.objects.get(enrollment=enrollment, quiz=quiz)
+        self.assertEqual(attempt.answers.get(str(question.id)), str(correct_option.id))
+
     def test_student_quiz_submit_after_expiry_grades_saved_answers_only(self):
         program = self._create_program(name="Quiz Expiry", code="QUIZ-EXP")
         student = User.objects.create_user(

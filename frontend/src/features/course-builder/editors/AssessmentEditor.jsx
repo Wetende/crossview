@@ -127,6 +127,15 @@ export default function AssessmentEditor({
         const normalized = { ...question };
         normalized.required = normalized.required ?? true;
 
+        if (normalized.type === "mcq_multi") {
+            normalized.correctAnswers = Array.isArray(normalized.correctAnswers)
+                ? normalized.correctAnswers
+                : Array.isArray(normalized.correct_indices)
+                  ? normalized.correct_indices
+                  : [];
+            normalized.correct = normalized.correct ?? null;
+        }
+
         if (normalized.type === "ordering") {
             const candidate = normalized.items || normalized.correct_order;
             if (Array.isArray(candidate)) {
@@ -147,6 +156,20 @@ export default function AssessmentEditor({
         }
 
         return normalized;
+    };
+
+    const serializeQuestion = (question) => {
+        const serialized = { ...question };
+
+        if (serialized.type === "mcq_multi") {
+            serialized.correct_indices = Array.isArray(serialized.correctAnswers)
+                ? serialized.correctAnswers
+                      .map((value) => Number(value))
+                      .filter((value) => Number.isInteger(value) && value >= 0)
+                : [];
+        }
+
+        return serialized;
     };
 
     const isQuiz = type === "quiz";
@@ -295,7 +318,7 @@ export default function AssessmentEditor({
         };
 
         const questionSettings = {
-            questions,
+            questions: questions.map(serializeQuestion),
             question_banks: questionBanks,
             description,
             weight,
@@ -372,7 +395,7 @@ export default function AssessmentEditor({
             text: "",
             points: 1,
             options: ["", "", "", ""],
-            correct: 0,
+            correct: type === "mcq_multi" ? null : 0,
             correctAnswers: [],
             categories: [],
             required: true,

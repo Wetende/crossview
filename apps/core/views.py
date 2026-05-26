@@ -4156,7 +4156,9 @@ def _is_quiz_attempt_expired(quiz, attempt, now=None) -> bool:
 
 def _finalize_quiz_attempt(attempt, answers=None, submitted_at=None):
     if answers is not None and isinstance(answers, dict):
-        attempt.answers = answers
+        saved_answers = attempt.answers if isinstance(attempt.answers, dict) else {}
+        if answers or not saved_answers:
+            attempt.answers = answers
     attempt.submitted_at = submitted_at or timezone.now()
     points_earned, points_possible, percentage, passed = attempt.calculate_score()
     attempt.points_earned = points_earned
