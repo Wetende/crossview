@@ -1,6 +1,10 @@
 /**
  * Admin Program Create/Edit Form Page
  * Requirements: US-3.1, US-3.2, US-3.4
+ *
+ * Supports cascading exam body dropdowns for TVET deployment mode.
+ * Exam body registry is backend-driven (passed as props) so future
+ * exam bodies can be added without changing this component.
  */
 
 import { Head, Link, useForm } from "@inertiajs/react";
@@ -22,9 +26,11 @@ import {
     Select,
     MenuItem,
     Autocomplete,
+    Divider,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useState, useEffect, useMemo } from "react";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
 
@@ -36,10 +42,14 @@ export default function ProgramForm({
     courseLevels = [],
     currentInstructorIds = [],
     canChangeBlueprint = true,
+    examBodyRegistry = {},
+    deploymentMode = "custom",
     errors = {},
     formData = {},
 }) {
     const isEdit = mode === "edit";
+    const isTvetMode = deploymentMode === "tvet";
+    const hasExamBodies = isTvetMode && Object.keys(examBodyRegistry).length > 0;
 
     // Auto-select first blueprint if only one exists or none selected
     const defaultBlueprintId =
@@ -55,7 +65,96 @@ export default function ProgramForm({
         blueprintId: defaultBlueprintId,
         instructorIds: currentInstructorIds || formData.instructorIds || [],
         isPublished: program?.isPublished || formData.isPublished || false,
+        // Exam body metadata
+        examBody: program?.examBody || formData.examBody || "",
+        qualificationFamily: program?.qualificationFamily || formData.qualificationFamily || "",
+        officialLevel: program?.officialLevel || formData.officialLevel || "",
+        awardType: program?.awardType || formData.awardType || "",
+        approvalStatus: program?.approvalStatus || formData.approvalStatus || "",
+        assessmentMode: program?.assessmentMode || formData.assessmentMode || "",
+        centreStatus: program?.centreStatus || formData.centreStatus || "",
+        kenyaRecognitionStatus: program?.kenyaRecognitionStatus || formData.kenyaRecognitionStatus || "",
+        sourceDocument: program?.sourceDocument || formData.sourceDocument || "",
     });
+
+    // Derive available options from registry based on current selections
+    const examBodies = useMemo(() => Object.keys(examBodyRegistry), [examBodyRegistry]);
+
+    const selectedBodyData = useMemo(
+        () => examBodyRegistry[data.examBody] || null,
+        [examBodyRegistry, data.examBody]
+    );
+
+    const qualificationFamilies = useMemo(
+        () => (selectedBodyData ? Object.keys(selectedBodyData.families) : []),
+        [selectedBodyData]
+    );
+
+    const selectedFamilyData = useMemo(
+        () => selectedBodyData?.families?.[data.qualificationFamily] || null,
+        [selectedBodyData, data.qualificationFamily]
+    );
+
+    const officialLevels = useMemo(
+        () => selectedFamilyData?.levels || [],
+        [selectedFamilyData]
+    );
+
+    const suggestedCourses = useMemo(
+        () => selectedFamilyData?.courses || [],
+        [selectedFamilyData]
+    );
+
+    // Auto-fill broad category (level), award type, assessment mode when family changes
+    useEffect(() => {
+        if (selectedFamilyData) {
+            setData((prev) => ({
+                ...prev,
+                level: selectedFamilyData.broadCategory || prev.level,
+                awardType: selectedFamilyData.awardType || prev.awardType,
+                assessmentMode: selectedFamilyData.assessmentMode || prev.assessmentMode,
+            }));
+
+            // Auto-select blueprint based on exam body
+            const targetBlueprintCode = selectedFamilyData.blueprintCode || selectedBodyData?.blueprintCode;
+            if (targetBlueprintCode) {
+                // Map the internal code to the actual string that appears in the default blueprint name
+                const matchString = targetBlueprintCode
+                    .replace("nita_trade", "nita trade")
+                    .replace("icm_exam", "icm exam")
+                    .replace("icm_professional", "icm professional")
+                    .toLowerCase();
+
+                const matchingBlueprint = blueprints.find(
+                    (bp) => bp.name?.toLowerCase().includes(matchString)
+                );
+                if (matchingBlueprint && canChangeBlueprint) {
+                    setData((prev) => ({ ...prev, blueprintId: matchingBlueprint.id }));
+                }
+            }
+        }
+    }, [data.qualificationFamily, selectedFamilyData]);
+
+    // Reset dependent fields when exam body changes
+    const handleExamBodyChange = (value) => {
+        setData({
+            ...data,
+            examBody: value,
+            qualificationFamily: "",
+            officialLevel: "",
+            awardType: "",
+            assessmentMode: "",
+        });
+    };
+
+    // Reset official level when qualification family changes
+    const handleFamilyChange = (value) => {
+        setData({
+            ...data,
+            qualificationFamily: value,
+            officialLevel: "",
+        });
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -154,7 +253,152 @@ export default function ProgramForm({
                                                 }
                                                 fullWidth
                                             />
-                                            
+
+                                            {/* Exam Body Cascading Dropdowns (TVET mode only) */}
+                                            {hasExamBodies && (
+                                                <>
+                                                    <Divider>
+                                                        <Chip label="Examining Body Details" size="small" />
+                                                    </Divider>
+
+                                                    {/* Step 1: Select Exam Body */}
+                                                    <FormControl fullWidth>
+                                                        <InputLabel>Examining Body</InputLabel>
+                                                        <Select
+                                                            value={data.examBody}
+                                                            label="Examining Body"
+                                                            onChange={(e) => handleExamBodyChange(e.target.value)}
+                                                        >
+                                                            <MenuItem value="">
+                                                                <em>Select examining body...</em>
+                                                            </MenuItem>
+                                                            {examBodies.map((body) => (
+                                                                <MenuItem key={body} value={body}>
+                                                                    {examBodyRegistry[body].label}
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+
+                                                    {/* Step 2: Select Qualification Family */}
+                                                    {data.examBody && (
+                                                        <FormControl fullWidth>
+                                                            <InputLabel>Qualification Family</InputLabel>
+                                                            <Select
+                                                                value={data.qualificationFamily}
+                                                                label="Qualification Family"
+                                                                onChange={(e) => handleFamilyChange(e.target.value)}
+                                                            >
+                                                                <MenuItem value="">
+                                                                    <em>Select qualification family...</em>
+                                                                </MenuItem>
+                                                                {qualificationFamilies.map((family) => (
+                                                                    <MenuItem key={family} value={family}>
+                                                                        {family}
+                                                                    </MenuItem>
+                                                                ))}
+                                                            </Select>
+                                                        </FormControl>
+                                                    )}
+
+                                                    {/* Step 3: Select Official Level */}
+                                                    {data.qualificationFamily && officialLevels.length > 0 && (
+                                                        <FormControl fullWidth>
+                                                            <InputLabel>Official Level / Stage</InputLabel>
+                                                            <Select
+                                                                value={data.officialLevel}
+                                                                label="Official Level / Stage"
+                                                                onChange={(e) => setData("officialLevel", e.target.value)}
+                                                            >
+                                                                <MenuItem value="">
+                                                                    <em>Select level...</em>
+                                                                </MenuItem>
+                                                                {officialLevels.map((level) => (
+                                                                    <MenuItem key={level} value={level}>
+                                                                        {level}
+                                                                    </MenuItem>
+                                                                ))}
+                                                            </Select>
+                                                        </FormControl>
+                                                    )}
+
+                                                    {/* Additional TVET Metadata */}
+                                                    {data.qualificationFamily && (
+                                                        <>
+                                                            <TextField
+                                                                label="Centre Approval Status"
+                                                                value={data.centreStatus}
+                                                                onChange={(e) => setData("centreStatus", e.target.value)}
+                                                                helperText="e.g. Approved, Pending, Internal Preparation"
+                                                                fullWidth
+                                                            />
+                                                            <TextField
+                                                                label="TVETA Recognition Status"
+                                                                value={data.kenyaRecognitionStatus}
+                                                                onChange={(e) => setData("kenyaRecognitionStatus", e.target.value)}
+                                                                fullWidth
+                                                            />
+                                                            <TextField
+                                                                label="Source Document/Reference"
+                                                                value={data.sourceDocument}
+                                                                onChange={(e) => setData("sourceDocument", e.target.value)}
+                                                                fullWidth
+                                                            />
+                                                        </>
+                                                    )}
+
+                                                    {/* Course Suggestions (if available) */}
+                                                    {suggestedCourses.length > 0 && (
+                                                        <Alert severity="info" variant="outlined" sx={{ mt: -1 }}>
+                                                            <Typography variant="subtitle2" gutterBottom>
+                                                                Available Courses:
+                                                            </Typography>
+                                                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                                                {suggestedCourses.map((course) => (
+                                                                    <Chip
+                                                                        key={course.code}
+                                                                        label={`${course.code} — ${course.name}`}
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                    />
+                                                                ))}
+                                                            </Stack>
+                                                        </Alert>
+                                                    )}
+
+                                                    {/* Auto-filled metadata preview */}
+                                                    {data.awardType && (
+                                                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                                            {data.awardType && (
+                                                                <Chip
+                                                                    label={`Award: ${data.awardType}`}
+                                                                    size="small"
+                                                                    color="primary"
+                                                                    variant="outlined"
+                                                                />
+                                                            )}
+                                                            {data.assessmentMode && (
+                                                                <Chip
+                                                                    label={`Assessment: ${data.assessmentMode}`}
+                                                                    size="small"
+                                                                    color="secondary"
+                                                                    variant="outlined"
+                                                                />
+                                                            )}
+                                                            {data.level && (
+                                                                <Chip
+                                                                    label={`Category: ${data.level}`}
+                                                                    size="small"
+                                                                    color="success"
+                                                                    variant="outlined"
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                    )}
+                                                </>
+                                            )}
+
+                                            {/* Level dropdown (always shown, auto-filled in TVET mode) */}
                                             <FormControl fullWidth required error={!!errors.level}>
                                                 <InputLabel>Level</InputLabel>
                                                 <Select

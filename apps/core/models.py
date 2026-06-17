@@ -103,6 +103,109 @@ class InstructorCertification(models.Model):
         return f"{self.file_name} for {self.profile.user.email}"
 
 
+class Campus(TimeStampedModel):
+    """AIRADS physical or virtual campus used for admissions routing."""
+
+    CAMPUS_TYPE_PHYSICAL = "physical"
+    CAMPUS_TYPE_VIRTUAL = "virtual"
+
+    CAMPUS_TYPE_CHOICES = [
+        (CAMPUS_TYPE_PHYSICAL, "Physical"),
+        (CAMPUS_TYPE_VIRTUAL, "Virtual"),
+    ]
+
+    name = models.CharField(max_length=120, unique=True)
+    slug = models.SlugField(max_length=80, unique=True)
+    campus_type = models.CharField(
+        max_length=20,
+        choices=CAMPUS_TYPE_CHOICES,
+        default=CAMPUS_TYPE_PHYSICAL,
+    )
+    contact_email = models.EmailField(blank=True, default="")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "campuses"
+        ordering = ["campus_type", "name"]
+        indexes = [
+            models.Index(fields=["campus_type", "is_active"]),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class AdmissionApplication(TimeStampedModel):
+    """Public student admissions application submitted from the AIRADS site."""
+
+    STUDY_MODE_ON_CAMPUS = "on_campus"
+    STUDY_MODE_VIRTUAL = "virtual"
+
+    STUDY_MODE_CHOICES = [
+        (STUDY_MODE_ON_CAMPUS, "On Campus"),
+        (STUDY_MODE_VIRTUAL, "Virtual"),
+    ]
+
+    STATUS_NEW = "new"
+    STATUS_CONTACTED = "contacted"
+    STATUS_ACCEPTED = "accepted"
+    STATUS_DECLINED = "declined"
+
+    STATUS_CHOICES = [
+        (STATUS_NEW, "New"),
+        (STATUS_CONTACTED, "Contacted"),
+        (STATUS_ACCEPTED, "Accepted"),
+        (STATUS_DECLINED, "Declined"),
+    ]
+
+    full_name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=32)
+    whatsapp = models.CharField(max_length=32, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    study_mode = models.CharField(
+        max_length=20,
+        choices=STUDY_MODE_CHOICES,
+        default=STUDY_MODE_ON_CAMPUS,
+    )
+    campus = models.ForeignKey(
+        "Campus",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admission_applications",
+    )
+    program = models.ForeignKey(
+        "Program",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admission_applications",
+    )
+    preferred_campus = models.CharField(max_length=120)
+    preferred_programme = models.CharField(max_length=255)
+    intake = models.CharField(max_length=120, blank=True, default="")
+    education_level = models.CharField(max_length=120, blank=True, default="")
+    message = models.TextField(blank=True, default="")
+    source = models.CharField(max_length=80, blank=True, default="website")
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_NEW
+    )
+    internal_notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "admission_applications"
+        indexes = [
+            models.Index(fields=["status", "-created_at"]),
+            models.Index(fields=["study_mode", "-created_at"]),
+            models.Index(fields=["campus", "-created_at"]),
+            models.Index(fields=["preferred_campus"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.full_name} - {self.preferred_programme}"
+
+
 class Program(TimeStampedModel):
     """
     Program model - represents an academic program/course.
@@ -183,7 +286,50 @@ class Program(TimeStampedModel):
     )
     category = models.CharField(max_length=100, blank=True, null=True)
     # Level is now admin-configurable via PlatformSettings.course_levels
+    # For TVET mode, this serves as the broad category (Tier 1):
+    # Entry, Foundation, Certificate, Diploma, Advanced, Professional, etc.
     level = models.CharField(max_length=50)
+
+    # Examining Body Metadata (TVET mode)
+    # These fields enable accurate course classification per official
+    # examining/awarding body requirements (KASNEB, CDACC, KNEC, NITA, ICM).
+    exam_body = models.CharField(
+        max_length=50, blank=True, null=True,
+        help_text="Examining/awarding body: KASNEB, CDACC, KNEC, NITA, ICM, Internal"
+    )
+    qualification_family = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Official category: Certificate, Diploma, Professional, Trade Test, etc."
+    )
+    official_level = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Specific level/stage: Foundation, Level I, Grade III, Level 5, etc."
+    )
+    award_type = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Award issued: Craft Certificate, Diploma, Government Trade Test Certificate"
+    )
+    approval_status = models.CharField(
+        max_length=30, blank=True, null=True,
+        help_text="Regulatory approval: Approved, Pending, Internal Preparation"
+    )
+    assessment_mode = models.CharField(
+        max_length=50, blank=True, null=True,
+        help_text="Assessment method: Exam, CBET, Trade Test, Assignment, Project"
+    )
+    centre_status = models.CharField(
+        max_length=50, blank=True, null=True,
+        help_text="Centre approval status (ICM only): ICM Approved Centre, Pending, N/A"
+    )
+    kenya_recognition_status = models.CharField(
+        max_length=50, blank=True, null=True,
+        help_text="TVETA recognition: TVETA-listed, Pending, Not Confirmed"
+    )
+    source_document = models.TextField(
+        blank=True, null=True,
+        help_text="Reference: Syllabus, TVETA record, approval letter"
+    )
+
     duration_hours = models.PositiveIntegerField(
         default=0, help_text="Total duration in hours"
     )

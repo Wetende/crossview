@@ -37,16 +37,7 @@ MODE_BLUEPRINTS = {
             'pass_mark': 50
         },
     },
-    'nita': {
-        'name': 'NITA Trade Test',
-        'description': 'Trade test blueprint following NITA guidelines',
-        'hierarchy_structure': get_mode_builder_hierarchy('nita'),
-        'grading_logic': {
-            'type': 'competency',
-            'levels': ['Fail', 'Pass', 'Credit', 'Distinction'],
-            'pass_threshold': 'Pass'
-        },
-    },
+
     'driving': {
         'name': 'Driving School (NTSA)',
         'description': 'Checklist-based blueprint for driving schools following NTSA guidelines',
@@ -366,8 +357,8 @@ class PlatformSettingsService:
             "deploymentMode": settings.deployment_mode,
             "courseLevels": settings.get_course_levels(),
             "activeBlueprintId": settings.active_blueprint_id,
-            "logo": settings.logo.url if settings.logo else None,
-            "favicon": settings.favicon.url if settings.favicon else None,
+            "logo": settings.get_logo_url(),
+            "favicon": settings.get_favicon_url(),
             "primaryColor": settings.primary_color,
             "secondaryColor": settings.secondary_color,
             "customCss": settings.custom_css,
@@ -615,8 +606,8 @@ class PlatformSettingsService:
         return {
             "institutionName": settings.institution_name,
             "tagline": settings.tagline,
-            "logo": settings.logo.url if settings.logo else None,
-            "favicon": settings.favicon.url if settings.favicon else None,
+            "logo": settings.get_logo_url(),
+            "favicon": settings.get_favicon_url(),
             "primaryColor": settings.primary_color,
             "secondaryColor": settings.secondary_color,
         }

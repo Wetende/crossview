@@ -20,13 +20,20 @@ DEFAULT_BUILDER_HIERARCHY = ["Section", "Lesson"]
 # Dynamic defaults by deployment mode. These are defaults only; admins may
 # still use editable blueprints as long as they satisfy validation rules.
 MODE_BUILDER_HIERARCHY = {
+    # Deployment modes (institution-level)
     "tvet": ["Unit", "Session"],
     "theology": ["Chapter", "Lesson"],
-    "nita": ["Module", "Practical"],
     "driving": ["Phase", "Lesson"],
     "cbc": ["Strand", "Lesson"],
     "online": ["Section", "Lesson"],
     "custom": DEFAULT_BUILDER_HIERARCHY,
+    # Exam-body-specific (used when blueprint is auto-assigned from registry)
+    "kasneb": ["Paper", "Topic"],
+    "cdacc": ["Unit of Competency", "Session"],
+    "knec": ["Module", "Topic"],
+    "nita_trade": ["Practical Skill", "Task"],
+    "icm_exam": ["Unit", "Topic"],
+    "icm_professional": ["Assignment", "Submission"],
 }
 
 
