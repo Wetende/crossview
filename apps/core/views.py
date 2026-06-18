@@ -1845,6 +1845,7 @@ def admin_programs(request):
                 "blueprint_id",
                 "blueprint__name",
                 "level",
+                "official_level",
                 "is_published",
                 "created_at",
             ).order_by("-created_at")[(page - 1) * per_page : page * per_page]
@@ -1869,6 +1870,7 @@ def admin_programs(request):
                 "blueprintName": program.blueprint.name if program.blueprint else None,
                 "blueprintId": program.blueprint_id,
                 "level": program.level or "",
+                "officialLevel": program.official_level,
                 "isPublished": program.is_published,
                 "enrollmentCount": enrollment_counts.get(program.id, 0),
                 "createdAt": program.created_at.isoformat(),

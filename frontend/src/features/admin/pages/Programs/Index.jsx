@@ -120,12 +120,14 @@ export default function ProgramsIndex({
     {
       id: "level",
       label: "Level",
-      render: (row) =>
-        row.level ? (
-          <Chip label={row.level} size="small" variant="outlined" />
+      render: (row) => {
+        const displayLevel = row.officialLevel || row.level;
+        return displayLevel ? (
+          <Chip label={displayLevel} size="small" variant="outlined" />
         ) : (
           "—"
-        ),
+        );
+      },
     },
     {
       id: "enrollmentCount",
