@@ -289,31 +289,33 @@ export default function ProgramForm({
                                                 </Box>
                                             )}
 
-                                            {/* Level dropdown (always shown) */}
-                                            <Box>
-                                                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Level *</Typography>
-                                                <FormControl fullWidth required error={!!errors.level}>
-                                                    <Select
-                                                        value={data.level}
-                                                        displayEmpty
-                                                        onChange={(e) => setData("level", e.target.value)}
-                                                    >
-                                                        <MenuItem value="" disabled>
-                                                            <em>Select level</em>
-                                                        </MenuItem>
-                                                        {courseLevels.map((level) => (
-                                                            <MenuItem key={level.value} value={level.value}>
-                                                                {level.label}
+                                            {/* Level dropdown (Hidden if exam body handles it) */}
+                                            {(!hasExamBodies || !data.examBody) && (
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Level *</Typography>
+                                                    <FormControl fullWidth required error={!!errors.level}>
+                                                        <Select
+                                                            value={data.level}
+                                                            displayEmpty
+                                                            onChange={(e) => setData("level", e.target.value)}
+                                                        >
+                                                            <MenuItem value="" disabled>
+                                                                <em>Select level</em>
                                                             </MenuItem>
-                                                        ))}
-                                                    </Select>
-                                                    {errors.level && (
-                                                        <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
-                                                            {errors.level}
-                                                        </Typography>
-                                                    )}
-                                                </FormControl>
-                                            </Box>
+                                                            {courseLevels.map((level) => (
+                                                                <MenuItem key={level.value} value={level.value}>
+                                                                    {level.label}
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                        {errors.level && (
+                                                            <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                                                                {errors.level}
+                                                            </Typography>
+                                                        )}
+                                                    </FormControl>
+                                                </Box>
+                                            )}
 
                                             {/* Step 2: Select Qualification Family */}
                                             {hasExamBodies && data.examBody && (
