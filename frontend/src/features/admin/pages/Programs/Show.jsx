@@ -120,7 +120,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                   position: 'relative', borderColor: tokens.hairline, borderRadius: '4px',
                   p: { xs: 3, sm: '40px 44px 32px' }, bgcolor: tokens.card,
                 }}>
-                  <Eyebrow>Programme record — {program.code || '-'}</Eyebrow>
+                  <Eyebrow>Programme</Eyebrow>
                   <PageTitle component="h1">{program.name}</PageTitle>
                   <Typography sx={{ color: tokens.muted, fontSize: 15 }}>
                     {program.examBody ? `${program.examBody} · ${program.officialLevel || 'No level'}` : 'Independent Course'}
@@ -133,9 +133,6 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                     <Typography sx={{ fontFamily: tokens.fontMono, fontWeight: 600, fontSize: 13, letterSpacing: '0.08em' }}>
                       {program.isPublished ? 'PUBLISHED' : 'DRAFT'}
                     </Typography>
-                    <Typography sx={{ fontFamily: tokens.fontMono, fontSize: 8, letterSpacing: '0.05em', opacity: 0.85, mt: 0.4 }}>
-                      REC. {program.code || '-'}
-                    </Typography>
                   </StatusStamp>
 
                   <Box sx={{
@@ -147,7 +144,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                       ['Programme code', program.code || '-'],
                       ['Examining body', program.examBody || 'Independent'],
                       ['Award type', program.awardType || '-'],
-                      ['Assessment mode', program.assessmentMode || '-'],
+                      ['Assessment mode', program.assessmentMode || 'Continuous Mark Assessment'],
                       ['Created on', new Date(program.createdAt).toLocaleDateString(undefined, {
                           year: 'numeric',
                           month: 'short',
@@ -220,7 +217,12 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                                 <Typography sx={{ fontFamily: tokens.fontMono, fontStyle: 'italic', fontSize: 13.5, color: tokens.muted }}>
                                   — vacant —
                                 </Typography>
-                                <Button variant="outlined" sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}>
+                                <Button 
+                                  component={Link}
+                                  href={`/admin/programs/${program.id}/edit/`}
+                                  variant="outlined" 
+                                  sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
+                                >
                                   + Assign instructor
                                 </Button>
                               </Box>
