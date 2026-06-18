@@ -250,6 +250,27 @@ EXAM_BODY_REGISTRY = {
             },
         },
     },
+    "Internal": {
+        "label": "Internal",
+        "regulatory_body": "Internal",
+        "blueprint_code": "tvet",
+        "families": {
+            "Short Course": {
+                "courses": ["AI Fundamentals", "Computer Packages", "Web Design"],
+                "levels": ["Beginner", "Intermediate", "Advanced"],
+                "broad_category": "skill_upgrade",
+                "award_type": "Internal Certificate of Completion",
+                "assessment_mode": "Practical / Project",
+            },
+            "Certificate of Participation": {
+                "courses": ["Seminars", "Workshops", "Guest Lectures"],
+                "levels": ["General"],
+                "broad_category": "entry",
+                "award_type": "Certificate of Participation",
+                "assessment_mode": "Attendance-Based",
+            },
+        },
+    },
 }
 
 
