@@ -1,3 +1,5 @@
+import { FONT_BOOKMAN_OLD_STYLE, FONT_BODY } from '@/config';
+
 export const tokens = {
   ink: '#14213D',
   inkSoft: '#3A4564',
@@ -9,7 +11,7 @@ export const tokens = {
   redDeep: '#7F1313',
   hairline: '#DADFE8',
   muted: '#6B7280',
-  fontDisplay: "'Space Grotesk', sans-serif",
-  fontBody: "'IBM Plex Sans', sans-serif",
-  fontMono: "'IBM Plex Mono', monospace",
+  fontDisplay: FONT_BOOKMAN_OLD_STYLE,
+  fontBody: FONT_BODY,
+  fontMono: 'monospace',
 };
