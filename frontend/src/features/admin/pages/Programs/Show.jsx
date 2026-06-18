@@ -40,6 +40,16 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import DashboardLayout from '@/layouts/DashboardLayout';
+import '@fontsource/space-grotesk/600.css';
+import '@fontsource/space-grotesk/700.css';
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-mono/600.css';
+
+import { tokens } from './programRecordTokens';
+import { Eyebrow, PageTitle, StatusStamp, SectionEyebrow } from './Show.styles';
 import { useState } from 'react';
 
 export default function ProgramShow({ program, stats, instructors = [], readiness = {} }) {
@@ -55,21 +65,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
     setPublishOpen(true);
   };
 
-  const StatItem = ({ icon: Icon, value, label, color = 'primary' }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, justifyContent: 'center' }}>
-      <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: `${color}.lighter`, color: `${color}.main` }}>
-        <Icon fontSize="large" />
-      </Box>
-      <Box>
-        <Typography variant="h4" fontWeight="bold" sx={{ lineHeight: 1 }}>
-          {value}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-          {label}
-        </Typography>
-      </Box>
-    </Box>
-  );
+  // Removed unused StatItem since we use the new Tally grid directly
 
   return (
     <DashboardLayout
@@ -82,44 +78,29 @@ export default function ProgramShow({ program, stats, instructors = [], readines
       <Head title={`Program: ${program.name}`} />
 
       <Stack spacing={3}>
-        {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box>
-            <Button
-              component={Link}
-              href="/admin/programs/"
-              startIcon={<ArrowBackIcon />}
-              sx={{ mb: 1 }}
-            >
-              Back to Programs
-            </Button>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="h4" fontWeight="bold">
-                {program.name}
-              </Typography>
-              <Chip
-                label={program.isPublished ? 'Published' : 'Draft'}
-                color={program.isPublished ? 'success' : 'default'}
-                onClick={handleChipClick}
-                sx={{ cursor: 'pointer', fontWeight: 'bold' }}
-                icon={program.isPublished ? <CheckCircleIcon /> : <EditIcon />}
-              />
-            </Box>
-          </Box>
-          <Stack direction="row" spacing={1}>
+        {/* Toolbar */}
+        <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={3}>
+          <Typography component={Link} href="/admin/programs/" sx={{
+            fontFamily: tokens.fontMono, fontSize: 12, letterSpacing: '0.06em',
+            textTransform: 'uppercase', color: tokens.muted, textDecoration: 'none',
+          }}>
+            ← Back to programmes
+          </Typography>
+
+          <Stack direction="row" gap={1.25} flexWrap="wrap">
             <Button
               component={Link}
               href={`/admin/programs/${program.id}/content/`}
               variant="outlined"
-              startIcon={<DescriptionIcon />}
+              sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
             >
-              Content Setup
+              Content setup
             </Button>
             <Button
               component={Link}
               href={`/admin/programs/${program.id}/edit/`}
               variant="outlined"
-              startIcon={<EditIcon />}
+              sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
             >
               Edit
             </Button>
@@ -127,12 +108,12 @@ export default function ProgramShow({ program, stats, instructors = [], readines
               component={Link}
               href={`/instructor/programs/${program.id}/manage/`}
               variant="contained"
-              startIcon={<AccountTreeIcon />}
+              sx={{ bgcolor: tokens.blue, '&:hover': { bgcolor: tokens.blueDeep } }}
             >
-              Course Manager
+              Course manager
             </Button>
           </Stack>
-        </Box>
+        </Stack>
 
         {/* Wrapper for Animation */}
         <motion.div
@@ -140,147 +121,140 @@ export default function ProgramShow({ program, stats, instructors = [], readines
            animate={{ opacity: 1, y: 0 }}
         >
             <Stack spacing={3}>
-                {/* Stats Strip */}
-                <Card>
-                  <CardContent>
-                    <Stack
-                        direction={{ xs: 'column', md: 'row' }}
-                        divider={<Divider orientation="vertical" flexItem />}
-                        spacing={3}
-                        justifyContent="space-between"
-                        alignItems={{ xs: 'center', md: 'stretch' }}
-                    >
-                        <StatItem
-                            icon={PeopleIcon}
-                            value={stats.enrollmentCount}
-                            label="Total Enrollments"
-                            color="primary"
-                        />
-                        <StatItem
-                            icon={SchoolIcon}
-                            value={stats.activeEnrollments}
-                            label="Active Students"
-                            color="success"
-                        />
-                        <StatItem
-                            icon={CheckCircleIcon}
-                            value={stats.completedEnrollments}
-                            label="Completed"
-                            color="info"
-                        />
-                    </Stack>
-                  </CardContent>
-                </Card>
+                {/* Registry Card */}
+                <Paper variant="outlined" sx={{
+                  position: 'relative', borderColor: tokens.hairline, borderRadius: '4px',
+                  p: { xs: 3, sm: '40px 44px 32px' }, bgcolor: tokens.card,
+                }}>
+                  <Eyebrow>Programme record — {program.code || '-'}</Eyebrow>
+                  <PageTitle component="h1">{program.name}</PageTitle>
+                  <Typography sx={{ color: tokens.muted, fontSize: 15 }}>
+                    {program.examBody ? `${program.examBody} · ${program.officialLevel || 'No level'}` : 'Independent Course'}
+                  </Typography>
 
-                {/* Meta Details Strip */}
-                <Card>
-                  <CardContent>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12} sm={6} md={2}>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Program Code
+                  <StatusStamp
+                      statuscolor={program.isPublished ? tokens.blue : tokens.red}
+                      onClick={handleChipClick}
+                  >
+                    <Typography sx={{ fontFamily: tokens.fontMono, fontWeight: 600, fontSize: 13, letterSpacing: '0.08em' }}>
+                      {program.isPublished ? 'PUBLISHED' : 'DRAFT'}
+                    </Typography>
+                    <Typography sx={{ fontFamily: tokens.fontMono, fontSize: 8, letterSpacing: '0.05em', opacity: 0.85, mt: 0.4 }}>
+                      REC. {program.code || '-'}
+                    </Typography>
+                  </StatusStamp>
+
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(5, 1fr)' },
+                    rowGap: 2.25, mt: 3.5, pt: 2.75, borderTop: `1px solid ${tokens.hairline}`,
+                  }}>
+                    {[
+                      ['Programme code', program.code || '-'],
+                      ['Examining body', program.examBody || 'Independent'],
+                      ['Award type', program.awardType || '-'],
+                      ['Assessment mode', program.assessmentMode || '-'],
+                      ['Created on', new Date(program.createdAt).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                      })],
+                    ].map(([label, value]) => (
+                      <Box key={label} sx={{
+                        px: { sm: 2.25 },
+                        borderLeft: { sm: label === 'Programme code' ? 'none' : `1px solid ${tokens.hairline}` },
+                        pl: { xs: 0, sm: label === 'Programme code' ? 0 : 2.25 }
+                      }}>
+                        <Eyebrow sx={{ display: 'block', mb: 0.75, fontSize: 10 }}>{label}</Eyebrow>
+                        <Typography sx={{ fontSize: 14.5, fontWeight: 500, color: tokens.ink }}>{value}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Paper>
+
+                {/* Tally strip */}
+                <Box sx={{
+                  display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+                  mt: 3, bgcolor: tokens.card, border: `1px solid ${tokens.hairline}`, borderRadius: '4px', overflow: 'hidden',
+                }}>
+                  {[
+                    ['Total enrolments', stats.enrollmentCount, tokens.blue],
+                    ['Active students', stats.activeEnrollments, tokens.red],
+                    ['Completed', stats.completedEnrollments, tokens.blue],
+                  ].map(([label, value, tick], i) => (
+                    <Box key={label} sx={{
+                      p: '26px 28px',
+                      borderLeft: i === 0 ? 'none' : { sm: `1px solid ${tokens.hairline}` },
+                      borderTop: i === 0 ? 'none' : { xs: `1px solid ${tokens.hairline}`, sm: 'none' },
+                    }}>
+                      <Typography sx={{ fontFamily: tokens.fontMono, fontWeight: 600, fontSize: 38, color: tokens.ink, lineHeight: 1 }}>
+                        {value}
+                      </Typography>
+                      <Stack direction="row" alignItems="center" gap={1} mt={1.25}>
+                        <Box sx={{ width: 10, height: 3, borderRadius: '1px', bgcolor: tick }} />
+                        <Typography sx={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: tokens.muted }}>
+                          {label}
                         </Typography>
-                        <Typography variant="body1" fontFamily={FONT_BODY} fontWeight="medium">
-                          {program.code || '-'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={3}>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Examining Body
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {program.examBody ? `${program.examBody} ${program.officialLevel ? `— ${program.officialLevel}` : ''}` : 'Independent Course'}
-                        </Typography>
-                      </Grid>
-                      {program.awardType && (
-                        <Grid item xs={12} sm={6} md={3}>
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Award Type
-                          </Typography>
-                          <Typography variant="body1" fontWeight="medium">
-                            {program.awardType}
-                          </Typography>
-                        </Grid>
-                      )}
-                      {program.assessmentMode && (
-                        <Grid item xs={12} sm={6} md={2}>
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Assessment Mode
-                          </Typography>
-                          <Typography variant="body1" fontWeight="medium">
-                            {program.assessmentMode}
-                          </Typography>
-                        </Grid>
-                      )}
-                      <Grid item xs={12} sm={6} md={2}>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Created On
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {new Date(program.createdAt).toLocaleDateString(undefined, {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric'
-                          })}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
+                      </Stack>
+                    </Box>
+                  ))}
+                </Box>
 
                 {/* Main Content Layout */}
                 <Grid container spacing={3}>
                   <Grid item xs={12}>
                     <Stack spacing={3}>
                         {/* Description */}
-                        <Card>
-                          <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                              Description
-                            </Typography>
+                        <Paper variant="outlined" sx={{ borderColor: tokens.hairline, borderRadius: '4px', p: { xs: 3, sm: '40px 44px' }, bgcolor: tokens.card }}>
+                            <SectionEyebrow>Course Description</SectionEyebrow>
                             {program.description ? (
-                                <Typography variant="body1" color="text.secondary">
+                                <Typography sx={{ color: tokens.inkSoft, fontSize: 15, lineHeight: 1.7, maxWidth: '900px' }}>
                                   {program.description}
                                 </Typography>
                             ) : (
-                                <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                                <Typography sx={{ color: tokens.muted, fontStyle: 'italic', fontSize: 15 }}>
                                     No description provided for this program.
                                 </Typography>
                             )}
-                          </CardContent>
-                        </Card>
+                        </Paper>
 
                         {/* Instructors */}
-                        <Card>
-                          <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                              Assigned Instructors
-                            </Typography>
+                        <Paper variant="outlined" sx={{ borderColor: tokens.hairline, borderRadius: '4px', p: { xs: 3, sm: '40px 44px' }, bgcolor: tokens.card }}>
+                            <SectionEyebrow>Assigned Instructors</SectionEyebrow>
                             {instructors.length === 0 ? (
-                              <Typography color="text.secondary">
-                                No instructors assigned yet.
-                              </Typography>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}
+                                sx={{ pt: 2, borderTop: `1px dashed ${tokens.hairline}` }}>
+                                <Typography sx={{ fontFamily: tokens.fontMono, fontStyle: 'italic', fontSize: 13.5, color: tokens.muted }}>
+                                  — vacant —
+                                </Typography>
+                                <Button variant="outlined" sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}>
+                                  + Assign instructor
+                                </Button>
+                              </Stack>
                             ) : (
-                              <TableContainer component={Paper} variant="outlined">
+                              <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ borderColor: tokens.hairline }}>
                                 <Table size="small">
                                   <TableHead>
                                     <TableRow>
-                                      <TableCell>Name</TableCell>
-                                      <TableCell>Email</TableCell>
-                                      <TableCell>Role</TableCell>
+                                      <TableCell sx={{ fontFamily: tokens.fontMono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Name</TableCell>
+                                      <TableCell sx={{ fontFamily: tokens.fontMono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Email</TableCell>
+                                      <TableCell sx={{ fontFamily: tokens.fontMono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Role</TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
                                     {instructors.map((instructor) => (
                                       <TableRow key={instructor.id}>
-                                        <TableCell>{instructor.name}</TableCell>
-                                        <TableCell>{instructor.email}</TableCell>
+                                        <TableCell sx={{ color: tokens.ink, fontWeight: 500 }}>{instructor.name}</TableCell>
+                                        <TableCell sx={{ color: tokens.inkSoft }}>{instructor.email}</TableCell>
                                         <TableCell>
                                           <Chip
                                             label={instructor.role}
                                             size="small"
-                                            color="primary"
-                                            variant="outlined"
+                                            sx={{
+                                                bgcolor: tokens.paper, color: tokens.ink,
+                                                fontFamily: tokens.fontMono, fontSize: 11,
+                                                borderRadius: '4px'
+                                            }}
                                           />
                                         </TableCell>
                                       </TableRow>
@@ -289,8 +263,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                                 </Table>
                               </TableContainer>
                             )}
-                          </CardContent>
-                        </Card>
+                        </Paper>
                     </Stack>
                   </Grid>
                 </Grid>
