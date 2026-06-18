@@ -3,7 +3,6 @@ import { Box, Typography } from '@mui/material';
 import { tokens } from './programRecordTokens';
 
 export const Eyebrow = styled(Typography)({
-  fontFamily: tokens.fontMono,
   fontSize: 11,
   letterSpacing: '0.16em',
   textTransform: 'uppercase',
@@ -11,7 +10,6 @@ export const Eyebrow = styled(Typography)({
 });
 
 export const PageTitle = styled(Typography)({
-  fontFamily: tokens.fontDisplay,
   fontWeight: 600,
   fontSize: 'clamp(28px, 4vw, 40px)',
   letterSpacing: '-0.01em',

@@ -87,7 +87,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
         {/* Toolbar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3, width: '100%' }}>
           <Typography component={Link} href="/admin/programs/" sx={{
-            fontFamily: tokens.fontMono, fontSize: 12, letterSpacing: '0.06em',
+            fontSize: 12, letterSpacing: '0.06em',
             textTransform: 'uppercase', color: tokens.muted, textDecoration: 'none',
           }}>
             ← Back to programmes
@@ -142,7 +142,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                       statuscolor={program.isPublished ? tokens.blue : tokens.red}
                       onClick={handleChipClick}
                   >
-                    <Typography sx={{ fontFamily: tokens.fontMono, fontWeight: 600, fontSize: 13, letterSpacing: '0.08em' }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: 13, letterSpacing: '0.08em' }}>
                       {program.isPublished ? 'PUBLISHED' : 'DRAFT'}
                     </Typography>
                   </StatusStamp>
@@ -190,7 +190,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                       borderLeft: i === 0 ? 'none' : { sm: `1px solid ${tokens.hairline}` },
                       borderTop: i === 0 ? 'none' : { xs: `1px solid ${tokens.hairline}`, sm: 'none' },
                     }}>
-                      <Typography sx={{ fontFamily: tokens.fontMono, fontWeight: 600, fontSize: 38, color: tokens.ink, lineHeight: 1 }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: 38, color: tokens.ink, lineHeight: 1 }}>
                         {value}
                       </Typography>
                       <Stack direction="row" alignItems="center" gap={1} mt={1.25}>
@@ -241,7 +241,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                             </Box>
                             {instructors.length === 0 ? (
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, pt: 2, borderTop: `1px dashed ${tokens.hairline}`, width: '100%' }}>
-                                <Typography sx={{ fontFamily: tokens.fontMono, fontStyle: 'italic', fontSize: 13.5, color: tokens.muted }}>
+                                <Typography sx={{ fontStyle: 'italic', fontSize: 13.5, color: tokens.muted }}>
                                   — vacant —
                                 </Typography>
                                 <Button 
@@ -260,9 +260,9 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                                 <Table size="small">
                                   <TableHead>
                                     <TableRow>
-                                      <TableCell sx={{ fontFamily: tokens.fontMono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Name</TableCell>
-                                      <TableCell sx={{ fontFamily: tokens.fontMono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Email</TableCell>
-                                      <TableCell sx={{ fontFamily: tokens.fontMono, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Role</TableCell>
+                                      <TableCell sx={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Name</TableCell>
+                                      <TableCell sx={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Email</TableCell>
+                                      <TableCell sx={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tokens.muted }}>Role</TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
@@ -276,7 +276,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                                             size="small"
                                             sx={{
                                                 bgcolor: tokens.paper, color: tokens.ink,
-                                                fontFamily: tokens.fontMono, fontSize: 11,
+                                                fontSize: 11,
                                                 borderRadius: '4px'
                                             }}
                                           />
@@ -362,7 +362,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
         </DialogActions>
       </Dialog>
       <Dialog open={assignModalOpen} onClose={() => setAssignModalOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontFamily: tokens.fontDisplay, fontWeight: 600, color: tokens.ink }}>
+        <DialogTitle sx={{ fontWeight: 600, color: tokens.ink }}>
           Assign Instructors
         </DialogTitle>
         <DialogContent dividers>
