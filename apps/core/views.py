@@ -2278,6 +2278,7 @@ def admin_program_content(request, pk: int):
 
     from apps.core.models import ProgramResource
     from apps.platform.models import PlatformSettings
+    from apps.platform.exam_body_registry import get_registry_for_frontend
 
     program = get_object_or_404(Program, pk=pk)
 
@@ -2296,11 +2297,18 @@ def admin_program_content(request, pk: int):
             (level or {}).get("value") for level in (course_levels or [])
         }
         selected_level = (data.get("level") or "").strip()
-        if not selected_level or selected_level not in valid_level_values:
-            messages.error(request, "Level is required and must be a valid option.")
-            return redirect("core:admin.program.content", pk=program.id)
+        official_level = (data.get("officialLevel") or "").strip()
 
-        program.level = selected_level
+        if official_level:
+            program.official_level = official_level
+            # Also update broad category if passed
+            if selected_level in valid_level_values:
+                program.level = selected_level
+        else:
+            if not selected_level or selected_level not in valid_level_values:
+                messages.error(request, "Level is required and must be a valid option.")
+                return redirect("core:admin.program.content", pk=program.id)
+            program.level = selected_level
 
         # Update content/syllabus from rich text editor HTML.
         what_you_learn_raw = str(data.get("whatYouLearn", "")).strip()
@@ -2348,9 +2356,13 @@ def admin_program_content(request, pk: int):
                 "description": program.description or "",
                 "category": program.category or "",
                 "level": program.level or "",
+                "examBody": program.exam_body or "",
+                "qualificationFamily": program.qualification_family or "",
+                "officialLevel": program.official_level or "",
                 "whatYouLearn": program.what_you_learn_html or "",
             },
             "courseLevels": course_levels,
+            "examBodyRegistry": get_registry_for_frontend(),
             "categories": categories,
             "resources": [
                 {

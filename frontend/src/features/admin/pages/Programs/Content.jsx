@@ -32,11 +32,15 @@ export default function ProgramContent({
   courseLevels = [],
   categories = [],
   resources = [],
+  examBodyRegistry = {},
 }) {
   const { data, setData, post, processing, errors, progress } = useForm({
     description: initialData.description || "",
     category: initialData.category || "",
     level: initialData.level || "",
+    examBody: initialData.examBody || "",
+    qualificationFamily: initialData.qualificationFamily || "",
+    officialLevel: initialData.officialLevel || "",
     whatYouLearn: initialData.whatYouLearn || "",
     thumbnail: null,
     materials: [],
@@ -76,6 +80,10 @@ export default function ProgramContent({
   };
 
   const hasCategories = categories && categories.length > 0;
+  const hasExamBodies = !!data.examBody;
+  
+  const selectedFamilyData = hasExamBodies ? examBodyRegistry[data.examBody]?.families?.[data.qualificationFamily] : null;
+  const officialLevels = selectedFamilyData?.levels || [];
 
   return (
     <DashboardLayout
@@ -167,21 +175,48 @@ export default function ProgramContent({
                           </FormControl>
                         )}
 
-                        <FormControl fullWidth required>
-                          <InputLabel required>Level</InputLabel>
-                          <Select
-                            value={data.level}
-                            label="Level"
-                            onChange={(e) => setData("level", e.target.value)}
-                            required
-                          >
-                            {courseLevels.map((lvl) => (
-                              <MenuItem key={lvl.value} value={lvl.value}>
-                                {lvl.label}
+                        {hasExamBodies ? (
+                          <FormControl fullWidth required>
+                            <InputLabel required>Official Level / Stage</InputLabel>
+                            <Select
+                              value={data.officialLevel}
+                              label="Official Level / Stage"
+                              onChange={(e) => {
+                                setData((prev) => ({
+                                  ...prev,
+                                  officialLevel: e.target.value,
+                                  level: selectedFamilyData?.broadCategory || prev.level
+                                }));
+                              }}
+                              required
+                            >
+                              <MenuItem disabled value="">
+                                <em>Select level...</em>
                               </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                              {officialLevels.map((lvl) => (
+                                <MenuItem key={lvl} value={lvl}>
+                                  {lvl}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <FormControl fullWidth required>
+                            <InputLabel required>Level</InputLabel>
+                            <Select
+                              value={data.level}
+                              label="Level"
+                              onChange={(e) => setData("level", e.target.value)}
+                              required
+                            >
+                              {courseLevels.map((lvl) => (
+                                <MenuItem key={lvl.value} value={lvl.value}>
+                                  {lvl.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        )}
 
                         <TextField
                           label="Description"
