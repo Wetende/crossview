@@ -73,7 +73,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
 
       <Stack spacing={3} sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
         {/* Toolbar */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={3}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3, width: '100%' }}>
           <Typography component={Link} href="/admin/programs/" sx={{
             fontFamily: tokens.fontMono, fontSize: 12, letterSpacing: '0.06em',
             textTransform: 'uppercase', color: tokens.muted, textDecoration: 'none',
@@ -107,7 +107,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
               Course manager
             </Button>
           </Stack>
-        </Stack>
+        </Box>
 
         {/* Wrapper for Animation */}
         <motion.div
@@ -216,15 +216,14 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                         <Paper variant="outlined" sx={{ borderColor: tokens.hairline, borderRadius: '4px', p: { xs: 3, sm: '40px 44px' }, bgcolor: tokens.card }}>
                             <SectionEyebrow>Assigned Instructors</SectionEyebrow>
                             {instructors.length === 0 ? (
-                              <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}
-                                sx={{ pt: 2, borderTop: `1px dashed ${tokens.hairline}` }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, pt: 2, borderTop: `1px dashed ${tokens.hairline}`, width: '100%' }}>
                                 <Typography sx={{ fontFamily: tokens.fontMono, fontStyle: 'italic', fontSize: 13.5, color: tokens.muted }}>
                                   — vacant —
                                 </Typography>
                                 <Button variant="outlined" sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}>
                                   + Assign instructor
                                 </Button>
-                              </Stack>
+                              </Box>
                             ) : (
                               <TableContainer component={Paper} elevation={0} variant="outlined" sx={{ borderColor: tokens.hairline }}>
                                 <Table size="small">
