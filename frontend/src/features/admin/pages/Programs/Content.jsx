@@ -177,10 +177,10 @@ export default function ProgramContent({
 
                         {hasExamBodies ? (
                           <FormControl fullWidth required>
-                            <InputLabel required>Official Level / Stage</InputLabel>
+                            <InputLabel required>Level</InputLabel>
                             <Select
                               value={data.officialLevel}
-                              label="Official Level / Stage"
+                              label="Level"
                               onChange={(e) => {
                                 setData((prev) => ({
                                   ...prev,
