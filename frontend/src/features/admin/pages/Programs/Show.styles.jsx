@@ -53,9 +53,4 @@ export const StatusStamp = styled(Box)(({ statuscolor }) => ({
   }
 }));
 
-export const SectionEyebrow = ({ children }) => (
-  <>
-    <Eyebrow sx={{ color: tokens.redDeep, fontSize: 11, mb: 1 }}>{children}</Eyebrow>
-    <Box sx={{ width: 26, height: 2, bgcolor: tokens.red, mb: 2.25 }} />
-  </>
-);
+

@@ -43,7 +43,7 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 
 
 import { tokens } from './programRecordTokens';
-import { Eyebrow, PageTitle, StatusStamp, SectionEyebrow } from './Show.styles';
+import { Eyebrow, PageTitle, StatusStamp } from './Show.styles';
 import { useState } from 'react';
 
 export default function ProgramShow({ program, stats, instructors = [], readiness = {} }) {
@@ -197,7 +197,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                     <Stack spacing={3}>
                         {/* Description */}
                         <Paper variant="outlined" sx={{ borderColor: tokens.hairline, borderRadius: '4px', p: { xs: 3, sm: '40px 44px' }, bgcolor: tokens.card }}>
-                            <SectionEyebrow>Course Description</SectionEyebrow>
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Course Description</Typography>
                             {program.description ? (
                                 <Typography sx={{ color: tokens.inkSoft, fontSize: 15, lineHeight: 1.7, maxWidth: '900px' }}>
                                   {program.description}
@@ -211,7 +211,7 @@ export default function ProgramShow({ program, stats, instructors = [], readines
 
                         {/* Instructors */}
                         <Paper variant="outlined" sx={{ borderColor: tokens.hairline, borderRadius: '4px', p: { xs: 3, sm: '40px 44px' }, bgcolor: tokens.card }}>
-                            <SectionEyebrow>Assigned Instructors</SectionEyebrow>
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Assigned Instructors</Typography>
                             {instructors.length === 0 ? (
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, pt: 2, borderTop: `1px dashed ${tokens.hairline}`, width: '100%' }}>
                                 <Typography sx={{ fontFamily: tokens.fontMono, fontStyle: 'italic', fontSize: 13.5, color: tokens.muted }}>
