@@ -45,6 +45,11 @@ urlpatterns = [
         name="admin.program.edit",
     ),
     path(
+        "admin/programs/<int:program_id>/assign-instructors/",
+        views.admin_program_assign_instructors,
+        name="admin.program.assign_instructors",
+    ),
+    path(
         "admin/programs/<int:pk>/content/",
         views.admin_program_content,
         name="admin.program.content",

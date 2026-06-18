@@ -29,6 +29,8 @@ import {
   ListItemIcon,
   ListItemText,
   Alert,
+  Autocomplete,
+  TextField,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import EditIcon from '@mui/icons-material/Edit';
@@ -46,12 +48,22 @@ import { tokens } from './programRecordTokens';
 import { Eyebrow, PageTitle, StatusStamp } from './Show.styles';
 import { useState } from 'react';
 
-export default function ProgramShow({ program, stats, instructors = [], readiness = {} }) {
+export default function ProgramShow({ program, stats, instructors = [], availableInstructors = [], readiness = {} }) {
   const [publishOpen, setPublishOpen] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedInstructors, setSelectedInstructors] = useState(instructors.map(i => i.id));
 
   const handlePublish = () => {
     router.post(`/admin/programs/${program.id}/publish/`, {}, {
       onSuccess: () => setPublishOpen(false),
+    });
+  };
+
+  const handleAssignSave = () => {
+    router.post(`/admin/programs/${program.id}/assign-instructors/`, {
+      instructorIds: selectedInstructors
+    }, {
+      onSuccess: () => setAssignModalOpen(false)
     });
   };
 
@@ -211,15 +223,32 @@ export default function ProgramShow({ program, stats, instructors = [], readines
 
                         {/* Instructors */}
                         <Paper variant="outlined" sx={{ borderColor: tokens.hairline, borderRadius: '4px', p: { xs: 3, sm: '40px 44px' }, bgcolor: tokens.card }}>
-                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Assigned Instructors</Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>Assigned Instructors</Typography>
+                                {instructors.length > 0 && (
+                                    <Button 
+                                      onClick={() => {
+                                        setSelectedInstructors(instructors.map(i => i.id));
+                                        setAssignModalOpen(true);
+                                      }}
+                                      variant="outlined" 
+                                      size="small"
+                                      sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
+                                    >
+                                      + Manage instructors
+                                    </Button>
+                                )}
+                            </Box>
                             {instructors.length === 0 ? (
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, pt: 2, borderTop: `1px dashed ${tokens.hairline}`, width: '100%' }}>
                                 <Typography sx={{ fontFamily: tokens.fontMono, fontStyle: 'italic', fontSize: 13.5, color: tokens.muted }}>
                                   — vacant —
                                 </Typography>
                                 <Button 
-                                  component={Link}
-                                  href={`/admin/programs/${program.id}/edit/`}
+                                  onClick={() => {
+                                    setSelectedInstructors(instructors.map(i => i.id));
+                                    setAssignModalOpen(true);
+                                  }}
                                   variant="outlined" 
                                   sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
                                 >
@@ -330,6 +359,57 @@ export default function ProgramShow({ program, stats, instructors = [], readines
             >
                 {program.isPublished ? 'Unpublish' : 'Confirm Publish'}
             </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={assignModalOpen} onClose={() => setAssignModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontFamily: tokens.fontDisplay, fontWeight: 600, color: tokens.ink }}>
+          Assign Instructors
+        </DialogTitle>
+        <DialogContent dividers>
+          <Autocomplete
+            multiple
+            options={availableInstructors}
+            getOptionLabel={(option) => option.name || option.email}
+            value={availableInstructors.filter(i => selectedInstructors.includes(i.id))}
+            onChange={(event, newValue) => {
+              setSelectedInstructors(newValue.map(i => i.id));
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="outlined"
+                placeholder="Select instructors..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '&.Mui-focused fieldset': { borderColor: tokens.blue },
+                  }
+                }}
+              />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  variant="outlined"
+                  label={option.name || option.email}
+                  {...getTagProps({ index })}
+                  sx={{ borderColor: tokens.hairline, bgcolor: tokens.paper }}
+                />
+              ))
+            }
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 1 }}>
+          <Button onClick={() => setAssignModalOpen(false)} sx={{ color: tokens.muted }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleAssignSave}
+            variant="contained" 
+            disableElevation
+            sx={{ bgcolor: tokens.blue, '&:hover': { bgcolor: tokens.blueDeep } }}
+          >
+            Save Assignments
+          </Button>
         </DialogActions>
       </Dialog>
     </DashboardLayout>

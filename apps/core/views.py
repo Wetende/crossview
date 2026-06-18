@@ -2075,6 +2075,7 @@ def admin_program_detail(request, pk: int):
                 "nodeCount": node_count,
             },
             "instructors": instructors_data,
+            "availableInstructors": _get_instructors_for_form(),
             "readiness": readiness,
         },
     )
@@ -2268,6 +2269,45 @@ def admin_program_edit(request, pk: int):
             ).exists(),
         },
     )
+
+@login_required
+def admin_program_assign_instructors(request, program_id: int):
+    """
+    Quick assign instructors for a program.
+    """
+    if not _require_admin(request.user):
+        return redirect("/dashboard/")
+
+    from django.shortcuts import get_object_or_404
+    from apps.core.models import Program, InstructorAssignment
+    import json
+
+    program = get_object_or_404(Program, pk=program_id)
+
+    if request.method == "POST":
+        instructor_ids = []
+        if request.body:
+            try:
+                body = json.loads(request.body)
+                instructor_ids = body.get("instructorIds", [])
+            except json.JSONDecodeError:
+                pass
+
+        # Clear existing
+        InstructorAssignment.objects.filter(program=program).delete()
+
+        # Add new
+        for instructor_id in instructor_ids:
+            InstructorAssignment.objects.create(
+                program=program,
+                instructor_id=instructor_id,
+                role="instructor",
+            )
+            
+        messages.success(request, "Instructors assigned successfully")
+
+    return redirect("core:admin.program", pk=program.id)
+
 
 
 @login_required
