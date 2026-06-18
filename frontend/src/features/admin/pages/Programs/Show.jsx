@@ -251,13 +251,39 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                               <Stack spacing={2}>
                                 <Box>
                                   <Typography variant="caption" color="text.secondary" display="block">
-                                    Blueprint
+                                    Examining Body
                                   </Typography>
                                   <Typography variant="body1" fontWeight="medium">
-                                    {program.blueprintName || 'None'}
+                                    {program.examBody ? `${program.examBody} ${program.officialLevel ? `— ${program.officialLevel}` : ''}` : 'Independent Course'}
                                   </Typography>
                                 </Box>
                                 <Divider />
+                                {program.awardType && (
+                                  <>
+                                    <Box>
+                                      <Typography variant="caption" color="text.secondary" display="block">
+                                        Award Type
+                                      </Typography>
+                                      <Typography variant="body1" fontWeight="medium">
+                                        {program.awardType}
+                                      </Typography>
+                                    </Box>
+                                    <Divider />
+                                  </>
+                                )}
+                                {program.assessmentMode && (
+                                  <>
+                                    <Box>
+                                      <Typography variant="caption" color="text.secondary" display="block">
+                                        Assessment Mode
+                                      </Typography>
+                                      <Typography variant="body1" fontWeight="medium">
+                                        {program.assessmentMode}
+                                      </Typography>
+                                    </Box>
+                                    <Divider />
+                                  </>
+                                )}
                                 <Box>
                                   <Typography variant="caption" color="text.secondary" display="block">
                                     Program Code

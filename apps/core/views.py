@@ -2063,6 +2063,10 @@ def admin_program_detail(request, pk: int):
                 "blueprintName": program.blueprint.name if program.blueprint else None,
                 "isPublished": program.is_published,
                 "createdAt": program.created_at.isoformat(),
+                "examBody": program.exam_body,
+                "officialLevel": program.official_level,
+                "awardType": program.award_type,
+                "assessmentMode": program.assessment_mode,
             },
             "stats": {
                 "enrollmentCount": enrollment_count,
