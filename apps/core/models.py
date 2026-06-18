@@ -309,25 +309,9 @@ class Program(TimeStampedModel):
         max_length=100, blank=True, null=True,
         help_text="Award issued: Craft Certificate, Diploma, Government Trade Test Certificate"
     )
-    approval_status = models.CharField(
-        max_length=30, blank=True, null=True,
-        help_text="Regulatory approval: Approved, Pending, Internal Preparation"
-    )
     assessment_mode = models.CharField(
         max_length=50, blank=True, null=True,
         help_text="Assessment method: Exam, CBET, Trade Test, Assignment, Project"
-    )
-    centre_status = models.CharField(
-        max_length=50, blank=True, null=True,
-        help_text="Centre approval status (ICM only): ICM Approved Centre, Pending, N/A"
-    )
-    kenya_recognition_status = models.CharField(
-        max_length=50, blank=True, null=True,
-        help_text="TVETA recognition: TVETA-listed, Pending, Not Confirmed"
-    )
-    source_document = models.TextField(
-        blank=True, null=True,
-        help_text="Reference: Syllabus, TVETA record, approval letter"
     )
 
     duration_hours = models.PositiveIntegerField(

@@ -2135,11 +2135,7 @@ def admin_program_create(request):
             qualification_family=data.get("qualificationFamily") or None,
             official_level=data.get("officialLevel") or None,
             award_type=data.get("awardType") or None,
-            approval_status=data.get("approvalStatus") or None,
             assessment_mode=data.get("assessmentMode") or None,
-            centre_status=data.get("centreStatus") or None,
-            kenya_recognition_status=data.get("kenyaRecognitionStatus") or None,
-            source_document=data.get("sourceDocument") or None,
         )
 
         # Assign instructors
@@ -2222,11 +2218,7 @@ def admin_program_edit(request, pk: int):
         program.qualification_family = data.get("qualificationFamily") or None
         program.official_level = data.get("officialLevel") or None
         program.award_type = data.get("awardType") or None
-        program.approval_status = data.get("approvalStatus") or None
         program.assessment_mode = data.get("assessmentMode") or None
-        program.centre_status = data.get("centreStatus") or None
-        program.kenya_recognition_status = data.get("kenyaRecognitionStatus") or None
-        program.source_document = data.get("sourceDocument") or None
 
         # Only update blueprint if no enrollments
         from apps.progression.models import Enrollment
@@ -2510,11 +2502,7 @@ def _serialize_program(program: Program) -> dict:
         "qualificationFamily": program.qualification_family or "",
         "officialLevel": program.official_level or "",
         "awardType": program.award_type or "",
-        "approvalStatus": program.approval_status or "",
         "assessmentMode": program.assessment_mode or "",
-        "centreStatus": program.centre_status or "",
-        "kenyaRecognitionStatus": program.kenya_recognition_status or "",
-        "sourceDocument": program.source_document or "",
     }
 
 

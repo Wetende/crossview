@@ -70,11 +70,7 @@ export default function ProgramForm({
         qualificationFamily: program?.qualificationFamily || formData.qualificationFamily || "",
         officialLevel: program?.officialLevel || formData.officialLevel || "",
         awardType: program?.awardType || formData.awardType || "",
-        approvalStatus: program?.approvalStatus || formData.approvalStatus || "",
         assessmentMode: program?.assessmentMode || formData.assessmentMode || "",
-        centreStatus: program?.centreStatus || formData.centreStatus || "",
-        kenyaRecognitionStatus: program?.kenyaRecognitionStatus || formData.kenyaRecognitionStatus || "",
-        sourceDocument: program?.sourceDocument || formData.sourceDocument || "",
     });
 
     // Derive available options from registry based on current selections
@@ -100,10 +96,6 @@ export default function ProgramForm({
         [selectedFamilyData]
     );
 
-    const suggestedCourses = useMemo(
-        () => selectedFamilyData?.courses || [],
-        [selectedFamilyData]
-    );
 
     // Auto-fill broad category (level), award type, assessment mode when family changes
     useEffect(() => {
@@ -361,56 +353,6 @@ export default function ProgramForm({
                                                         </Select>
                                                     </FormControl>
                                                 </Box>
-                                            )}
-
-                                            {/* Additional TVET Metadata */}
-                                            {hasExamBodies && data.qualificationFamily && (
-                                                <>
-                                                    <Box>
-                                                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Centre Approval Status</Typography>
-                                                        <TextField
-                                                            value={data.centreStatus}
-                                                            onChange={(e) => setData("centreStatus", e.target.value)}
-                                                            helperText="e.g. Approved, Pending, Internal Preparation"
-                                                            fullWidth
-                                                        />
-                                                    </Box>
-                                                    <Box>
-                                                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>TVETA Recognition Status</Typography>
-                                                        <TextField
-                                                            value={data.kenyaRecognitionStatus}
-                                                            onChange={(e) => setData("kenyaRecognitionStatus", e.target.value)}
-                                                            fullWidth
-                                                        />
-                                                    </Box>
-                                                    <Box>
-                                                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Source Document/Reference</Typography>
-                                                        <TextField
-                                                            value={data.sourceDocument}
-                                                            onChange={(e) => setData("sourceDocument", e.target.value)}
-                                                            fullWidth
-                                                        />
-                                                    </Box>
-                                                </>
-                                            )}
-
-                                            {/* Course Suggestions (if available) */}
-                                            {hasExamBodies && suggestedCourses.length > 0 && (
-                                                <Alert severity="info" variant="outlined" sx={{ mt: -1 }}>
-                                                    <Typography variant="subtitle2" gutterBottom>
-                                                        Available Courses:
-                                                    </Typography>
-                                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                                        {suggestedCourses.map((course) => (
-                                                            <Chip
-                                                                key={course.code}
-                                                                label={`${course.code} — ${course.name}`}
-                                                                size="small"
-                                                                variant="outlined"
-                                                            />
-                                                        ))}
-                                                    </Stack>
-                                                </Alert>
                                             )}
 
                                             {/* Auto-filled metadata preview */}
