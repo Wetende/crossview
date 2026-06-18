@@ -83,7 +83,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
     >
       <Head title={`Program: ${program.name}`} />
 
-      <Stack spacing={3} sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
+      <Stack spacing={3}>
         {/* Toolbar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3, width: '100%' }}>
           <Typography component={Link} href="/admin/programs/" sx={{

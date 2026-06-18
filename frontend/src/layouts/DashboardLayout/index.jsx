@@ -861,7 +861,9 @@ export default function DashboardLayout({
                         maxWidth: "100%",
                     }}
                 >
-                    {children}
+                    <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
+                        {children}
+                    </Box>
                 </Box>
             </Box>
         </Box>

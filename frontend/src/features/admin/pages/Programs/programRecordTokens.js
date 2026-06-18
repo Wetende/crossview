@@ -1,5 +1,10 @@
-import { FONT_BOOKMAN_OLD_STYLE, FONT_BODY } from '@/config';
-
+/**
+ * Programme Record — design tokens
+ *
+ * These are intentional color overrides that give the programme
+ * detail page its distinctive "registrar's document" aesthetic.
+ * Typography is inherited from the global MUI theme (Figtree).
+ */
 export const tokens = {
   ink: '#14213D',
   inkSoft: '#3A4564',
@@ -11,7 +16,4 @@ export const tokens = {
   redDeep: '#7F1313',
   hairline: '#DADFE8',
   muted: '#6B7280',
-  fontDisplay: FONT_BOOKMAN_OLD_STYLE,
-  fontBody: FONT_BODY,
-  fontMono: 'monospace',
 };
