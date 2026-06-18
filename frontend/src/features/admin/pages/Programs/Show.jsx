@@ -172,10 +172,65 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                   </CardContent>
                 </Card>
 
-                {/* Main Layout */}
+                {/* Meta Details Strip */}
+                <Card>
+                  <CardContent>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} sm={6} md={2}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Program Code
+                        </Typography>
+                        <Typography variant="body1" fontFamily={FONT_BODY} fontWeight="medium">
+                          {program.code || '-'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Examining Body
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {program.examBody ? `${program.examBody} ${program.officialLevel ? `— ${program.officialLevel}` : ''}` : 'Independent Course'}
+                        </Typography>
+                      </Grid>
+                      {program.awardType && (
+                        <Grid item xs={12} sm={6} md={3}>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Award Type
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {program.awardType}
+                          </Typography>
+                        </Grid>
+                      )}
+                      {program.assessmentMode && (
+                        <Grid item xs={12} sm={6} md={2}>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Assessment Mode
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {program.assessmentMode}
+                          </Typography>
+                        </Grid>
+                      )}
+                      <Grid item xs={12} sm={6} md={2}>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Created On
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {new Date(program.createdAt).toLocaleDateString(undefined, {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                          })}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Main Content Layout */}
                 <Grid container spacing={3}>
-                  {/* Left Column (Main) */}
-                  <Grid item xs={12} md={8}>
+                  <Grid item xs={12}>
                     <Stack spacing={3}>
                         {/* Description */}
                         <Card>
@@ -235,78 +290,6 @@ export default function ProgramShow({ program, stats, instructors = [], readines
                               </TableContainer>
                             )}
                           </CardContent>
-                        </Card>
-                    </Stack>
-                  </Grid>
-
-                  {/* Right Column (Sidebar) */}
-                  <Grid item xs={12} md={4}>
-                    <Stack spacing={3}>
-                        {/* Meta Details */}
-                        <Card>
-                            <CardContent>
-                              <Typography variant="h6" gutterBottom>
-                                Program Details
-                              </Typography>
-                              <Stack spacing={2}>
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary" display="block">
-                                    Examining Body
-                                  </Typography>
-                                  <Typography variant="body1" fontWeight="medium">
-                                    {program.examBody ? `${program.examBody} ${program.officialLevel ? `— ${program.officialLevel}` : ''}` : 'Independent Course'}
-                                  </Typography>
-                                </Box>
-                                <Divider />
-                                {program.awardType && (
-                                  <>
-                                    <Box>
-                                      <Typography variant="caption" color="text.secondary" display="block">
-                                        Award Type
-                                      </Typography>
-                                      <Typography variant="body1" fontWeight="medium">
-                                        {program.awardType}
-                                      </Typography>
-                                    </Box>
-                                    <Divider />
-                                  </>
-                                )}
-                                {program.assessmentMode && (
-                                  <>
-                                    <Box>
-                                      <Typography variant="caption" color="text.secondary" display="block">
-                                        Assessment Mode
-                                      </Typography>
-                                      <Typography variant="body1" fontWeight="medium">
-                                        {program.assessmentMode}
-                                      </Typography>
-                                    </Box>
-                                    <Divider />
-                                  </>
-                                )}
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary" display="block">
-                                    Program Code
-                                  </Typography>
-                                  <Typography variant="body1" fontFamily="monospace">
-                                    {program.code || '-'}
-                                  </Typography>
-                                </Box>
-                                <Divider />
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary" display="block">
-                                    Created On
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    {new Date(program.createdAt).toLocaleDateString(undefined, {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
-                                  </Typography>
-                                </Box>
-                              </Stack>
-                            </CardContent>
                         </Card>
                     </Stack>
                   </Grid>
