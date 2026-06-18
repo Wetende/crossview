@@ -355,35 +355,7 @@ export default function ProgramForm({
                                                 </Box>
                                             )}
 
-                                            {/* Auto-filled metadata preview */}
-                                            {hasExamBodies && data.awardType && (
-                                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                                    {data.awardType && (
-                                                        <Chip
-                                                            label={`Award: ${data.awardType}`}
-                                                            size="small"
-                                                            color="primary"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                    {data.assessmentMode && (
-                                                        <Chip
-                                                            label={`Assessment: ${data.assessmentMode}`}
-                                                            size="small"
-                                                            color="secondary"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                    {data.level && (
-                                                        <Chip
-                                                            label={`Category: ${data.level}`}
-                                                            size="small"
-                                                            color="success"
-                                                            variant="outlined"
-                                                        />
-                                                    )}
-                                                </Stack>
-                                            )}
+
                                         </Stack>
                                     </CardContent>
                                 </Card>
