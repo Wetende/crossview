@@ -211,66 +211,73 @@ export default function ProgramForm({
                     )}
 
                     <Grid container spacing={3}>
-                        {/* Basic Info */}
-                        <Grid item xs={12} md={8}>
+                        {/* Top Row: Basic Info & Exam Body Details */}
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
+                                style={{ height: "100%" }}
                             >
-                                <Card>
+                                <Card sx={{ height: "100%" }}>
                                     <CardContent>
-                                        <Typography variant="h6" gutterBottom>
-                                            Basic Information
+                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                                            Basic information
                                         </Typography>
                                         <Stack spacing={3}>
-                                            <TextField
-                                                label="Program Name"
-                                                value={data.name}
-                                                onChange={(e) =>
-                                                    setData(
-                                                        "name",
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                error={!!errors.name}
-                                                helperText={errors.name}
-                                                fullWidth
-                                                required
-                                            />
-                                            <TextField
-                                                label="Program Code"
-                                                value={data.code}
-                                                onChange={(e) =>
-                                                    setData(
-                                                        "code",
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                error={!!errors.code}
-                                                helperText={
-                                                    errors.code ||
-                                                    "Optional unique identifier"
-                                                }
-                                                fullWidth
-                                            />
+                                            <Box>
+                                                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Program name *</Typography>
+                                                <TextField
+                                                    value={data.name}
+                                                    onChange={(e) => setData("name", e.target.value)}
+                                                    error={!!errors.name}
+                                                    helperText={errors.name}
+                                                    fullWidth
+                                                    required
+                                                    placeholder="Diploma in Information Technology"
+                                                />
+                                            </Box>
+                                            <Box>
+                                                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Program code</Typography>
+                                                <TextField
+                                                    value={data.code}
+                                                    onChange={(e) => setData("code", e.target.value)}
+                                                    error={!!errors.code}
+                                                    helperText={errors.code || "Optional unique identifier"}
+                                                    fullWidth
+                                                    placeholder="e.g. DIT-2026"
+                                                />
+                                            </Box>
+                                        </Stack>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        </Grid>
 
-                                            {/* Exam Body Cascading Dropdowns (TVET mode only) */}
+                        <Grid size={{ xs: 12, md: 6 }}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                style={{ height: "100%" }}
+                            >
+                                <Card sx={{ height: "100%" }}>
+                                    <CardContent>
+                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                                            Examining body details
+                                        </Typography>
+                                        <Stack spacing={3}>
+                                            {/* Exam Body (shown if TVET) */}
                                             {hasExamBodies && (
-                                                <>
-                                                    <Divider>
-                                                        <Chip label="Examining Body Details" size="small" />
-                                                    </Divider>
-
-                                                    {/* Step 1: Select Exam Body */}
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Examining body</Typography>
                                                     <FormControl fullWidth>
-                                                        <InputLabel>Examining Body</InputLabel>
                                                         <Select
                                                             value={data.examBody}
-                                                            label="Examining Body"
+                                                            displayEmpty
                                                             onChange={(e) => handleExamBodyChange(e.target.value)}
                                                         >
-                                                            <MenuItem value="">
-                                                                <em>Select examining body...</em>
+                                                            <MenuItem value="" disabled>
+                                                                <em>Select examining body</em>
                                                             </MenuItem>
                                                             {examBodies.map((body) => (
                                                                 <MenuItem key={body} value={body}>
@@ -279,159 +286,191 @@ export default function ProgramForm({
                                                             ))}
                                                         </Select>
                                                     </FormControl>
+                                                </Box>
+                                            )}
 
-                                                    {/* Step 2: Select Qualification Family */}
-                                                    {data.examBody && (
-                                                        <FormControl fullWidth>
-                                                            <InputLabel>Qualification Family</InputLabel>
-                                                            <Select
-                                                                value={data.qualificationFamily}
-                                                                label="Qualification Family"
-                                                                onChange={(e) => handleFamilyChange(e.target.value)}
-                                                            >
-                                                                <MenuItem value="">
-                                                                    <em>Select qualification family...</em>
+                                            {/* Level dropdown (always shown) */}
+                                            <Box>
+                                                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Level *</Typography>
+                                                <FormControl fullWidth required error={!!errors.level}>
+                                                    <Select
+                                                        value={data.level}
+                                                        displayEmpty
+                                                        onChange={(e) => setData("level", e.target.value)}
+                                                    >
+                                                        <MenuItem value="" disabled>
+                                                            <em>Select level</em>
+                                                        </MenuItem>
+                                                        {courseLevels.map((level) => (
+                                                            <MenuItem key={level.value} value={level.value}>
+                                                                {level.label}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                    {errors.level && (
+                                                        <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                                                            {errors.level}
+                                                        </Typography>
+                                                    )}
+                                                </FormControl>
+                                            </Box>
+
+                                            {/* Step 2: Select Qualification Family */}
+                                            {hasExamBodies && data.examBody && (
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Qualification Family</Typography>
+                                                    <FormControl fullWidth>
+                                                        <Select
+                                                            value={data.qualificationFamily}
+                                                            displayEmpty
+                                                            onChange={(e) => handleFamilyChange(e.target.value)}
+                                                        >
+                                                            <MenuItem value="" disabled>
+                                                                <em>Select qualification family...</em>
+                                                            </MenuItem>
+                                                            {qualificationFamilies.map((family) => (
+                                                                <MenuItem key={family} value={family}>
+                                                                    {family}
                                                                 </MenuItem>
-                                                                {qualificationFamilies.map((family) => (
-                                                                    <MenuItem key={family} value={family}>
-                                                                        {family}
-                                                                    </MenuItem>
-                                                                ))}
-                                                            </Select>
-                                                        </FormControl>
-                                                    )}
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                </Box>
+                                            )}
 
-                                                    {/* Step 3: Select Official Level */}
-                                                    {data.qualificationFamily && officialLevels.length > 0 && (
-                                                        <FormControl fullWidth>
-                                                            <InputLabel>Official Level / Stage</InputLabel>
-                                                            <Select
-                                                                value={data.officialLevel}
-                                                                label="Official Level / Stage"
-                                                                onChange={(e) => setData("officialLevel", e.target.value)}
-                                                            >
-                                                                <MenuItem value="">
-                                                                    <em>Select level...</em>
+                                            {/* Step 3: Select Official Level */}
+                                            {hasExamBodies && data.qualificationFamily && officialLevels.length > 0 && (
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Official Level / Stage</Typography>
+                                                    <FormControl fullWidth>
+                                                        <Select
+                                                            value={data.officialLevel}
+                                                            displayEmpty
+                                                            onChange={(e) => setData("officialLevel", e.target.value)}
+                                                        >
+                                                            <MenuItem value="" disabled>
+                                                                <em>Select level...</em>
+                                                            </MenuItem>
+                                                            {officialLevels.map((level) => (
+                                                                <MenuItem key={level} value={level}>
+                                                                    {level}
                                                                 </MenuItem>
-                                                                {officialLevels.map((level) => (
-                                                                    <MenuItem key={level} value={level}>
-                                                                        {level}
-                                                                    </MenuItem>
-                                                                ))}
-                                                            </Select>
-                                                        </FormControl>
-                                                    )}
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
+                                                </Box>
+                                            )}
 
-                                                    {/* Additional TVET Metadata */}
-                                                    {data.qualificationFamily && (
-                                                        <>
-                                                            <TextField
-                                                                label="Centre Approval Status"
-                                                                value={data.centreStatus}
-                                                                onChange={(e) => setData("centreStatus", e.target.value)}
-                                                                helperText="e.g. Approved, Pending, Internal Preparation"
-                                                                fullWidth
-                                                            />
-                                                            <TextField
-                                                                label="TVETA Recognition Status"
-                                                                value={data.kenyaRecognitionStatus}
-                                                                onChange={(e) => setData("kenyaRecognitionStatus", e.target.value)}
-                                                                fullWidth
-                                                            />
-                                                            <TextField
-                                                                label="Source Document/Reference"
-                                                                value={data.sourceDocument}
-                                                                onChange={(e) => setData("sourceDocument", e.target.value)}
-                                                                fullWidth
-                                                            />
-                                                        </>
-                                                    )}
-
-                                                    {/* Course Suggestions (if available) */}
-                                                    {suggestedCourses.length > 0 && (
-                                                        <Alert severity="info" variant="outlined" sx={{ mt: -1 }}>
-                                                            <Typography variant="subtitle2" gutterBottom>
-                                                                Available Courses:
-                                                            </Typography>
-                                                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                                                {suggestedCourses.map((course) => (
-                                                                    <Chip
-                                                                        key={course.code}
-                                                                        label={`${course.code} — ${course.name}`}
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                    />
-                                                                ))}
-                                                            </Stack>
-                                                        </Alert>
-                                                    )}
-
-                                                    {/* Auto-filled metadata preview */}
-                                                    {data.awardType && (
-                                                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                                            {data.awardType && (
-                                                                <Chip
-                                                                    label={`Award: ${data.awardType}`}
-                                                                    size="small"
-                                                                    color="primary"
-                                                                    variant="outlined"
-                                                                />
-                                                            )}
-                                                            {data.assessmentMode && (
-                                                                <Chip
-                                                                    label={`Assessment: ${data.assessmentMode}`}
-                                                                    size="small"
-                                                                    color="secondary"
-                                                                    variant="outlined"
-                                                                />
-                                                            )}
-                                                            {data.level && (
-                                                                <Chip
-                                                                    label={`Category: ${data.level}`}
-                                                                    size="small"
-                                                                    color="success"
-                                                                    variant="outlined"
-                                                                />
-                                                            )}
-                                                        </Stack>
-                                                    )}
+                                            {/* Additional TVET Metadata */}
+                                            {hasExamBodies && data.qualificationFamily && (
+                                                <>
+                                                    <Box>
+                                                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Centre Approval Status</Typography>
+                                                        <TextField
+                                                            value={data.centreStatus}
+                                                            onChange={(e) => setData("centreStatus", e.target.value)}
+                                                            helperText="e.g. Approved, Pending, Internal Preparation"
+                                                            fullWidth
+                                                        />
+                                                    </Box>
+                                                    <Box>
+                                                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>TVETA Recognition Status</Typography>
+                                                        <TextField
+                                                            value={data.kenyaRecognitionStatus}
+                                                            onChange={(e) => setData("kenyaRecognitionStatus", e.target.value)}
+                                                            fullWidth
+                                                        />
+                                                    </Box>
+                                                    <Box>
+                                                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Source Document/Reference</Typography>
+                                                        <TextField
+                                                            value={data.sourceDocument}
+                                                            onChange={(e) => setData("sourceDocument", e.target.value)}
+                                                            fullWidth
+                                                        />
+                                                    </Box>
                                                 </>
                                             )}
 
-                                            {/* Level dropdown (always shown, auto-filled in TVET mode) */}
-                                            <FormControl fullWidth required error={!!errors.level}>
-                                                <InputLabel>Level</InputLabel>
-                                                <Select
-                                                    value={data.level}
-                                                    label="Level"
-                                                    onChange={(e) => setData("level", e.target.value)}
-                                                >
-                                                    {courseLevels.map((level) => (
-                                                        <MenuItem key={level.value} value={level.value}>
-                                                            {level.label}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                                {errors.level && (
-                                                    <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
-                                                        {errors.level}
+                                            {/* Course Suggestions (if available) */}
+                                            {hasExamBodies && suggestedCourses.length > 0 && (
+                                                <Alert severity="info" variant="outlined" sx={{ mt: -1 }}>
+                                                    <Typography variant="subtitle2" gutterBottom>
+                                                        Available Courses:
                                                     </Typography>
-                                                )}
-                                            </FormControl>
-                                            <TextField
-                                                label="Description"
-                                                value={data.description}
-                                                onChange={(e) =>
-                                                    setData(
-                                                        "description",
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                multiline
-                                                rows={4}
-                                                fullWidth
-                                            />
+                                                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                                        {suggestedCourses.map((course) => (
+                                                            <Chip
+                                                                key={course.code}
+                                                                label={`${course.code} — ${course.name}`}
+                                                                size="small"
+                                                                variant="outlined"
+                                                            />
+                                                        ))}
+                                                    </Stack>
+                                                </Alert>
+                                            )}
+
+                                            {/* Auto-filled metadata preview */}
+                                            {hasExamBodies && data.awardType && (
+                                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                                    {data.awardType && (
+                                                        <Chip
+                                                            label={`Award: ${data.awardType}`}
+                                                            size="small"
+                                                            color="primary"
+                                                            variant="outlined"
+                                                        />
+                                                    )}
+                                                    {data.assessmentMode && (
+                                                        <Chip
+                                                            label={`Assessment: ${data.assessmentMode}`}
+                                                            size="small"
+                                                            color="secondary"
+                                                            variant="outlined"
+                                                        />
+                                                    )}
+                                                    {data.level && (
+                                                        <Chip
+                                                            label={`Category: ${data.level}`}
+                                                            size="small"
+                                                            color="success"
+                                                            variant="outlined"
+                                                        />
+                                                    )}
+                                                </Stack>
+                                            )}
                                         </Stack>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        </Grid>
+
+                        {/* Description */}
+                        <Grid size={{ xs: 12 }}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                            >
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                                            Description
+                                        </Typography>
+                                        <TextField
+                                            value={data.description}
+                                            onChange={(e) => setData("description", e.target.value)}
+                                            multiline
+                                            rows={4}
+                                            fullWidth
+                                            placeholder="Briefly describe this program"
+                                            sx={{ 
+                                                '& .MuiInputBase-root': { 
+                                                    p: 2 
+                                                }
+                                            }}
+                                        />
                                     </CardContent>
                                 </Card>
                             </motion.div>
@@ -441,7 +480,7 @@ export default function ProgramForm({
                         
                         {/* Blueprint Selection - Hidden if only one blueprint (auto-selected) */}
                         {blueprints.length > 1 && (
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -584,7 +623,7 @@ export default function ProgramForm({
                         )}
 
                         {/* Instructors */}
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -592,13 +631,13 @@ export default function ProgramForm({
                             >
                                 <Card>
                                     <CardContent>
-                                        <Typography variant="h6" gutterBottom>
-                                            Assign Instructors (Optional)
+                                        <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                                            Assign instructors (optional)
                                         </Typography>
                                         <Typography
                                             variant="body2"
                                             color="text.secondary"
-                                            sx={{ mb: 2 }}
+                                            sx={{ mb: 3 }}
                                         >
                                             Select instructors who will teach
                                             this program. You can also assign
