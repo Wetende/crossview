@@ -700,7 +700,8 @@ def program_list(request):
 @login_required
 def program_view(request, pk: int):
     """
-    View program - redirects to course player with first available lesson.
+    Course overview screen - shows welcome page inside the course player.
+    The resume route handles auto-advancing to the first available lesson.
     Requirements: 3.1, 3.2, 3.3
     """
     enrollment = get_object_or_404(
@@ -712,68 +713,15 @@ def program_view(request, pk: int):
 
     # Get all completions for this enrollment
     completions = list(enrollment.completions.values_list("node_id", flat=True))
-    completions_set = set(completions)
 
     # Get unlock status map
     engine = ProgressionEngine()
     unlock_statuses = engine.get_unlock_status(enrollment)
     status_map = {s["node_id"]: s for s in unlock_statuses}
 
-    # Find the first available lesson (incomplete and unlocked leaf node)
-    def find_first_available_node(nodes):
-        """Recursively find first incomplete, unlocked leaf node."""
-        for node in nodes:
-            children = node.children.filter(is_published=True).order_by("position")
-            if children.exists():
-                # It's a section, recurse into children
-                result = find_first_available_node(children)
-                if result:
-                    return result
-            else:
-                # It's a leaf node (lesson/quiz/assignment)
-                node_status = status_map.get(node.id, {})
-                is_locked = node_status.get("status") == "locked"
-                is_completed = node.id in completions_set
+    # Get root nodes for curriculum tree
+    root_nodes = _get_published_root_nodes(program)
 
-                # Return first unlocked node (preferring incomplete)
-                if not is_locked and not is_completed:
-                    return node
-        return None
-
-    def find_first_leaf_node(nodes):
-        """Recursively find the first leaf node regardless of status."""
-        for node in nodes:
-            children = node.children.filter(is_published=True).order_by("position")
-            if children.exists():
-                result = find_first_leaf_node(children)
-                if result:
-                    return result
-            else:
-                return node
-        return None
-
-    # Get root nodes
-    root_nodes = (
-        CurriculumNode.objects.filter(
-            program=program, parent__isnull=True, is_published=True
-        )
-        .prefetch_related("children")
-        .order_by("position")
-    )
-
-    # Find target node: first incomplete unlocked, or first leaf if all complete
-    target_node = find_first_available_node(root_nodes)
-    if not target_node:
-        target_node = find_first_leaf_node(root_nodes)
-
-    # If we found a lesson, render the course player
-    if target_node:
-        # Reuse session_viewer logic to render course player
-        return _render_course_player(
-            request, enrollment, target_node, completions, status_map
-        )
-
-    # Fallback: If no lessons exist, show an empty state in course player
     curriculum_tree = _build_curriculum_tree(
         root_nodes, completions, enrollment, status_map
     )
@@ -781,22 +729,26 @@ def program_view(request, pk: int):
     total_nodes = _get_completable_nodes_count(program)
     progress = (len(completions) / total_nodes * 100) if total_nodes > 0 else 0
     primary_instructor = _get_primary_instructor_payload(program)
+    program_payload = _build_program_player_payload(program)
+
+    # Build curriculum summary for the overview
+    curriculum_summary = _build_curriculum_summary(curriculum_tree)
 
     return render(
         request,
         "Student/CoursePlayer",
         {
             "node": None,
-            "program": {
-                "id": program.id,
-                "name": program.name,
-            },
+            "activeView": "overview",
+            "program": program_payload,
             "instructor": primary_instructor,
             "enrollment": {
                 "id": enrollment.id,
                 "progressPercent": round(progress, 1),
             },
             "curriculum": curriculum_tree,
+            "curriculumSummary": curriculum_summary,
+            "resumeUrl": f"/student/programs/{program.id}/resume/",
             "prevNode": None,
             "nextNode": None,
             "progress": round(progress, 1),
@@ -807,6 +759,87 @@ def program_view(request, pk: int):
             "unlocksAt": None,
         },
     )
+
+
+@login_required
+def program_resume(request, pk: int):
+    """
+    Resume course - auto-advances to the first incomplete, unlocked lesson.
+    Falls back to overview if no lessons exist.
+    """
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("program"),
+        program_id=pk,
+        user=request.user,
+    )
+    program = enrollment.program
+
+    completions = list(enrollment.completions.values_list("node_id", flat=True))
+    engine = ProgressionEngine()
+    unlock_statuses = engine.get_unlock_status(enrollment)
+    status_map = {s["node_id"]: s for s in unlock_statuses}
+
+    root_nodes = _get_published_root_nodes(program)
+    target_node = _find_first_available_node(root_nodes, completions, status_map)
+    if not target_node:
+        target_node = _find_first_leaf_node(root_nodes)
+
+    if target_node:
+        return _render_course_player(
+            request, enrollment, target_node, completions, status_map
+        )
+
+    # Fallback: no curriculum nodes — show the overview
+    return redirect("progression:student.program", pk=program.id)
+
+
+def _get_published_root_nodes(program: Program):
+    """Get published root curriculum nodes for a program."""
+    return (
+        CurriculumNode.objects.filter(
+            program=program, parent__isnull=True, is_published=True
+        )
+        .prefetch_related("children")
+        .order_by("position")
+    )
+
+
+def _find_first_available_node(root_nodes, completions: list, status_map: dict):
+    """Recursively find first incomplete, unlocked leaf node for a program."""
+
+    def recurse(nodes):
+        for node in nodes:
+            children = node.children.filter(is_published=True).order_by("position")
+            if children.exists():
+                result = recurse(children)
+                if result:
+                    return result
+            else:
+                node_status = status_map.get(node.id, {})
+                is_locked = node_status.get("status") == "locked"
+                is_completed = node.id in completions
+                if not is_locked and not is_completed:
+                    return node
+        return None
+
+    return recurse(root_nodes)
+
+
+def _find_first_leaf_node(root_nodes):
+    """Recursively find the first leaf node regardless of status."""
+
+    def recurse(nodes):
+        for node in nodes:
+            children = node.children.filter(is_published=True).order_by("position")
+            if children.exists():
+                result = recurse(children)
+                if result:
+                    return result
+            else:
+                return node
+        return None
+
+    return recurse(root_nodes)
 
 
 def _render_course_player(request, enrollment, node, completions, status_map):
@@ -829,13 +862,7 @@ def _render_course_player(request, enrollment, node, completions, status_map):
     content_html = node_properties.get("content_html", "")
 
     # Get curriculum tree for Sidebar
-    root_nodes = (
-        CurriculumNode.objects.filter(
-            program=program, parent__isnull=True, is_published=True
-        )
-        .prefetch_related("children")
-        .order_by("position")
-    )
+    root_nodes = _get_published_root_nodes(program)
 
     curriculum_tree = _build_curriculum_tree(
         root_nodes, completions, enrollment, status_map
@@ -857,6 +884,7 @@ def _render_course_player(request, enrollment, node, completions, status_map):
         request,
         "Student/CoursePlayer",
         {
+            "activeView": None,
             "node": {
                 "id": node.id,
                 "title": node.title,
@@ -866,10 +894,7 @@ def _render_course_player(request, enrollment, node, completions, status_map):
                 "description": node.description or "",
                 "blocks": blocks_data,
             },
-            "program": {
-                "id": program.id,
-                "name": program.name,
-            },
+            "program": _build_program_player_payload(program),
             "instructor": primary_instructor,
             "enrollment": {
                 "id": enrollment.id,
@@ -1062,13 +1087,7 @@ def session_viewer(request, pk: int, node_id: int):
     content_html = node_properties.get("content_html", "")
 
     # Get curriculum tree for Sidebar
-    root_nodes = (
-        CurriculumNode.objects.filter(
-            program=enrollment.program, parent__isnull=True, is_published=True
-        )
-        .prefetch_related("children")
-        .order_by("position")
-    )
+    root_nodes = _get_published_root_nodes(enrollment.program)
     completions = list(enrollment.completions.values_list("node_id", flat=True))
     # Get unlock status map for sidebar
     unlock_statuses = engine.get_unlock_status(enrollment)
@@ -1082,6 +1101,7 @@ def session_viewer(request, pk: int, node_id: int):
     total_nodes = _get_completable_nodes_count(enrollment.program)
     completed_count = len(completions)
     progress = (completed_count / total_nodes * 100) if total_nodes > 0 else 0
+    primary_instructor = _get_primary_instructor_payload(enrollment.program)
 
     # Get content blocks
     blocks = ContentBlock.objects.filter(node=node).order_by("position")
@@ -1150,6 +1170,7 @@ def session_viewer(request, pk: int, node_id: int):
         request,
         "Student/CoursePlayer",
         {
+            "activeView": None,
             "node": {
                 "id": node.id,
                 "title": node.title,
@@ -1159,10 +1180,8 @@ def session_viewer(request, pk: int, node_id: int):
                 "description": node.description or "",
                 "blocks": blocks_data,
             },
-            "program": {
-                "id": enrollment.program.id,
-                "name": enrollment.program.name,
-            },
+            "program": _build_program_player_payload(enrollment.program),
+            "instructor": primary_instructor,
             "enrollment": {
                 "id": enrollment.id,
                 "progressPercent": round(progress, 1),
@@ -1444,6 +1463,60 @@ def _reconcile_enrollment_status(enrollment: Enrollment, progress: float) -> str
         enrollment.save(update_fields=["status", "completed_at", "updated_at"])
 
     return target_status
+
+
+def _build_program_player_payload(program: Program):
+    """Build the player-side program payload with description, outcomes, notices, and resources."""
+    resources = []
+    for r in program.resources.all():
+        resources.append({
+            "id": r.id,
+            "title": r.title,
+            "url": r.file.url if r.file else None,
+            "type": r.resource_type,
+            "ext": r.file.name.split(".")[-1] if r.file and "." in r.file.name else "",
+        })
+
+    return {
+        "id": program.id,
+        "name": program.name,
+        "description": program.description or "",
+        "whatYouLearnHtml": program.what_you_learn_html or "",
+        "whatYouLearnItems": program.what_you_learn_items or [],
+        "notices": program.notices or [],
+        "resources": resources,
+        "faq": program.faq or [],
+    }
+
+
+def _build_curriculum_summary(curriculum_tree: list) -> dict:
+    """Build a flat summary of the curriculum for the overview screen."""
+    section_count = len(curriculum_tree)
+    sections = []
+
+    def count_leaf_nodes(nodes):
+        total = 0
+        for node in nodes:
+            children = node.get("children") or []
+            if children:
+                total += count_leaf_nodes(children)
+            else:
+                total += 1
+        return total
+
+    for section in curriculum_tree:
+        children = section.get("children") or []
+        section_lesson_count = count_leaf_nodes(children) if children else 1
+        sections.append({
+            "title": section.get("title", ""),
+            "lessonCount": section_lesson_count,
+        })
+
+    return {
+        "sectionCount": section_count,
+        "lessonCount": count_leaf_nodes(curriculum_tree),
+        "sections": sections,
+    }
 
 
 def _build_curriculum_tree(

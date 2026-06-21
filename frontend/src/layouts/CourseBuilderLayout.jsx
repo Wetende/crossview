@@ -7,48 +7,38 @@ import {
 } from '@tabler/icons-react';
 import { getFlashMessages, getFlashSeverity } from '@/utils/userMessages';
 
-const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', platformFeatures = {}, deploymentMode = 'custom', ...props }) => {
+const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...props }) => {
     const { flash = [] } = usePage().props;
     const flashMessages = getFlashMessages(flash);
     // Mode-aware tabs: conditionally show tabs based on platform features and blueprint flags
     const blueprintFlags = program?.blueprint?.featureFlags || {};
 
     const tabs = useMemo(() => {
+        const manageUrl = `/instructor/programs/${program.id}/manage/`;
+        const tabUrl = (tab) => `${manageUrl}?tab=${tab}`;
         const baseTabs = [
-            { label: 'Curriculum', value: 'curriculum', href: `/instructor/programs/${program.id}/manage/` },
-            // TODO: Implement later
-            // { label: 'Drip', value: 'drip', href: `/instructor/programs/${program.id}/manage/drip/` },
-            // { label: 'Settings', value: 'settings', href: `/instructor/programs/${program.id}/manage/settings/` },
+            { label: 'Overview', value: 'overview', href: tabUrl('overview') },
+            { label: 'Curriculum', value: 'curriculum', href: manageUrl },
+            { label: 'Settings', value: 'settings', href: tabUrl('settings') },
         ];
 
-        // Pricing tab: only when payments feature is enabled (Online, NITA, Driving modes)
-        if (platformFeatures.payments) {
-            baseTabs.push({ label: 'Pricing', value: 'pricing', href: `/instructor/programs/${program.id}/manage/settings/?tab=pricing` });
+        // Pricing: always visible; shows info alert when payments disabled
+        baseTabs.push({ label: 'Pricing', value: 'pricing', href: tabUrl('pricing') });
+
+        // FAQ, Notice: always available
+        baseTabs.push({ label: 'FAQ', value: 'faq', href: tabUrl('faq') });
+        baseTabs.push({ label: 'Notice', value: 'notice', href: tabUrl('notice') });
+        baseTabs.push({ label: 'Drip', value: 'drip', href: tabUrl('drip') });
+        baseTabs.push({ label: 'Prerequisites', value: 'prerequisites', href: tabUrl('prerequisites') });
+        baseTabs.push({ label: 'Access', value: 'access', href: tabUrl('access') });
+
+        // Practicum tab: when practicum/portfolio features enabled
+        if (blueprintFlags.practicum || blueprintFlags.portfolio) {
+            baseTabs.push({ label: 'Practicum', value: 'practicum', href: tabUrl('practicum') });
         }
 
-        // FAQ and Notice tabs: always available
-        baseTabs.push({ label: 'FAQ', value: 'faq', href: `/instructor/programs/${program.id}/manage/settings/?tab=faq` });
-        baseTabs.push({ label: 'Notice', value: 'notice', href: `/instructor/programs/${program.id}/manage/settings/?tab=notice` });
-
-        // TODO: Implement later
-        // Practicum tab: when practicum/portfolio features enabled (TVET, Theology, Driving, NITA)
-        // if (blueprintFlags.practicum || blueprintFlags.portfolio) {
-        //     baseTabs.push({ label: 'Practicum', value: 'practicum', href: `/instructor/programs/${program.id}/manage/practicum/` });
-        // }
-
-        // Note: Gamification is a PLATFORM-LEVEL feature (SuperAdmin toggle, Admin config, Student dashboard)
-        // It is NOT configured per-course in Course Builder
-
-        // TODO: Implement later
-        // Prerequisites tab: TVET/Theology/Online need course sequencing
-        // if (['tvet', 'theology', 'online'].includes(deploymentMode)) {
-        //     baseTabs.push({ label: 'Prerequisites', value: 'prerequisites', href: `/instructor/programs/${program.id}/manage/prerequisites/` });
-        // }
-
-        // Access tab intentionally hidden from UI for lifetime-access policy.
-
         return baseTabs;
-    }, [program.id, platformFeatures.payments, blueprintFlags.practicum, blueprintFlags.portfolio, deploymentMode]);
+    }, [program.id, blueprintFlags.practicum, blueprintFlags.portfolio]);
 
 
     return (
@@ -83,15 +73,17 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', plat
                     </Stack>
 
                     {/* Center Tabs - Support both URL and Client-side switching */}
-                    <Box sx={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+                    <Box sx={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', maxWidth: '70%', overflow: 'hidden' }}>
                         <Tabs
                             value={activeTab}
                             onChange={(e, newVal) => {
-                                // If onTabChange is provided (client-side), call it
                                 if (props.onTabChange) {
                                     props.onTabChange(newVal);
                                 }
                             }}
+                            variant="scrollable"
+                            scrollButtons="auto"
+                            allowScrollButtonsMobile
                             textColor="inherit"
                             indicatorColor="primary"
                             sx={{

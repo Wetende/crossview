@@ -26,6 +26,7 @@ import {
 import { motion } from 'framer-motion';
 import InstructorLayout from '@/layouts/InstructorLayout';
 import CurriculumTree from '@/components/CurriculumTree';
+import { htmlToPlainText } from '@/utils/htmlText';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -51,6 +52,7 @@ function StatCard({ title, value, icon: Icon, color = 'primary' }) {
 }
 
 export default function InstructorProgramShow({ program, stats, curriculum }) {
+  const descriptionText = htmlToPlainText(program.description);
   const breadcrumbs = [
     { label: 'Dashboard', href: '/dashboard/' },
     { label: 'My Programs', href: '/instructor/programs/' },
@@ -176,13 +178,13 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                   </Typography>
                   <Divider sx={{ my: 2 }} />
                   
-                  {program.description && (
+                  {descriptionText && (
                     <Box mb={2}>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
                         Description
                       </Typography>
                       <Typography variant="body2">
-                        {program.description}
+                        {descriptionText}
                       </Typography>
                     </Box>
                   )}
@@ -202,7 +204,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                         Hierarchy
                       </Typography>
                       <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                        {program.blueprint.hierarchyLabels.map((label, index) => (
+                        {program.blueprint.hierarchyLabels.map((label) => (
                           <Chip 
                             key={label} 
                             label={label} 

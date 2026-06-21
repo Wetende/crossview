@@ -66,13 +66,13 @@ class TestContentSchedulingViews:
         client.force_login(self.student)
         
         # Call program view (HTML)
-        url = reverse('progression:student.program', args=[enrollment.id])
+        url = reverse('progression:student.program', args=[self.program.id])
         response = client.get(url)
         assert response.status_code == 200
         
         # Check props
         props = self._get_inertia_props(response)
-        curriculum_tree = props['curriculumTree']
+        curriculum_tree = props['curriculum']
         
         # Verify Node 1 (Unlocked)
         node1_data = next(n for n in curriculum_tree if n['id'] == node1.id)
@@ -107,10 +107,10 @@ class TestContentSchedulingViews:
         client.force_login(self.student)
         
         # 1. Check Locked State
-        url = reverse('progression:student.program', args=[enrollment.id])
+        url = reverse('progression:student.program', args=[self.program.id])
         response = client.get(url)
         props = self._get_inertia_props(response)
-        node_data = props['curriculumTree'][0]
+        node_data = props['curriculum'][0]
         
         assert node_data['id'] == node_drip.id
         assert node_data['isLocked'] is True
@@ -124,6 +124,6 @@ class TestContentSchedulingViews:
         # Must refetch view
         response = client.get(url)
         props = self._get_inertia_props(response)
-        node_data = props['curriculumTree'][0]
+        node_data = props['curriculum'][0]
         
         assert node_data['isLocked'] is False

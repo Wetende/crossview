@@ -34,11 +34,6 @@ import {
     DialogContent,
     DialogActions,
     TextField,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
-    Divider
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -60,6 +55,7 @@ import {
 } from '@mui/icons-material';
 
 // Helper to flatten node tree for diffing
+// eslint-disable-next-line react-refresh/only-export-components
 export const flattenNodes = (nodes) => {
     if (!nodes) return [];
     let result = [];
@@ -127,7 +123,6 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
     const featureFlags = blueprint?.featureFlags || {
         quizzes: true, assignments: true, practicum: false, portfolio: false, gamification: false
     };
-    const programLevel = program?.taxonomy?.levelValue || program?.level || 'Unassigned';
     const containerLabel =
         program?.taxonomy?.builderHierarchy?.[0] ||
         program?.blueprint?.hierarchy_structure?.[0] ||
@@ -607,8 +602,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
                      {!localNodes || localNodes.length === 0 ? (
                          <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
                              <Typography variant="body2">No curriculum yet.</Typography>
-                             <Typography variant="caption" display="block">Program level: {programLevel}</Typography>
-                             <Typography variant="caption">Start by adding a {containerLabel}.</Typography>
+                             <Typography variant="caption">Start by adding your first {containerLabel}.</Typography>
                          </Box>
                      ) : (
                          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -618,7 +612,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
                          </DndContext>
                      )}
                 </Box>
-                {/* Footer Add Section Button */}
+                {/* Footer Add Container Button */}
                 <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
                     <Button
                         fullWidth
@@ -627,7 +621,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
                         onClick={openCreateSection}
                         sx={{ textTransform: 'none', borderRadius: 1 }}
                     >
-                        New section
+                        New {containerLabel}
                     </Button>
                 </Box>
             </Paper>
@@ -641,7 +635,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
             >
                 <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     {createQuizModalOpen ? 'Create Quiz' : (
-                        createType === 'section' ? 'New Section' : 
+                        createType === 'section' ? `New ${containerLabel}` :
                         createType === 'lesson_select' ? 'Select Lesson Type' : 'New Lesson'
                     )}
                     <IconButton size="small" onClick={() => { setCreateModalOpen(false); setCreateQuizModalOpen(false); }}>
@@ -713,7 +707,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
                         <TextField
                             autoFocus
                             margin="dense"
-                            label={createType === 'section' ? "Section Name" : "Lesson Name"}
+                            label={createType === 'section' ? `${containerLabel} Name` : "Lesson Name"}
                             fullWidth
                             variant="outlined"
                             value={createTitle}
@@ -744,7 +738,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
                 sectionName={searchTargetSectionName}
                 sectionId={searchTargetSectionId}
                 programId={program.id}
-                onImportComplete={(count) => {
+                onImportComplete={() => {
                     // Refresh the curriculum after import
                     router.reload({ only: ['curriculum'] });
                 }}

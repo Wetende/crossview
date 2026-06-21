@@ -591,81 +591,97 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                             />
 
                             <Box sx={{ display: "flex", gap: 2 }}>
-                                <TextField
-                                    label="Select start date *"
-                                    type="date"
-                                    fullWidth
-                                    size="small"
-                                    InputLabelProps={{
-                                        shrink: true,
-                                        sx: { fontWeight: 500 },
-                                    }}
-                                    value={startDate}
-                                    onChange={(e) =>
-                                        setStartDate(e.target.value)
-                                    }
-                                    onBlur={() => handleBlur("startDate")}
-                                    error={!!getFieldError("startDate")}
-                                    helperText={getFieldError("startDate")}
-                                    required
-                                />
-                                <TextField
-                                    label="Select start time *"
-                                    type="time"
-                                    fullWidth
-                                    size="small"
-                                    InputLabelProps={{
-                                        shrink: true,
-                                        sx: { fontWeight: 500 },
-                                    }}
-                                    value={startTime}
-                                    onChange={(e) =>
-                                        setStartTime(e.target.value)
-                                    }
-                                    onBlur={() => handleBlur("startTime")}
-                                    error={!!getFieldError("startTime")}
-                                    helperText={getFieldError("startTime")}
-                                    required
-                                />
+                                <Box sx={{ flex: 1 }}>
+                                    <InputLabel
+                                        shrink
+                                        error={!!getFieldError("startDate")}
+                                        sx={{ mb: 1, fontWeight: 500 }}
+                                    >
+                                        Select start date *
+                                    </InputLabel>
+                                    <TextField
+                                        type="date"
+                                        fullWidth
+                                        size="small"
+                                        value={startDate}
+                                        onChange={(e) =>
+                                            setStartDate(e.target.value)
+                                        }
+                                        onBlur={() => handleBlur("startDate")}
+                                        error={!!getFieldError("startDate")}
+                                        helperText={getFieldError("startDate")}
+                                        required
+                                    />
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <InputLabel
+                                        shrink
+                                        error={!!getFieldError("startTime")}
+                                        sx={{ mb: 1, fontWeight: 500 }}
+                                    >
+                                        Select start time *
+                                    </InputLabel>
+                                    <TextField
+                                        type="time"
+                                        fullWidth
+                                        size="small"
+                                        value={startTime}
+                                        onChange={(e) =>
+                                            setStartTime(e.target.value)
+                                        }
+                                        onBlur={() => handleBlur("startTime")}
+                                        error={!!getFieldError("startTime")}
+                                        helperText={getFieldError("startTime")}
+                                        required
+                                    />
+                                </Box>
                             </Box>
 
                             <Box sx={{ display: "flex", gap: 2 }}>
-                                <TextField
-                                    label="Select end date *"
-                                    type="date"
-                                    fullWidth
-                                    size="small"
-                                    InputLabelProps={{
-                                        shrink: true,
-                                        sx: { fontWeight: 500 },
-                                    }}
-                                    value={endDate}
-                                    onChange={(e) =>
-                                        setEndDate(e.target.value)
-                                    }
-                                    onBlur={() => handleBlur("endDate")}
-                                    error={!!getFieldError("endDate")}
-                                    helperText={getFieldError("endDate")}
-                                    required
-                                />
-                                <TextField
-                                    label="Select end time *"
-                                    type="time"
-                                    fullWidth
-                                    size="small"
-                                    InputLabelProps={{
-                                        shrink: true,
-                                        sx: { fontWeight: 500 },
-                                    }}
-                                    value={endTime}
-                                    onChange={(e) =>
-                                        setEndTime(e.target.value)
-                                    }
-                                    onBlur={() => handleBlur("endTime")}
-                                    error={!!getFieldError("endTime")}
-                                    helperText={getFieldError("endTime")}
-                                    required
-                                />
+                                <Box sx={{ flex: 1 }}>
+                                    <InputLabel
+                                        shrink
+                                        error={!!getFieldError("endDate")}
+                                        sx={{ mb: 1, fontWeight: 500 }}
+                                    >
+                                        Select end date *
+                                    </InputLabel>
+                                    <TextField
+                                        type="date"
+                                        fullWidth
+                                        size="small"
+                                        value={endDate}
+                                        onChange={(e) =>
+                                            setEndDate(e.target.value)
+                                        }
+                                        onBlur={() => handleBlur("endDate")}
+                                        error={!!getFieldError("endDate")}
+                                        helperText={getFieldError("endDate")}
+                                        required
+                                    />
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <InputLabel
+                                        shrink
+                                        error={!!getFieldError("endTime")}
+                                        sx={{ mb: 1, fontWeight: 500 }}
+                                    >
+                                        Select end time *
+                                    </InputLabel>
+                                    <TextField
+                                        type="time"
+                                        fullWidth
+                                        size="small"
+                                        value={endTime}
+                                        onChange={(e) =>
+                                            setEndTime(e.target.value)
+                                        }
+                                        onBlur={() => handleBlur("endTime")}
+                                        error={!!getFieldError("endTime")}
+                                        helperText={getFieldError("endTime")}
+                                        required
+                                    />
+                                </Box>
                             </Box>
 
                             <TextField
@@ -904,32 +920,36 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     {/* Date/Time Row for Non-Zoom (Zoom handles it in specific block) */}
                     {lessonType !== "live_class" && (
                         <Box sx={{ display: "flex", gap: 2 }}>
-                            <TextField
-                                label="Lesson start date"
-                                type="date"
-                                fullWidth
-                                size="small"
-                                InputLabelProps={{
-                                    shrink: true,
-                                    sx: { fontWeight: 500 },
-                                }}
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                sx={{ flex: 1 }}
-                            />
-                            <TextField
-                                label="Lesson start time"
-                                type="time"
-                                fullWidth
-                                size="small"
-                                InputLabelProps={{
-                                    shrink: true,
-                                    sx: { fontWeight: 500 },
-                                }}
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                sx={{ flex: 1 }}
-                            />
+                            <Box sx={{ flex: 1 }}>
+                                <InputLabel
+                                    shrink
+                                    sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                    Lesson start date
+                                </InputLabel>
+                                <TextField
+                                    type="date"
+                                    fullWidth
+                                    size="small"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                                <InputLabel
+                                    shrink
+                                    sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                    Lesson start time
+                                </InputLabel>
+                                <TextField
+                                    type="time"
+                                    fullWidth
+                                    size="small"
+                                    value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
+                                />
+                            </Box>
                         </Box>
                     )}
 

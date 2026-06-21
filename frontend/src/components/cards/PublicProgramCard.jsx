@@ -28,6 +28,7 @@ import {
 import { IconHeart, IconHeartFilled, IconList, IconClock } from "@tabler/icons-react";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCurrency } from "@/hooks/useCurrency";
+import { truncatePlainText } from "@/utils/htmlText";
 
 // ---------------------------------------------------------------------------
 // Badge colors
@@ -59,6 +60,7 @@ export default function PublicProgramCard({
     const theme = useTheme();
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const { formatCurrency } = useCurrency();
+    const descriptionPreview = truncatePlainText(program.description, 180);
 
     const wishlisted = useMemo(
         () => (wishlist?.items || []).some((item) => item.program?.id === program.id),
@@ -190,7 +192,7 @@ export default function PublicProgramCard({
                 </Typography>
 
                 {/* Description (short) */}
-                {program.description && (
+                {descriptionPreview && (
                     <Typography
                         variant="body2"
                         sx={{
@@ -202,7 +204,7 @@ export default function PublicProgramCard({
                             overflow: "hidden",
                         }}
                     >
-                        {program.description}
+                        {descriptionPreview}
                     </Typography>
                 )}
 

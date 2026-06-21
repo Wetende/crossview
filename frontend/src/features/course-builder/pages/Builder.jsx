@@ -5,15 +5,13 @@ import {
     Card,
     CardContent,
     Typography,
-    Drawer, // Added
-    List, // Added
-    ListItem, // Added
-    ListItemText, // Added
-    ListItemIcon, // Added
-    Divider, // Added
-    IconButton, // Added
-    Stack, // Added
-    Button, // Added
+    Drawer,
+    List,
+    ListItem,
+    Divider,
+    IconButton,
+    Stack,
+    Button,
 } from "@mui/material";
 import { TouchApp as TouchAppIcon } from "@mui/icons-material";
 import MenuBookIcon from "@mui/icons-material/MenuBook"; // Added
@@ -31,6 +29,26 @@ import EditorContainer from "../editors/EditorContainer";
 import SettingsPanel from "../components/SettingsPanel";
 
 const RIGHT_DRAWER_WIDTH = 300; // Define the width for the right drawer
+const BUILDER_TABS = new Set([
+    "overview",
+    "curriculum",
+    "settings",
+    "pricing",
+    "faq",
+    "notice",
+    "drip",
+    "practicum",
+    "prerequisites",
+    "access",
+]);
+
+const getInitialTab = () => {
+    if (typeof window === "undefined") {
+        return "curriculum";
+    }
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    return BUILDER_TABS.has(requestedTab) ? requestedTab : "curriculum";
+};
 
 export default function InstructorProgramBuilder({
     program,
@@ -39,7 +57,7 @@ export default function InstructorProgramBuilder({
     deploymentMode = "custom",
 }) {
     const { mode, toggleMode } = useThemeMode(); // Added
-    const [activeTab, setActiveTab] = useState("curriculum");
+    const [activeTab, setActiveTab] = useState(getInitialTab);
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [guideOpen, setGuideOpen] = useState(false); // Added state for guide drawer
     const [curriculum, setCurriculum] = useState(initialCurriculum);
@@ -71,11 +89,21 @@ export default function InstructorProgramBuilder({
         });
     };
 
+    const handleTabChange = (nextTab) => {
+        setActiveTab(nextTab);
+        if (typeof window === "undefined") {
+            return;
+        }
+        const baseUrl = `/instructor/programs/${program.id}/manage/`;
+        const nextUrl = nextTab === "curriculum" ? baseUrl : `${baseUrl}?tab=${nextTab}`;
+        window.history.replaceState({}, "", nextUrl);
+    };
+
     return (
         <CourseBuilderLayout
             program={program}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
             platformFeatures={platformFeatures}
             deploymentMode={deploymentMode}
             // Pass the guide button to the layout's AppBar slot
@@ -195,7 +223,8 @@ export default function InstructorProgramBuilder({
                             </Box>
                         </Box>
                     )}
-                    {(activeTab === "settings" ||
+                    {(activeTab === "overview" ||
+                        activeTab === "settings" ||
                         activeTab === "pricing" ||
                         activeTab === "faq" ||
                         activeTab === "notice" ||

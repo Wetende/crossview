@@ -1025,7 +1025,7 @@ function StudentContent({ enrollments, assignments, quizzes }) {
                                         >
                                             <Button
                                                 component={Link}
-                                                href={`/student/programs/${enrollment.programId}/`}
+                                                href={`/student/programs/${enrollment.programId}/resume/`}
                                                 variant="text"
                                                 size="small"
                                                 sx={{

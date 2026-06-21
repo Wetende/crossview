@@ -198,7 +198,7 @@ export default function EnrolledCourseCard({ enrollment }) {
                 <Stack spacing={1}>
                     <Button
                         component={Link}
-                        href={`/student/programs/${enrollment.programId}/`}
+                        href={`/student/programs/${enrollment.programId}/resume/`}
                         variant="contained"
                         fullWidth
                         sx={{

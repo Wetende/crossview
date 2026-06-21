@@ -6,7 +6,6 @@ import { Head, Link, router } from "@inertiajs/react";
 import { useState } from "react";
 import {
     Box,
-    Container,
     Typography,
     Paper,
     Stack,
@@ -41,6 +40,7 @@ import { motion } from "framer-motion";
 
 import InstructorLayout from "@/layouts/InstructorLayout";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { htmlToPlainText } from "@/utils/htmlText";
 
 const STATUS_COLORS = {
     active: "success",
@@ -51,6 +51,7 @@ const STATUS_COLORS = {
 
 export default function Detail({ program, students, curriculum }) {
     const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+    const descriptionText = htmlToPlainText(program.description);
 
     const handleSubmitForReview = () => {
         setSubmitDialogOpen(true);
@@ -138,10 +139,10 @@ export default function Detail({ program, students, curriculum }) {
                     </Box>
 
                     {/* Description */}
-                    {program.description && (
+                    {descriptionText && (
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="body1">
-                                {program.description}
+                                {descriptionText}
                             </Typography>
                         </Paper>
                     )}

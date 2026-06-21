@@ -13,6 +13,11 @@ urlpatterns = [
     path("student/programs/", views.program_list, name="student.programs"),
     path("student/programs/<int:pk>/", views.program_view, name="student.program"),
     path(
+        "student/programs/<int:pk>/resume/",
+        views.program_resume,
+        name="student.program.resume",
+    ),
+    path(
         "student/programs/<int:pk>/session/<int:node_id>/",
         views.session_viewer,
         name="student.session",

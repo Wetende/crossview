@@ -1,8 +1,12 @@
-import React from 'react';
-import { Box, Typography, LinearProgress } from '@mui/material';
+import { Link } from '@inertiajs/react';
+import { Box, Typography, LinearProgress, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Home as HomeIcon } from '@mui/icons-material';
 import CurriculumTree from './CurriculumTree';
 
-const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollmentId }) => {
+const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollmentId, activeView }) => {
+    const isOverview = activeView === 'overview';
+    const overviewUrl = program?.id ? `/student/programs/${program.id}/` : '#';
+
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.paper' }}>
             {/* Course Title & Progress - Reduced padding */}
@@ -36,6 +40,31 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
                     Course progress: {Math.round(progress)}%
                 </Typography>
             </Box>
+
+            {/* Overview pseudo-item - always present, not a CurriculumNode */}
+            <ListItemButton
+                component={Link}
+                href={overviewUrl}
+                selected={isOverview}
+                sx={{
+                    mx: 2,
+                    mt: 1.5,
+                    mb: 1,
+                    borderRadius: 1,
+                    '&.Mui-selected': {
+                        bgcolor: 'primary.lighter',
+                        color: 'primary.main',
+                    },
+                }}
+            >
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                    <HomeIcon fontSize="small" color={isOverview ? 'primary' : 'action'} />
+                </ListItemIcon>
+                <ListItemText
+                    primary="Overview"
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: isOverview ? 600 : 400 }}
+                />
+            </ListItemButton>
 
             {/* Scrollable Curriculum Tree */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>

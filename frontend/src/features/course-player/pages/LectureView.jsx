@@ -1,23 +1,26 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import ClassroomLayout from '../layouts/ClassroomLayout';
 import CourseSidebar from '../components/Navigation/CourseSidebar';
 import StudyPanel from '../components/Tools/StudyPanel';
 import Whiteboard from '../components/Stage/Whiteboard';
+import CourseOverview from '../components/Stage/CourseOverview';
 import { Box, Button, Typography } from '@mui/material';
 
 const LectureView = ({ 
     program, 
     enrollment, 
     node, 
-    curriculum, 
-    progress, 
+    curriculum,
     prevNode, 
     nextNode, 
     isCompleted,
     instructor = null,
     discussions = [],
-    notes = []
+    notes = [],
+    activeView = null,
+    resumeUrl = null,
+    curriculumSummary = null,
 }) => {
     // Local State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -38,6 +41,7 @@ const LectureView = ({
             curriculum={curriculum || []}
             activeNodeId={node?.id}
             enrollmentId={enrollment?.id}
+            activeView={activeView}
         />
     );
 
@@ -53,20 +57,22 @@ const LectureView = ({
         />
     );
 
+    const isOverview = activeView === 'overview';
+
     return (
         <ClassroomLayout 
             programTitle={program?.name || 'Loading Course...'}
             backLink="/dashboard/"
             LeftPanel={LeftPanel}
-            RightPanel={RightPanel}
+            RightPanel={isOverview ? null : RightPanel}
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isDiscussionsOpen={isDiscussionsOpen}
             onToggleDiscussions={() => setIsDiscussionsOpen(!isDiscussionsOpen)}
         >
-            <Head title={node?.title || program?.name || 'Course Player'} />
+            <Head title={isOverview ? `${program?.name || 'Course'} - Overview` : node?.title || program?.name || 'Course Player'} />
 
-            {instructor?.id && (
+            {!isOverview && instructor?.id && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
                     <Button
                         component={Link}
@@ -80,7 +86,14 @@ const LectureView = ({
             )}
             
             {/* Main Stage */}
-            {node ? (
+            {isOverview ? (
+                <CourseOverview
+                    program={program}
+                    enrollment={enrollment}
+                    curriculumSummary={curriculumSummary}
+                    resumeUrl={resumeUrl}
+                />
+            ) : node ? (
                 <Whiteboard 
                     node={node} 
                     prevNode={prevNode}

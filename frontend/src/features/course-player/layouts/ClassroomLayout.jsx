@@ -42,6 +42,7 @@ const ClassroomLayoutInner = ({
 
     const sidebarWidth = 280;
     const discussionsWidth = isMobile ? '100%' : 320;
+    const hasRightPanel = Boolean(RightPanel);
 
     return (
         <Box
@@ -147,21 +148,23 @@ const ClassroomLayoutInner = ({
                             )}
                         </IconButton>
 
-                        <Button
-                            size="small"
-                            startIcon={!isMobile && <ChatBubbleOutline fontSize="small" />}
-                            onClick={onToggleDiscussions}
-                            sx={{
-                                textTransform: "none",
-                                color: isDiscussionsOpen
-                                    ? "primary.main"
-                                    : "text.secondary",
-                                minWidth: isMobile ? 40 : 'auto',
-                                px: isMobile ? 1 : 2,
-                            }}
-                        >
-                            {isMobile ? <ChatBubbleOutline fontSize="small" /> : 'Discussions'}
-                        </Button>
+                        {hasRightPanel && (
+                            <Button
+                                size="small"
+                                startIcon={!isMobile && <ChatBubbleOutline fontSize="small" />}
+                                onClick={onToggleDiscussions}
+                                sx={{
+                                    textTransform: "none",
+                                    color: isDiscussionsOpen
+                                        ? "primary.main"
+                                        : "text.secondary",
+                                    minWidth: isMobile ? 40 : 'auto',
+                                    px: isMobile ? 1 : 2,
+                                }}
+                            >
+                                {isMobile ? <ChatBubbleOutline fontSize="small" /> : 'Discussions'}
+                            </Button>
+                        )}
                     </Box>
                 </Toolbar>
             </AppBar>
@@ -230,7 +233,7 @@ const ClassroomLayoutInner = ({
                         bgcolor: "background.default",
                         position: "relative",
                         // Adjust margin when discussions is open (desktop only)
-                        marginRight: isDiscussionsOpen && isDesktop
+                        marginRight: hasRightPanel && isDiscussionsOpen && isDesktop
                             ? `${discussionsWidth}px`
                             : 0,
                         transition: theme.transitions.create("margin", {
@@ -259,7 +262,7 @@ const ClassroomLayoutInner = ({
                 </Box>
 
                 {/* Right Sidebar (Discussions) - Full screen on mobile, overlay on desktop */}
-                {isMobile ? (
+                {hasRightPanel && isMobile ? (
                     <Drawer
                         anchor="right"
                         open={isDiscussionsOpen}
@@ -273,7 +276,7 @@ const ClassroomLayoutInner = ({
                     >
                         {RightPanel}
                     </Drawer>
-                ) : (
+                ) : hasRightPanel ? (
                     <Box
                         sx={{
                             position: "absolute",
@@ -297,7 +300,7 @@ const ClassroomLayoutInner = ({
                     >
                         {RightPanel}
                     </Box>
-                )}
+                ) : null}
             </Box>
         </Box>
     );

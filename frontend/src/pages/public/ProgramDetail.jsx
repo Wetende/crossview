@@ -25,7 +25,6 @@ import {
     Snackbar,
     Alert as MuiAlert,
     useTheme,
-    LinearProgress,
 } from "@mui/material";
 import {
     IconClock,
@@ -50,6 +49,7 @@ import PublicNavbar from "@/components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { truncatePlainText } from "@/utils/htmlText";
 
 // --- Helper Components ---
 
@@ -168,7 +168,7 @@ function CourseDetailsSidebar({
                         {/* Continue Button */}
                         <Button
                             component={Link}
-                            href={`/student/programs/${program.id}/`}
+                            href={`/student/programs/${program.id}/resume/`}
                             variant="contained"
                             fullWidth
                             size="large"
@@ -602,13 +602,13 @@ export default function ProgramDetail({
     ctaState = "not_enrolled",
     courseLevels = [],
 }) {
-    const theme = useTheme();
     const { auth, platform } = usePage().props;
     const { addToCart } = useCart();
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const [tabValue, setTabValue] = useState(0);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
+    const shortDescription = truncatePlainText(program.description, 200);
 
     const handleShowDetails = () => setDetailsModalOpen(true);
     const handleCloseDetails = () => setDetailsModalOpen(false);
@@ -796,8 +796,7 @@ export default function ProgramDetail({
                                     color="text.secondary"
                                     sx={{ mb: 3 }}
                                 >
-                                    {program.description?.substring(0, 200)}
-                                    {program.description?.length > 200 && "..."}
+                                    {shortDescription}
                                 </Typography>
 
                                 {/* Featured Image */}
@@ -838,12 +837,17 @@ export default function ProgramDetail({
 
                                 {/* Description Tab */}
                                 <TabPanel value={tabValue} index={0}>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ whiteSpace: "pre-wrap", mb: 4 }}
-                                    >
-                                        {program.description}
-                                    </Typography>
+                                    <Box
+                                        sx={{
+                                            mb: 4,
+                                            "& p": { mb: 1 },
+                                            "& ul, & ol": { pl: 3, mb: 1.5 },
+                                            "& li": { mb: 0.5 },
+                                        }}
+                                        dangerouslySetInnerHTML={{
+                                            __html: DOMPurify.sanitize(program.description || ""),
+                                        }}
+                                    />
 
                                     {program.what_you_learn_html && (
                                             <Box sx={{ mt: 4 }}>
@@ -852,7 +856,7 @@ export default function ProgramDetail({
                                                     fontWeight={600}
                                                     sx={{ mb: 3 }}
                                                 >
-                                                    What you'll learn
+                                                    What you&apos;ll learn
                                                 </Typography>
                                                 <Box
                                                     sx={{

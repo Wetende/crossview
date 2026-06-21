@@ -6851,6 +6851,18 @@ def serialize_program_data(program):
         deployment_mode=platform_settings.deployment_mode,
     )
     level_value = (program.level or "").strip()
+    course_levels = platform_settings.get_course_levels()
+    level_label = next(
+        (
+            str(level.get("label") or "").strip()
+            for level in course_levels
+            if (level or {}).get("value") == level_value
+        ),
+        "",
+    )
+    display_level = (
+        (program.official_level or "").strip() or level_label or level_value
+    )
     prerequisite_program_ids = list(
         program.prerequisite_programs.values_list("id", flat=True)
     )
@@ -6871,6 +6883,8 @@ def serialize_program_data(program):
             "code": program.code,
             "description": program.description,
             "level": program.level,
+            "officialLevel": program.official_level or "",
+            "displayLevel": display_level,
             "category": program.category,
             "thumbnail": program.thumbnail.url if program.thumbnail else None,
             "whatYouLearn": program.what_you_learn_items or [],
@@ -6897,9 +6911,11 @@ def serialize_program_data(program):
             "ratingCount": program.rating_count,
             "taxonomy": {
                 "levelValue": level_value,
+                "levelLabel": level_label,
+                "displayLevel": display_level,
                 "builderHierarchy": builder_hierarchy,
                 "fullHierarchy": [
-                    level_value,
+                    display_level,
                     builder_hierarchy[0],
                     builder_hierarchy[1],
                 ],
@@ -6931,7 +6947,7 @@ def serialize_program_data(program):
             ),
         },
         "availablePrerequisites": available_prerequisites,
-        "courseLevels": platform_settings.get_course_levels(),
+        "courseLevels": course_levels,
         "platformFeatures": platform_features,
         "deploymentMode": platform_settings.deployment_mode,
     }
@@ -8076,7 +8092,7 @@ def instructor_node_reorder(request, program_id: int):
 
 @login_required
 def instructor_program_update_settings(request, pk: int):
-    """Update extended settings: FAQ, Pricing, Notices, prerequisites, access, and drip."""
+    """Update course settings: Overview, Settings, FAQ, Pricing, Notices, Drip, Prerequisites, Access."""
     if not is_instructor(request.user) or request.method != "POST":
         return redirect("/dashboard/")
 
@@ -8094,6 +8110,24 @@ def instructor_program_update_settings(request, pk: int):
 
     program = Program.objects.get(pk=pk)
     data = get_post_data(request)
+    files = request.FILES
+    active_tab = str(data.get("tab") or request.GET.get("tab") or "").strip().lower()
+    valid_builder_tabs = {
+        "overview",
+        "settings",
+        "pricing",
+        "faq",
+        "notice",
+        "drip",
+        "practicum",
+        "prerequisites",
+        "access",
+    }
+
+    def _redirect_to_builder():
+        if active_tab in valid_builder_tabs:
+            return redirect(f"/instructor/programs/{pk}/manage/?tab={active_tab}")
+        return redirect("core:instructor.program_manage", pk=pk)
 
     def _to_bool(value):
         if isinstance(value, bool):
@@ -8160,7 +8194,6 @@ def instructor_program_update_settings(request, pk: int):
             allow_none=True,
         )
 
-        # Backward compatibility for legacy payloads that used sale_price.
         if original_price is None and legacy_sale_price is not None:
             if price and legacy_sale_price < price:
                 original_price = price
@@ -8200,6 +8233,94 @@ def instructor_program_update_settings(request, pk: int):
             _program_depends_on(dep_id, target_program_id, seen) for dep_id in dep_ids
         )
 
+    # --- Settings tab: name, code, category, level, officialLevel, thumbnail ---
+    if "name" in data:
+        name_val = str(data.get("name", "")).strip()
+        if not name_val:
+            messages.error(request, "Program name is required.")
+            return _redirect_to_builder()
+        program.name = name_val
+
+    if "code" in data:
+        code_val = str(data.get("code", "")).strip() or None
+        if not code_val:
+            messages.error(request, "Program code is required.")
+            return _redirect_to_builder()
+        if Program.objects.filter(code=code_val).exclude(pk=program.pk).exists():
+            messages.error(request, "A program with this code already exists.")
+            return _redirect_to_builder()
+        program.code = code_val
+
+    if "category" in data:
+        program.category = str(data.get("category", "")).strip() or None
+
+    if "level" in data or "officialLevel" in data:
+        from apps.platform.models import PlatformSettings
+
+        platform_settings = PlatformSettings.get_settings()
+        course_levels = platform_settings.get_course_levels()
+        valid_level_values = {
+            (level or {}).get("value") for level in (course_levels or [])
+        }
+        selected_level = str(data.get("level") or "").strip()
+        official_level = str(data.get("officialLevel") or "").strip()
+
+        if "officialLevel" in data:
+            program.official_level = official_level or None
+        if "level" in data and selected_level:
+            if valid_level_values and selected_level not in valid_level_values:
+                messages.error(request, "Level must be a valid option.")
+                return _redirect_to_builder()
+            program.level = selected_level
+
+    if "thumbnail" in files:
+        program.thumbnail = files["thumbnail"]
+
+    # --- Overview tab: description, whatYouLearn ---
+    if "description" in data:
+        program.description = str(data.get("description", "")).strip()
+
+    if "whatYouLearn" in data:
+        what_you_learn_raw = str(data.get("whatYouLearn", "")).strip()
+        program.what_you_learn_html = what_you_learn_raw
+        program.what_you_learn_items = extract_learning_outcome_items_from_html(
+            what_you_learn_raw
+        )
+
+    # --- Pricing ---
+    if "custom_pricing" in data:
+        program.custom_pricing = _normalize_custom_pricing(data["custom_pricing"])
+
+    # --- FAQ ---
+    if "faq" in data:
+        program.faq = data["faq"]
+
+    # --- Notices ---
+    if "notices" in data:
+        program.notices = data["notices"]
+
+    # --- Overview tab: resources ---
+    from apps.core.models import ProgramResource
+
+    delete_resource_ids = data.get("deleteResourceIds", [])
+    if delete_resource_ids is None:
+        delete_resource_ids = []
+    if not isinstance(delete_resource_ids, list):
+        delete_resource_ids = [delete_resource_ids]
+
+    normalized_delete_resource_ids = []
+    for value in delete_resource_ids:
+        parsed = _to_int(value)
+        if parsed:
+            normalized_delete_resource_ids.append(parsed)
+    normalized_delete_resource_ids = list(dict.fromkeys(normalized_delete_resource_ids))
+
+    material_files = []
+    for key in files:
+        if key == "materials" or key.startswith("materials["):
+            material_files.extend(files.getlist(key))
+
+    # --- Prerequisites ---
     prerequisite_ids = data.get("prerequisite_program_ids", [])
     if prerequisite_ids is None:
         prerequisite_ids = []
@@ -8215,7 +8336,7 @@ def instructor_program_update_settings(request, pk: int):
 
     if pk in normalized_prerequisite_ids:
         messages.error(request, "A program cannot be a prerequisite of itself.")
-        return redirect("core:instructor.program_manage", pk=pk)
+        return _redirect_to_builder()
 
     for dep_id in normalized_prerequisite_ids:
         if _program_depends_on(dep_id, pk):
@@ -8223,18 +8344,18 @@ def instructor_program_update_settings(request, pk: int):
                 request,
                 "Prerequisite cycle detected. Please remove cyclic dependencies.",
             )
-            return redirect("core:instructor.program_manage", pk=pk)
+            return _redirect_to_builder()
+
+    access_duration_days = _to_int(data.get("access_duration_days"))
+    if access_duration_days is not None and access_duration_days < 1:
+        messages.error(request, "Access duration must be a positive number of days.")
+        return _redirect_to_builder()
 
     drip_mode = (data.get("drip_mode") or "none").strip().lower()
     valid_drip_modes = {"none", "relative", "absolute", "mixed"}
     if drip_mode not in valid_drip_modes:
         messages.error(request, "Invalid drip mode.")
-        return redirect("core:instructor.program_manage", pk=pk)
-
-    access_duration_days = _to_int(data.get("access_duration_days"))
-    if access_duration_days is not None and access_duration_days < 1:
-        messages.error(request, "Access duration must be a positive number of days.")
-        return redirect("core:instructor.program_manage", pk=pk)
+        return _redirect_to_builder()
 
     drip_schedule = data.get("drip_schedule", [])
     if drip_schedule is None:
@@ -8242,24 +8363,35 @@ def instructor_program_update_settings(request, pk: int):
     if not isinstance(drip_schedule, list):
         drip_schedule = []
 
+    if "prerequisites_enabled" in data:
+        program.prerequisites_enabled = _to_bool(data.get("prerequisites_enabled"))
+    if "access_duration_days" in data:
+        program.access_duration_days = access_duration_days
+    if "drip_enabled" in data:
+        program.drip_enabled = _to_bool(data.get("drip_enabled"))
+    if "drip_mode" in data:
+        program.drip_mode = drip_mode
+
     with transaction.atomic():
-        if "faq" in data:
-            program.faq = data["faq"]
-        if "notices" in data:
-            program.notices = data["notices"]
-        if "custom_pricing" in data:
-            program.custom_pricing = _normalize_custom_pricing(data["custom_pricing"])
-
-        if "prerequisites_enabled" in data:
-            program.prerequisites_enabled = _to_bool(data.get("prerequisites_enabled"))
-        if "access_duration_days" in data:
-            program.access_duration_days = access_duration_days
-        if "drip_enabled" in data:
-            program.drip_enabled = _to_bool(data.get("drip_enabled"))
-        if "drip_mode" in data:
-            program.drip_mode = drip_mode
-
         program.save()
+
+        if normalized_delete_resource_ids:
+            resources_to_delete = ProgramResource.objects.filter(
+                program=program,
+                id__in=normalized_delete_resource_ids,
+            )
+            for resource in resources_to_delete:
+                if resource.file:
+                    resource.file.delete(save=False)
+                resource.delete()
+
+        for uploaded_file in material_files:
+            ProgramResource.objects.create(
+                program=program,
+                file=uploaded_file,
+                title=uploaded_file.name,
+                resource_type="material",
+            )
 
         if "prerequisite_program_ids" in data:
             valid_ids = list(
@@ -8308,7 +8440,7 @@ def instructor_program_update_settings(request, pk: int):
                 )
 
     messages.success(request, "Settings updated")
-    return redirect("core:instructor.program_manage", pk=pk)
+    return _redirect_to_builder()
 
 
 @login_required
