@@ -62,6 +62,7 @@ class StudentProgramsViewTests(TestCase):
         self.assertEqual(props["program"]["description"], "A practical course overview.")
         self.assertEqual(props["program"]["notices"][0]["title"], "Exam window")
         self.assertEqual(props["program"]["resources"][0]["title"], "Syllabus")
+        self.assertNotIn("curriculumSummary", props)
 
     def test_program_resume_renders_first_incomplete_lesson(self):
         student = UserFactory()

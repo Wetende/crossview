@@ -731,9 +731,6 @@ def program_view(request, pk: int):
     primary_instructor = _get_primary_instructor_payload(program)
     program_payload = _build_program_player_payload(program)
 
-    # Build curriculum summary for the overview
-    curriculum_summary = _build_curriculum_summary(curriculum_tree)
-
     return render(
         request,
         "Student/CoursePlayer",
@@ -747,7 +744,6 @@ def program_view(request, pk: int):
                 "progressPercent": round(progress, 1),
             },
             "curriculum": curriculum_tree,
-            "curriculumSummary": curriculum_summary,
             "resumeUrl": f"/student/programs/{program.id}/resume/",
             "prevNode": None,
             "nextNode": None,
@@ -1486,36 +1482,6 @@ def _build_program_player_payload(program: Program):
         "notices": program.notices or [],
         "resources": resources,
         "faq": program.faq or [],
-    }
-
-
-def _build_curriculum_summary(curriculum_tree: list) -> dict:
-    """Build a flat summary of the curriculum for the overview screen."""
-    section_count = len(curriculum_tree)
-    sections = []
-
-    def count_leaf_nodes(nodes):
-        total = 0
-        for node in nodes:
-            children = node.get("children") or []
-            if children:
-                total += count_leaf_nodes(children)
-            else:
-                total += 1
-        return total
-
-    for section in curriculum_tree:
-        children = section.get("children") or []
-        section_lesson_count = count_leaf_nodes(children) if children else 1
-        sections.append({
-            "title": section.get("title", ""),
-            "lessonCount": section_lesson_count,
-        })
-
-    return {
-        "sectionCount": section_count,
-        "lessonCount": count_leaf_nodes(curriculum_tree),
-        "sections": sections,
     }
 
 

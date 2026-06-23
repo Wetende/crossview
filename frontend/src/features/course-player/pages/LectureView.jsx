@@ -20,7 +20,6 @@ const LectureView = ({
     notes = [],
     activeView = null,
     resumeUrl = null,
-    curriculumSummary = null,
 }) => {
     // Local State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -90,7 +89,6 @@ const LectureView = ({
                 <CourseOverview
                     program={program}
                     enrollment={enrollment}
-                    curriculumSummary={curriculumSummary}
                     resumeUrl={resumeUrl}
                 />
             ) : node ? (
@@ -115,4 +113,3 @@ const LectureView = ({
 };
 
 export default LectureView;
-
