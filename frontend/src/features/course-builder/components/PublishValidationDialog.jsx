@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -15,7 +15,6 @@ import {
     ListItemText,
     Chip,
     Stack,
-    Divider
 } from '@mui/material';
 import {
     CheckCircle as CheckIcon,
@@ -35,7 +34,7 @@ function getReadableIssueMessage(issue) {
         return 'Add at least one quiz or assignment before publishing.';
     }
     if (issueType === 'missing_weight') {
-        return 'Set an assessment weight for this assignment.';
+        return 'Set an assessment weight for this item.';
     }
     if (issueType === 'invalid_weight_sum') {
         const match = message.match(/currently\s+(\d+)%/i);
@@ -44,15 +43,20 @@ function getReadableIssueMessage(issue) {
             ? `Current total assessment weight is ${total}%. It must be exactly 100% before publishing.`
             : 'Total assessment weight must be exactly 100% before publishing.';
     }
-    if (issueType === 'weight_recommendation') {
-        const match = message.match(/total\s+(\d+)%/i);
-        const total = match?.[1];
-        return total
-            ? `Current total assessment weight is ${total}%. Recommended total is 100%.`
-            : 'Recommended total assessment weight is 100%.';
-    }
     if (issueType === 'missing_assessment_prompt') {
         return 'Add assignment instructions or a prompt so learners know what to submit.';
+    }
+    if (issueType === 'missing_instructor') {
+        return 'Assign at least one instructor before publishing.';
+    }
+    if (issueType === 'missing_description') {
+        return 'Add a clear course description before publishing.';
+    }
+    if (issueType === 'missing_thumbnail') {
+        return 'Upload a course thumbnail before publishing.';
+    }
+    if (issueType === 'missing_learning_outcomes') {
+        return "Add what learners will learn before publishing.";
     }
     if (issueType === 'invalid_assignment_mode_config') {
         return 'Review assignment settings. Required question/submission options are incomplete.';
@@ -119,13 +123,7 @@ export default function PublishValidationDialog({
     const [validation, setValidation] = useState(null);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        if (open && programId) {
-            fetchValidation();
-        }
-    }, [open, programId]);
-
-    const fetchValidation = async () => {
+    const fetchValidation = useCallback(async () => {
         setLoading(true);
         setError(null);
 
@@ -145,7 +143,13 @@ export default function PublishValidationDialog({
         } finally {
             setLoading(false);
         }
-    };
+    }, [programId]);
+
+    useEffect(() => {
+        if (open && programId) {
+            fetchValidation();
+        }
+    }, [fetchValidation, open, programId]);
 
     const handlePublish = () => {
         onPublish?.();
@@ -211,13 +215,13 @@ export default function PublishValidationDialog({
                         {/* Course stats */}
                         {renderStats(validation?.details)}
 
-                        {/* Weight summary for theology mode */}
-                        {validation?.details?.mode === 'theology' && (
+                        {/* Assessment weight summary */}
+                        {typeof validation?.details?.total_assessment_weight === 'number' && (
                             <Alert
-                                severity={validation?.details?.total_assignment_weight === 100 ? 'success' : 'warning'}
+                                severity={validation.details.total_assessment_weight === 100 ? 'success' : 'warning'}
                                 sx={{ mb: 2 }}
                             >
-                                Assignment weights: {validation?.details?.total_assignment_weight}% / 100%
+                                Assessment weight: {validation.details.total_assessment_weight}% / 100%
                             </Alert>
                         )}
 

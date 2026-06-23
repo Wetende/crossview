@@ -38,7 +38,6 @@ export default function SettingsPanel({
 }) {
     const { props } = usePage();
     const availablePrerequisites = props.availablePrerequisites || [];
-    const courseLevels = props.courseLevels || [];
     const categories = props.platform?.programCategories || [];
     const fileInputRef = useRef(null);
 
@@ -59,7 +58,6 @@ export default function SettingsPanel({
         code: program.code || "",
         category: program.category || "",
         level: program.level || "",
-        officialLevel: program.officialLevel || "",
         thumbnail: null,
         custom_pricing: program.customPricing || {},
         faq: program.faq || [],
@@ -88,7 +86,6 @@ export default function SettingsPanel({
                     code: formData.code,
                     category: formData.category,
                     level: formData.level,
-                    officialLevel: formData.officialLevel,
                 };
                 if (formData.thumbnail) {
                     payload.thumbnail = formData.thumbnail;
@@ -318,32 +315,13 @@ export default function SettingsPanel({
                             />
                         )}
 
-                        <FormControl fullWidth>
-                            <InputLabel id="level-label">Level</InputLabel>
-                            <Select
-                                labelId="level-label"
-                                value={formData.level}
-                                label="Level"
-                                onChange={(e) => setData("level", e.target.value)}
-                            >
-                                <MenuItem value="">
-                                    <em>None</em>
-                                </MenuItem>
-                                {courseLevels.map((lvl) => (
-                                    <MenuItem key={lvl.value} value={lvl.value}>
-                                        {lvl.label}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-
                         <TextField
-                            label="Official Level"
+                            label="Level"
                             fullWidth
-                            value={formData.officialLevel}
-                            onChange={(e) => setData("officialLevel", e.target.value)}
-                            placeholder="e.g. Level 5, Certificate I"
-                            helperText="Examining body level designation."
+                            value={formData.level}
+                            onChange={(e) => setData("level", e.target.value)}
+                            placeholder="e.g. Beginner, Level 5, Certificate I"
+                            helperText="Student-facing course level."
                         />
 
                         <Box>
@@ -426,6 +404,7 @@ export default function SettingsPanel({
                             router.post(
                                 `/instructor/programs/${program.id}/manage/settings/`,
                                 {
+                                    tab: "drip",
                                     drip_enabled: payload.drip_enabled,
                                     drip_mode: payload.drip_mode,
                                     drip_schedule: payload.drip_schedule,
@@ -553,21 +532,6 @@ export default function SettingsPanel({
                             helperText="Students will lose access after this many days from enrollment"
                             sx={{ maxWidth: 320 }}
                         />
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={formData.access_expiration_warning ?? false}
-                                    onChange={(e) =>
-                                        setData("access_expiration_warning", e.target.checked)
-                                    }
-                                />
-                            }
-                            label="Show expiration warning (7 days before)"
-                            disabled
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                            Expiration warnings are not yet configurable.
-                        </Typography>
                     </Stack>
                 );
 

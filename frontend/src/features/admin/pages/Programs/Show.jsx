@@ -7,12 +7,8 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
-  Grid,
   Chip,
   Stack,
-  Divider,
   Table,
   TableBody,
   TableCell,
@@ -33,14 +29,8 @@ import {
   TextField,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import EditIcon from '@mui/icons-material/Edit';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import DescriptionIcon from '@mui/icons-material/Description';
 import CancelIcon from '@mui/icons-material/Cancel';
-import PeopleIcon from '@mui/icons-material/People';
-import SchoolIcon from '@mui/icons-material/School';
 import DashboardLayout from '@/layouts/DashboardLayout';
 
 
@@ -135,7 +125,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                   <Eyebrow>Programme</Eyebrow>
                   <PageTitle component="h1">{program.name}</PageTitle>
                   <Typography sx={{ color: tokens.muted, fontSize: 15 }}>
-                    {program.examBody ? `${program.examBody} · ${program.officialLevel || 'No level'}` : 'Independent Course'}
+                    {program.examBody ? `${program.examBody} · ${program.level || 'No level'}` : 'Independent Course'}
                   </Typography>
 
                   <StatusStamp
@@ -387,14 +377,18 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
               />
             )}
             renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  variant="outlined"
-                  label={option.name || option.email}
-                  {...getTagProps({ index })}
-                  sx={{ borderColor: tokens.hairline, bgcolor: tokens.paper }}
-                />
-              ))
+              value.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return (
+                  <Chip
+                    key={key}
+                    variant="outlined"
+                    label={option.name || option.email}
+                    {...tagProps}
+                    sx={{ borderColor: tokens.hairline, bgcolor: tokens.paper }}
+                  />
+                );
+              })
             }
           />
         </DialogContent>

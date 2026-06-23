@@ -109,12 +109,6 @@ urlpatterns = [
         views.admin_instructor_application_unlock,
         name="admin.instructor_application.unlock",
     ),
-    # Admin Course Approval
-    path("admin/course-approval/", views.admin_course_approval_queue, name="admin.course_approval"),
-    path("admin/course-approval/<int:program_id>/", views.admin_course_review, name="admin.course_review"),
-    path("admin/course-approval/<int:program_id>/approve/", views.admin_course_approve, name="admin.course_approve"),
-    path("admin/course-approval/<int:program_id>/request-changes/", views.admin_course_request_changes, name="admin.course_request_changes"),
-    path("admin/course-approval/<int:program_id>/preview/", views.admin_preview_as_student, name="admin.preview_as_student"),
     path("admin/reviews/", views.admin_reviews, name="admin.reviews"),
     path("admin/reviews/<int:review_id>/approve/", views.admin_review_approve, name="admin.review.approve"),
     path("admin/reviews/<int:review_id>/reject/", views.admin_review_reject, name="admin.review.reject"),
@@ -161,14 +155,9 @@ urlpatterns = [
     path("instructor/discussions/<int:discussion_id>/toggle-pin/", views.instructor_discussion_toggle_pin, name="instructor.discussion_toggle_pin"),
     path("instructor/discussions/<int:discussion_id>/toggle-lock/", views.instructor_discussion_toggle_lock, name="instructor.discussion_toggle_lock"),
     path("instructor/discussions/reply/", views.instructor_discussion_reply, name="instructor.discussion_reply"),
-
-
-    path("instructor/programs/<int:program_id>/submit/", views.instructor_program_submit_for_review, name="instructor.program_submit"),
-
     path("instructor/programs/<int:program_id>/validate/", views.instructor_program_validate, name="instructor.program_validate"),
     path("instructor/programs/<int:program_id>/publish/", views.instructor_program_publish, name="instructor.program_publish"),
-    path("instructor/programs/<int:program_id>/change-requests/", views.instructor_program_change_requests, name="instructor.program_change_requests"),
-    path("instructor/change-requests/<int:change_request_id>/resolve/", views.instructor_resolve_change_request, name="instructor.resolve_change_request"),
+    path("instructor/programs/<int:program_id>/unpublish/", views.instructor_program_unpublish, name="instructor.program_unpublish"),
     path("instructor/students/", views.instructor_students, name="instructor.students"),
     path("instructor/students/<int:pk>/", views.instructor_student_detail, name="instructor.student"),
     path("instructor/enrollments/<int:enrollment_id>/status/", views.instructor_enrollment_status, name="instructor.enrollment_status"),

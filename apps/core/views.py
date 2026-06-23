@@ -43,7 +43,10 @@ from apps.assessments.official_results import (
     refresh_assignment_official_flags,
 )
 from apps.certifications.models import Certificate, VerificationLog
-from apps.core.learning_outcomes import extract_learning_outcome_items_from_html
+from apps.core.learning_outcomes import (
+    extract_learning_outcome_items_from_html,
+    resolve_learning_outcomes_html,
+)
 from apps.core.models import AdmissionApplication, Campus, Program, User
 from apps.core.taxonomy import (
     MAX_BUILDER_DEPTH,
@@ -75,49 +78,37 @@ def _get_user_role(user: User) -> str:
     return "student"
 
 
-def _group_programs_by_level(
-    programs: list, course_levels: list, level_key: str = "level"
-) -> list:
+def _group_programs_by_level(programs: list, level_key: str = "level") -> list:
     """
-    Group program dictionaries by configured course level values.
+    Group program dictionaries by their canonical level.
 
-    Returns ordered groups using course_levels order with a fallback group for unknown levels.
+    Blank-level programs are intentionally omitted from groups. The full program
+    list remains available to render them without a fake level heading.
     """
-    level_map = {}
-    ordered_values = []
-    for level in course_levels or []:
-        value = (level or {}).get("value")
-        label = (level or {}).get("label")
-        if value:
-            level_map[value] = label or value
-            ordered_values.append(value)
-
-    groups = []
-    grouped = {value: [] for value in ordered_values}
-    unknown = []
-
+    grouped = {}
     for program in programs:
-        level_value = (program or {}).get(level_key) or ""
-        if level_value in grouped:
-            grouped[level_value].append(program)
-        else:
-            unknown.append(program)
+        level_value = str((program or {}).get(level_key) or "").strip()
+        if level_value:
+            grouped.setdefault(level_value, []).append(program)
 
-    for value in ordered_values:
-        groups.append(
-            {
-                "value": value,
-                "label": level_map.get(value, value),
-                "programs": grouped[value],
-            }
-        )
+    return [
+        {"value": level_value, "label": level_value, "programs": group_programs}
+        for level_value, group_programs in grouped.items()
+        if group_programs
+    ]
 
-    if unknown:
-        groups.append(
-            {"value": "unassigned", "label": "Unassigned", "programs": unknown}
-        )
 
-    return groups
+def _build_level_options(programs: list, level_key: str = "level") -> list:
+    """Return level options present in the current program scope."""
+    seen = set()
+    options = []
+    for program in programs:
+        level_value = str((program or {}).get(level_key) or "").strip()
+        if not level_value or level_value in seen:
+            continue
+        seen.add(level_value)
+        options.append({"value": level_value, "label": level_value})
+    return options
 
 
 def _build_pagination(page: int, per_page: int, total: int) -> dict:
@@ -309,7 +300,7 @@ def public_programs_list(request):
         request, "programs", "groupedPrograms"
     )
     include_grouped_programs = should_render_inertia_prop(request, "groupedPrograms")
-    include_course_levels = should_render_inertia_prop(
+    include_level_options = should_render_inertia_prop(
         request, "courseLevels", "groupedPrograms"
     )
     include_categories = should_render_inertia_prop(request, "categories")
@@ -328,6 +319,8 @@ def public_programs_list(request):
     category = request.GET.get("category", "")
     if category:
         programs_query = programs_query.filter(category=category)
+
+    level_options_data = list(programs_query.values("level").order_by("level"))
 
     level = request.GET.get("level", "")
     if level:
@@ -413,7 +406,7 @@ def public_programs_list(request):
                 "created_at": program.created_at.isoformat(),
                 "thumbnail": program.thumbnail.url if program.thumbnail else None,
                 "category": program.category or "",
-                "level": program.level or "beginner",
+                "level": program.level or "",
                 "badge_type": program.badge_type,
                 "duration_hours": _minutes_to_hours(
                     stats_by_program_id[program.id]["duration_minutes"]
@@ -428,21 +421,13 @@ def public_programs_list(request):
             }
         )
 
-    from apps.platform.models import PlatformSettings
-
-    course_levels = (
-        PlatformSettings.get_cached_course_levels() if include_course_levels else []
-    )
-
     props = {}
     if include_programs:
         props["programs"] = programs_data
     if include_grouped_programs:
-        props["groupedPrograms"] = _group_programs_by_level(
-            programs_data, course_levels
-        )
-    if include_course_levels:
-        props["courseLevels"] = course_levels
+        props["groupedPrograms"] = _group_programs_by_level(programs_data)
+    if include_level_options:
+        props["courseLevels"] = _build_level_options(level_options_data)
     if include_filters:
         props["filters"] = {
             "search": search,
@@ -487,7 +472,13 @@ def public_programs_list(request):
     )
 
 
-def public_program_detail(request, pk: int):
+def public_program_detail(
+    request,
+    pk: int,
+    *,
+    is_preview: bool = False,
+    builder_url: str | None = None,
+):
     """
     Public course detail page with full course information.
     Adapts CTAs based on enrollment status and school mode (Chameleon engine).
@@ -497,9 +488,6 @@ def public_program_detail(request, pk: int):
 
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import Enrollment, EnrollmentRequest, NodeCompletion
-
-    # Check if this is a preview
-    is_preview = request.session.get("preview_program_id") == pk
 
     if is_preview:
         # Allow access even if not published
@@ -735,11 +723,10 @@ def public_program_detail(request, pk: int):
         "description": program.description or "",
         "thumbnail": program.thumbnail.url if program.thumbnail else None,
         "category": program.category or "",
-        "level": program.level or "beginner",
+        "level": program.level or "",
         "duration_hours": duration_hours,
         "lecture_count": lesson_count,
         "assessment_count": assessment_count,
-        # Deprecated on public pages (kept for backward compatibility)
         "video_hours": program.video_hours,
         "badge_type": program.badge_type,
         "price": price,
@@ -763,12 +750,6 @@ def public_program_detail(request, pk: int):
         "reviews": approved_reviews,
     }
 
-    # Get course levels for displaying label
-    from apps.platform.models import PlatformSettings
-
-    platform_settings = PlatformSettings.get_settings()
-    course_levels = platform_settings.get_course_levels()
-
     return render(
         request,
         "Public/ProgramDetail",
@@ -781,7 +762,8 @@ def public_program_detail(request, pk: int):
             "enrollmentData": enrollment_data,
             "enrollmentMode": enrollment_mode,
             "ctaState": cta_state,
-            "courseLevels": course_levels,
+            "isPreview": is_preview,
+            "builderUrl": builder_url,
         },
     )
 
@@ -1810,7 +1792,7 @@ def admin_programs(request):
     )
     include_grouped_programs = should_render_inertia_prop(request, "groupedPrograms")
     include_blueprints = should_render_inertia_prop(request, "blueprints")
-    include_course_levels = should_render_inertia_prop(
+    include_level_options = should_render_inertia_prop(
         request, "courseLevels", "groupedPrograms"
     )
     include_filters = should_render_inertia_prop(request, "filters")
@@ -1829,6 +1811,8 @@ def admin_programs(request):
     if search:
         programs_query = programs_query.filter(name__icontains=search)
 
+    level_options_data = list(programs_query.values("level").order_by("level"))
+
     if level:
         programs_query = programs_query.filter(level=level)
 
@@ -1845,7 +1829,6 @@ def admin_programs(request):
                 "blueprint_id",
                 "blueprint__name",
                 "level",
-                "official_level",
                 "is_published",
                 "created_at",
             ).order_by("-created_at")[(page - 1) * per_page : page * per_page]
@@ -1870,7 +1853,6 @@ def admin_programs(request):
                 "blueprintName": program.blueprint.name if program.blueprint else None,
                 "blueprintId": program.blueprint_id,
                 "level": program.level or "",
-                "officialLevel": program.official_level,
                 "isPublished": program.is_published,
                 "enrollmentCount": enrollment_counts.get(program.id, 0),
                 "createdAt": program.created_at.isoformat(),
@@ -1878,19 +1860,11 @@ def admin_programs(request):
             for program in programs
         ]
 
-    from apps.platform.models import PlatformSettings
-
-    course_levels = (
-        PlatformSettings.get_cached_course_levels() if include_course_levels else []
-    )
-
     props = {}
     if include_programs:
         props["programs"] = programs_data
     if include_grouped_programs:
-        props["groupedPrograms"] = _group_programs_by_level(
-            programs_data, course_levels
-        )
+        props["groupedPrograms"] = _group_programs_by_level(programs_data)
     if include_blueprints:
         from apps.blueprints.models import AcademicBlueprint
 
@@ -1901,8 +1875,8 @@ def admin_programs(request):
             ),
             900,
         )
-    if include_course_levels:
-        props["courseLevels"] = course_levels
+    if include_level_options:
+        props["courseLevels"] = _build_level_options(level_options_data)
     if include_filters:
         props["filters"] = {
             "status": status,
@@ -1960,54 +1934,43 @@ def admin_program_detail(request, pk: int):
     ]
 
     # Get readiness status (even if not publishing yet)
-    from apps.core.services.validation import ProgramValidationService
+    from apps.curriculum.services import CoursePublishValidationService
 
-    validator = ProgramValidationService()
-    validation_errors = validator.validate(program)
+    validation = CoursePublishValidationService().validate_for_publish(program)
+    validation_errors = validation.get("errors", [])
+    validation_messages = [
+        error.get("message") or "Resolve validation issues before publishing."
+        for error in validation_errors
+    ]
 
-    def _find_error(predicate):
-        for err in validation_errors:
-            if predicate(err):
-                return err
-        return None
+    def _has_error(error_type):
+        return any(error.get("type") == error_type for error in validation_errors)
 
-    structural_error = _find_error(lambda err: "at least one Session/Lesson" in err)
-    instructor_error = _find_error(
-        lambda err: "at least one assigned Instructor" in err
-    )
-    description_error = _find_error(
-        lambda err: "Description for the public catalog" in err
-    )
-    thumbnail_error = _find_error(lambda err: "Thumbnail image" in err)
-    mode_error = _find_error(
-        lambda err: (
-            "assessment weight" in err.lower() or "invalid program level" in err.lower()
-        )
-    )
-    weight_total_match = (
-        re.search(r"Total assessment weight is\s+(\d+)%", mode_error or "")
-        if mode_error
-        else None
-    )
-    current_weight_total = weight_total_match.group(1) if weight_total_match else None
+    structural_error = _has_error("missing_content") or _has_error("missing_assessment")
+    instructor_error = _has_error("missing_instructor")
+    description_error = _has_error("missing_description")
+    thumbnail_error = _has_error("missing_thumbnail")
+    learning_outcomes_error = _has_error("missing_learning_outcomes")
+    mode_error = _has_error("invalid_weight_sum")
+    current_weight_total = validation.get("details", {}).get("total_assessment_weight")
 
     # Structure readiness report for frontend
     readiness = {
-        "isReady": len(validation_errors) == 0,
-        "errors": validation_errors,
+        "isReady": validation.get("is_valid", False),
+        "errors": validation_messages,
         "checks": [
             {
                 "label": "Structural Integrity",
-                "passed": structural_error is None,
+                "passed": not structural_error,
                 "error": (
-                    "Add at least one lesson or session to this course before publishing."
+                    "Add at least one lesson and one quiz or assignment before publishing."
                     if structural_error
                     else None
                 ),
             },
             {
                 "label": "Instructor Assignment",
-                "passed": instructor_error is None,
+                "passed": not instructor_error,
                 "error": (
                     "Assign at least one instructor to this course before publishing."
                     if instructor_error
@@ -2016,7 +1979,7 @@ def admin_program_detail(request, pk: int):
             },
             {
                 "label": "Metadata (Description)",
-                "passed": description_error is None,
+                "passed": not description_error,
                 "error": (
                     "Add a clear course description for learners in the catalog."
                     if description_error
@@ -2025,7 +1988,7 @@ def admin_program_detail(request, pk: int):
             },
             {
                 "label": "Metadata (Thumbnail)",
-                "passed": thumbnail_error is None,
+                "passed": not thumbnail_error,
                 "error": (
                     "Upload a course thumbnail image so learners can identify this course."
                     if thumbnail_error
@@ -2033,20 +1996,25 @@ def admin_program_detail(request, pk: int):
                 ),
             },
             {
-                "label": "Mode Validations",
-                "passed": mode_error is None,
+                "label": "Metadata (What You'll Learn)",
+                "passed": not learning_outcomes_error,
+                "error": (
+                    "Add what learners will learn before publishing this course."
+                    if learning_outcomes_error
+                    else None
+                ),
+            },
+            {
+                "label": "Assessment Weight",
+                "passed": not mode_error,
                 "error": (
                     (
                         f"Current total assessment weight is {current_weight_total}%. It must be exactly 100% before publishing."
                         if current_weight_total
                         else "Total assessment weight must be exactly 100% before publishing."
                     )
-                    if mode_error and "assessment weight" in mode_error.lower()
-                    else (
-                        "Select a valid course level from your platform settings before publishing."
-                        if mode_error and "invalid program level" in mode_error.lower()
-                        else None
-                    )
+                    if mode_error
+                    else None
                 ),
             },
         ],
@@ -2063,10 +2031,10 @@ def admin_program_detail(request, pk: int):
                 "description": program.description or "",
                 "blueprintId": program.blueprint_id,
                 "blueprintName": program.blueprint.name if program.blueprint else None,
+                "level": program.level or "",
                 "isPublished": program.is_published,
                 "createdAt": program.created_at.isoformat(),
                 "examBody": program.exam_body,
-                "officialLevel": program.official_level,
                 "awardType": program.award_type,
                 "assessmentMode": program.assessment_mode,
             },
@@ -2121,7 +2089,9 @@ def admin_program_create(request):
                     "mode": "create",
                     "blueprints": _get_blueprints_for_form(),
                     "instructors": _get_instructors_for_form(),
-                    "courseLevels": platform_settings.get_course_levels(),
+                    "courseLevels": _build_level_options(
+                        list(Program.objects.values("level").order_by("level"))
+                    ),
                     "examBodyRegistry": get_registry_for_frontend(),
                     "deploymentMode": platform_settings.deployment_mode,
                     "errors": errors,
@@ -2136,11 +2106,10 @@ def admin_program_create(request):
             code=code or None,
             description=data.get("description", ""),
             is_published=data.get("isPublished", False),
-            level=data.get("level", ""),
+            level=(data.get("level") or "").strip(),
             # Exam body metadata (TVET mode)
             exam_body=data.get("examBody") or None,
             qualification_family=data.get("qualificationFamily") or None,
-            official_level=data.get("officialLevel") or None,
             award_type=data.get("awardType") or None,
             assessment_mode=data.get("assessmentMode") or None,
         )
@@ -2164,7 +2133,9 @@ def admin_program_create(request):
             "mode": "create",
             "blueprints": _get_blueprints_for_form(),
             "instructors": _get_instructors_for_form(),
-            "courseLevels": platform_settings.get_course_levels(),
+            "courseLevels": _build_level_options(
+                list(Program.objects.values("level").order_by("level"))
+            ),
             "examBodyRegistry": get_registry_for_frontend(),
             "deploymentMode": platform_settings.deployment_mode,
         },
@@ -2206,7 +2177,9 @@ def admin_program_edit(request, pk: int):
                     "program": _serialize_program(program),
                     "blueprints": _get_blueprints_for_form(),
                     "instructors": _get_instructors_for_form(),
-                    "courseLevels": platform_settings.get_course_levels(),
+                    "courseLevels": _build_level_options(
+                        list(Program.objects.values("level").order_by("level"))
+                    ),
                     "examBodyRegistry": get_registry_for_frontend(),
                     "deploymentMode": platform_settings.deployment_mode,
                     "errors": errors,
@@ -2218,12 +2191,11 @@ def admin_program_edit(request, pk: int):
         program.code = data.get("code", "").strip() or None
         program.description = data.get("description", "")
         program.is_published = data.get("isPublished", False)
-        program.level = data.get("level", "")
+        program.level = (data.get("level") or "").strip()
 
         # Exam body metadata
         program.exam_body = data.get("examBody") or None
         program.qualification_family = data.get("qualificationFamily") or None
-        program.official_level = data.get("officialLevel") or None
         program.award_type = data.get("awardType") or None
         program.assessment_mode = data.get("assessmentMode") or None
 
@@ -2263,7 +2235,9 @@ def admin_program_edit(request, pk: int):
             "currentInstructorIds": current_instructors,
             "blueprints": _get_blueprints_for_form(),
             "instructors": _get_instructors_for_form(),
-            "courseLevels": platform_settings.get_course_levels(),
+            "courseLevels": _build_level_options(
+                list(Program.objects.values("level").order_by("level"))
+            ),
             "examBodyRegistry": get_registry_for_frontend(),
             "deploymentMode": platform_settings.deployment_mode,
             "canChangeBlueprint": not Enrollment.objects.filter(
@@ -2337,24 +2311,7 @@ def admin_program_content(request, pk: int):
         program.description = data.get("description", "")
         program.category = data.get("category", "")
 
-        platform_settings = PlatformSettings.get_settings()
-        course_levels = platform_settings.get_course_levels()
-        valid_level_values = {
-            (level or {}).get("value") for level in (course_levels or [])
-        }
-        selected_level = (data.get("level") or "").strip()
-        official_level = (data.get("officialLevel") or "").strip()
-
-        if official_level:
-            program.official_level = official_level
-            # Also update broad category if passed
-            if selected_level in valid_level_values:
-                program.level = selected_level
-        else:
-            if not selected_level or selected_level not in valid_level_values:
-                messages.error(request, "Level is required and must be a valid option.")
-                return redirect("core:admin.program.content", pk=program.id)
-            program.level = selected_level
+        program.level = (data.get("level") or "").strip()
 
         # Update content/syllabus from rich text editor HTML.
         what_you_learn_raw = str(data.get("whatYouLearn", "")).strip()
@@ -2386,7 +2343,6 @@ def admin_program_content(request, pk: int):
 
     # Get platform settings
     platform_settings = PlatformSettings.get_settings()
-    course_levels = platform_settings.get_course_levels()
     # Logic: only show categories if explicitly configured in platform settings.
     categories = platform_settings.program_categories or []
 
@@ -2404,10 +2360,11 @@ def admin_program_content(request, pk: int):
                 "level": program.level or "",
                 "examBody": program.exam_body or "",
                 "qualificationFamily": program.qualification_family or "",
-                "officialLevel": program.official_level or "",
                 "whatYouLearn": program.what_you_learn_html or "",
             },
-            "courseLevels": course_levels,
+            "courseLevels": _build_level_options(
+                list(Program.objects.values("level").order_by("level"))
+            ),
             "examBodyRegistry": get_registry_for_frontend(),
             "categories": categories,
             "resources": [
@@ -2459,19 +2416,22 @@ def admin_program_publish(request, pk: int):
 
     from django.shortcuts import get_object_or_404
 
-    from apps.core.services.validation import ProgramValidationService
+    from apps.curriculum.services import CoursePublishValidationService
 
     program = get_object_or_404(Program, pk=pk)
 
     # If we are TRYING to publish (currently False), run validation
     if not program.is_published:
-        validator = ProgramValidationService()
-        errors = validator.validate(program)
+        validation = CoursePublishValidationService().validate_for_publish(program)
+        errors = validation.get("errors", [])
 
         if errors:
             # Block publishing
-            for error in errors:
-                messages.error(request, error)
+            for issue in errors:
+                messages.error(
+                    request,
+                    issue.get("message") or "Resolve validation issues before publishing.",
+                )
             return redirect("core:admin.program", pk=pk)
 
     # Proceed if valid or if unpublishing
@@ -2558,7 +2518,6 @@ def _serialize_program(program: Program) -> dict:
         # Exam body metadata
         "examBody": program.exam_body or "",
         "qualificationFamily": program.qualification_family or "",
-        "officialLevel": program.official_level or "",
         "awardType": program.award_type or "",
         "assessmentMode": program.assessment_mode or "",
     }
@@ -2976,7 +2935,7 @@ def instructor_programs(request):
         request, "programs", "groupedPrograms"
     )
     include_grouped_programs = should_render_inertia_prop(request, "groupedPrograms")
-    include_course_levels = should_render_inertia_prop(
+    include_level_options = should_render_inertia_prop(
         request, "courseLevels", "groupedPrograms"
     )
     include_filters = should_render_inertia_prop(request, "filters")
@@ -2988,6 +2947,9 @@ def instructor_programs(request):
         programs_query = programs_query.filter(is_published=True)
     elif status == "draft":
         programs_query = programs_query.filter(is_published=False)
+
+    level_options_data = list(programs_query.values("level").order_by("level"))
+
     if level:
         programs_query = programs_query.filter(level=level)
 
@@ -3040,20 +3002,13 @@ def instructor_programs(request):
             for program in programs
         ]
 
-    from apps.platform.models import PlatformSettings
-
-    course_levels = (
-        PlatformSettings.get_cached_course_levels() if include_course_levels else []
-    )
     props = {}
     if include_programs:
         props["programs"] = programs_data
     if include_grouped_programs:
-        props["groupedPrograms"] = _group_programs_by_level(
-            programs_data, course_levels
-        )
-    if include_course_levels:
-        props["courseLevels"] = course_levels
+        props["groupedPrograms"] = _group_programs_by_level(programs_data)
+    if include_level_options:
+        props["courseLevels"] = _build_level_options(level_options_data)
     if include_filters:
         props["filters"] = {"status": status, "level": level}
 
@@ -6386,359 +6341,8 @@ def student_assignment_submit(request, assignment_id: int):
 
 
 # =============================================================================
-# Course Vetting Workflow Views
+# Course Publication Views
 # =============================================================================
-
-
-@login_required
-def instructor_program_submit_for_review(request, program_id: int):
-    """
-    Submit a program for admin review.
-    """
-    from apps.progression.models import InstructorAssignment
-
-    if request.method != "POST":
-        return redirect("core:instructor.program", pk=program_id)
-
-    try:
-        program = Program.objects.get(pk=program_id)
-    except Program.DoesNotExist:
-        messages.error(request, "Program not found")
-        return redirect("/dashboard/")
-
-    # Verify instructor access
-    if not (
-        InstructorAssignment.objects.filter(
-            instructor=request.user, program=program
-        ).exists()
-        or request.user.is_staff
-    ):
-        return redirect("/dashboard/")
-
-    # Validate program can be submitted
-    if program.submission_status not in ("draft", "changes_requested"):
-        messages.error(request, "This program cannot be submitted in its current state")
-        return redirect("core:instructor.program", pk=program_id)
-
-    # Update status
-    program.submission_status = "submitted"
-    program.submitted_at = timezone.now()
-    program.submitted_by = request.user
-    program.save()
-
-    from apps.notifications.services import NotificationService
-
-    admin_users = User.objects.filter(is_staff=True, is_active=True)
-    if admin_users.exists():
-        NotificationService.bulk_create(
-            recipients=admin_users,
-            notification_type="system",
-            title="Program Submitted For Review",
-            message=(
-                f'"{program.name}" was submitted by '
-                f"{request.user.get_full_name() or request.user.email}."
-            ),
-            action_url=f"/admin/course-approval/{program.id}/",
-            related_program_id=program.id,
-            priority="high",
-        )
-
-    messages.success(
-        request, "Program submitted for review! You'll be notified when it's reviewed."
-    )
-    return redirect("core:instructor.program", pk=program_id)
-
-
-@login_required
-def admin_course_approval_queue(request):
-    """
-    Admin view: List programs pending approval.
-    """
-    if not request.user.is_staff:
-        return redirect("/dashboard/")
-
-    status_filter = request.GET.get("status", "submitted")
-
-    programs = (
-        Program.objects.select_related("submitted_by")
-        .filter(submission_status=status_filter)
-        .order_by("-submitted_at")
-    )
-
-    return render(
-        request,
-        "Admin/CourseApproval/Index",
-        {
-            "programs": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "description": (
-                        p.description[:200] + "..."
-                        if len(p.description) > 200
-                        else p.description
-                    ),
-                    "submittedAt": (
-                        p.submitted_at.isoformat() if p.submitted_at else None
-                    ),
-                    "submittedBy": (
-                        {
-                            "id": p.submitted_by.id,
-                            "name": p.submitted_by.get_full_name()
-                            or p.submitted_by.email,
-                        }
-                        if p.submitted_by
-                        else None
-                    ),
-                    "status": p.submission_status,
-                }
-                for p in programs
-            ],
-            "filter": status_filter,
-        },
-    )
-
-
-@login_required
-def admin_course_review(request, program_id: int):
-    """
-    Admin view: Review a single program submission.
-    """
-    from apps.curriculum.models import CourseChangeRequest, CurriculumNode
-
-    if not request.user.is_staff:
-        return redirect("/dashboard/")
-
-    try:
-        program = Program.objects.select_related("submitted_by").get(pk=program_id)
-    except Program.DoesNotExist:
-        messages.error(request, "Program not found")
-        return redirect("core:admin.course_approval")
-
-    # Get curriculum structure
-    nodes = CurriculumNode.objects.filter(program=program).order_by("path")
-
-    # Get existing change requests
-    change_requests = CourseChangeRequest.objects.filter(
-        program=program, is_resolved=False
-    ).select_related("node", "created_by")
-
-    return render(
-        request,
-        "Admin/CourseApproval/Review",
-        {
-            "program": {
-                "id": program.id,
-                "name": program.name,
-                "description": program.description,
-                "status": program.submission_status,
-                "submittedAt": (
-                    program.submitted_at.isoformat() if program.submitted_at else None
-                ),
-                "submittedBy": (
-                    {
-                        "id": program.submitted_by.id,
-                        "name": program.submitted_by.get_full_name()
-                        or program.submitted_by.email,
-                        "email": program.submitted_by.email,
-                    }
-                    if program.submitted_by
-                    else None
-                ),
-                "isPublished": program.is_published,
-            },
-            "curriculum": [
-                {
-                    "id": n.id,
-                    "title": n.title,
-                    "nodeType": n.node_type,
-                    "depth": n.depth,
-                    "path": n.path,
-                }
-                for n in nodes
-            ],
-            "changeRequests": [
-                {
-                    "id": cr.id,
-                    "message": cr.message,
-                    "nodeId": cr.node.id if cr.node else None,
-                    "nodeTitle": cr.node.title if cr.node else "General",
-                    "createdAt": cr.created_at.isoformat(),
-                    "createdBy": cr.created_by.get_full_name() or cr.created_by.email,
-                }
-                for cr in change_requests
-            ],
-        },
-    )
-
-
-@login_required
-def admin_course_approve(request, program_id: int):
-    """
-    Approve a program submission.
-    """
-    if not request.user.is_staff or request.method != "POST":
-        return redirect("core:admin.course_approval")
-
-    try:
-        program = Program.objects.get(pk=program_id)
-    except Program.DoesNotExist:
-        messages.error(request, "Program not found")
-        return redirect("core:admin.course_approval")
-
-    if program.submission_status != "submitted":
-        messages.error(request, "Program is not pending approval")
-        return redirect("core:admin.course_review", program_id=program_id)
-
-    program.submission_status = "approved"
-    program.save()
-
-    from apps.notifications.services import NotificationService
-
-    NotificationService.notify_program_approved(program)
-
-    messages.success(request, f"Program '{program.name}' has been approved!")
-    return redirect("core:admin.course_approval")
-
-
-@login_required
-def admin_course_request_changes(request, program_id: int):
-    """
-    Request changes on a program submission.
-    """
-    from apps.curriculum.models import CourseChangeRequest
-
-    if not request.user.is_staff or request.method != "POST":
-        return redirect("core:admin.course_approval")
-
-    try:
-        program = Program.objects.get(pk=program_id)
-    except Program.DoesNotExist:
-        messages.error(request, "Program not found")
-        return redirect("core:admin.course_approval")
-
-    data = get_post_data(request)
-    message = data.get("message", "").strip()
-    node_id = data.get("nodeId")
-
-    if not message:
-        messages.error(request, "Please provide feedback for the instructor")
-        return redirect("core:admin.course_review", program_id=program_id)
-
-    # Create change request
-    node = None
-    if node_id:
-        from apps.curriculum.models import CurriculumNode
-
-        node = CurriculumNode.objects.filter(pk=node_id, program=program).first()
-
-    CourseChangeRequest.objects.create(
-        program=program,
-        node=node,
-        message=message,
-        created_by=request.user,
-    )
-
-    # Update program status
-    if program.submission_status == "submitted":
-        program.submission_status = "changes_requested"
-        program.save()
-
-    from apps.notifications.services import NotificationService
-
-    NotificationService.notify_program_changes_requested(program, feedback=message)
-
-    messages.success(request, "Change request added")
-    return redirect("core:admin.course_review", program_id=program_id)
-
-
-@login_required
-def instructor_program_change_requests(request, program_id: int):
-    """
-    Instructor view: See change requests for their program.
-    """
-    from apps.curriculum.models import CourseChangeRequest
-    from apps.progression.models import InstructorAssignment
-
-    try:
-        program = Program.objects.get(pk=program_id)
-    except Program.DoesNotExist:
-        messages.error(request, "Program not found")
-        return redirect("/dashboard/")
-
-    # Verify instructor access
-    if (
-        not InstructorAssignment.objects.filter(
-            instructor=request.user, program=program
-        ).exists()
-        and not request.user.is_staff
-    ):
-        return redirect("/dashboard/")
-
-    change_requests = (
-        CourseChangeRequest.objects.filter(program=program)
-        .select_related("node", "created_by")
-        .order_by("-created_at")
-    )
-
-    return render(
-        request,
-        "Instructor/Program/ChangeRequests",
-        {
-            "program": {
-                "id": program.id,
-                "name": program.name,
-                "status": program.submission_status,
-            },
-            "changeRequests": [
-                {
-                    "id": cr.id,
-                    "message": cr.message,
-                    "nodeId": cr.node.id if cr.node else None,
-                    "nodeTitle": cr.node.title if cr.node else "General",
-                    "isResolved": cr.is_resolved,
-                    "createdAt": cr.created_at.isoformat(),
-                }
-                for cr in change_requests
-            ],
-        },
-    )
-
-
-@login_required
-def instructor_resolve_change_request(request, change_request_id: int):
-    """
-    Mark a change request as resolved.
-    """
-    from apps.curriculum.models import CourseChangeRequest
-    from apps.progression.models import InstructorAssignment
-
-    if request.method != "POST":
-        return redirect("/dashboard/")
-
-    try:
-        cr = CourseChangeRequest.objects.select_related("program").get(
-            pk=change_request_id
-        )
-    except CourseChangeRequest.DoesNotExist:
-        messages.error(request, "Change request not found")
-        return redirect("/dashboard/")
-
-    # Verify instructor access
-    if (
-        not InstructorAssignment.objects.filter(
-            instructor=request.user, program=cr.program
-        ).exists()
-        and not request.user.is_staff
-    ):
-        return redirect("/dashboard/")
-
-    cr.is_resolved = True
-    cr.save()
-
-    messages.success(request, "Change request marked as resolved")
-    return redirect("core:instructor.program_change_requests", program_id=cr.program.id)
-
 
 @login_required
 def instructor_program_validate(request, program_id: int):
@@ -6773,61 +6377,82 @@ def instructor_program_validate(request, program_id: int):
 
 @login_required
 def instructor_program_publish(request, program_id: int):
-    """
-    Publish an approved program.
-    """
+    """Publish a valid program managed by the requesting instructor."""
+    from apps.curriculum.services import CoursePublishValidationService
     from apps.progression.models import InstructorAssignment
 
     if request.method != "POST":
-        return redirect("core:instructor.program", pk=program_id)
+        return redirect("core:instructor.program_manage", pk=program_id)
 
     try:
-        program = Program.objects.get(pk=program_id)
+        with transaction.atomic():
+            program = Program.objects.select_for_update().get(pk=program_id)
+
+            if not (
+                InstructorAssignment.objects.filter(
+                    instructor=request.user, program=program
+                ).exists()
+                or request.user.is_staff
+            ):
+                return redirect("/dashboard/")
+
+            validation = CoursePublishValidationService().validate_for_publish(program)
+            if not validation["is_valid"]:
+                for issue in validation["errors"]:
+                    messages.error(
+                        request,
+                        issue.get("message") or "Resolve validation issues before publishing.",
+                    )
+                return redirect("core:instructor.program_manage", pk=program_id)
+
+            if program.is_published:
+                messages.info(request, f"'{program.name}' is already published.")
+                return redirect("core:instructor.program_manage", pk=program_id)
+
+            program.is_published = True
+            program.save(update_fields=["is_published", "updated_at"])
+            _sync_program_publication_state(program, True)
     except Program.DoesNotExist:
         messages.error(request, "Program not found")
         return redirect("/dashboard/")
 
-    # Verify instructor access
-    if (
-        not InstructorAssignment.objects.filter(
-            instructor=request.user, program=program
-        ).exists()
-        and not request.user.is_staff
-    ):
-        return redirect("/dashboard/")
-
-    # Only approved programs can be published
-    if program.submission_status != "approved":
-        messages.error(request, "Only approved programs can be published")
-        return redirect("core:instructor.program", pk=program_id)
-
-    program.is_published = True
-    program.save()
-    _sync_program_publication_state(program, True)
-
     messages.success(request, f"'{program.name}' is now live for students!")
-    return redirect("core:instructor.program", pk=program_id)
+    return redirect("core:instructor.program_manage", pk=program_id)
 
 
 @login_required
-def admin_preview_as_student(request, program_id: int):
-    """
-    Deep link for admin to preview a program as a student would see it.
-    """
-    if not request.user.is_staff:
-        return redirect("/dashboard/")
+def instructor_program_unpublish(request, program_id: int):
+    """Return a published program to draft state."""
+    from apps.progression.models import InstructorAssignment
+
+    if request.method != "POST":
+        return redirect("core:instructor.program_manage", pk=program_id)
 
     try:
-        program = Program.objects.get(pk=program_id)
+        with transaction.atomic():
+            program = Program.objects.select_for_update().get(pk=program_id)
+
+            if not (
+                InstructorAssignment.objects.filter(
+                    instructor=request.user, program=program
+                ).exists()
+                or request.user.is_staff
+            ):
+                return redirect("/dashboard/")
+
+            if not program.is_published:
+                messages.info(request, f"'{program.name}' is already a draft.")
+                return redirect("core:instructor.program_manage", pk=program_id)
+
+            program.is_published = False
+            program.save(update_fields=["is_published", "updated_at"])
+            _sync_program_publication_state(program, False)
     except Program.DoesNotExist:
         messages.error(request, "Program not found")
-        return redirect("core:admin.course_approval")
+        return redirect("/dashboard/")
 
-    # Mark session as preview mode
-    request.session["preview_program_id"] = program_id
-
-    # Redirect to public program detail (or student learning view)
-    return redirect("core:programs")  # This would ideally go to a program detail page
+    messages.success(request, f"'{program.name}' is now a draft.")
+    return redirect("core:instructor.program_manage", pk=program_id)
 
 
 # =============================================================================
@@ -6850,19 +6475,7 @@ def serialize_program_data(program):
         program.blueprint.hierarchy_structure if program.blueprint else None,
         deployment_mode=platform_settings.deployment_mode,
     )
-    level_value = (program.level or "").strip()
-    course_levels = platform_settings.get_course_levels()
-    level_label = next(
-        (
-            str(level.get("label") or "").strip()
-            for level in course_levels
-            if (level or {}).get("value") == level_value
-        ),
-        "",
-    )
-    display_level = (
-        (program.official_level or "").strip() or level_label or level_value
-    )
+    level = (program.level or "").strip()
     prerequisite_program_ids = list(
         program.prerequisite_programs.values_list("id", flat=True)
     )
@@ -6882,13 +6495,15 @@ def serialize_program_data(program):
             "name": program.name,
             "code": program.code,
             "description": program.description,
-            "level": program.level,
-            "officialLevel": program.official_level or "",
-            "displayLevel": display_level,
+            "level": level,
             "category": program.category,
             "thumbnail": program.thumbnail.url if program.thumbnail else None,
+            "isPublished": program.is_published,
             "whatYouLearn": program.what_you_learn_items or [],
-            "whatYouLearnHtml": program.what_you_learn_html or "",
+            "whatYouLearnHtml": resolve_learning_outcomes_html(
+                program.what_you_learn_html,
+                program.what_you_learn_items,
+            ),
             "resources": [
                 {
                     "id": r.id,
@@ -6910,15 +6525,9 @@ def serialize_program_data(program):
             "ratingAverage": float(program.rating_average or 0),
             "ratingCount": program.rating_count,
             "taxonomy": {
-                "levelValue": level_value,
-                "levelLabel": level_label,
-                "displayLevel": display_level,
+                "level": level,
                 "builderHierarchy": builder_hierarchy,
-                "fullHierarchy": [
-                    display_level,
-                    builder_hierarchy[0],
-                    builder_hierarchy[1],
-                ],
+                "fullHierarchy": [level, builder_hierarchy[0], builder_hierarchy[1]],
             },
             "blueprint": (
                 {
@@ -6947,7 +6556,6 @@ def serialize_program_data(program):
             ),
         },
         "availablePrerequisites": available_prerequisites,
-        "courseLevels": course_levels,
         "platformFeatures": platform_features,
         "deploymentMode": platform_settings.deployment_mode,
     }
@@ -8026,7 +7634,7 @@ def instructor_node_delete(request, node_id: int):
 @login_required
 def instructor_program_preview(request, pk: int):
     """
-    Allow instructor to preview their program as a student.
+    Render the normal course page with unpublished content for its instructor.
     """
     from apps.progression.models import InstructorAssignment
 
@@ -8039,11 +7647,12 @@ def instructor_program_preview(request, pk: int):
     ):
         return redirect("/dashboard/")
 
-    # Mark session as preview mode for this program
-    request.session["preview_program_id"] = pk
-
-    # Redirect to the public detail page
-    return redirect("core:program_detail", pk=pk)
+    return public_program_detail(
+        request,
+        pk,
+        is_preview=True,
+        builder_url=f"/instructor/programs/{pk}/manage/",
+    )
 
 
 @login_required
@@ -8233,7 +7842,7 @@ def instructor_program_update_settings(request, pk: int):
             _program_depends_on(dep_id, target_program_id, seen) for dep_id in dep_ids
         )
 
-    # --- Settings tab: name, code, category, level, officialLevel, thumbnail ---
+    # --- Settings tab: name, code, category, level, thumbnail ---
     if "name" in data:
         name_val = str(data.get("name", "")).strip()
         if not name_val:
@@ -8254,24 +7863,9 @@ def instructor_program_update_settings(request, pk: int):
     if "category" in data:
         program.category = str(data.get("category", "")).strip() or None
 
-    if "level" in data or "officialLevel" in data:
-        from apps.platform.models import PlatformSettings
-
-        platform_settings = PlatformSettings.get_settings()
-        course_levels = platform_settings.get_course_levels()
-        valid_level_values = {
-            (level or {}).get("value") for level in (course_levels or [])
-        }
+    if "level" in data:
         selected_level = str(data.get("level") or "").strip()
-        official_level = str(data.get("officialLevel") or "").strip()
-
-        if "officialLevel" in data:
-            program.official_level = official_level or None
-        if "level" in data and selected_level:
-            if valid_level_values and selected_level not in valid_level_values:
-                messages.error(request, "Level must be a valid option.")
-                return _redirect_to_builder()
-            program.level = selected_level
+        program.level = selected_level
 
     if "thumbnail" in files:
         program.thumbnail = files["thumbnail"]
@@ -9423,7 +9017,7 @@ def _get_virtual_programs_payload() -> list[dict]:
             "title": program.name,
             "description": program.description or "",
             "category": program.category or "",
-            "level": program.level or "beginner",
+            "level": program.level or "",
             "thumbnail": program.thumbnail.url if program.thumbnail else None,
             "rating": float(program.rating_average or 0),
             "review_count": program.rating_count,

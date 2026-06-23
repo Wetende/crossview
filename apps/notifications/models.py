@@ -22,8 +22,6 @@ class Notification(TimeStampedModel):
         ('direct_message', 'Direct Message'),
         ('instructor_approved', 'Instructor Approved'),
         ('instructor_rejected', 'Instructor Rejected'),
-        ('program_approved', 'Program Approved'),
-        ('program_changes_requested', 'Program Changes Requested'),
         ('system', 'System Notification'),
     ]
 

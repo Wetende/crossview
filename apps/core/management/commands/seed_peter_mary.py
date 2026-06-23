@@ -85,11 +85,16 @@ class Command(BaseCommand):
             }
         )
         if created:
-            mary.set_password("password123")
+            mary.set_password("instructor123")
             mary.save()
             self.stdout.write(self.style.SUCCESS(f"✓ Created Mary: {mary.email}"))
         else:
             self.stdout.write(f"✓ Found Mary: {mary.email}")
+
+        from django.contrib.auth.models import Group
+        instructors_group, _ = Group.objects.get_or_create(name='Instructors')
+        mary.groups.add(instructors_group)
+
         return mary
 
     def _get_or_create_peter(self):
@@ -140,12 +145,9 @@ class Command(BaseCommand):
                 "description": "A comprehensive course on modern system architecture patterns.",
                 "blueprint": blueprint,
                 "is_published": True,
-                "submission_status": "approved",
                 "level": "Intermediate",
                 "duration_hours": 40,
                 "video_hours": 12,
-                "submitted_by": mary,
-                "submitted_at": timezone.now() - timedelta(days=30),
                 "category": "Technology",
                 "badge_type": "hot"
             }
@@ -616,12 +618,9 @@ class Command(BaseCommand):
                     "description": course_data["description"],
                     "blueprint": blueprint,
                     "is_published": True,
-                    "submission_status": "approved",
                     "level": course_data["level"],
                     "duration_hours": course_data["duration_hours"],
                     "video_hours": course_data["video_hours"],
-                    "submitted_by": mary,
-                    "submitted_at": timezone.now() - timedelta(days=60),
                     "category": course_data.get("category", "Technology"),
                     "badge_type": course_data.get("badge_type")
                 }

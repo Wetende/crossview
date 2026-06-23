@@ -1,32 +1,6 @@
-import React from 'react';
-import { Box, Typography, Paper } from '@mui/material';
-import { Block as BlockIcon } from '@mui/icons-material';
 import ContentEditor from './ContentEditor';
 import AssessmentEditor from './AssessmentEditor';
 import CodeLabEditor from './CodeLabEditor';
-
-function DisabledFeatureMessage({ feature }) {
-    return (
-        <Paper
-            variant="outlined"
-            sx={{
-                p: 4,
-                textAlign: 'center',
-                bgcolor: 'grey.50',
-                borderStyle: 'dashed'
-            }}
-        >
-            <BlockIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-                {feature} Disabled
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-                This feature is not enabled for this program's blueprint.
-                Contact your administrator to enable it.
-            </Typography>
-        </Paper>
-    );
-}
 
 export default function EditorContainer({
     node,
@@ -47,15 +21,6 @@ export default function EditorContainer({
           ? blueprint.hierarchy
           : [];
     const containerType = (hierarchy[0] || '').toLowerCase();
-
-    // Get feature flags from blueprint (with defaults)
-    const featureFlags = blueprint?.featureFlags || {
-        quizzes: true,
-        assignments: true,
-        practicum: false,
-        portfolio: false,
-        gamification: false
-    };
 
     // Container nodes are edited inline in the sidebar, not in the right editor panel.
     // Prefer blueprint taxonomy when available; fallback to common legacy labels.

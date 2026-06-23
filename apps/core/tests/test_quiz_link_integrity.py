@@ -275,8 +275,6 @@ class QuizLinkIntegrityTest(TestCase):
             password="password123",
         )
         program = self._create_program(name="Publish Cascade", code="PUB-CASCADE")
-        program.submission_status = "approved"
-        program.save(update_fields=["submission_status"])
         InstructorAssignment.objects.create(instructor=instructor, program=program)
 
         quiz_node = CurriculumNode.objects.create(
@@ -310,9 +308,16 @@ class QuizLinkIntegrityTest(TestCase):
         )
 
         self.client.force_login(instructor)
-        response = self.client.post(
-            reverse("core:instructor.program_publish", kwargs={"program_id": program.id})
-        )
+        with patch(
+            "apps.curriculum.services.CoursePublishValidationService.validate_for_publish",
+            return_value={"is_valid": True, "errors": [], "warnings": [], "details": {}},
+        ):
+            response = self.client.post(
+                reverse(
+                    "core:instructor.program_publish",
+                    kwargs={"program_id": program.id},
+                )
+            )
 
         self.assertEqual(response.status_code, 302)
         program.refresh_from_db()
@@ -325,6 +330,25 @@ class QuizLinkIntegrityTest(TestCase):
         self.assertTrue(lesson_node.is_published)
         self.assertTrue(quiz.is_published)
         self.assertTrue(assignment.is_published)
+
+        unpublish_response = self.client.post(
+            reverse(
+                "core:instructor.program_unpublish",
+                kwargs={"program_id": program.id},
+            )
+        )
+
+        self.assertEqual(unpublish_response.status_code, 302)
+        program.refresh_from_db()
+        quiz_node.refresh_from_db()
+        lesson_node.refresh_from_db()
+        quiz.refresh_from_db()
+        assignment.refresh_from_db()
+        self.assertFalse(program.is_published)
+        self.assertFalse(quiz_node.is_published)
+        self.assertFalse(lesson_node.is_published)
+        self.assertFalse(quiz.is_published)
+        self.assertFalse(assignment.is_published)
 
     def test_admin_program_publish_toggle_cascades_assessment_publication_state(self):
         admin = User.objects.create_user(
@@ -359,8 +383,8 @@ class QuizLinkIntegrityTest(TestCase):
 
         self.client.force_login(admin)
         with patch(
-            "apps.core.services.validation.ProgramValidationService.validate",
-            return_value=[],
+            "apps.curriculum.services.CoursePublishValidationService.validate_for_publish",
+            return_value={"is_valid": True, "errors": [], "warnings": [], "details": {}},
         ):
             publish_response = self.client.post(
                 reverse("core:admin.program.publish", kwargs={"pk": program.id})

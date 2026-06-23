@@ -1,9 +1,9 @@
 """
 Shared taxonomy contract for Course Builder.
 
-Tier 1: Program.level (outside curriculum tree)
-Tier 2: builder container label at depth 0
-Tier 3: builder content label at depth 1
+Program.level is the student-facing course level and lives outside the
+curriculum tree. The builder tree itself has exactly two editable labels:
+container at depth 0 and content at depth 1.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Iterable
 
 MAX_BUILDER_DEPTH = 1
 
-# Tier-1 concepts must never be used as in-tree container labels.
+# Course/program labels must never be used as in-tree container labels.
 RESERVED_CONTAINER_LABELS = {"course", "program"}
 
 DEFAULT_BUILDER_HIERARCHY = ["Section", "Lesson"]
@@ -69,8 +69,8 @@ def validate_builder_hierarchy(structure: object) -> tuple[bool, str | None]:
     if container in RESERVED_CONTAINER_LABELS:
         return (
             False,
-            f"Container label '{pair[0]}' is reserved for Tier 1. "
-            "Program level defines Tier 1 and cannot be used in builder hierarchy.",
+            f"Container label '{pair[0]}' is reserved. "
+            "Course level is configured separately and cannot be used in builder hierarchy.",
         )
 
     return True, None

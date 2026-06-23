@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -95,15 +95,29 @@ export default function QuestionBankDialog({
                         with the group name you will write below.
                     </Alert>
 
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        <TextField
-                            label="Bank name"
-                            value={bankName}
-                            onChange={(e) => setBankName(e.target.value)}
-                            placeholder="Midterm Questions"
-                            fullWidth
-                            required
-                        />
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                        alignItems={{ xs: 'stretch', sm: 'flex-end' }}
+                    >
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <InputLabel
+                                htmlFor="question-bank-name"
+                                shrink
+                                required
+                                sx={{ mb: 1, fontWeight: 500 }}
+                            >
+                                Bank name
+                            </InputLabel>
+                            <TextField
+                                id="question-bank-name"
+                                value={bankName}
+                                onChange={(e) => setBankName(e.target.value)}
+                                placeholder="Midterm Questions"
+                                fullWidth
+                                required
+                            />
+                        </Box>
                         
                         <TextField
                             label="Select number of questions"

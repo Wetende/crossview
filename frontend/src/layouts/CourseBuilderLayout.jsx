@@ -1,44 +1,19 @@
-import { useMemo } from 'react';
 import { Alert, AppBar, Box, Button, Stack, Tab, Tabs, Toolbar, Typography } from '@mui/material';
 import { Link, usePage } from '@inertiajs/react';
 import {
   IconArrowLeft,
-  IconEye,
 } from '@tabler/icons-react';
 import { getFlashMessages, getFlashSeverity } from '@/utils/userMessages';
+import {
+    getAvailableBuilderTabs,
+    normalizeBuilderTab,
+} from '@/features/course-builder/utils/builderTabs';
 
 const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...props }) => {
     const { flash = [] } = usePage().props;
     const flashMessages = getFlashMessages(flash);
-    // Mode-aware tabs: conditionally show tabs based on platform features and blueprint flags
-    const blueprintFlags = program?.blueprint?.featureFlags || {};
-
-    const tabs = useMemo(() => {
-        const manageUrl = `/instructor/programs/${program.id}/manage/`;
-        const tabUrl = (tab) => `${manageUrl}?tab=${tab}`;
-        const baseTabs = [
-            { label: 'Overview', value: 'overview', href: tabUrl('overview') },
-            { label: 'Curriculum', value: 'curriculum', href: manageUrl },
-            { label: 'Settings', value: 'settings', href: tabUrl('settings') },
-        ];
-
-        // Pricing: always visible; shows info alert when payments disabled
-        baseTabs.push({ label: 'Pricing', value: 'pricing', href: tabUrl('pricing') });
-
-        // FAQ, Notice: always available
-        baseTabs.push({ label: 'FAQ', value: 'faq', href: tabUrl('faq') });
-        baseTabs.push({ label: 'Notice', value: 'notice', href: tabUrl('notice') });
-        baseTabs.push({ label: 'Drip', value: 'drip', href: tabUrl('drip') });
-        baseTabs.push({ label: 'Prerequisites', value: 'prerequisites', href: tabUrl('prerequisites') });
-        baseTabs.push({ label: 'Access', value: 'access', href: tabUrl('access') });
-
-        // Practicum tab: when practicum/portfolio features enabled
-        if (blueprintFlags.practicum || blueprintFlags.portfolio) {
-            baseTabs.push({ label: 'Practicum', value: 'practicum', href: tabUrl('practicum') });
-        }
-
-        return baseTabs;
-    }, [program.id, blueprintFlags.practicum, blueprintFlags.portfolio]);
+    const tabs = getAvailableBuilderTabs(program);
+    const selectedTab = normalizeBuilderTab(program, activeTab);
 
 
     return (
@@ -75,7 +50,7 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                     {/* Center Tabs - Support both URL and Client-side switching */}
                     <Box sx={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', maxWidth: '70%', overflow: 'hidden' }}>
                         <Tabs
-                            value={activeTab}
+                            value={selectedTab}
                             onChange={(e, newVal) => {
                                 if (props.onTabChange) {
                                     props.onTabChange(newVal);
@@ -123,41 +98,7 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                     </Box>
 
                     <Stack direction="row" spacing={2} alignItems="center">
-                        {props.appBarActions ? props.appBarActions : (
-                            <>
-                                <Button
-                                    variant="contained"
-                                    size="small"
-                                    color="primary"
-                                    sx={{
-                                        textTransform: 'none',
-                                        fontWeight: 600,
-                                        borderRadius: '0 !important',
-                                        py: 0.75,
-                                        px: 2
-                                    }}
-                                >
-                                    Published
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    startIcon={<IconEye size={18} />}
-                                    sx={{
-                                        color: '#f1f5f9',
-                                        borderColor: 'rgba(255,255,255,0.3)',
-                                        textTransform: 'none',
-                                        borderRadius: '0 !important',
-                                        borderWidth: '1px !important',
-                                        py: 0.75,
-                                        px: 2,
-                                        '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' }
-                                    }}
-                                >
-                                    View
-                                </Button>
-                            </>
-                        )}
+                        {props.appBarActions}
                     </Stack>
                 </Toolbar>
             </AppBar>

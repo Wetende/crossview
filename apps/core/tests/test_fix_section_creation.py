@@ -29,8 +29,6 @@ class TestSectionCreationFix(TestCase):
             name="Test Program",
             code="TEST-101",
             blueprint=blueprint,
-            submitted_by=instructor,
-            submission_status='approved'
         )
             
         InstructorAssignment.objects.create(instructor=instructor, program=program)

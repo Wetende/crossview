@@ -1,17 +1,14 @@
-import React from 'react';
 import { 
     Box, 
     Typography, 
     Stack, 
     TextField, 
-    Divider, 
     Button, 
     Paper, 
     IconButton,
     Switch,
-    Tooltip 
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, InfoOutlined as InfoIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import RichTextEditor from '@/components/RichTextEditor';
 
 // --- Pricing Editor ---
@@ -60,8 +57,9 @@ export const PricingEditor = ({ data, onChange }) => {
                 placeholder="0"
                 value={salePrice}
                 onChange={e => {
-                    const { original_price, ...rest } = data;
-                    onChange({ ...rest, sale_price: e.target.value });
+                    const nextData = { ...data, sale_price: e.target.value };
+                    delete nextData.original_price;
+                    onChange(nextData);
                 }}
                 sx={{ mb: 3, maxWidth: 280 }}
                 inputProps={{ min: 0 }}

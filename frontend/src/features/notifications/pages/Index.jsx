@@ -14,7 +14,6 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import GradeIcon from "@mui/icons-material/Grade";
 import AnnouncementIcon from "@mui/icons-material/Announcement";
 import PersonIcon from "@mui/icons-material/Person";
-import SchoolIcon from "@mui/icons-material/School";
 import InfoIcon from "@mui/icons-material/Info";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -29,8 +28,6 @@ const notificationIconMap = {
     announcement: <AnnouncementIcon color="info" fontSize="small" />,
     instructor_approved: <PersonIcon color="success" fontSize="small" />,
     instructor_rejected: <PersonIcon color="error" fontSize="small" />,
-    program_approved: <SchoolIcon color="success" fontSize="small" />,
-    program_changes_requested: <SchoolIcon color="warning" fontSize="small" />,
     system: <InfoIcon color="action" fontSize="small" />,
 };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Box,
     Typography,
@@ -20,7 +20,19 @@ import {
     TableHead,
     TableRow,
 } from "@mui/material";
-import { Add as AddIcon, AccessTime as TimeIcon } from "@mui/icons-material";
+import { AccessTime as TimeIcon } from "@mui/icons-material";
+
+const getLessons = (nodes = []) => {
+    let lessons = [];
+    nodes.forEach((node) => {
+        if (node.children && node.children.length > 0) {
+            lessons = lessons.concat(getLessons(node.children));
+        } else if (node.type !== "Module") {
+            lessons.push(node);
+        }
+    });
+    return lessons;
+};
 
 export default function DripEditor({ program, curriculum, onSave }) {
     const [dripEnabled, setDripEnabled] = useState(
@@ -30,21 +42,6 @@ export default function DripEditor({ program, curriculum, onSave }) {
         program?.dripMode === "absolute" ? "date" : "sequence",
     );
     const [saving, setSaving] = useState(false);
-
-    // Helper to get flat list of lessons for the table - reusing the idea from flat nodes but simplified logic here
-    const getLessons = (nodes) => {
-        let lessons = [];
-        nodes.forEach((node) => {
-            // If section, verify children
-            if (node.children && node.children.length > 0) {
-                lessons = lessons.concat(getLessons(node.children));
-            } else if (node.type !== "Module") {
-                // It's a lesson/quiz
-                lessons.push(node);
-            }
-        });
-        return lessons;
-    };
 
     const lessons = useMemo(
         () => (curriculum ? getLessons(curriculum) : []),
@@ -109,22 +106,24 @@ export default function DripEditor({ program, curriculum, onSave }) {
     const handleSave = () => {
         if (!onSave || saving) return;
 
-        const drip_schedule = lessons.map((lesson) => {
-            const row = scheduleByNodeId[lesson.id] || {};
-            return {
-                node_id: lesson.id,
-                unlock_after_days:
-                    scheduleMode === "sequence" &&
-                    row.active &&
-                    row.unlockAfterDays !== ""
-                        ? Number(row.unlockAfterDays)
-                        : null,
-                unlock_date:
-                    scheduleMode === "date" && row.active && row.unlockDate
-                        ? row.unlockDate
-                        : null,
-            };
-        });
+        const drip_schedule = dripEnabled
+            ? lessons.map((lesson) => {
+                  const row = scheduleByNodeId[lesson.id] || {};
+                  return {
+                      node_id: lesson.id,
+                      unlock_after_days:
+                          scheduleMode === "sequence" &&
+                          row.active &&
+                          row.unlockAfterDays !== ""
+                              ? Number(row.unlockAfterDays)
+                              : null,
+                      unlock_date:
+                          scheduleMode === "date" && row.active && row.unlockDate
+                              ? row.unlockDate
+                              : null,
+                  };
+              })
+            : [];
 
         setSaving(true);
         onSave(
@@ -346,16 +345,6 @@ export default function DripEditor({ program, curriculum, onSave }) {
                         </Table>
                     </TableContainer>
 
-                    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button
-                            variant="contained"
-                            size="large"
-                            onClick={handleSave}
-                            disabled={saving}
-                        >
-                            {saving ? "Saving..." : "Save Schedule"}
-                        </Button>
-                    </Box>
                 </>
             )}
             {!dripEnabled && (
@@ -379,6 +368,20 @@ export default function DripEditor({ program, curriculum, onSave }) {
                     </Typography>
                 </Box>
             )}
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                    variant="contained"
+                    size="large"
+                    onClick={handleSave}
+                    disabled={saving}
+                >
+                    {saving
+                        ? "Saving..."
+                        : dripEnabled
+                          ? "Save Schedule"
+                          : "Save Changes"}
+                </Button>
+            </Box>
         </Stack>
     );
 }

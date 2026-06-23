@@ -18,7 +18,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
@@ -36,8 +36,6 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function ProgramsIndex({
   programs = [],
-  groupedPrograms = [],
-  blueprints = [],
   courseLevels = [],
   filters = {},
   pagination = {},
@@ -48,16 +46,7 @@ export default function ProgramsIndex({
   const [status, setStatus] = useState(filters.status || "");
   const [level, setLevel] = useState(filters.level || "");
 
-  // Flatten grouped programs into a single list for DataTable
-  const allPrograms =
-    groupedPrograms && groupedPrograms.length > 0
-      ? groupedPrograms.flatMap((group) =>
-          (group.programs || []).map((p) => ({
-            ...p,
-            groupLabel: group.label,
-          })),
-        )
-      : programs;
+  const allPrograms = programs;
 
   const handleFilter = () => {
     const params = new URLSearchParams();
@@ -66,7 +55,7 @@ export default function ProgramsIndex({
     if (level) params.set("level", level);
 
     router.visit(`/admin/programs/?${params.toString()}`, {
-      only: ["programs", "groupedPrograms", "pagination"],
+      only: ["programs", "pagination"],
       preserveState: true,
     });
   };
@@ -120,14 +109,12 @@ export default function ProgramsIndex({
     {
       id: "level",
       label: "Level",
-      render: (row) => {
-        const displayLevel = row.officialLevel || row.level;
-        return displayLevel ? (
-          <Chip label={displayLevel} size="small" variant="outlined" />
+      render: (row) =>
+        row.level ? (
+          <Chip label={row.level} size="small" variant="outlined" />
         ) : (
           "—"
-        );
-      },
+        ),
     },
     {
       id: "enrollmentCount",

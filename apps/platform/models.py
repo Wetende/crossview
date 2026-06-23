@@ -317,45 +317,5 @@ class PlatformSettings(TimeStampedModel):
         return MODE_DEFAULTS.get(self.deployment_mode, MODE_DEFAULTS['custom'])
 
     def get_course_levels(self) -> list:
-        """Get course levels - admin-defined or mode-based defaults."""
-        if self.course_levels:
-            return self.course_levels
-
-        # Default levels based on deployment mode (Kenya KNQF)
-        MODE_LEVEL_DEFAULTS = {
-            'tvet': [
-                # Broad categories covering all 5 exam bodies
-                # (KASNEB, CDACC, KNEC, NITA, ICM)
-                {"value": "entry", "label": "Entry"},
-                {"value": "foundation", "label": "Foundation"},
-                {"value": "artisan", "label": "Artisan"},
-                {"value": "certificate", "label": "Certificate"},
-                {"value": "diploma", "label": "Diploma"},
-                {"value": "advanced", "label": "Advanced"},
-                {"value": "professional", "label": "Professional"},
-                {"value": "post_professional", "label": "Post-Professional"},
-                {"value": "skill_upgrade", "label": "Skill Upgrade"},
-                {"value": "trade_test", "label": "Trade Test"},
-            ],
-            'theology': [
-                {"value": "certificate", "label": "Certificate"},
-                {"value": "diploma", "label": "Diploma"},
-                {"value": "degree", "label": "Degree"},
-            ],
-            'online': [
-                {"value": "beginner", "label": "Beginner"},
-                {"value": "intermediate", "label": "Intermediate"},
-                {"value": "advanced", "label": "Advanced"},
-            ],
-            'cbc': [
-                {"value": "grade_1_3", "label": "Lower Primary (1-3)"},
-                {"value": "grade_4_6", "label": "Upper Primary (4-6)"},
-                {"value": "grade_7_9", "label": "Junior Secondary (7-9)"},
-                {"value": "grade_10_12", "label": "Senior Secondary (10-12)"},
-            ],
-        }
-        return MODE_LEVEL_DEFAULTS.get(self.deployment_mode, [
-            {"value": "beginner", "label": "Beginner"},
-            {"value": "intermediate", "label": "Intermediate"},
-            {"value": "advanced", "label": "Advanced"},
-        ])
+        """Return explicitly configured course level options."""
+        return self.course_levels or []

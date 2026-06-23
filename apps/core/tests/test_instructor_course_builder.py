@@ -35,19 +35,61 @@ class TestInstructorCourseBuilder:
         # Check for program name or breadcrumbs which should be present
         assert program.name in str(response.content)
 
-    def test_manage_serializer_uses_official_level_for_builder_display(self, program):
-        program.level = "skill_upgrade"
+    def test_manage_serializer_uses_canonical_level(self, program):
+        program.level = "Beginner"
         program.exam_body = "Internal"
         program.qualification_family = "Short Course"
-        program.official_level = "Beginner"
         program.save()
 
         data = serialize_program_data(program)
 
-        assert data["program"]["level"] == "skill_upgrade"
-        assert data["program"]["officialLevel"] == "Beginner"
-        assert data["program"]["taxonomy"]["levelValue"] == "skill_upgrade"
-        assert data["program"]["taxonomy"]["displayLevel"] == "Beginner"
+        assert data["program"]["level"] == "Beginner"
+        assert data["program"]["taxonomy"]["level"] == "Beginner"
+
+    def test_manage_serializer_includes_publication_state(self, program):
+        program.is_published = False
+        program.save(update_fields=["is_published"])
+
+        data = serialize_program_data(program)
+
+        assert data["program"]["isPublished"] is False
+
+    def test_instructor_programs_uses_assigned_scope_for_levels(
+        self, client, instructor, program, assignment
+    ):
+        program.name = "Assigned Beginner"
+        program.level = "Beginner"
+        program.save(update_fields=["name", "level"])
+        unassigned = ProgramFactory(name="Unassigned Advanced", level="Advanced")
+
+        client.force_login(instructor)
+        response = client.get(
+            reverse("core:instructor.programs"),
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        props = response.json()["props"]
+        assert [p["name"] for p in props["programs"]] == ["Assigned Beginner"]
+        assert props["courseLevels"] == [{"value": "Beginner", "label": "Beginner"}]
+        assert props["groupedPrograms"][0]["label"] == "Beginner"
+        assert unassigned.name not in str(response.content)
+
+    def test_manage_serializer_builds_html_from_existing_outcome_items(self, program):
+        outcomes = ["Explain AI concepts", "Use AI tools responsibly"]
+        program.__class__.objects.filter(pk=program.pk).update(
+            what_you_learn_html="",
+            what_you_learn_items=outcomes,
+        )
+        program.refresh_from_db()
+
+        data = serialize_program_data(program)
+
+        assert data["program"]["whatYouLearn"] == outcomes
+        assert data["program"]["whatYouLearnHtml"] == (
+            "<ul><li>Explain AI concepts</li>"
+            "<li>Use AI tools responsibly</li></ul>"
+        )
 
     def test_instructor_cannot_access_unassigned_program(self, client, instructor):
         other_program = ProgramFactory()
@@ -55,6 +97,97 @@ class TestInstructorCourseBuilder:
         url = reverse('core:instructor.program_manage', kwargs={'pk': other_program.id})
         response = client.get(url)
         assert response.status_code == 302 # Redirects to dashboard
+
+    def test_invalid_course_cannot_bypass_publish_validation(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        program.is_published = False
+        program.save(update_fields=["is_published"])
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse(
+                "core:instructor.program_publish",
+                kwargs={"program_id": program.id},
+            )
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == reverse(
+            "core:instructor.program_manage",
+            kwargs={"pk": program.id},
+        )
+        program.refresh_from_db()
+        assert program.is_published is False
+
+    def test_unassigned_instructor_cannot_control_or_preview_course(
+        self,
+        client,
+        instructor,
+        program,
+    ):
+        program.is_published = False
+        program.save(update_fields=["is_published"])
+        client.force_login(instructor)
+
+        validate_response = client.get(
+            reverse(
+                "core:instructor.program_validate",
+                kwargs={"program_id": program.id},
+            )
+        )
+        publish_response = client.post(
+            reverse(
+                "core:instructor.program_publish",
+                kwargs={"program_id": program.id},
+            )
+        )
+        unpublish_response = client.post(
+            reverse(
+                "core:instructor.program_unpublish",
+                kwargs={"program_id": program.id},
+            )
+        )
+        preview_response = client.get(
+            reverse("core:instructor.program_preview", kwargs={"pk": program.id})
+        )
+
+        assert validate_response.status_code == 403
+        assert publish_response.status_code == 302
+        assert unpublish_response.status_code == 302
+        assert preview_response.status_code == 302
+        assert publish_response["Location"] == "/dashboard/"
+        assert unpublish_response["Location"] == "/dashboard/"
+        assert preview_response["Location"] == "/dashboard/"
+
+    def test_draft_preview_renders_public_page_without_session_state(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        program.is_published = False
+        program.save(update_fields=["is_published"])
+        client.force_login(instructor)
+
+        response = client.get(
+            reverse("core:instructor.program_preview", kwargs={"pk": program.id}),
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["component"] == "Public/ProgramDetail"
+        assert payload["props"]["isPreview"] is True
+        assert payload["props"]["builderUrl"] == (
+            f"/instructor/programs/{program.id}/manage/"
+        )
+        assert "preview_program_id" not in client.session
 
     def test_create_root_node(self, client, instructor, program, assignment):
         client.force_login(instructor)
@@ -181,3 +314,43 @@ class TestInstructorCourseBuilder:
         resource = ProgramResource.objects.get(program=program)
         assert resource.title == "syllabus.pdf"
         assert resource.resource_type == "material"
+
+    def test_update_drip_can_disable_and_redirect_back_to_drip_tab(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        program.drip_enabled = True
+        program.drip_mode = "relative"
+        program.save()
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Scheduled Session",
+            node_type="Session",
+            unlock_after_days=3,
+        )
+
+        client.force_login(instructor)
+        url = reverse("core:instructor.program_update_settings", kwargs={"pk": program.id})
+        response = client.post(
+            url,
+            data={
+                "tab": "drip",
+                "drip_enabled": False,
+                "drip_mode": "none",
+                "drip_schedule": [],
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == f"/instructor/programs/{program.id}/manage/?tab=drip"
+
+        program.refresh_from_db()
+        assert program.drip_enabled is False
+        assert program.drip_mode == "none"
+
+        node.refresh_from_db()
+        assert node.unlock_after_days == 3

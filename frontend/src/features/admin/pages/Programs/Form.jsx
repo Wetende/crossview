@@ -16,8 +16,6 @@ import {
     CardContent,
     Grid,
     TextField,
-    FormControlLabel,
-    Switch,
     Stack,
     Chip,
     Alert,
@@ -26,11 +24,10 @@ import {
     Select,
     MenuItem,
     Autocomplete,
-    Divider,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
 
@@ -68,7 +65,6 @@ export default function ProgramForm({
         // Exam body metadata
         examBody: program?.examBody || formData.examBody || "",
         qualificationFamily: program?.qualificationFamily || formData.qualificationFamily || "",
-        officialLevel: program?.officialLevel || formData.officialLevel || "",
         awardType: program?.awardType || formData.awardType || "",
         assessmentMode: program?.assessmentMode || formData.assessmentMode || "",
     });
@@ -91,18 +87,17 @@ export default function ProgramForm({
         [selectedBodyData, data.qualificationFamily]
     );
 
-    const officialLevels = useMemo(
+    const registryLevels = useMemo(
         () => selectedFamilyData?.levels || [],
         [selectedFamilyData]
     );
 
 
-    // Auto-fill broad category (level), award type, assessment mode when family changes
+    // Auto-fill program metadata when family changes.
     useEffect(() => {
         if (selectedFamilyData) {
             setData((prev) => ({
                 ...prev,
-                level: selectedFamilyData.broadCategory || prev.level,
                 awardType: selectedFamilyData.awardType || prev.awardType,
                 assessmentMode: selectedFamilyData.assessmentMode || prev.assessmentMode,
             }));
@@ -125,7 +120,14 @@ export default function ProgramForm({
                 }
             }
         }
-    }, [data.qualificationFamily, selectedFamilyData]);
+    }, [
+        blueprints,
+        canChangeBlueprint,
+        data.qualificationFamily,
+        selectedBodyData?.blueprintCode,
+        selectedFamilyData,
+        setData,
+    ]);
 
     // Reset dependent fields when exam body changes
     const handleExamBodyChange = (value) => {
@@ -133,18 +135,18 @@ export default function ProgramForm({
             ...data,
             examBody: value,
             qualificationFamily: "",
-            officialLevel: "",
+            level: "",
             awardType: "",
             assessmentMode: "",
         });
     };
 
-    // Reset official level when qualification family changes
+    // Reset level when qualification family changes.
     const handleFamilyChange = (value) => {
         setData({
             ...data,
             qualificationFamily: value,
-            officialLevel: "",
+            level: "",
         });
     };
 
@@ -332,20 +334,20 @@ export default function ProgramForm({
                                                 </Box>
                                             )}
 
-                                            {/* Step 3: Select Official Level */}
-                                            {hasExamBodies && data.qualificationFamily && officialLevels.length > 0 && (
+                                            {/* Step 3: Select Level */}
+                                            {hasExamBodies && data.qualificationFamily && registryLevels.length > 0 && (
                                                 <Box>
-                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Official Level / Stage</Typography>
+                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Level</Typography>
                                                     <FormControl fullWidth>
                                                         <Select
-                                                            value={data.officialLevel}
+                                                            value={data.level}
                                                             displayEmpty
-                                                            onChange={(e) => setData("officialLevel", e.target.value)}
+                                                            onChange={(e) => setData("level", e.target.value)}
                                                         >
                                                             <MenuItem value="" disabled>
                                                                 <em>Select level...</em>
                                                             </MenuItem>
-                                                            {officialLevels.map((level) => (
+                                                            {registryLevels.map((level) => (
                                                                 <MenuItem key={level} value={level}>
                                                                     {level}
                                                                 </MenuItem>

@@ -34,13 +34,12 @@ export default function ProgramContent({
   resources = [],
   examBodyRegistry = {},
 }) {
-  const { data, setData, post, processing, errors, progress } = useForm({
+  const { data, setData, post, processing, progress } = useForm({
     description: initialData.description || "",
     category: initialData.category || "",
     level: initialData.level || "",
     examBody: initialData.examBody || "",
     qualificationFamily: initialData.qualificationFamily || "",
-    officialLevel: initialData.officialLevel || "",
     whatYouLearn: initialData.whatYouLearn || "",
     thumbnail: null,
     materials: [],
@@ -83,7 +82,7 @@ export default function ProgramContent({
   const hasExamBodies = !!data.examBody;
   
   const selectedFamilyData = hasExamBodies ? examBodyRegistry[data.examBody]?.families?.[data.qualificationFamily] : null;
-  const officialLevels = selectedFamilyData?.levels || [];
+  const registryLevels = selectedFamilyData?.levels || [];
 
   return (
     <DashboardLayout
@@ -179,21 +178,15 @@ export default function ProgramContent({
                           <FormControl fullWidth required>
                             <InputLabel required>Level</InputLabel>
                             <Select
-                              value={data.officialLevel}
+                              value={data.level}
                               label="Level"
-                              onChange={(e) => {
-                                setData((prev) => ({
-                                  ...prev,
-                                  officialLevel: e.target.value,
-                                  level: selectedFamilyData?.broadCategory || prev.level
-                                }));
-                              }}
+                              onChange={(e) => setData("level", e.target.value)}
                               required
                             >
                               <MenuItem disabled value="">
                                 <em>Select level...</em>
                               </MenuItem>
-                              {officialLevels.map((lvl) => (
+                              {registryLevels.map((lvl) => (
                                 <MenuItem key={lvl} value={lvl}>
                                   {lvl}
                                 </MenuItem>
@@ -310,7 +303,7 @@ export default function ProgramContent({
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
-                        What You'll Learn
+                        What You&apos;ll Learn
                       </Typography>
                       <Typography
                         variant="body2"

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
     Drawer,
     Box,
@@ -16,14 +16,12 @@ import {
     List,
     ListItem,
     ListItemButton,
-    ListItemIcon,
     ListItemText,
     InputAdornment,
 } from "@mui/material";
 import {
     Close as CloseIcon,
     Search as SearchIcon,
-    Add as AddIcon,
     CheckCircle as CheckCircleIcon,
     RadioButtonUnchecked as UncheckedIcon,
 } from "@mui/icons-material";
@@ -61,7 +59,6 @@ const QUESTION_TYPE_COLORS = {
 export default function QuestionsLibraryDrawer({
     open,
     onClose,
-    programId,
     onAddQuestions,
     existingQuestionIds = [],
     // Inertia props - passed from Django view

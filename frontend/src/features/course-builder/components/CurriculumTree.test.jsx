@@ -149,11 +149,8 @@ describe("CurriculumTree", () => {
 
     const program = {
         id: 42,
-        level: "skill_upgrade",
-        officialLevel: "Beginner",
+        level: "Beginner",
         taxonomy: {
-            levelValue: "skill_upgrade",
-            displayLevel: "Beginner",
             builderHierarchy: ["Unit", "Session"],
         },
     };
@@ -177,7 +174,6 @@ describe("CurriculumTree", () => {
         );
 
         expect(screen.queryByText("Program level: Beginner")).not.toBeInTheDocument();
-        expect(screen.queryByText("Program level: skill_upgrade")).not.toBeInTheDocument();
         expect(screen.getByText("Start by adding your first Unit.")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "New Unit" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "New section" })).not.toBeInTheDocument();

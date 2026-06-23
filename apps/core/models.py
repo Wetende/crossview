@@ -212,13 +212,6 @@ class Program(TimeStampedModel):
     Links to AcademicBlueprint for structure configuration.
     """
 
-    SUBMISSION_STATUS_CHOICES = [
-        ("draft", "Draft"),
-        ("submitted", "Submitted for Review"),
-        ("changes_requested", "Changes Requested"),
-        ("approved", "Approved"),
-    ]
-
     blueprint = models.ForeignKey(
         "blueprints.AcademicBlueprint",
         on_delete=models.SET_NULL,
@@ -237,19 +230,6 @@ class Program(TimeStampedModel):
     )
     description = models.TextField(blank=True, null=True)
     is_published = models.BooleanField(default=False)
-
-    # Course Vetting Workflow
-    submission_status = models.CharField(
-        max_length=20, choices=SUBMISSION_STATUS_CHOICES, default="draft"
-    )
-    submitted_at = models.DateTimeField(null=True, blank=True)
-    submitted_by = models.ForeignKey(
-        "User",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="submitted_programs",
-    )
 
     # Extended Course Manager Fields
     faq = models.JSONField(default=list, blank=True)
@@ -285,10 +265,12 @@ class Program(TimeStampedModel):
         upload_to="programs/thumbnails/", blank=True, null=True
     )
     category = models.CharField(max_length=100, blank=True, null=True)
-    # Level is now admin-configurable via PlatformSettings.course_levels
-    # For TVET mode, this serves as the broad category (Tier 1):
-    # Entry, Foundation, Certificate, Diploma, Advanced, Professional, etc.
-    level = models.CharField(max_length=50)
+    level = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Student-facing course level, e.g. Beginner, Level 5, Certificate I.",
+    )
 
     # Examining Body Metadata (TVET mode)
     # These fields enable accurate course classification per official
@@ -300,10 +282,6 @@ class Program(TimeStampedModel):
     qualification_family = models.CharField(
         max_length=100, blank=True, null=True,
         help_text="Official category: Certificate, Diploma, Professional, Trade Test, etc."
-    )
-    official_level = models.CharField(
-        max_length=100, blank=True, null=True,
-        help_text="Specific level/stage: Foundation, Level I, Grade III, Level 5, etc."
     )
     award_type = models.CharField(
         max_length=100, blank=True, null=True,
@@ -344,7 +322,6 @@ class Program(TimeStampedModel):
         indexes = [
             models.Index(fields=["name"]),
             models.Index(fields=["is_published"]),
-            models.Index(fields=["submission_status"]),
             models.Index(fields=["created_at"], name="program_created_idx"),
             models.Index(
                 fields=["is_published", "created_at"],

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { router } from "@inertiajs/react";
 import {
     Box,
@@ -14,7 +14,6 @@ import {
     MenuItem,
     FormControlLabel,
     Switch,
-    Paper,
     Tooltip,
     List,
     ListItem,
@@ -532,20 +531,31 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                                 )}
                             </FormControl>
                             {videoSource && (
-                                <TextField
-                                    sx={{ mt: 2 }}
-                                    label="Video URL *"
-                                    fullWidth
-                                    size="small"
-                                    value={videoUrl}
-                                    onChange={(e) =>
-                                        setVideoUrl(e.target.value)
-                                    }
-                                    onBlur={() => handleBlur("videoUrl")}
-                                    error={!!getFieldError("videoUrl")}
-                                    helperText={getFieldError("videoUrl")}
-                                    required
-                                />
+                                <Box sx={{ mt: 2 }}>
+                                    <InputLabel
+                                        htmlFor="lesson-video-url"
+                                        shrink
+                                        required
+                                        error={!!getFieldError("videoUrl")}
+                                        sx={{ mb: 1, fontWeight: 500 }}
+                                    >
+                                        Video URL
+                                    </InputLabel>
+                                    <TextField
+                                        id="lesson-video-url"
+                                        placeholder="Paste the video URL"
+                                        fullWidth
+                                        size="small"
+                                        value={videoUrl}
+                                        onChange={(e) =>
+                                            setVideoUrl(e.target.value)
+                                        }
+                                        onBlur={() => handleBlur("videoUrl")}
+                                        error={!!getFieldError("videoUrl")}
+                                        helperText={getFieldError("videoUrl")}
+                                        required
+                                    />
+                                </Box>
                             )}
                         </Box>
                     )}
@@ -553,42 +563,56 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     {/* --- Live Class (Zoom) Specifics --- */}
                     {lessonType === "live_class" && (
                         <Stack spacing={2}>
-                            <TextField
-                                label="Live class URL *"
-                                placeholder="Paste Zoom, Google Meet, or stream URL"
-                                fullWidth
-                                size="small"
-                                value={videoUrl}
-                                onChange={(e) => setVideoUrl(e.target.value)}
-                                onBlur={() => handleBlur("videoUrl")}
-                                error={!!getFieldError("videoUrl")}
-                                helperText={
-                                    getFieldError("videoUrl") ||
-                                    "Use a direct meeting/stream link (https://...)"
-                                }
-                                InputLabelProps={{
-                                    shrink: true,
-                                    sx: { fontWeight: 500 },
-                                }}
-                            />
+                            <Box>
+                                <InputLabel
+                                    htmlFor="live-class-url"
+                                    shrink
+                                    required
+                                    error={!!getFieldError("videoUrl")}
+                                    sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                    Live class URL
+                                </InputLabel>
+                                <TextField
+                                    id="live-class-url"
+                                    placeholder="Paste Zoom, Google Meet, or stream URL"
+                                    fullWidth
+                                    size="small"
+                                    value={videoUrl}
+                                    onChange={(e) => setVideoUrl(e.target.value)}
+                                    onBlur={() => handleBlur("videoUrl")}
+                                    error={!!getFieldError("videoUrl")}
+                                    helperText={
+                                        getFieldError("videoUrl") ||
+                                        "Use a direct meeting/stream link (https://...)"
+                                    }
+                                    required
+                                />
+                            </Box>
 
-                            <TextField
-                                label="Meeting password"
-                                placeholder="Optional (for Zoom passcodes)"
-                                fullWidth
-                                size="small"
-                                value={meetingPassword}
-                                onChange={(e) =>
-                                    setMeetingPassword(e.target.value)
-                                }
-                                onBlur={() => handleBlur("meetingPassword")}
-                                error={!!getFieldError("meetingPassword")}
-                                helperText={getFieldError("meetingPassword")}
-                                InputLabelProps={{
-                                    shrink: true,
-                                    sx: { fontWeight: 500 },
-                                }}
-                            />
+                            <Box>
+                                <InputLabel
+                                    htmlFor="meeting-password"
+                                    shrink
+                                    error={!!getFieldError("meetingPassword")}
+                                    sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                    Meeting password
+                                </InputLabel>
+                                <TextField
+                                    id="meeting-password"
+                                    placeholder="Optional (for Zoom passcodes)"
+                                    fullWidth
+                                    size="small"
+                                    value={meetingPassword}
+                                    onChange={(e) =>
+                                        setMeetingPassword(e.target.value)
+                                    }
+                                    onBlur={() => handleBlur("meetingPassword")}
+                                    error={!!getFieldError("meetingPassword")}
+                                    helperText={getFieldError("meetingPassword")}
+                                />
+                            </Box>
 
                             <Box sx={{ display: "flex", gap: 2 }}>
                                 <Box sx={{ flex: 1 }}>
@@ -684,22 +708,29 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                                 </Box>
                             </Box>
 
-                            <TextField
-                                label="Lesson duration *"
-                                placeholder="Example: 2h 45m"
-                                fullWidth
-                                size="small"
-                                value={duration}
-                                onChange={(e) => setDuration(e.target.value)}
-                                onBlur={() => handleBlur("duration")}
-                                error={!!getFieldError("duration")}
-                                helperText={getFieldError("duration")}
-                                InputLabelProps={{
-                                    shrink: true,
-                                    sx: { fontWeight: 500 },
-                                }}
-                                required
-                            />
+                            <Box>
+                                <InputLabel
+                                    htmlFor="live-class-duration"
+                                    shrink
+                                    required
+                                    error={!!getFieldError("duration")}
+                                    sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                    Lesson duration
+                                </InputLabel>
+                                <TextField
+                                    id="live-class-duration"
+                                    placeholder="Example: 2h 45m"
+                                    fullWidth
+                                    size="small"
+                                    value={duration}
+                                    onChange={(e) => setDuration(e.target.value)}
+                                    onBlur={() => handleBlur("duration")}
+                                    error={!!getFieldError("duration")}
+                                    helperText={getFieldError("duration")}
+                                    required
+                                />
+                            </Box>
 
                             <FormControl
                                 fullWidth
@@ -836,22 +867,29 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                                 alignItems: "flex-start",
                             }}
                         >
-                            <TextField
-                                label="Lesson duration *"
-                                placeholder="Example: 2h 45m"
-                                size="small"
-                                value={duration}
-                                onChange={(e) => setDuration(e.target.value)}
-                                onBlur={() => handleBlur("duration")}
-                                sx={{ width: 250 }}
-                                error={!!getFieldError("duration")}
-                                helperText={getFieldError("duration")}
-                                InputLabelProps={{
-                                    shrink: true,
-                                    sx: { fontWeight: 500 },
-                                }}
-                                required
-                            />
+                            <Box sx={{ width: 250 }}>
+                                <InputLabel
+                                    htmlFor="lesson-duration"
+                                    shrink
+                                    required
+                                    error={!!getFieldError("duration")}
+                                    sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                    Lesson duration
+                                </InputLabel>
+                                <TextField
+                                    id="lesson-duration"
+                                    placeholder="Example: 2h 45m"
+                                    size="small"
+                                    fullWidth
+                                    value={duration}
+                                    onChange={(e) => setDuration(e.target.value)}
+                                    onBlur={() => handleBlur("duration")}
+                                    error={!!getFieldError("duration")}
+                                    helperText={getFieldError("duration")}
+                                    required
+                                />
+                            </Box>
                         </Box>
                     )}
 
@@ -1168,7 +1206,7 @@ function QATab({ nodeId, discussions: initialDiscussions = [] }) {
     const [replyDrafts, setReplyDrafts] = useState({});
     const [replyingById, setReplyingById] = useState({});
 
-    const loadDiscussions = async () => {
+    const loadDiscussions = useCallback(async () => {
         if (!nodeId || String(nodeId).startsWith("temp_")) {
             setDiscussions([]);
             return;
@@ -1194,11 +1232,11 @@ function QATab({ nodeId, discussions: initialDiscussions = [] }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [nodeId]);
 
     useEffect(() => {
         loadDiscussions();
-    }, [nodeId]);
+    }, [loadDiscussions]);
 
     const handleCreate = () => {
         if (!newTitle.trim()) return;

@@ -14,40 +14,42 @@ import {
     Button,
 } from "@mui/material";
 import { TouchApp as TouchAppIcon } from "@mui/icons-material";
-import MenuBookIcon from "@mui/icons-material/MenuBook"; // Added
-import CloseIcon from "@mui/icons-material/Close"; // Added
-import VisibilityIcon from "@mui/icons-material/Visibility"; // Added
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"; // Added
-import DescriptionIcon from "@mui/icons-material/Description"; // Added
-import Brightness4Icon from "@mui/icons-material/Brightness4"; // Added
-import Brightness7Icon from "@mui/icons-material/Brightness7"; // Added
-import { useThemeMode } from "@/theme/index"; // Added
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import CloseIcon from "@mui/icons-material/Close";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import DescriptionIcon from "@mui/icons-material/Description";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
+import { useThemeMode } from "@/theme/index";
 import DOMPurify from "dompurify";
 import CourseBuilderLayout from "@/layouts/CourseBuilderLayout";
 import CurriculumTree, { flattenNodes } from "../components/CurriculumTree";
 import EditorContainer from "../editors/EditorContainer";
 import SettingsPanel from "../components/SettingsPanel";
+import CoursePublicationControls from "../components/CoursePublicationControls";
+import {
+    getBuilderTabUrl,
+    getRequestedBuilderTab,
+    normalizeBuilderTab,
+} from "../utils/builderTabs";
 
-const RIGHT_DRAWER_WIDTH = 300; // Define the width for the right drawer
-const BUILDER_TABS = new Set([
-    "overview",
-    "curriculum",
-    "settings",
-    "pricing",
-    "faq",
-    "notice",
-    "drip",
-    "practicum",
-    "prerequisites",
-    "access",
-]);
+const RIGHT_DRAWER_WIDTH = 300;
+const getInitialTab = (program) =>
+    normalizeBuilderTab(program, getRequestedBuilderTab());
 
-const getInitialTab = () => {
+const syncBuilderTabUrl = (programId, tab, { replace = false } = {}) => {
     if (typeof window === "undefined") {
-        return "curriculum";
+        return;
     }
-    const requestedTab = new URLSearchParams(window.location.search).get("tab");
-    return BUILDER_TABS.has(requestedTab) ? requestedTab : "curriculum";
+
+    const nextUrl = getBuilderTabUrl(programId, tab);
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    if (currentUrl === nextUrl) {
+        return;
+    }
+
+    const method = replace ? "replaceState" : "pushState";
+    window.history[method]({}, "", nextUrl);
 };
 
 export default function InstructorProgramBuilder({
@@ -56,10 +58,10 @@ export default function InstructorProgramBuilder({
     platformFeatures = {},
     deploymentMode = "custom",
 }) {
-    const { mode, toggleMode } = useThemeMode(); // Added
-    const [activeTab, setActiveTab] = useState(getInitialTab);
+    const { mode, toggleMode } = useThemeMode();
+    const [activeTab, setActiveTab] = useState(() => getInitialTab(program));
     const [selectedNodeId, setSelectedNodeId] = useState(null);
-    const [guideOpen, setGuideOpen] = useState(false); // Added state for guide drawer
+    const [guideOpen, setGuideOpen] = useState(false);
     const [curriculum, setCurriculum] = useState(initialCurriculum);
 
     // Get reactive page props for curriculum updates
@@ -74,6 +76,24 @@ export default function InstructorProgramBuilder({
             setCurriculum(page.props.curriculum);
         }
     }, [page.props.curriculum]);
+
+    useEffect(() => {
+        const applyCurrentLocationTab = () => {
+            const nextTab = getInitialTab(program);
+            setActiveTab(nextTab);
+
+            if (getRequestedBuilderTab() !== nextTab) {
+                syncBuilderTabUrl(program.id, nextTab, { replace: true });
+            }
+        };
+
+        applyCurrentLocationTab();
+        window.addEventListener("popstate", applyCurrentLocationTab);
+
+        return () => {
+            window.removeEventListener("popstate", applyCurrentLocationTab);
+        };
+    }, [page.url, program]);
 
     // Helper to find node by ID in the tree
     const findNode = (id) => {
@@ -90,13 +110,9 @@ export default function InstructorProgramBuilder({
     };
 
     const handleTabChange = (nextTab) => {
-        setActiveTab(nextTab);
-        if (typeof window === "undefined") {
-            return;
-        }
-        const baseUrl = `/instructor/programs/${program.id}/manage/`;
-        const nextUrl = nextTab === "curriculum" ? baseUrl : `${baseUrl}?tab=${nextTab}`;
-        window.history.replaceState({}, "", nextUrl);
+        const normalizedTab = normalizeBuilderTab(program, nextTab);
+        setActiveTab(normalizedTab);
+        syncBuilderTabUrl(program.id, normalizedTab);
     };
 
     return (
@@ -129,17 +145,7 @@ export default function InstructorProgramBuilder({
                     >
                         Guide
                     </Button>
-                    <Button
-                        startIcon={<VisibilityIcon />}
-                        onClick={() =>
-                            window.open(
-                                `/instructor/programs/${program.id}/preview/`,
-                                "_blank",
-                            )
-                        }
-                    >
-                        Preview
-                    </Button>
+                    <CoursePublicationControls program={program} />
                 </Stack>
             }
         >
@@ -153,8 +159,6 @@ export default function InstructorProgramBuilder({
                     display: "flex",
                 }}
             >
-                {" "}
-                {/* Added display: 'flex' */}
                 {/* Use full height and no padding for curriculum to match the sidebar design */}
                 <Box
                     sx={{

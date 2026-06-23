@@ -2,8 +2,7 @@
  * Instructor Program Detail Page
  */
 
-import { Head, Link, router } from "@inertiajs/react";
-import { useState } from "react";
+import { Head, Link } from "@inertiajs/react";
 import {
     Box,
     Typography,
@@ -31,15 +30,12 @@ import {
     IconUsers,
     IconBook,
     IconClipboardCheck,
-    IconSend,
-    IconMessageCircle,
     IconFolder,
     IconUserCheck,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 
 import InstructorLayout from "@/layouts/InstructorLayout";
-import ConfirmDialog from "@/components/ConfirmDialog";
 import { htmlToPlainText } from "@/utils/htmlText";
 
 const STATUS_COLORS = {
@@ -50,22 +46,7 @@ const STATUS_COLORS = {
 };
 
 export default function Detail({ program, students, curriculum }) {
-    const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
     const descriptionText = htmlToPlainText(program.description);
-
-    const handleSubmitForReview = () => {
-        setSubmitDialogOpen(true);
-    };
-
-    const handleCloseSubmitDialog = () => {
-        setSubmitDialogOpen(false);
-    };
-
-    const handleConfirmSubmitForReview = () => {
-        router.post(`/instructor/programs/${program.id}/submit/`, {}, {
-            onFinish: () => setSubmitDialogOpen(false),
-        });
-    };
 
     return (
         <InstructorLayout
@@ -118,22 +99,6 @@ export default function Detail({ program, students, curriculum }) {
                                 startIcon={<IconUserCheck size={18} />}
                             >
                                 Enrollment Requests
-                            </Button>
-                            <Button
-                                component={Link}
-                                href={`/instructor/programs/${program.id}/change-requests/`}
-                                variant="outlined"
-                                startIcon={<IconMessageCircle size={18} />}
-                            >
-                                Change Requests
-                            </Button>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                startIcon={<IconSend size={18} />}
-                                onClick={handleSubmitForReview}
-                            >
-                                Submit for Review
                             </Button>
                         </Stack>
                     </Box>
@@ -395,14 +360,6 @@ export default function Detail({ program, students, curriculum }) {
                     </Grid>
                 </Stack>
             </motion.div>
-            <ConfirmDialog
-                open={submitDialogOpen}
-                onClose={handleCloseSubmitDialog}
-                onConfirm={handleConfirmSubmitForReview}
-                title="Submit for Review"
-                message="Submit this program for admin review?"
-                confirmLabel="Submit"
-            />
         </InstructorLayout>
     );
 }

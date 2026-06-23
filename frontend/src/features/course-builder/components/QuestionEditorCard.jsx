@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Box,
     Paper,
@@ -57,13 +57,6 @@ const normalizeFillBlankText = (text, type) => {
         .replace(/\{\{\s*blank\s*\}\}/gi, "{{blank}}");
 };
 
-const getDefaultCorrectValue = (type, value) => {
-    if (value !== undefined && value !== null) {
-        return value;
-    }
-    return type === "mcq_multi" ? null : 0;
-};
-
 /**
  * QuestionEditorCard - Inline editor for quiz questions
  * Matches STM LMS Quiz Builder design with rich text, media, categories
@@ -82,10 +75,7 @@ export default function QuestionEditorCard({
         type: question.type || "mcq",
         points: question.points || 1,
         options: question.options || ["", "", "", ""],
-        correct: getDefaultCorrectValue(
-            question.type || "mcq",
-            question.correct,
-        ),
+        correct: question.correct ?? 0,
         correctAnswers: question.correctAnswers || [],
         categories: question.categories || [],
         required: question.required ?? true,
@@ -104,10 +94,7 @@ export default function QuestionEditorCard({
             type: question.type || "mcq",
             points: question.points || 1,
             options: question.options || ["", "", "", ""],
-            correct: getDefaultCorrectValue(
-                question.type || "mcq",
-                question.correct,
-            ),
+            correct: question.correct ?? 0,
             correctAnswers: question.correctAnswers || [],
             categories: question.categories || [],
             required: question.required ?? true,
@@ -118,8 +105,8 @@ export default function QuestionEditorCard({
             explanations: question.explanations || {},
             media: question.media || null,
         });
-        // This effect is only for switching the card to a different question.
-        // Depending on the full question object causes reset loops while typing/saving.
+        // Reset only when switching cards; syncing every echoed field update
+        // would overwrite in-progress edits in the debounced local editor.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [question.id]);
 
@@ -161,7 +148,12 @@ export default function QuestionEditorCard({
 
     // Sync local state to parent
     useEffect(() => {
-        onChange({ ...question, ...localData });
+        const timer = setTimeout(() => {
+            onChange({ ...question, ...localData });
+        }, 500);
+        return () => clearTimeout(timer);
+        // Parent callbacks are inline per question row, so localData is the
+        // deliberate trigger for debounced saves to the parent editor state.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localData]);
 

@@ -4,21 +4,19 @@
  * Requirements: US-2.1, US-2.2
  */
 
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import {
   Box,
   Typography,
   Stack,
-  Button,
   Tabs,
   Tab,
-  useTheme,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
 } from "@mui/material";
-import { IconPlus, IconSchool } from "@tabler/icons-react";
+import { IconSchool } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { ProgramManageCard } from "@/components/cards";
@@ -37,7 +35,6 @@ export default function InstructorProgramsIndex({
   courseLevels = [],
   filters = {},
 }) {
-  const theme = useTheme();
   const [tab, setTab] = useState(filters.status || "all");
   const [level, setLevel] = useState(filters.level || "");
 
@@ -83,11 +80,18 @@ export default function InstructorProgramsIndex({
   const filteredGroups = groupsToRender.map((group) => ({
     ...group,
     programs: (group.programs || []).filter(filterByTab),
-  }));
+  })).filter((group) => (group.programs || []).length > 0);
+
+  const groupedProgramIds = new Set(
+    filteredGroups.flatMap((group) => (group.programs || []).map((program) => program.id)),
+  );
+  const ungroupedPrograms = programs
+    .filter(filterByTab)
+    .filter((program) => !groupedProgramIds.has(program.id));
 
   const totalPrograms = filteredGroups.reduce(
     (total, group) => total + (group.programs || []).length,
-    0,
+    ungroupedPrograms.length,
   );
 
   return (
@@ -180,53 +184,52 @@ export default function InstructorProgramsIndex({
                   {group.label}
                 </Typography>
               </Box>
-              {(group.programs || []).length === 0 ? (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ pl: 1 }}
-                >
-                  No programs in this level
-                </Typography>
-              ) : (
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 3,
-                  }}
-                >
-                  {group.programs.map((program, index) => (
-                    <Box
-                      key={program.id}
-                      sx={{
-                        width: {
-                          xs: "100%",
-                          sm: "calc(50% - 12px)",
-                          md: "calc(33.333% - 16px)",
-                        },
-                        maxWidth: 350,
-                        minWidth: 280,
-                      }}
-                    >
-                      <motion.div
-                        {...fadeInUp}
-                        transition={{
-                          ...fadeInUp.transition,
-                          delay: index * 0.05,
-                        }}
-                      >
-                        <ProgramManageCard program={program} />
-                      </motion.div>
-                    </Box>
-                  ))}
-                </Box>
-              )}
+              <ProgramsCardGrid programs={group.programs || []} />
             </Fragment>
           ))}
+          {ungroupedPrograms.length > 0 && (
+            <ProgramsCardGrid programs={ungroupedPrograms} />
+          )}
         </Stack>
       )}
     </DashboardLayout>
+  );
+}
+
+function ProgramsCardGrid({ programs }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 3,
+      }}
+    >
+      {programs.map((program, index) => (
+        <Box
+          key={program.id}
+          sx={{
+            width: {
+              xs: "100%",
+              sm: "calc(50% - 12px)",
+              md: "calc(33.333% - 16px)",
+            },
+            maxWidth: 350,
+            minWidth: 280,
+          }}
+        >
+          <motion.div
+            {...fadeInUp}
+            transition={{
+              ...fadeInUp.transition,
+              delay: index * 0.05,
+            }}
+          >
+            <ProgramManageCard program={program} />
+          </motion.div>
+        </Box>
+      ))}
+    </Box>
   );
 }
 

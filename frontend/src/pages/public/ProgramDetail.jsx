@@ -75,18 +75,12 @@ function CourseDetailsSidebar({
     onAddToCart,
     onToggleWishlist,
     wishlisted,
-    courseLevels = [],
+    isPreview = false,
 }) {
     const theme = useTheme();
     const isEnrolled = enrollmentStatus === "enrolled";
     const isCompleted = enrollmentData?.isCompleted;
     const progressPercent = enrollmentData?.progressPercent || 0;
-
-    // Get level label from courseLevels
-    const getLevelLabel = () => {
-        const level = courseLevels.find((l) => l.value === program.level);
-        return level?.label || program.level || "Beginner";
-    };
 
     // Determine CTA button text based on enrollment mode
     const getCtaText = () => {
@@ -105,7 +99,7 @@ function CourseDetailsSidebar({
         <Card sx={{ mb: 3, position: "sticky", top: 100 }}>
             <CardContent sx={{ p: 3 }}>
                 {/* Enrolled User CTA */}
-                {isEnrolled ? (
+                {!isPreview && (isEnrolled ? (
                     <>
                         {/* Completion/Progress Badge */}
                         <Stack
@@ -393,7 +387,7 @@ function CourseDetailsSidebar({
                             </Button>
                         </Stack>
                     </>
-                )}
+                ))}
 
                 <Divider sx={{ my: 2 }} />
 
@@ -475,7 +469,7 @@ function CourseDetailsSidebar({
                             </Typography>
                         </Stack>
                         <Typography variant="body2" fontWeight={600}>
-                            {getLevelLabel()}
+                            {program.level || "No level"}
                         </Typography>
                     </Stack>
                 </Stack>
@@ -600,7 +594,8 @@ export default function ProgramDetail({
     enrollmentData,
     enrollmentMode = "free",
     ctaState = "not_enrolled",
-    courseLevels = [],
+    isPreview = false,
+    builderUrl = null,
 }) {
     const { auth, platform } = usePage().props;
     const { addToCart } = useCart();
@@ -654,8 +649,46 @@ export default function ProgramDetail({
                 {/* Navbar */}
                 <PublicNavbar activeLink="/programs/" auth={auth} />
 
+                {isPreview && (
+                    <Box
+                        sx={{
+                            position: "relative",
+                            zIndex: 2,
+                            bgcolor: "warning.light",
+                            borderBottom: 1,
+                            borderColor: "warning.main",
+                            pt: 9,
+                            pb: 1,
+                        }}
+                    >
+                        <Container maxWidth="lg">
+                            <Stack
+                                direction={{ xs: "column", sm: "row" }}
+                                spacing={1}
+                                alignItems={{ xs: "stretch", sm: "center" }}
+                                justifyContent="space-between"
+                            >
+                                <Typography variant="body2" fontWeight={700}>
+                                    Draft preview. This course is not visible to students.
+                                </Typography>
+                                {builderUrl && (
+                                    <Button
+                                        component={Link}
+                                        href={builderUrl}
+                                        variant="outlined"
+                                        color="inherit"
+                                        size="small"
+                                    >
+                                        Back to Course Builder
+                                    </Button>
+                                )}
+                            </Stack>
+                        </Container>
+                    </Box>
+                )}
+
                 {/* Badge (if any) */}
-                <Container maxWidth="lg" sx={{ pt: 12 }}>
+                <Container maxWidth="lg" sx={{ pt: isPreview ? 3 : 12 }}>
                     {program.badge_type && (
                         <Chip
                             label={program.badge_type.toUpperCase()}
@@ -692,7 +725,7 @@ export default function ProgramDetail({
                                 onAddToCart={handleAddToCart}
                                 onToggleWishlist={handleToggleWishlist}
                                 wishlisted={isWishlisted}
-                                courseLevels={courseLevels}
+                                isPreview={isPreview}
                             />
                             <PopularCourses courses={popularPrograms} />
                         </Grid>

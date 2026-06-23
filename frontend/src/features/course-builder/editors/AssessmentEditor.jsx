@@ -920,18 +920,27 @@ export default function AssessmentEditor({
                     {isAssignment && (
                         <>
                             <Typography variant="h6">Assignment</Typography>
-                            <TextField
-                                label="Assignment attempts"
-                                type="number"
-                                value={assignmentAttempts}
-                                onChange={(e) =>
-                                    setAssignmentAttempts(e.target.value)
-                                }
-                                placeholder="Leave empty for unlimited"
-                                sx={{ width: 260 }}
-                                InputProps={{ inputProps: { min: 1 } }}
-                                helperText="Leave empty for unlimited attempts"
-                            />
+                            <Box sx={{ width: 260 }}>
+                                <InputLabel
+                                    htmlFor="assignment-attempts"
+                                    shrink
+                                    sx={{ mb: 1, fontWeight: 500 }}
+                                >
+                                    Assignment attempts
+                                </InputLabel>
+                                <TextField
+                                    id="assignment-attempts"
+                                    type="number"
+                                    value={assignmentAttempts}
+                                    onChange={(e) =>
+                                        setAssignmentAttempts(e.target.value)
+                                    }
+                                    placeholder="Leave empty for unlimited"
+                                    fullWidth
+                                    InputProps={{ inputProps: { min: 1 } }}
+                                    helperText="Leave empty for unlimited attempts"
+                                />
+                            </Box>
                             <Stack direction="row" spacing={2} flexWrap="wrap">
                                 <FormControl sx={{ minWidth: 220 }}>
                                     <InputLabel>Submission type</InputLabel>
@@ -955,17 +964,27 @@ export default function AssessmentEditor({
                                         </MenuItem>
                                     </Select>
                                 </FormControl>
-                                <TextField
-                                    label="Allowed file types"
-                                    value={allowedFileTypes}
-                                    onChange={(e) =>
-                                        setAllowedFileTypes(e.target.value)
-                                    }
-                                    placeholder="pdf, docx, mp3, mp4"
-                                    disabled={assignmentSubmissionType === "text"}
-                                    helperText="Comma-separated extensions"
-                                    sx={{ minWidth: 260 }}
-                                />
+                                <Box sx={{ minWidth: 260 }}>
+                                    <InputLabel
+                                        htmlFor="allowed-file-types"
+                                        shrink
+                                        disabled={assignmentSubmissionType === "text"}
+                                        sx={{ mb: 1, fontWeight: 500 }}
+                                    >
+                                        Allowed file types
+                                    </InputLabel>
+                                    <TextField
+                                        id="allowed-file-types"
+                                        value={allowedFileTypes}
+                                        onChange={(e) =>
+                                            setAllowedFileTypes(e.target.value)
+                                        }
+                                        placeholder="pdf, docx, mp3, mp4"
+                                        disabled={assignmentSubmissionType === "text"}
+                                        helperText="Comma-separated extensions"
+                                        fullWidth
+                                    />
+                                </Box>
                                 <TextField
                                     label="Max file size (MB)"
                                     type="number"

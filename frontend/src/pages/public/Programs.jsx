@@ -62,10 +62,14 @@ export default function Programs({
     groupedPrograms && groupedPrograms.length > 0
       ? groupedPrograms
       : [{ value: "all", label: "All Programs", programs }];
+  const groupedProgramIds = new Set(
+    groupsToRender.flatMap((group) => (group.programs || []).map((program) => program.id)),
+  );
+  const ungroupedPrograms = programs.filter((program) => !groupedProgramIds.has(program.id));
 
   const totalPrograms = groupsToRender.reduce(
     (total, group) => total + (group.programs || []).length,
-    0,
+    ungroupedPrograms.length,
   );
   const listState = getProgramsListState({
     filters,
@@ -296,24 +300,22 @@ export default function Programs({
                       {group.label}
                     </Typography>
                   </Box>
-                  {(group.programs || []).length === 0 ? (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ pl: 1 }}
-                    >
-                      No programs in this level
-                    </Typography>
-                  ) : (
-                    <ProgramGrid
-                      programs={group.programs || []}
-                      isAuthenticated={!!auth?.user}
-                      userEnrollments={userEnrollments}
-                      userPendingRequests={userPendingRequests}
-                    />
-                  )}
+                  <ProgramGrid
+                    programs={group.programs || []}
+                    isAuthenticated={!!auth?.user}
+                    userEnrollments={userEnrollments}
+                    userPendingRequests={userPendingRequests}
+                  />
                 </Fragment>
               ))}
+              {ungroupedPrograms.length > 0 && (
+                <ProgramGrid
+                  programs={ungroupedPrograms}
+                  isAuthenticated={!!auth?.user}
+                  userEnrollments={userEnrollments}
+                  userPendingRequests={userPendingRequests}
+                />
+              )}
               {pagination.totalPages > 1 && (
                 <Stack direction="row" justifyContent="center" sx={{ pt: 2 }}>
                   <Pagination

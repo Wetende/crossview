@@ -119,27 +119,122 @@ class CoursePublishValidationService:
                 and typed_response_mode == "submission_text"
             )
         
+        def _node_props(node):
+            return node.properties if isinstance(node.properties, dict) else {}
+
+        def _lesson_type(node):
+            return str(_node_props(node).get("lesson_type") or "").strip().lower()
+
+        def _node_type(node):
+            return str(node.node_type or "").strip().lower()
+
+        def _numeric_weight(value):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
         # Get all curriculum nodes for this program
         nodes = list(CurriculumNode.objects.filter(program=program))
+        parent_ids = {node.parent_id for node in nodes if node.parent_id}
+        container_types = {
+            "unit",
+            "module",
+            "section",
+            "chapter",
+            "part",
+            "year",
+            "term",
+            "semester",
+            "week",
+            "topic",
+            "category",
+        }
 
-        # Count node types (supports both explicit node_type and lesson_type payloads)
-        lessons = [n for n in nodes if str(n.node_type or "").lower() == 'lesson']
-        quizzes = [
-            n
-            for n in nodes
-            if str(n.node_type or "").lower() == 'quiz'
-            or str((n.properties or {}).get("lesson_type") or "").lower() == 'quiz'
-        ]
-        assignments = [
-            n
-            for n in nodes
-            if str(n.node_type or "").lower() == 'assignment'
-            or str((n.properties or {}).get("lesson_type") or "").lower() == 'assignment'
-        ]
+        assessment_types = {"quiz", "assignment"}
+
+        def _is_quiz(node):
+            lesson_type = _lesson_type(node)
+            return lesson_type == "quiz" or (
+                not lesson_type and _node_type(node) == "quiz"
+            )
+
+        def _is_assignment(node):
+            lesson_type = _lesson_type(node)
+            return lesson_type == "assignment" or (
+                not lesson_type and _node_type(node) == "assignment"
+            )
+
+        def _is_content_lesson(node):
+            if _is_quiz(node) or _is_assignment(node):
+                return False
+            if node.id in parent_ids:
+                return False
+            lesson_type = _lesson_type(node)
+            node_type = _node_type(node)
+            if lesson_type and lesson_type not in assessment_types:
+                return True
+            return node_type in {"lesson", "session"} or node_type not in container_types
+
+        # Count node types by the canonical Builder payload first.
+        lessons = [n for n in nodes if _is_content_lesson(n)]
+        quizzes = [n for n in nodes if _is_quiz(n)]
+        assignments = [n for n in nodes if _is_assignment(n)]
 
         details['lesson_count'] = len(lessons)
         details['quiz_count'] = len(quizzes)
         details['assignment_count'] = len(assignments)
+
+        from django.utils.html import strip_tags
+
+        from apps.assessments.models import Assignment, Quiz
+        from apps.progression.models import InstructorAssignment
+
+        has_instructor = InstructorAssignment.objects.filter(program=program).exists()
+        has_description = bool(strip_tags(str(program.description or "")).strip())
+        has_thumbnail = bool(program.thumbnail)
+        learning_outcome_items = getattr(program, "what_you_learn_items", None) or []
+        has_learning_outcomes = bool(learning_outcome_items) or bool(
+            strip_tags(str(getattr(program, "what_you_learn_html", "") or "")).strip()
+        )
+        details["metadata"] = {
+            "has_instructor": has_instructor,
+            "has_description": has_description,
+            "has_thumbnail": has_thumbnail,
+            "has_learning_outcomes": has_learning_outcomes,
+        }
+
+        if not has_instructor:
+            errors.append({
+                'type': 'missing_instructor',
+                'message': 'Course must have at least one assigned instructor',
+                'node_id': None,
+                'node_title': None
+            })
+
+        if not has_description:
+            errors.append({
+                'type': 'missing_description',
+                'message': 'Course must have a public course description',
+                'node_id': None,
+                'node_title': None
+            })
+
+        if not has_thumbnail:
+            errors.append({
+                'type': 'missing_thumbnail',
+                'message': 'Course must have a thumbnail image',
+                'node_id': None,
+                'node_title': None
+            })
+
+        if not has_learning_outcomes:
+            errors.append({
+                'type': 'missing_learning_outcomes',
+                'message': "Course must explain what learners will learn",
+                'node_id': None,
+                'node_title': None
+            })
         
         # Basic content check
         if len(lessons) == 0:
@@ -162,11 +257,54 @@ class CoursePublishValidationService:
                 'node_title': None
             })
         
-        # Weight validation for assignments (theology mode requirement)
+        quiz_records = {
+            quiz.node_id: quiz
+            for quiz in Quiz.objects.filter(node__in=quizzes).only("id", "node_id", "weight")
+        }
+        assignment_ids = [
+            _node_props(assignment).get("assignment_id")
+            for assignment in assignments
+            if _node_props(assignment).get("assignment_id")
+        ]
+        assignment_records = {
+            assignment.id: assignment
+            for assignment in Assignment.objects.filter(id__in=assignment_ids).only(
+                "id", "weight"
+            )
+        }
+
+        quiz_weights = []
+        for quiz in quizzes:
+            props = _node_props(quiz)
+            quiz_record = quiz_records.get(quiz.id)
+            weight = _numeric_weight(
+                props.get("weight")
+                if props.get("weight") not in (None, "")
+                else getattr(quiz_record, "weight", 0)
+            )
+            quiz_weights.append({
+                'id': quiz.id,
+                'title': quiz.title,
+                'weight': weight
+            })
+            if weight == 0:
+                warnings.append({
+                    'type': 'missing_weight',
+                    'message': 'Quiz has no weight set',
+                    'node_id': quiz.id,
+                    'node_title': quiz.title
+                })
+
+        # Weight validation and integrity checks for assignments.
         assignment_weights = []
         for assignment in assignments:
-            props = assignment.properties if isinstance(assignment.properties, dict) else {}
-            weight = props.get('weight', 0)
+            props = _node_props(assignment)
+            assignment_record = assignment_records.get(props.get("assignment_id"))
+            weight = _numeric_weight(
+                props.get("weight")
+                if props.get("weight") not in (None, "")
+                else getattr(assignment_record, "weight", 0)
+            )
             assignment_weights.append({
                 'id': assignment.id,
                 'title': assignment.title,
@@ -260,32 +398,27 @@ class CoursePublishValidationService:
                         }
                     )
         
-        total_weight = sum(a['weight'] for a in assignment_weights)
+        quiz_weight = sum(q['weight'] for q in quiz_weights)
+        assignment_weight = sum(a['weight'] for a in assignment_weights)
+        total_weight = quiz_weight + assignment_weight
+        details['quiz_weights'] = quiz_weights
+        details['quiz_weight'] = quiz_weight
         details['assignment_weights'] = assignment_weights
-        details['total_assignment_weight'] = total_weight
+        details['assignment_weight'] = assignment_weight
+        details['total_assessment_weight'] = total_weight
         
-        # Check mode-specific requirements
+        # Keep mode in details for existing UI/debug output, but publish readiness
+        # uses the same assessment rule for every course.
         mode = getattr(program, 'mode', None) or 'online'
         details['mode'] = mode
         
-        if mode in ('theology', 'tvet'):
-            # Theology/TVET modes require weights to sum to 100%
-            if len(assignments) > 0 and total_weight != 100:
-                errors.append({
-                    'type': 'invalid_weight_sum',
-                    'message': f'Assignment weights must sum to 100% (currently {total_weight}%)',
-                    'node_id': None,
-                    'node_title': None
-                })
-        else:
-            # Online mode - just warn if weights don't sum to 100
-            if len(assignments) > 0 and total_weight != 100:
-                warnings.append({
-                    'type': 'weight_recommendation',
-                    'message': f'Assignment weights total {total_weight}% (recommended: 100%)',
-                    'node_id': None,
-                    'node_title': None
-                })
+        if total_assessments > 0 and total_weight != 100:
+            errors.append({
+                'type': 'invalid_weight_sum',
+                'message': f'Quiz and assignment weights must sum to 100% (currently {total_weight}%)',
+                'node_id': None,
+                'node_title': None
+            })
         
         # Check for incomplete quizzes (no questions)
         incomplete_quizzes = []

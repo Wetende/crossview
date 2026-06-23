@@ -47,7 +47,6 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
-import ApprovalIcon from "@mui/icons-material/Approval";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import CampaignIcon from "@mui/icons-material/Campaign";
@@ -255,11 +254,6 @@ const roleNavigation = {
                     label: "Programs",
                     href: "/admin/programs/",
                     icon: SchoolIcon,
-                },
-                {
-                    label: "Course Approvals",
-                    href: "/admin/course-approval/",
-                    icon: ApprovalIcon,
                 },
                 {
                     label: "Rubrics",
