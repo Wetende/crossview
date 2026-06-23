@@ -157,15 +157,19 @@ export default function InstructorProgramBuilder({
                     height: "100%",
                     overflow: "hidden",
                     display: "flex",
+                    minHeight: 0,
                 }}
             >
                 {/* Use full height and no padding for curriculum to match the sidebar design */}
                 <Box
                     sx={{
                         height: "100%",
-                        overflowY: "hidden",
+                        overflowY:
+                            activeTab === "curriculum" ? "hidden" : "auto",
                         p: activeTab === "curriculum" ? 0 : 3,
                         flexGrow: 1, // Allow this box to grow
+                        minWidth: 0,
+                        minHeight: 0,
                         mr: guideOpen ? `${RIGHT_DRAWER_WIDTH}px` : 0, // Adjust margin when guide is open
                         transition: "margin 0.2s ease-out", // Smooth transition
                     }}
@@ -236,7 +240,7 @@ export default function InstructorProgramBuilder({
                         activeTab === "practicum" ||
                         activeTab === "prerequisites" ||
                         activeTab === "access") && (
-                        <Box sx={{ maxWidth: 640, mx: "auto", pt: 2 }}>
+                        <Box sx={{ maxWidth: 640, mx: "auto", pt: 2, pb: 4 }}>
                             <Card>
                                 <CardContent>
                                     <SettingsPanel
