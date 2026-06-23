@@ -2060,58 +2060,31 @@ def admin_program_create(request):
     if not _require_admin(request.user):
         return redirect("/dashboard/")
 
-    from apps.blueprints.models import AcademicBlueprint
     from apps.progression.models import InstructorAssignment
-    from apps.platform.models import PlatformSettings
-    from apps.platform.exam_body_registry import get_registry_for_frontend
-
-    platform_settings = PlatformSettings.get_settings()
 
     if request.method == "POST":
         data = get_post_data(request)
-        errors = {}
-
-        name = data.get("name", "").strip()
-        if not name:
-            errors["name"] = "Name is required"
-
-        code = data.get("code", "").strip()
-        blueprint_id = data.get("blueprintId")
-
-        if not blueprint_id:
-            errors["blueprintId"] = "Blueprint is required"
+        cleaned, errors = _validate_program_setup_data(data)
 
         if errors:
             return render(
                 request,
                 "Admin/Programs/Form",
-                {
-                    "mode": "create",
-                    "blueprints": _get_blueprints_for_form(),
-                    "instructors": _get_instructors_for_form(),
-                    "courseLevels": _build_level_options(
-                        list(Program.objects.values("level").order_by("level"))
-                    ),
-                    "examBodyRegistry": get_registry_for_frontend(),
-                    "deploymentMode": platform_settings.deployment_mode,
-                    "errors": errors,
-                    "formData": data,
-                },
+                _get_program_setup_form_props(errors=errors, form_data=data),
             )
 
         # Create program with exam body metadata
         program = Program.objects.create(
-            blueprint_id=blueprint_id,
-            name=name,
-            code=code or None,
-            description=data.get("description", ""),
-            is_published=data.get("isPublished", False),
-            level=(data.get("level") or "").strip(),
-            # Exam body metadata (TVET mode)
-            exam_body=data.get("examBody") or None,
-            qualification_family=data.get("qualificationFamily") or None,
-            award_type=data.get("awardType") or None,
-            assessment_mode=data.get("assessmentMode") or None,
+            blueprint_id=cleaned["blueprint_id"],
+            name=cleaned["name"],
+            code=cleaned["code"],
+            description=cleaned["description"],
+            is_published=False,
+            level=cleaned["level"],
+            exam_body=cleaned["exam_body"],
+            qualification_family=cleaned["qualification_family"],
+            award_type=cleaned["award_type"],
+            assessment_mode=cleaned["assessment_mode"],
         )
 
         # Assign instructors
@@ -2129,16 +2102,7 @@ def admin_program_create(request):
     return render(
         request,
         "Admin/Programs/Form",
-        {
-            "mode": "create",
-            "blueprints": _get_blueprints_for_form(),
-            "instructors": _get_instructors_for_form(),
-            "courseLevels": _build_level_options(
-                list(Program.objects.values("level").order_by("level"))
-            ),
-            "examBodyRegistry": get_registry_for_frontend(),
-            "deploymentMode": platform_settings.deployment_mode,
-        },
+        _get_program_setup_form_props(),
     )
 
 
@@ -2153,57 +2117,39 @@ def admin_program_edit(request, pk: int):
 
     from django.shortcuts import get_object_or_404
 
-    from apps.platform.models import PlatformSettings
-    from apps.platform.exam_body_registry import get_registry_for_frontend
-    from apps.progression.models import Enrollment, InstructorAssignment
+    from apps.progression.models import InstructorAssignment
 
     program = get_object_or_404(Program, pk=pk)
-    platform_settings = PlatformSettings.get_settings()
 
     if request.method == "POST":
         data = get_post_data(request)
-        errors = {}
-
-        name = data.get("name", "").strip()
-        if not name:
-            errors["name"] = "Name is required"
+        cleaned, errors = _validate_program_setup_data(data, program=program)
 
         if errors:
             return render(
                 request,
                 "Admin/Programs/Form",
-                {
-                    "mode": "edit",
-                    "program": _serialize_program(program),
-                    "blueprints": _get_blueprints_for_form(),
-                    "instructors": _get_instructors_for_form(),
-                    "courseLevels": _build_level_options(
-                        list(Program.objects.values("level").order_by("level"))
-                    ),
-                    "examBodyRegistry": get_registry_for_frontend(),
-                    "deploymentMode": platform_settings.deployment_mode,
-                    "errors": errors,
-                },
+                _get_program_setup_form_props(
+                    mode="edit",
+                    program=program,
+                    errors=errors,
+                    form_data=data,
+                    submit_url=f"/admin/programs/{program.id}/edit/",
+                    cancel_url=f"/admin/programs/{program.id}/",
+                ),
             )
 
         # Update program
-        program.name = name
-        program.code = data.get("code", "").strip() or None
-        program.description = data.get("description", "")
-        program.is_published = data.get("isPublished", False)
-        program.level = (data.get("level") or "").strip()
+        program.name = cleaned["name"]
+        program.code = cleaned["code"]
+        program.description = cleaned["description"]
+        program.level = cleaned["level"]
 
         # Exam body metadata
-        program.exam_body = data.get("examBody") or None
-        program.qualification_family = data.get("qualificationFamily") or None
-        program.award_type = data.get("awardType") or None
-        program.assessment_mode = data.get("assessmentMode") or None
-
-        # Only update blueprint if no enrollments
-        from apps.progression.models import Enrollment
-
-        if not Enrollment.objects.filter(program=program).exists():
-            program.blueprint_id = data.get("blueprintId")
+        program.exam_body = cleaned["exam_body"]
+        program.qualification_family = cleaned["qualification_family"]
+        program.award_type = cleaned["award_type"]
+        program.assessment_mode = cleaned["assessment_mode"]
 
         program.save()
 
@@ -2229,21 +2175,13 @@ def admin_program_edit(request, pk: int):
     return render(
         request,
         "Admin/Programs/Form",
-        {
-            "mode": "edit",
-            "program": _serialize_program(program),
-            "currentInstructorIds": current_instructors,
-            "blueprints": _get_blueprints_for_form(),
-            "instructors": _get_instructors_for_form(),
-            "courseLevels": _build_level_options(
-                list(Program.objects.values("level").order_by("level"))
-            ),
-            "examBodyRegistry": get_registry_for_frontend(),
-            "deploymentMode": platform_settings.deployment_mode,
-            "canChangeBlueprint": not Enrollment.objects.filter(
-                program=program
-            ).exists(),
-        },
+        _get_program_setup_form_props(
+            mode="edit",
+            program=program,
+            current_instructor_ids=current_instructors,
+            submit_url=f"/admin/programs/{program.id}/edit/",
+            cancel_url=f"/admin/programs/{program.id}/",
+        ),
     )
 
 @login_required
@@ -2255,7 +2193,7 @@ def admin_program_assign_instructors(request, program_id: int):
         return redirect("/dashboard/")
 
     from django.shortcuts import get_object_or_404
-    from apps.core.models import Program, InstructorAssignment
+    from apps.progression.models import InstructorAssignment
     import json
 
     program = get_object_or_404(Program, pk=program_id)
@@ -2462,30 +2400,6 @@ def _sync_program_publication_state(program: Program, is_published: bool):
     CurriculumNode.objects.filter(program=program).update(is_published=is_published)
     Quiz.objects.filter(node__program=program).update(is_published=is_published)
     Assignment.objects.filter(program=program).update(is_published=is_published)
-
-
-def _get_blueprints_for_form() -> list:
-    """Get active blueprint(s) for the tenant."""
-    from apps.blueprints.models import AcademicBlueprint
-    from apps.platform.models import PlatformSettings
-
-    settings = PlatformSettings.get_settings()
-
-    # In single-tenant mode, we only show the configured blueprint
-    if settings.active_blueprint:
-        blueprints = [settings.active_blueprint]
-    else:
-        # Fallback: show all blueprints if tenant not fully configured
-        blueprints = AcademicBlueprint.objects.all().order_by("name")
-
-    return [
-        {
-            "id": b.id,
-            "name": b.name,
-            "hierarchyLabels": b.hierarchy_structure or [],
-        }
-        for b in blueprints
-    ]
 
 
 def _get_instructors_for_form() -> list:
@@ -2909,6 +2823,84 @@ def _serialize_user(user: User) -> dict:
     }
 
 
+def _get_program_setup_form_props(
+    *,
+    mode: str = "create",
+    program: Program | None = None,
+    errors: dict | None = None,
+    form_data: dict | None = None,
+    current_instructor_ids: list | None = None,
+    layout_role: str = "admin",
+    submit_url: str = "/admin/programs/create/",
+    cancel_url: str = "/admin/programs/",
+    show_instructor_assignment: bool = True,
+) -> dict:
+    from apps.platform.exam_body_registry import get_registry_for_frontend
+    from apps.platform.models import PlatformSettings
+
+    platform_settings = PlatformSettings.get_settings()
+
+    return {
+        "mode": mode,
+        "program": _serialize_program(program) if program else None,
+        "instructors": _get_instructors_for_form() if show_instructor_assignment else [],
+        "courseLevels": _build_level_options(
+            list(Program.objects.values("level").order_by("level"))
+        ),
+        "currentInstructorIds": current_instructor_ids or [],
+        "examBodyRegistry": get_registry_for_frontend(),
+        "deploymentMode": platform_settings.deployment_mode,
+        "errors": errors or {},
+        "formData": form_data or {},
+        "layoutRole": layout_role,
+        "submitUrl": submit_url,
+        "cancelUrl": cancel_url,
+        "showInstructorAssignment": show_instructor_assignment,
+    }
+
+
+def _validate_program_setup_data(data: dict, *, program: Program | None = None) -> tuple[dict, dict]:
+    from apps.platform.models import PlatformSettings
+
+    errors = {}
+    name = str(data.get("name") or "").strip()
+    code = str(data.get("code") or "").strip()
+    platform_settings = PlatformSettings.get_settings()
+    active_blueprint = platform_settings.active_blueprint
+
+    if not name:
+        errors["name"] = "Name is required"
+
+    if not code:
+        errors["code"] = "Course code is required"
+    else:
+        duplicate_code = Program.objects.filter(code=code)
+        if program:
+            duplicate_code = duplicate_code.exclude(pk=program.pk)
+        if duplicate_code.exists():
+            errors["code"] = "A program with this code already exists."
+
+    if program:
+        blueprint_id = program.blueprint_id
+    elif active_blueprint:
+        blueprint_id = active_blueprint.id
+    else:
+        blueprint_id = None
+        errors["_form"] = "No active academic blueprint is configured."
+
+    return {
+        "name": name,
+        "code": code,
+        "blueprint_id": blueprint_id,
+        "description": data.get("description", ""),
+        "level": str(data.get("level") or "").strip(),
+        "exam_body": data.get("examBody") or None,
+        "qualification_family": data.get("qualificationFamily") or None,
+        "award_type": data.get("awardType") or None,
+        "assessment_mode": data.get("assessmentMode") or None,
+    }, errors
+
+
 # =============================================================================
 # Instructor Views
 # =============================================================================
@@ -3016,6 +3008,66 @@ def instructor_programs(request):
         request,
         "Instructor/Programs/Index",
         props,
+    )
+
+
+@login_required
+def instructor_program_create(request):
+    """Create a draft course and assign it to the creating instructor."""
+    if not is_instructor(request.user):
+        return redirect("/dashboard/")
+
+    from apps.progression.models import InstructorAssignment
+
+    if request.method == "POST":
+        data = get_post_data(request)
+        cleaned, errors = _validate_program_setup_data(data)
+
+        if errors:
+            return render(
+                request,
+                "Instructor/Programs/Create",
+                _get_program_setup_form_props(
+                    errors=errors,
+                    form_data=data,
+                    layout_role="instructor",
+                    submit_url="/instructor/programs/create/",
+                    cancel_url="/instructor/programs/",
+                    show_instructor_assignment=False,
+                ),
+            )
+
+        with transaction.atomic():
+            program = Program.objects.create(
+                blueprint_id=cleaned["blueprint_id"],
+                name=cleaned["name"],
+                code=cleaned["code"],
+                description=cleaned["description"],
+                is_published=False,
+                level=cleaned["level"],
+                exam_body=cleaned["exam_body"],
+                qualification_family=cleaned["qualification_family"],
+                award_type=cleaned["award_type"],
+                assessment_mode=cleaned["assessment_mode"],
+            )
+            InstructorAssignment.objects.create(
+                program=program,
+                instructor=request.user,
+                role="instructor",
+                is_primary=True,
+            )
+
+        return redirect(f"/instructor/programs/{program.id}/manage/?tab=overview")
+
+    return render(
+        request,
+        "Instructor/Programs/Create",
+        _get_program_setup_form_props(
+            layout_role="instructor",
+            submit_url="/instructor/programs/create/",
+            cancel_url="/instructor/programs/",
+            show_instructor_assignment=False,
+        ),
     )
 
 
@@ -6465,6 +6517,7 @@ def serialize_program_data(program):
     Serialize program data for frontend consumption.
     Reduces code duplication across endpoints.
     """
+    from apps.platform.exam_body_registry import get_registry_for_frontend
     from apps.platform.models import PlatformSettings
 
     platform_settings = PlatformSettings.get_settings()
@@ -6497,6 +6550,10 @@ def serialize_program_data(program):
             "description": program.description,
             "level": level,
             "category": program.category,
+            "examBody": program.exam_body or "",
+            "qualificationFamily": program.qualification_family or "",
+            "awardType": program.award_type or "",
+            "assessmentMode": program.assessment_mode or "",
             "thumbnail": program.thumbnail.url if program.thumbnail else None,
             "isPublished": program.is_published,
             "whatYouLearn": program.what_you_learn_items or [],
@@ -6556,6 +6613,7 @@ def serialize_program_data(program):
             ),
         },
         "availablePrerequisites": available_prerequisites,
+        "examBodyRegistry": get_registry_for_frontend(),
         "platformFeatures": platform_features,
         "deploymentMode": platform_settings.deployment_mode,
     }
@@ -7866,6 +7924,18 @@ def instructor_program_update_settings(request, pk: int):
     if "level" in data:
         selected_level = str(data.get("level") or "").strip()
         program.level = selected_level
+
+    if "examBody" in data:
+        program.exam_body = data.get("examBody") or None
+
+    if "qualificationFamily" in data:
+        program.qualification_family = data.get("qualificationFamily") or None
+
+    if "awardType" in data:
+        program.award_type = data.get("awardType") or None
+
+    if "assessmentMode" in data:
+        program.assessment_mode = data.get("assessmentMode") or None
 
     if "thumbnail" in files:
         program.thumbnail = files["thumbnail"]

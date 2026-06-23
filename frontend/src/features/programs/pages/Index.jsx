@@ -4,9 +4,10 @@
  * Requirements: US-2.1, US-2.2
  */
 
-import { Head, router } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import {
   Box,
+  Button,
   Typography,
   Stack,
   Tabs,
@@ -16,7 +17,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import { IconSchool } from "@tabler/icons-react";
+import { IconPlus, IconSchool } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { ProgramManageCard } from "@/components/cards";
@@ -77,13 +78,17 @@ export default function InstructorProgramsIndex({
       ? groupedPrograms
       : [{ value: "all", label: "All Programs", programs }];
 
-  const filteredGroups = groupsToRender.map((group) => ({
-    ...group,
-    programs: (group.programs || []).filter(filterByTab),
-  })).filter((group) => (group.programs || []).length > 0);
+  const filteredGroups = groupsToRender
+    .map((group) => ({
+      ...group,
+      programs: (group.programs || []).filter(filterByTab),
+    }))
+    .filter((group) => (group.programs || []).length > 0);
 
   const groupedProgramIds = new Set(
-    filteredGroups.flatMap((group) => (group.programs || []).map((program) => program.id)),
+    filteredGroups.flatMap((group) =>
+      (group.programs || []).map((program) => program.id),
+    ),
   );
   const ungroupedPrograms = programs
     .filter(filterByTab)
@@ -121,19 +126,19 @@ export default function InstructorProgramsIndex({
           />
         </Box>
 
-        {/*                 <Button
-                    component={Link}
-                    href="/instructor/programs/create/"
-                    variant="outlined"
-                    startIcon={<IconPlus size={18} />}
-                    sx={{
-                        borderRadius: 2,
-                        textTransform: 'none',
-                        fontWeight: 600,
-                    }}
-                >
-                    Add New course
-                </Button> */}
+        <Button
+          component={Link}
+          href="/instructor/programs/create/"
+          variant="outlined"
+          startIcon={<IconPlus size={18} />}
+          sx={{
+            borderRadius: 2,
+            textTransform: "none",
+            fontWeight: 600,
+          }}
+        >
+          Add new course
+        </Button>
       </Stack>
 
       {/* Tabs */}
@@ -260,6 +265,15 @@ function EmptyState({ tab }) {
       <Typography variant="body2" color="text.secondary">
         {body}
       </Typography>
+      <Button
+        component={Link}
+        href="/instructor/programs/create/"
+        variant="contained"
+        startIcon={<IconPlus size={18} />}
+        sx={{ mt: 3, textTransform: "none", fontWeight: 700 }}
+      >
+        Add new course
+      </Button>
     </Box>
   );
 }

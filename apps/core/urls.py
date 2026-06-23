@@ -120,6 +120,11 @@ urlpatterns = [
     path("instructor/", views.instructor_landing, name="instructor.landing"),
     path("instructor/apply/", views.instructor_apply, name="instructor.apply"),
     path("instructor/programs/", views.instructor_programs, name="instructor.programs"),
+    path(
+        "instructor/programs/create/",
+        views.instructor_program_create,
+        name="instructor.program_create",
+    ),
     path("instructor/programs/<int:pk>/", views.instructor_program_detail, name="instructor.program"),
     path("instructor/programs/<int:pk>/preview/", views.instructor_program_preview, name="instructor.program_preview"),
     # Course Manager (Builder)

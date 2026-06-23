@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
 import {
     Box,
@@ -39,6 +39,13 @@ export default function SettingsPanel({
     const { props } = usePage();
     const availablePrerequisites = props.availablePrerequisites || [];
     const categories = props.platform?.programCategories || [];
+    const examBodyRegistry = useMemo(
+        () => props.examBodyRegistry || {},
+        [props.examBodyRegistry],
+    );
+    const isTvetMode = deploymentMode === "tvet";
+    const hasExamBodies =
+        isTvetMode && Object.keys(examBodyRegistry).length > 0;
     const fileInputRef = useRef(null);
 
     const {
@@ -58,6 +65,10 @@ export default function SettingsPanel({
         code: program.code || "",
         category: program.category || "",
         level: program.level || "",
+        examBody: program.examBody || "",
+        qualificationFamily: program.qualificationFamily || "",
+        awardType: program.awardType || "",
+        assessmentMode: program.assessmentMode || "",
         thumbnail: null,
         custom_pricing: program.customPricing || {},
         faq: program.faq || [],
@@ -76,7 +87,9 @@ export default function SettingsPanel({
                     tab: activeTab,
                     description: formData.description,
                     whatYouLearn: formData.whatYouLearn,
-                    deleteResourceIds: JSON.stringify(formData.deleteResourceIds || []),
+                    deleteResourceIds: JSON.stringify(
+                        formData.deleteResourceIds || [],
+                    ),
                     materials: formData.materials,
                 };
             case "settings": {
@@ -87,6 +100,12 @@ export default function SettingsPanel({
                     category: formData.category,
                     level: formData.level,
                 };
+                if (hasExamBodies) {
+                    payload.examBody = formData.examBody;
+                    payload.qualificationFamily = formData.qualificationFamily;
+                    payload.awardType = formData.awardType;
+                    payload.assessmentMode = formData.assessmentMode;
+                }
                 if (formData.thumbnail) {
                     payload.thumbnail = formData.thumbnail;
                 }
@@ -95,7 +114,9 @@ export default function SettingsPanel({
             case "pricing":
                 return {
                     tab: activeTab,
-                    custom_pricing: JSON.stringify(formData.custom_pricing || {}),
+                    custom_pricing: JSON.stringify(
+                        formData.custom_pricing || {},
+                    ),
                 };
             case "faq":
                 return {
@@ -123,6 +144,62 @@ export default function SettingsPanel({
             default:
                 return { tab: activeTab };
         }
+    };
+
+    const examBodies = useMemo(
+        () => Object.keys(examBodyRegistry),
+        [examBodyRegistry],
+    );
+    const selectedBodyData = useMemo(
+        () => examBodyRegistry[formData.examBody] || null,
+        [examBodyRegistry, formData.examBody],
+    );
+    const qualificationFamilies = useMemo(
+        () =>
+            selectedBodyData
+                ? Object.keys(selectedBodyData.families || {})
+                : [],
+        [selectedBodyData],
+    );
+    const selectedFamilyData = useMemo(
+        () =>
+            selectedBodyData?.families?.[formData.qualificationFamily] || null,
+        [selectedBodyData, formData.qualificationFamily],
+    );
+    const registryLevels = useMemo(
+        () => selectedFamilyData?.levels || [],
+        [selectedFamilyData],
+    );
+
+    useEffect(() => {
+        if (!selectedFamilyData) {
+            return;
+        }
+        setData((current) => ({
+            ...current,
+            awardType: selectedFamilyData.awardType || current.awardType,
+            assessmentMode:
+                selectedFamilyData.assessmentMode || current.assessmentMode,
+        }));
+    }, [selectedFamilyData, setData]);
+
+    const handleExamBodyChange = (value) => {
+        setData((current) => ({
+            ...current,
+            examBody: value,
+            qualificationFamily: "",
+            level: "",
+            awardType: "",
+            assessmentMode: "",
+        }));
+    };
+
+    const handleQualificationFamilyChange = (value) => {
+        setData((current) => ({
+            ...current,
+            qualificationFamily: value,
+            level: "",
+        }));
     };
 
     const handleSubmit = () => {
@@ -156,8 +233,14 @@ export default function SettingsPanel({
     };
 
     const handleDeleteResource = (resourceId) => {
-        setData("resources", formData.resources.filter((r) => r.id !== resourceId));
-        setData("deleteResourceIds", [...formData.deleteResourceIds, resourceId]);
+        setData(
+            "resources",
+            formData.resources.filter((r) => r.id !== resourceId),
+        );
+        setData("deleteResourceIds", [
+            ...formData.deleteResourceIds,
+            resourceId,
+        ]);
     };
 
     const renderContent = () => {
@@ -198,8 +281,8 @@ export default function SettingsPanel({
                             Course Resources
                         </Typography>
                         <Alert severity="info" sx={{ mb: 1 }}>
-                            Upload syllabus, reading lists, or other downloadable
-                            materials for students.
+                            Upload syllabus, reading lists, or other
+                            downloadable materials for students.
                         </Alert>
 
                         {formData.resources.length > 0 && (
@@ -212,19 +295,32 @@ export default function SettingsPanel({
                                                 <IconButton
                                                     size="small"
                                                     color="error"
-                                                    onClick={() => handleDeleteResource(res.id)}
+                                                    onClick={() =>
+                                                        handleDeleteResource(
+                                                            res.id,
+                                                        )
+                                                    }
                                                 >
                                                     <DeleteIcon fontSize="small" />
                                                 </IconButton>
                                             }
                                         >
                                             <ListItemIcon sx={{ minWidth: 28 }}>
-                                                <DocIcon fontSize="small" color="action" />
+                                                <DocIcon
+                                                    fontSize="small"
+                                                    color="action"
+                                                />
                                             </ListItemIcon>
                                             <ListItemText
-                                                primary={res.title || "Resource"}
-                                                secondary={res.ext ? `.${res.ext}` : ""}
-                                                primaryTypographyProps={{ variant: "body2" }}
+                                                primary={
+                                                    res.title || "Resource"
+                                                }
+                                                secondary={
+                                                    res.ext ? `.${res.ext}` : ""
+                                                }
+                                                primaryTypographyProps={{
+                                                    variant: "body2",
+                                                }}
                                             />
                                         </ListItem>
                                     ))}
@@ -251,8 +347,10 @@ export default function SettingsPanel({
                         {formData.materials.length > 0 && (
                             <Typography variant="body2" color="text.secondary">
                                 {formData.materials.length} file
-                                {formData.materials.length !== 1 ? "s" : ""} ready
-                                to upload — save to complete.
+                                {formData.materials.length !== 1
+                                    ? "s"
+                                    : ""}{" "}
+                                ready to upload — save to complete.
                             </Typography>
                         )}
                     </Stack>
@@ -266,7 +364,8 @@ export default function SettingsPanel({
                             Course Details
                         </Typography>
                         <Alert severity="info">
-                            Basic course information visible in catalogue listings.
+                            Basic course information visible in catalogue
+                            listings.
                         </Alert>
 
                         <TextField
@@ -284,17 +383,24 @@ export default function SettingsPanel({
                             value={formData.code}
                             onChange={(e) => setData("code", e.target.value)}
                             error={!!errors.code}
-                            helperText={errors.code || "Unique identifier for this course."}
+                            helperText={
+                                errors.code ||
+                                "Unique identifier for this course."
+                            }
                         />
 
                         {categories.length > 0 ? (
                             <FormControl fullWidth>
-                                <InputLabel id="category-label">Category</InputLabel>
+                                <InputLabel id="category-label">
+                                    Category
+                                </InputLabel>
                                 <Select
                                     labelId="category-label"
                                     value={formData.category}
                                     label="Category"
-                                    onChange={(e) => setData("category", e.target.value)}
+                                    onChange={(e) =>
+                                        setData("category", e.target.value)
+                                    }
                                 >
                                     <MenuItem value="">
                                         <em>None</em>
@@ -311,7 +417,9 @@ export default function SettingsPanel({
                                 label="Category"
                                 fullWidth
                                 value={formData.category}
-                                onChange={(e) => setData("category", e.target.value)}
+                                onChange={(e) =>
+                                    setData("category", e.target.value)
+                                }
                             />
                         )}
 
@@ -324,8 +432,123 @@ export default function SettingsPanel({
                             helperText="Student-facing course level."
                         />
 
+                        {hasExamBodies && (
+                            <>
+                                <FormControl fullWidth>
+                                    <InputLabel id="exam-body-label">
+                                        Examining body
+                                    </InputLabel>
+                                    <Select
+                                        labelId="exam-body-label"
+                                        value={formData.examBody}
+                                        label="Examining body"
+                                        onChange={(e) =>
+                                            handleExamBodyChange(e.target.value)
+                                        }
+                                    >
+                                        <MenuItem value="">
+                                            <em>None</em>
+                                        </MenuItem>
+                                        {examBodies.map((body) => (
+                                            <MenuItem key={body} value={body}>
+                                                {examBodyRegistry[body].label}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
+                                {formData.examBody && (
+                                    <FormControl fullWidth>
+                                        <InputLabel id="qualification-family-label">
+                                            Qualification family
+                                        </InputLabel>
+                                        <Select
+                                            labelId="qualification-family-label"
+                                            value={formData.qualificationFamily}
+                                            label="Qualification family"
+                                            onChange={(e) =>
+                                                handleQualificationFamilyChange(
+                                                    e.target.value,
+                                                )
+                                            }
+                                        >
+                                            <MenuItem value="">
+                                                <em>None</em>
+                                            </MenuItem>
+                                            {qualificationFamilies.map(
+                                                (family) => (
+                                                    <MenuItem
+                                                        key={family}
+                                                        value={family}
+                                                    >
+                                                        {family}
+                                                    </MenuItem>
+                                                ),
+                                            )}
+                                        </Select>
+                                    </FormControl>
+                                )}
+
+                                {formData.qualificationFamily &&
+                                    registryLevels.length > 0 && (
+                                        <FormControl fullWidth>
+                                            <InputLabel id="registry-level-label">
+                                                Registered level
+                                            </InputLabel>
+                                            <Select
+                                                labelId="registry-level-label"
+                                                value={formData.level}
+                                                label="Registered level"
+                                                onChange={(e) =>
+                                                    setData(
+                                                        "level",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                <MenuItem value="">
+                                                    <em>None</em>
+                                                </MenuItem>
+                                                {registryLevels.map((level) => (
+                                                    <MenuItem
+                                                        key={level}
+                                                        value={level}
+                                                    >
+                                                        {level}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                    )}
+
+                                <TextField
+                                    label="Award type"
+                                    fullWidth
+                                    value={formData.awardType}
+                                    onChange={(e) =>
+                                        setData("awardType", e.target.value)
+                                    }
+                                />
+                                <TextField
+                                    label="Assessment mode"
+                                    fullWidth
+                                    value={formData.assessmentMode}
+                                    onChange={(e) =>
+                                        setData(
+                                            "assessmentMode",
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                            </>
+                        )}
+
                         <Box>
-                            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
+                            <Typography
+                                variant="subtitle2"
+                                fontWeight="bold"
+                                sx={{ mb: 1 }}
+                            >
                                 Thumbnail
                             </Typography>
                             {program.thumbnail && (
@@ -344,14 +567,23 @@ export default function SettingsPanel({
                                     }}
                                 />
                             )}
-                            <Button variant="outlined" component="label" size="small">
-                                {program.thumbnail ? "Change Thumbnail" : "Upload Thumbnail"}
+                            <Button
+                                variant="outlined"
+                                component="label"
+                                size="small"
+                            >
+                                {program.thumbnail
+                                    ? "Change Thumbnail"
+                                    : "Upload Thumbnail"}
                                 <input
                                     type="file"
                                     hidden
                                     accept="image/*"
                                     onChange={(e) => {
-                                        setData("thumbnail", e.target.files?.[0] || null);
+                                        setData(
+                                            "thumbnail",
+                                            e.target.files?.[0] || null,
+                                        );
                                     }}
                                 />
                             </Button>
@@ -365,8 +597,9 @@ export default function SettingsPanel({
                     <Stack spacing={3}>
                         {!platformFeatures.payments && (
                             <Alert severity="info">
-                                Payments are currently disabled for this platform.
-                                You can still configure draft pricing here.
+                                Payments are currently disabled for this
+                                platform. You can still configure draft pricing
+                                here.
                             </Alert>
                         )}
                         <PricingEditor
@@ -539,9 +772,12 @@ export default function SettingsPanel({
                 return (
                     <Stack spacing={3}>
                         <Typography variant="h5" fontWeight="bold">
-                            {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                            {activeTab.charAt(0).toUpperCase() +
+                                activeTab.slice(1)}
                         </Typography>
-                        <Alert severity="info">Select a tab above to configure course settings.</Alert>
+                        <Alert severity="info">
+                            Select a tab above to configure course settings.
+                        </Alert>
                     </Stack>
                 );
         }

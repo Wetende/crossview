@@ -2,8 +2,12 @@ import json
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.contrib.auth.models import Group
+from apps.blueprints.models import AcademicBlueprint
+from apps.core.models import Program
 from apps.core.models import ProgramResource
 from apps.core.tests.factories import UserFactory
+from apps.platform.models import PlatformSettings
 from apps.progression.tests.factories import ProgramFactory
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import InstructorAssignment
@@ -74,6 +78,134 @@ class TestInstructorCourseBuilder:
         assert props["courseLevels"] == [{"value": "Beginner", "label": "Beginner"}]
         assert props["groupedPrograms"][0]["label"] == "Beginner"
         assert unassigned.name not in str(response.content)
+
+    def test_instructor_can_create_draft_course_and_is_assigned(
+        self, client, instructor
+    ):
+        blueprint = AcademicBlueprint.objects.create(
+            name="Course Blueprint",
+            hierarchy_structure=["Module", "Lesson"],
+            grading_logic={"type": "weighted", "components": []},
+        )
+        settings = PlatformSettings.get_settings()
+        settings.active_blueprint = blueprint
+        settings.save(update_fields=["active_blueprint", "updated_at"])
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse("core:instructor.program_create"),
+            {
+                "name": "Teacher Course",
+                "code": "TC-101",
+                "description": "Teacher-created course",
+                "level": "Beginner",
+                "examBody": "Internal",
+                "qualificationFamily": "Short Course",
+                "awardType": "Certificate",
+                "assessmentMode": "Continuous Assessment",
+            },
+        )
+
+        program = Program.objects.get(code="TC-101")
+        assert response.status_code == 302
+        assert response["Location"] == (
+            f"/instructor/programs/{program.id}/manage/?tab=overview"
+        )
+        assert program.name == "Teacher Course"
+        assert program.blueprint == blueprint
+        assert program.is_published is False
+        assert program.level == "Beginner"
+        assert program.exam_body == "Internal"
+        assert InstructorAssignment.objects.filter(
+            program=program,
+            instructor=instructor,
+            role="instructor",
+            is_primary=True,
+        ).exists()
+
+    def test_instructor_create_requires_code_and_active_blueprint(
+        self, client, instructor
+    ):
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse("core:instructor.program_create"),
+            {
+                "name": "Missing Setup",
+                "code": "",
+            },
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["component"] == "Instructor/Programs/Create"
+        assert payload["props"]["errors"]["code"] == "Course code is required"
+        assert payload["props"]["errors"]["_form"] == (
+            "No active academic blueprint is configured."
+        )
+        assert not Program.objects.filter(name="Missing Setup").exists()
+
+    def test_instructor_create_rejects_duplicate_code(
+        self, client, instructor, program
+    ):
+        blueprint = AcademicBlueprint.objects.create(
+            name="Duplicate Blueprint",
+            hierarchy_structure=["Module", "Lesson"],
+            grading_logic={"type": "weighted", "components": []},
+        )
+        settings = PlatformSettings.get_settings()
+        settings.active_blueprint = blueprint
+        settings.save(update_fields=["active_blueprint", "updated_at"])
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse("core:instructor.program_create"),
+            {
+                "name": "Duplicate Course",
+                "code": program.code,
+            },
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["props"]["errors"]["code"] == (
+            "A program with this code already exists."
+        )
+
+    def test_non_instructor_cannot_create_course(self, client):
+        user = UserFactory()
+        client.force_login(user)
+
+        response = client.get(reverse("core:instructor.program_create"))
+
+        assert response.status_code == 302
+        assert response["Location"] == "/dashboard/"
+
+    def test_admin_quick_assign_instructors_uses_progression_assignment(
+        self, client, program
+    ):
+        admin = UserFactory(is_staff=True)
+        instructor = UserFactory()
+        group, _ = Group.objects.get_or_create(name="Instructors")
+        instructor.groups.add(group)
+        client.force_login(admin)
+
+        response = client.post(
+            reverse(
+                "core:admin.program.assign_instructors",
+                kwargs={"program_id": program.id},
+            ),
+            data=json.dumps({"instructorIds": [instructor.id]}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        assert InstructorAssignment.objects.filter(
+            program=program,
+            instructor=instructor,
+            role="instructor",
+        ).exists()
 
     def test_manage_serializer_builds_html_from_existing_outcome_items(self, program):
         outcomes = ["Explain AI concepts", "Use AI tools responsibly"]

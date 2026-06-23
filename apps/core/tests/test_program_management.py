@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from apps.core.models import Program
 from apps.blueprints.models import AcademicBlueprint
+from apps.platform.models import PlatformSettings
 
 User = get_user_model()
 
@@ -22,9 +23,12 @@ class TestProgramManagement(TestCase):
         self.client.login(username="admin@test.com", password="password123")
         self.blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint", 
-            hierarchy_structure=["Level 1"],
-            grading_logic={"type": "points"}
+            hierarchy_structure=["Unit", "Session"],
+            grading_logic={"type": "points"},
         )
+        settings = PlatformSettings.get_settings()
+        settings.active_blueprint = self.blueprint
+        settings.save(update_fields=["active_blueprint", "updated_at"])
 
     def test_list_programs(self):
         """Test program listing."""
@@ -40,7 +44,6 @@ class TestProgramManagement(TestCase):
     def test_create_program(self):
         data = {
             "name": "New Program",
-            "blueprintId": self.blueprint.id,
             "code": "NP101",
             "description": "A test program",
             "isPublished": True
@@ -51,6 +54,7 @@ class TestProgramManagement(TestCase):
         new_program = Program.objects.get(name="New Program")
         assert response.url == reverse('core:admin.program.content', kwargs={'pk': new_program.id})
         assert Program.objects.filter(name="New Program").exists()
+        assert new_program.blueprint == self.blueprint
 
     def test_edit_program(self):
         """Test program editing."""

@@ -20,7 +20,6 @@ import {
     Chip,
     Alert,
     FormControl,
-    InputLabel,
     Select,
     MenuItem,
     Autocomplete,
@@ -34,64 +33,80 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 export default function ProgramForm({
     mode = "create",
     program = null,
-    blueprints = [],
     instructors = [],
     courseLevels = [],
     currentInstructorIds = [],
-    canChangeBlueprint = true,
     examBodyRegistry = {},
     deploymentMode = "custom",
     errors = {},
     formData = {},
+    layoutRole = "admin",
+    submitUrl = "",
+    cancelUrl = "",
+    showInstructorAssignment = true,
 }) {
     const isEdit = mode === "edit";
     const isTvetMode = deploymentMode === "tvet";
-    const hasExamBodies = isTvetMode && Object.keys(examBodyRegistry).length > 0;
-
-    // Auto-select first blueprint if only one exists or none selected
-    const defaultBlueprintId =
-        program?.blueprintId ||
-        formData.blueprintId ||
-        (blueprints.length === 1 ? blueprints[0].id : "");
+    const hasExamBodies =
+        isTvetMode && Object.keys(examBodyRegistry).length > 0;
+    const isInstructorLayout = layoutRole === "instructor";
+    const resolvedSubmitUrl =
+        submitUrl ||
+        (isEdit
+            ? `/admin/programs/${program.id}/edit/`
+            : "/admin/programs/create/");
+    const resolvedCancelUrl =
+        cancelUrl ||
+        (isEdit ? `/admin/programs/${program.id}/` : "/admin/programs/");
+    const pageTitle = isEdit ? "Edit Course" : "Create Course";
+    const backLabel = isEdit ? "Back to Course" : "Back to Courses";
 
     const { data, setData, post, processing } = useForm({
         name: program?.name || formData.name || "",
         code: program?.code || formData.code || "",
         level: program?.level || formData.level || "",
         description: program?.description || formData.description || "",
-        blueprintId: defaultBlueprintId,
-        instructorIds: currentInstructorIds || formData.instructorIds || [],
-        isPublished: program?.isPublished || formData.isPublished || false,
+        instructorIds:
+            currentInstructorIds.length > 0
+                ? currentInstructorIds
+                : formData.instructorIds || [],
         // Exam body metadata
         examBody: program?.examBody || formData.examBody || "",
-        qualificationFamily: program?.qualificationFamily || formData.qualificationFamily || "",
+        qualificationFamily:
+            program?.qualificationFamily || formData.qualificationFamily || "",
         awardType: program?.awardType || formData.awardType || "",
-        assessmentMode: program?.assessmentMode || formData.assessmentMode || "",
+        assessmentMode:
+            program?.assessmentMode || formData.assessmentMode || "",
     });
 
     // Derive available options from registry based on current selections
-    const examBodies = useMemo(() => Object.keys(examBodyRegistry), [examBodyRegistry]);
+    const examBodies = useMemo(
+        () => Object.keys(examBodyRegistry),
+        [examBodyRegistry],
+    );
 
     const selectedBodyData = useMemo(
         () => examBodyRegistry[data.examBody] || null,
-        [examBodyRegistry, data.examBody]
+        [examBodyRegistry, data.examBody],
     );
 
     const qualificationFamilies = useMemo(
-        () => (selectedBodyData ? Object.keys(selectedBodyData.families) : []),
-        [selectedBodyData]
+        () =>
+            selectedBodyData
+                ? Object.keys(selectedBodyData.families || {})
+                : [],
+        [selectedBodyData],
     );
 
     const selectedFamilyData = useMemo(
         () => selectedBodyData?.families?.[data.qualificationFamily] || null,
-        [selectedBodyData, data.qualificationFamily]
+        [selectedBodyData, data.qualificationFamily],
     );
 
     const registryLevels = useMemo(
         () => selectedFamilyData?.levels || [],
-        [selectedFamilyData]
+        [selectedFamilyData],
     );
-
 
     // Auto-fill program metadata when family changes.
     useEffect(() => {
@@ -99,35 +114,11 @@ export default function ProgramForm({
             setData((prev) => ({
                 ...prev,
                 awardType: selectedFamilyData.awardType || prev.awardType,
-                assessmentMode: selectedFamilyData.assessmentMode || prev.assessmentMode,
+                assessmentMode:
+                    selectedFamilyData.assessmentMode || prev.assessmentMode,
             }));
-
-            // Auto-select blueprint based on exam body
-            const targetBlueprintCode = selectedFamilyData.blueprintCode || selectedBodyData?.blueprintCode;
-            if (targetBlueprintCode) {
-                // Map the internal code to the actual string that appears in the default blueprint name
-                const matchString = targetBlueprintCode
-                    .replace("nita_trade", "nita trade")
-                    .replace("icm_exam", "icm exam")
-                    .replace("icm_professional", "icm professional")
-                    .toLowerCase();
-
-                const matchingBlueprint = blueprints.find(
-                    (bp) => bp.name?.toLowerCase().includes(matchString)
-                );
-                if (matchingBlueprint && canChangeBlueprint) {
-                    setData((prev) => ({ ...prev, blueprintId: matchingBlueprint.id }));
-                }
-            }
         }
-    }, [
-        blueprints,
-        canChangeBlueprint,
-        data.qualificationFamily,
-        selectedBodyData?.blueprintCode,
-        selectedFamilyData,
-        setData,
-    ]);
+    }, [data.qualificationFamily, selectedFamilyData, setData]);
 
     // Reset dependent fields when exam body changes
     const handleExamBodyChange = (value) => {
@@ -152,32 +143,31 @@ export default function ProgramForm({
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (isEdit) {
-            post(`/admin/programs/${program.id}/edit/`);
-        } else {
-            post("/admin/programs/create/");
-        }
+        post(resolvedSubmitUrl);
     };
-
-    const selectedBlueprint = blueprints.find((b) => b.id === data.blueprintId);
 
     return (
         <DashboardLayout
-            role="admin"
+            role={layoutRole}
             breadcrumbs={[
-                { label: "Programs", href: "/admin/programs/" },
+                {
+                    label: isInstructorLayout ? "My Programs" : "Programs",
+                    href: isInstructorLayout
+                        ? "/instructor/programs/"
+                        : "/admin/programs/",
+                },
                 ...(isEdit
                     ? [
                           {
                               label: program.name,
-                              href: `/admin/programs/${program.id}/`,
+                              href: resolvedCancelUrl,
                           },
                           { label: "Edit" },
                       ]
                     : [{ label: "Create" }]),
             ]}
         >
-            <Head title={isEdit ? `Edit: ${program.name}` : "Create Program"} />
+            <Head title={isEdit ? `Edit: ${program.name}` : pageTitle} />
 
             <Box component="form" onSubmit={handleSubmit}>
                 <Stack spacing={3}>
@@ -185,18 +175,14 @@ export default function ProgramForm({
                     <Box>
                         <Button
                             component={Link}
-                            href={
-                                isEdit
-                                    ? `/admin/programs/${program.id}/`
-                                    : "/admin/programs/"
-                            }
+                            href={resolvedCancelUrl}
                             startIcon={<ArrowBackIcon />}
                             sx={{ mb: 1 }}
                         >
-                            {isEdit ? "Back to Program" : "Back to Programs"}
+                            {backLabel}
                         </Button>
                         <Typography variant="h4" fontWeight="bold">
-                            {isEdit ? "Edit Program" : "Create Program"}
+                            {pageTitle}
                         </Typography>
                     </Box>
 
@@ -214,15 +200,31 @@ export default function ProgramForm({
                             >
                                 <Card sx={{ height: "100%" }}>
                                     <CardContent>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{ mb: 3, fontWeight: 600 }}
+                                        >
                                             Basic information
                                         </Typography>
                                         <Stack spacing={3}>
                                             <Box>
-                                                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Program name *</Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        mb: 1,
+                                                        color: "text.secondary",
+                                                    }}
+                                                >
+                                                    Course name *
+                                                </Typography>
                                                 <TextField
                                                     value={data.name}
-                                                    onChange={(e) => setData("name", e.target.value)}
+                                                    onChange={(e) =>
+                                                        setData(
+                                                            "name",
+                                                            e.target.value,
+                                                        )
+                                                    }
                                                     error={!!errors.name}
                                                     helperText={errors.name}
                                                     fullWidth
@@ -231,13 +233,30 @@ export default function ProgramForm({
                                                 />
                                             </Box>
                                             <Box>
-                                                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Program code</Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        mb: 1,
+                                                        color: "text.secondary",
+                                                    }}
+                                                >
+                                                    Course code *
+                                                </Typography>
                                                 <TextField
                                                     value={data.code}
-                                                    onChange={(e) => setData("code", e.target.value)}
+                                                    onChange={(e) =>
+                                                        setData(
+                                                            "code",
+                                                            e.target.value,
+                                                        )
+                                                    }
                                                     error={!!errors.code}
-                                                    helperText={errors.code || "Optional unique identifier"}
+                                                    helperText={
+                                                        errors.code ||
+                                                        "Unique identifier for this course."
+                                                    }
                                                     fullWidth
+                                                    required
                                                     placeholder="e.g. DIT-2026"
                                                 />
                                             </Box>
@@ -256,54 +275,128 @@ export default function ProgramForm({
                             >
                                 <Card sx={{ height: "100%" }}>
                                     <CardContent>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{ mb: 3, fontWeight: 600 }}
+                                        >
                                             Examining body details
                                         </Typography>
                                         <Stack spacing={3}>
                                             {/* Exam Body (shown if TVET) */}
                                             {hasExamBodies && (
                                                 <Box>
-                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Examining body</Typography>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            mb: 1,
+                                                            color: "text.secondary",
+                                                        }}
+                                                    >
+                                                        Examining body
+                                                    </Typography>
                                                     <FormControl fullWidth>
                                                         <Select
-                                                            value={data.examBody}
+                                                            value={
+                                                                data.examBody
+                                                            }
                                                             displayEmpty
-                                                            onChange={(e) => handleExamBodyChange(e.target.value)}
+                                                            onChange={(e) =>
+                                                                handleExamBodyChange(
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
                                                         >
-                                                            <MenuItem value="" disabled>
-                                                                <em>Select examining body</em>
+                                                            <MenuItem
+                                                                value=""
+                                                                disabled
+                                                            >
+                                                                <em>
+                                                                    Select
+                                                                    examining
+                                                                    body
+                                                                </em>
                                                             </MenuItem>
-                                                            {examBodies.map((body) => (
-                                                                <MenuItem key={body} value={body}>
-                                                                    {examBodyRegistry[body].label}
-                                                                </MenuItem>
-                                                            ))}
+                                                            {examBodies.map(
+                                                                (body) => (
+                                                                    <MenuItem
+                                                                        key={
+                                                                            body
+                                                                        }
+                                                                        value={
+                                                                            body
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            examBodyRegistry[
+                                                                                body
+                                                                            ]
+                                                                                .label
+                                                                        }
+                                                                    </MenuItem>
+                                                                ),
+                                                            )}
                                                         </Select>
                                                     </FormControl>
                                                 </Box>
                                             )}
 
                                             {/* Level dropdown (Hidden if exam body handles it) */}
-                                            {(!hasExamBodies || !data.examBody) && (
+                                            {(!hasExamBodies ||
+                                                !data.examBody) && (
                                                 <Box>
-                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Level *</Typography>
-                                                    <FormControl fullWidth required error={!!errors.level}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            mb: 1,
+                                                            color: "text.secondary",
+                                                        }}
+                                                    >
+                                                        Level
+                                                    </Typography>
+                                                    <FormControl
+                                                        fullWidth
+                                                        error={!!errors.level}
+                                                    >
                                                         <Select
                                                             value={data.level}
                                                             displayEmpty
-                                                            onChange={(e) => setData("level", e.target.value)}
+                                                            onChange={(e) =>
+                                                                setData(
+                                                                    "level",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
                                                         >
-                                                            <MenuItem value="" disabled>
-                                                                <em>Select level</em>
+                                                            <MenuItem value="">
+                                                                <em>
+                                                                    Select level
+                                                                </em>
                                                             </MenuItem>
-                                                            {courseLevels.map((level) => (
-                                                                <MenuItem key={level.value} value={level.value}>
-                                                                    {level.label}
-                                                                </MenuItem>
-                                                            ))}
+                                                            {courseLevels.map(
+                                                                (level) => (
+                                                                    <MenuItem
+                                                                        key={
+                                                                            level.value
+                                                                        }
+                                                                        value={
+                                                                            level.value
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            level.label
+                                                                        }
+                                                                    </MenuItem>
+                                                                ),
+                                                            )}
                                                         </Select>
                                                         {errors.level && (
-                                                            <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="error"
+                                                                sx={{ mt: 0.5 }}
+                                                            >
                                                                 {errors.level}
                                                             </Typography>
                                                         )}
@@ -314,50 +407,163 @@ export default function ProgramForm({
                                             {/* Step 2: Select Qualification Family */}
                                             {hasExamBodies && data.examBody && (
                                                 <Box>
-                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Qualification Family</Typography>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            mb: 1,
+                                                            color: "text.secondary",
+                                                        }}
+                                                    >
+                                                        Qualification Family
+                                                    </Typography>
                                                     <FormControl fullWidth>
                                                         <Select
-                                                            value={data.qualificationFamily}
+                                                            value={
+                                                                data.qualificationFamily
+                                                            }
                                                             displayEmpty
-                                                            onChange={(e) => handleFamilyChange(e.target.value)}
+                                                            onChange={(e) =>
+                                                                handleFamilyChange(
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
                                                         >
-                                                            <MenuItem value="" disabled>
-                                                                <em>Select qualification family...</em>
+                                                            <MenuItem value="">
+                                                                <em>
+                                                                    Select
+                                                                    qualification
+                                                                    family...
+                                                                </em>
                                                             </MenuItem>
-                                                            {qualificationFamilies.map((family) => (
-                                                                <MenuItem key={family} value={family}>
-                                                                    {family}
-                                                                </MenuItem>
-                                                            ))}
+                                                            {qualificationFamilies.map(
+                                                                (family) => (
+                                                                    <MenuItem
+                                                                        key={
+                                                                            family
+                                                                        }
+                                                                        value={
+                                                                            family
+                                                                        }
+                                                                    >
+                                                                        {family}
+                                                                    </MenuItem>
+                                                                ),
+                                                            )}
                                                         </Select>
                                                     </FormControl>
                                                 </Box>
                                             )}
 
                                             {/* Step 3: Select Level */}
-                                            {hasExamBodies && data.qualificationFamily && registryLevels.length > 0 && (
-                                                <Box>
-                                                    <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Level</Typography>
-                                                    <FormControl fullWidth>
-                                                        <Select
-                                                            value={data.level}
-                                                            displayEmpty
-                                                            onChange={(e) => setData("level", e.target.value)}
+                                            {hasExamBodies &&
+                                                data.qualificationFamily &&
+                                                registryLevels.length > 0 && (
+                                                    <Box>
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{
+                                                                mb: 1,
+                                                                color: "text.secondary",
+                                                            }}
                                                         >
-                                                            <MenuItem value="" disabled>
-                                                                <em>Select level...</em>
-                                                            </MenuItem>
-                                                            {registryLevels.map((level) => (
-                                                                <MenuItem key={level} value={level}>
-                                                                    {level}
+                                                            Level
+                                                        </Typography>
+                                                        <FormControl fullWidth>
+                                                            <Select
+                                                                value={
+                                                                    data.level
+                                                                }
+                                                                displayEmpty
+                                                                onChange={(e) =>
+                                                                    setData(
+                                                                        "level",
+                                                                        e.target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <MenuItem value="">
+                                                                    <em>
+                                                                        Select
+                                                                        level...
+                                                                    </em>
                                                                 </MenuItem>
-                                                            ))}
-                                                        </Select>
-                                                    </FormControl>
-                                                </Box>
+                                                                {registryLevels.map(
+                                                                    (level) => (
+                                                                        <MenuItem
+                                                                            key={
+                                                                                level
+                                                                            }
+                                                                            value={
+                                                                                level
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                level
+                                                                            }
+                                                                        </MenuItem>
+                                                                    ),
+                                                                )}
+                                                            </Select>
+                                                        </FormControl>
+                                                    </Box>
+                                                )}
+
+                                            {hasExamBodies && (
+                                                <>
+                                                    <Box>
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{
+                                                                mb: 1,
+                                                                color: "text.secondary",
+                                                            }}
+                                                        >
+                                                            Award type
+                                                        </Typography>
+                                                        <TextField
+                                                            value={
+                                                                data.awardType
+                                                            }
+                                                            onChange={(e) =>
+                                                                setData(
+                                                                    "awardType",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            fullWidth
+                                                            placeholder="e.g. Diploma, Certificate, Trade Test"
+                                                        />
+                                                    </Box>
+                                                    <Box>
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{
+                                                                mb: 1,
+                                                                color: "text.secondary",
+                                                            }}
+                                                        >
+                                                            Assessment mode
+                                                        </Typography>
+                                                        <TextField
+                                                            value={
+                                                                data.assessmentMode
+                                                            }
+                                                            onChange={(e) =>
+                                                                setData(
+                                                                    "assessmentMode",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            fullWidth
+                                                            placeholder="e.g. Exam, CBET, Continuous Assessment"
+                                                        />
+                                                    </Box>
+                                                </>
                                             )}
-
-
                                         </Stack>
                                     </CardContent>
                                 </Card>
@@ -373,20 +579,28 @@ export default function ProgramForm({
                             >
                                 <Card>
                                     <CardContent>
-                                        <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{ mb: 3, fontWeight: 600 }}
+                                        >
                                             Description
                                         </Typography>
                                         <TextField
                                             value={data.description}
-                                            onChange={(e) => setData("description", e.target.value)}
+                                            onChange={(e) =>
+                                                setData(
+                                                    "description",
+                                                    e.target.value,
+                                                )
+                                            }
                                             multiline
                                             rows={4}
                                             fullWidth
-                                            placeholder="Briefly describe this program"
-                                            sx={{ 
-                                                '& .MuiInputBase-root': { 
-                                                    p: 2 
-                                                }
+                                            placeholder="Briefly describe this course"
+                                            sx={{
+                                                "& .MuiInputBase-root": {
+                                                    p: 2,
+                                                },
                                             }}
                                         />
                                     </CardContent>
@@ -394,225 +608,96 @@ export default function ProgramForm({
                             </motion.div>
                         </Grid>
 
-                        {/* Settings - Published toggle removed for Draft-First Workflow */}
-                        
-                        {/* Blueprint Selection - Hidden if only one blueprint (auto-selected) */}
-                        {blueprints.length > 1 && (
+                        {/* Instructors */}
+                        {showInstructorAssignment && (
                             <Grid size={{ xs: 12 }}>
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.2 }}
+                                    transition={{ delay: 0.3 }}
                                 >
                                     <Card>
                                         <CardContent>
                                             <Typography
                                                 variant="h6"
-                                                gutterBottom
+                                                sx={{ mb: 1, fontWeight: 600 }}
                                             >
-                                                Academic Blueprint
+                                                Assign instructors (optional)
                                             </Typography>
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
-                                                sx={{ mb: 2 }}
+                                                sx={{ mb: 3 }}
                                             >
-                                                Select the blueprint that
-                                                defines the academic structure
-                                                for this program
+                                                Select instructors who will
+                                                teach this course. You can also
+                                                assign them later.
                                             </Typography>
 
-                                            {!canChangeBlueprint && (
+                                            <Autocomplete
+                                                multiple
+                                                options={instructors}
+                                                getOptionLabel={(option) =>
+                                                    `${option.name} (${option.email})`
+                                                }
+                                                value={instructors.filter((i) =>
+                                                    data.instructorIds.includes(
+                                                        i.id,
+                                                    ),
+                                                )}
+                                                onChange={(_, newValue) => {
+                                                    setData(
+                                                        "instructorIds",
+                                                        newValue.map(
+                                                            (v) => v.id,
+                                                        ),
+                                                    );
+                                                }}
+                                                renderInput={(params) => (
+                                                    <TextField
+                                                        {...params}
+                                                        label="Instructors"
+                                                        placeholder="Select instructors"
+                                                    />
+                                                )}
+                                                renderTags={(
+                                                    value,
+                                                    getTagProps,
+                                                ) =>
+                                                    value.map(
+                                                        (option, index) => (
+                                                            <Chip
+                                                                label={
+                                                                    option.name
+                                                                }
+                                                                {...getTagProps(
+                                                                    {
+                                                                        index,
+                                                                    },
+                                                                )}
+                                                                key={option.id}
+                                                            />
+                                                        ),
+                                                    )
+                                                }
+                                            />
+
+                                            {instructors.length === 0 && (
                                                 <Alert
                                                     severity="info"
-                                                    sx={{ mb: 2 }}
+                                                    sx={{ mt: 2 }}
                                                 >
-                                                    Blueprint cannot be changed
-                                                    because this program has
-                                                    enrollments.
+                                                    No instructors available
+                                                    yet. You can create the
+                                                    course now and assign
+                                                    instructors later.
                                                 </Alert>
-                                            )}
-
-                                            <FormControl
-                                                fullWidth
-                                                error={!!errors.blueprintId}
-                                            >
-                                                <InputLabel>
-                                                    Blueprint
-                                                </InputLabel>
-                                                <Select
-                                                    value={data.blueprintId}
-                                                    label="Blueprint"
-                                                    onChange={(e) =>
-                                                        setData(
-                                                            "blueprintId",
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        !canChangeBlueprint
-                                                    }
-                                                    required
-                                                >
-                                                    {blueprints.map((bp) => (
-                                                        <MenuItem
-                                                            key={bp.id}
-                                                            value={bp.id}
-                                                        >
-                                                            {bp.name}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                                {errors.blueprintId && (
-                                                    <Typography
-                                                        variant="caption"
-                                                        color="error"
-                                                        sx={{ mt: 0.5 }}
-                                                    >
-                                                        {errors.blueprintId}
-                                                    </Typography>
-                                                )}
-                                            </FormControl>
-
-                                            {/* Blueprint Preview */}
-                                            {selectedBlueprint && (
-                                                <Box
-                                                    sx={{
-                                                        mt: 2,
-                                                        p: 2,
-                                                        bgcolor: "grey.50",
-                                                        borderRadius: 1,
-                                                    }}
-                                                >
-                                                    <Typography
-                                                        variant="subtitle2"
-                                                        gutterBottom
-                                                    >
-                                                        Hierarchy Structure
-                                                    </Typography>
-                                                    <Stack
-                                                        direction="row"
-                                                        spacing={1}
-                                                        flexWrap="wrap"
-                                                    >
-                                                        {selectedBlueprint.hierarchyLabels?.map(
-                                                            (label, i) => (
-                                                                <Box
-                                                                    key={i}
-                                                                    sx={{
-                                                                        display:
-                                                                            "flex",
-                                                                        alignItems:
-                                                                            "center",
-                                                                    }}
-                                                                >
-                                                                    <Chip
-                                                                        label={
-                                                                            label
-                                                                        }
-                                                                        size="small"
-                                                                        color="primary"
-                                                                        variant="outlined"
-                                                                    />
-                                                                    {i <
-                                                                        selectedBlueprint
-                                                                            .hierarchyLabels
-                                                                            .length -
-                                                                            1 && (
-                                                                        <Typography
-                                                                            sx={{
-                                                                                mx: 0.5,
-                                                                            }}
-                                                                            color="text.secondary"
-                                                                        >
-                                                                            →
-                                                                        </Typography>
-                                                                    )}
-                                                                </Box>
-                                                            ),
-                                                        )}
-                                                    </Stack>
-                                                </Box>
                                             )}
                                         </CardContent>
                                     </Card>
                                 </motion.div>
                             </Grid>
                         )}
-
-                        {/* Instructors */}
-                        <Grid size={{ xs: 12 }}>
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                            >
-                                <Card>
-                                    <CardContent>
-                                        <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-                                            Assign instructors (optional)
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{ mb: 3 }}
-                                        >
-                                            Select instructors who will teach
-                                            this program. You can also assign
-                                            them later.
-                                        </Typography>
-
-                                        <Autocomplete
-                                            multiple
-                                            options={instructors}
-                                            getOptionLabel={(option) =>
-                                                `${option.name} (${option.email})`
-                                            }
-                                            value={instructors.filter((i) =>
-                                                data.instructorIds.includes(
-                                                    i.id,
-                                                ),
-                                            )}
-                                            onChange={(_, newValue) => {
-                                                setData(
-                                                    "instructorIds",
-                                                    newValue.map((v) => v.id),
-                                                );
-                                            }}
-                                            renderInput={(params) => (
-                                                <TextField
-                                                    {...params}
-                                                    label="Instructors"
-                                                    placeholder="Select instructors"
-                                                />
-                                            )}
-                                            renderTags={(value, getTagProps) =>
-                                                value.map((option, index) => (
-                                                    <Chip
-                                                        label={option.name}
-                                                        {...getTagProps({
-                                                            index,
-                                                        })}
-                                                        key={option.id}
-                                                    />
-                                                ))
-                                            }
-                                        />
-
-                                        {instructors.length === 0 && (
-                                            <Alert
-                                                severity="info"
-                                                sx={{ mt: 2 }}
-                                            >
-                                                No instructors available yet.
-                                                You can create the program now
-                                                and assign instructors later.
-                                            </Alert>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        </Grid>
                     </Grid>
 
                     {/* Actions */}
@@ -625,11 +710,7 @@ export default function ProgramForm({
                     >
                         <Button
                             component={Link}
-                            href={
-                                isEdit
-                                    ? `/admin/programs/${program.id}/`
-                                    : "/admin/programs/"
-                            }
+                            href={resolvedCancelUrl}
                             variant="outlined"
                         >
                             Cancel
