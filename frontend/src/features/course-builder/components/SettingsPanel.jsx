@@ -73,8 +73,6 @@ export default function SettingsPanel({
     const hasExamBodies =
         isTvetMode && Object.keys(examBodyRegistry).length > 0;
     const fileInputRef = useRef(null);
-    const publicOrigin =
-        typeof window === "undefined" ? "" : window.location.origin;
 
     const {
         data: formData,
@@ -86,7 +84,6 @@ export default function SettingsPanel({
     } = useForm({
         name: program.name || "",
         code: program.code || "",
-        slug: program.slug || "",
         category: program.category || "",
         level: program.level || "",
         examBody: program.examBody || "",
@@ -181,7 +178,6 @@ export default function SettingsPanel({
                     section: "main",
                     name: formData.name,
                     code: formData.code,
-                    slug: formData.slug,
                     category: formData.category,
                     level: formData.level,
                     duration_hours: formData.duration_hours,
@@ -326,18 +322,6 @@ export default function SettingsPanel({
                 onChange={(event) => setData("code", event.target.value)}
                 error={Boolean(errors.code)}
                 helperText={errors.code || "Unique internal course identifier."}
-            />
-            <TextField
-                label="URL slug"
-                fullWidth
-                required
-                value={formData.slug}
-                onChange={(event) => setData("slug", event.target.value)}
-                error={Boolean(errors.slug)}
-                helperText={
-                    errors.slug ||
-                    `${publicOrigin}/programs/${formData.slug || "course-url"}/`
-                }
             />
 
             {categories.length > 0 ? (

@@ -361,8 +361,8 @@ class Program(TimeStampedModel):
     def __str__(self):
         return self.name
 
-    def _generate_unique_slug(self):
-        base_slug = slugify(self.slug or self.name or self.code) or "course"
+    def _generate_unique_slug(self, source: str | None = None):
+        base_slug = slugify(source or self.name or self.code) or "course"
         slug = base_slug[:255]
         suffix = 2
         queryset = Program.objects.all()
@@ -376,7 +376,25 @@ class Program(TimeStampedModel):
         return slug
 
     def save(self, *args, **kwargs):
-        self.slug = self._generate_unique_slug()
+        previous_name = None
+        if self.pk:
+            previous_name = (
+                Program.objects.filter(pk=self.pk)
+                .values_list("name", flat=True)
+                .first()
+            )
+
+        should_refresh_slug = (
+            not self.pk
+            or not self.slug
+            or (previous_name is not None and previous_name != self.name)
+        )
+        if should_refresh_slug:
+            self.slug = self._generate_unique_slug(self.name or self.code)
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"slug"}
+
         self.what_you_learn_html = str(self.what_you_learn_html or "").strip()
         self.what_you_learn_items = extract_learning_outcome_items_from_html(
             self.what_you_learn_html

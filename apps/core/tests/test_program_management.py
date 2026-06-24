@@ -55,6 +55,7 @@ class TestProgramManagement(TestCase):
         assert response.url == f"/instructor/programs/{new_program.id}/manage/?tab=settings"
         assert Program.objects.filter(name="New Program").exists()
         assert new_program.blueprint == self.blueprint
+        assert new_program.slug == "new-program"
 
     def test_edit_program(self):
         """Test program editing."""
@@ -69,6 +70,7 @@ class TestProgramManagement(TestCase):
         assert response.status_code == 302
         program.refresh_from_db()
         assert program.name == "Updated Name"
+        assert program.slug == "updated-name"
 
     def test_manage_program_content_with_materials(self):
         """Test uploading program materials."""

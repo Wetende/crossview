@@ -66,7 +66,6 @@ export default function ProgramForm({
     const { data, setData, post, processing } = useForm({
         name: program?.name || formData.name || "",
         code: program?.code || formData.code || "",
-        slug: program?.slug || formData.slug || "",
         level: program?.level || formData.level || "",
         description: program?.description || formData.description || "",
         previewDescription:
@@ -268,33 +267,6 @@ export default function ProgramForm({
                                                     fullWidth
                                                     required
                                                     placeholder="e.g. DIT-2026"
-                                                />
-                                            </Box>
-                                            <Box>
-                                                <Typography
-                                                    variant="body2"
-                                                    sx={{
-                                                        mb: 1,
-                                                        color: "text.secondary",
-                                                    }}
-                                                >
-                                                    URL slug
-                                                </Typography>
-                                                <TextField
-                                                    value={data.slug}
-                                                    onChange={(e) =>
-                                                        setData(
-                                                            "slug",
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    error={!!errors.slug}
-                                                    helperText={
-                                                        errors.slug ||
-                                                        "Used for the public course URL."
-                                                    }
-                                                    fullWidth
-                                                    placeholder="e.g. diploma-information-technology"
                                                 />
                                             </Box>
                                             <Stack

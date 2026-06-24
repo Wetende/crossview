@@ -23,7 +23,6 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.utils.text import slugify
 from django.views.decorators.csrf import ensure_csrf_cookie
 from inertia import render
 
@@ -2116,7 +2115,6 @@ def admin_program_create(request):
             blueprint_id=cleaned["blueprint_id"],
             name=cleaned["name"],
             code=cleaned["code"],
-            slug=cleaned["slug"],
             description=cleaned["description"],
             preview_description=cleaned["preview_description"],
             is_published=False,
@@ -2186,8 +2184,6 @@ def admin_program_edit(request, pk: int):
         # Update program
         program.name = cleaned["name"]
         program.code = cleaned["code"]
-        if cleaned["slug"]:
-            program.slug = cleaned["slug"]
         program.description = cleaned["description"]
         program.preview_description = cleaned["preview_description"]
         program.level = cleaned["level"]
@@ -2828,7 +2824,6 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
     errors = {}
     name = str(data.get("name") or "").strip()
     code = str(data.get("code") or "").strip()
-    slug = slugify(str(data.get("slug") or "").strip())
     platform_settings = PlatformSettings.get_settings()
     active_blueprint = platform_settings.active_blueprint
 
@@ -2865,13 +2860,6 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
         if duplicate_code.exists():
             errors["code"] = "A program with this code already exists."
 
-    if slug:
-        duplicate_slug = Program.objects.filter(slug=slug)
-        if program:
-            duplicate_slug = duplicate_slug.exclude(pk=program.pk)
-        if duplicate_slug.exists():
-            errors["slug"] = "A course with this URL slug already exists."
-
     if program:
         blueprint_id = program.blueprint_id
     elif active_blueprint:
@@ -2883,7 +2871,6 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
     return {
         "name": name,
         "code": code,
-        "slug": slug,
         "blueprint_id": blueprint_id,
         "description": data.get("description", ""),
         "preview_description": data.get("previewDescription") or data.get("preview_description") or "",
@@ -3042,7 +3029,6 @@ def instructor_program_create(request):
                 blueprint_id=cleaned["blueprint_id"],
                 name=cleaned["name"],
                 code=cleaned["code"],
-                slug=cleaned["slug"],
                 description=cleaned["description"],
                 preview_description=cleaned["preview_description"],
                 is_published=False,
@@ -7965,16 +7951,6 @@ def instructor_program_update_settings(request, pk: int):
             messages.error(request, "A program with this code already exists.")
             return _redirect_to_builder()
         program.code = code_val
-
-    if "slug" in data:
-        slug_value = slugify(str(data.get("slug") or "").strip())
-        if not slug_value:
-            messages.error(request, "Course URL slug is required.")
-            return _redirect_to_builder()
-        if Program.objects.filter(slug=slug_value).exclude(pk=program.pk).exists():
-            messages.error(request, "A course with this URL slug already exists.")
-            return _redirect_to_builder()
-        program.slug = slug_value
 
     if "category" in data:
         program.category = str(data.get("category", "")).strip() or None
