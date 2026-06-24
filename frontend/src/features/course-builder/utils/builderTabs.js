@@ -1,16 +1,24 @@
 const CORE_BUILDER_TABS = [
-    { label: "Overview", value: "overview" },
     { label: "Curriculum", value: "curriculum" },
     { label: "Settings", value: "settings" },
     { label: "Pricing", value: "pricing" },
     { label: "FAQ", value: "faq" },
     { label: "Notice", value: "notice" },
     { label: "Drip", value: "drip" },
-    { label: "Prerequisites", value: "prerequisites" },
-    { label: "Access", value: "access" },
 ];
 
 const PRACTICUM_BUILDER_TAB = { label: "Practicum", value: "practicum" };
+export const SETTINGS_SECTIONS = [
+    { label: "Main", value: "main" },
+    { label: "Access", value: "access" },
+    { label: "Prerequisites", value: "prerequisites" },
+    { label: "Course files", value: "files" },
+    { label: "Certificate", value: "certificate" },
+];
+
+const SETTINGS_SECTION_VALUES = new Set(
+    SETTINGS_SECTIONS.map((section) => section.value),
+);
 
 const BUILDER_TAB_VALUES = new Set([
     ...CORE_BUILDER_TABS.map((tab) => tab.value),
@@ -25,6 +33,11 @@ export const isPracticumTabEnabled = (program) => {
 export const getBuilderTabUrl = (programId, tabValue) => {
     const manageUrl = `/instructor/programs/${programId}/manage/`;
     return tabValue === "curriculum" ? manageUrl : `${manageUrl}?tab=${tabValue}`;
+};
+
+export const getSettingsSectionUrl = (programId, sectionValue = "main") => {
+    const section = normalizeSettingsSection(sectionValue);
+    return `/instructor/programs/${programId}/manage/?tab=settings&section=${section}`;
 };
 
 export const getAvailableBuilderTabs = (program) => {
@@ -55,4 +68,18 @@ export const getRequestedBuilderTab = () => {
         return "curriculum";
     }
     return new URLSearchParams(window.location.search).get("tab") || "curriculum";
+};
+
+export const normalizeSettingsSection = (requestedSection) => {
+    const sectionValue = requestedSection || "main";
+    return SETTINGS_SECTION_VALUES.has(sectionValue) ? sectionValue : "main";
+};
+
+export const getRequestedSettingsSection = () => {
+    if (typeof window === "undefined") {
+        return "main";
+    }
+    return normalizeSettingsSection(
+        new URLSearchParams(window.location.search).get("section"),
+    );
 };

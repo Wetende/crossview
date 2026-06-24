@@ -17,7 +17,7 @@ urlpatterns = [
     path("about/", views.about_page, name="about"),
     path("contact/", views.contact_page, name="contact"),
     path("programs/", views.public_programs_list, name="programs"),
-    path("programs/<int:pk>/", views.public_program_detail, name="program_detail"),
+    path("programs/<slug:slug>/", views.public_program_detail, name="program_detail"),
     path("programs/<int:pk>/review/", views.program_review_submit, name="program_review_submit"),
     # Authentication
     path("login/", views.login_page, name="login"),
@@ -48,11 +48,6 @@ urlpatterns = [
         "admin/programs/<int:program_id>/assign-instructors/",
         views.admin_program_assign_instructors,
         name="admin.program.assign_instructors",
-    ),
-    path(
-        "admin/programs/<int:pk>/content/",
-        views.admin_program_content,
-        name="admin.program.content",
     ),
     path(
         "admin/programs/<int:pk>/delete/",

@@ -550,12 +550,8 @@ class ProgressionEngine:
         if not prereq_result.can_access:
             return prereq_result
 
-        # Check sequential lock
-        progression_rules = {}
-        if enrollment.program.blueprint:
-            progression_rules = enrollment.program.blueprint.progression_rules or {}
-
-        if progression_rules.get('sequential', True):
+        # Check course-level sequential lock.
+        if enrollment.program.lock_lessons_in_order:
             seq_result = self.sequential_checker.is_unlocked(
                 enrollment, node, completed_ids
             )

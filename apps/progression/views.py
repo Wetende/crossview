@@ -40,6 +40,20 @@ from apps.core.utils import serialize_user, should_render_inertia_prop
 from apps.notifications.services import NotificationService
 
 
+def _redirect_if_course_prerequisites_unmet(request, enrollment: Enrollment):
+    if enrollment.status == "completed":
+        return None
+
+    from apps.core.services.course_prerequisites import CoursePrerequisiteService
+
+    evaluation = CoursePrerequisiteService.evaluate(request.user, enrollment.program)
+    if not evaluation.required or evaluation.eligible:
+        return None
+
+    messages.error(request, evaluation.blocking_message)
+    return redirect(f"/programs/{enrollment.program.slug}/")
+
+
 def _get_instructor_accessible_program(user, program_id: int) -> Optional[Program]:
     """Return program when user is staff or assigned instructor; otherwise None."""
     if user.is_staff:
@@ -710,6 +724,9 @@ def program_view(request, pk: int):
         user=request.user,
     )
     program = enrollment.program
+    blocked_response = _redirect_if_course_prerequisites_unmet(request, enrollment)
+    if blocked_response:
+        return blocked_response
 
     # Get all completions for this enrollment
     completions = list(enrollment.completions.values_list("node_id", flat=True))
@@ -769,6 +786,9 @@ def program_resume(request, pk: int):
         user=request.user,
     )
     program = enrollment.program
+    blocked_response = _redirect_if_course_prerequisites_unmet(request, enrollment)
+    if blocked_response:
+        return blocked_response
 
     completions = list(enrollment.completions.values_list("node_id", flat=True))
     engine = ProgressionEngine()
@@ -926,6 +946,10 @@ def session_viewer(request, pk: int, node_id: int):
     enrollment = get_object_or_404(
         Enrollment.objects.select_related("program"), pk=pk, user=request.user
     )
+    blocked_response = _redirect_if_course_prerequisites_unmet(request, enrollment)
+    if blocked_response:
+        return blocked_response
+
     node = get_object_or_404(CurriculumNode, pk=node_id, program=enrollment.program)
     engine = ProgressionEngine()
 
@@ -4330,6 +4354,21 @@ def admin_enrollment_create(request):
             ).exists():
                 errors["_form"] = "User is already enrolled in this program"
 
+        if user_id and program_id and not errors:
+            from apps.core.services.course_prerequisites import (
+                CoursePrerequisiteService,
+            )
+
+            target_user = User.objects.filter(pk=user_id).first()
+            target_program = Program.objects.filter(pk=program_id).first()
+            if target_user and target_program:
+                evaluation = CoursePrerequisiteService.evaluate(
+                    target_user,
+                    target_program,
+                )
+                if evaluation.required and not evaluation.eligible:
+                    errors["_form"] = evaluation.blocking_message
+
         if errors:
             return render(
                 request,
@@ -4394,10 +4433,21 @@ def admin_enrollment_bulk(request):
         # Create enrollments
         created = 0
         skipped = 0
+        from apps.core.services.course_prerequisites import CoursePrerequisiteService
+
+        program = Program.objects.filter(pk=program_id).first()
         for user_id in user_ids:
             if not Enrollment.objects.filter(
                 user_id=user_id, program_id=program_id
             ).exists():
+                target_user = User.objects.filter(pk=user_id).first()
+                if not target_user or not program:
+                    skipped += 1
+                    continue
+                evaluation = CoursePrerequisiteService.evaluate(target_user, program)
+                if evaluation.required and not evaluation.eligible:
+                    skipped += 1
+                    continue
                 enrollment = Enrollment.objects.create(
                     user_id=user_id,
                     program_id=program_id,
@@ -4501,6 +4551,13 @@ def student_enroll_request(request, pk: int):
     ).exists():
         messages.info(request, "Your enrollment request is pending approval.")
         return redirect("core:programs")
+
+    from apps.core.services.course_prerequisites import CoursePrerequisiteService
+
+    prerequisite_evaluation = CoursePrerequisiteService.evaluate(user, program)
+    if prerequisite_evaluation.required and not prerequisite_evaluation.eligible:
+        messages.error(request, prerequisite_evaluation.blocking_message)
+        return redirect(f"/programs/{program.slug}/")
 
     # Get enrollment mode from platform settings
     settings = PlatformSettings.get_settings()
@@ -4704,6 +4761,16 @@ def instructor_enrollment_request_approve(request, pk: int, request_id: int):
     enrollment_request = get_object_or_404(
         EnrollmentRequest, pk=request_id, program_id=pk, status="pending"
     )
+
+    from apps.core.services.course_prerequisites import CoursePrerequisiteService
+
+    prerequisite_evaluation = CoursePrerequisiteService.evaluate(
+        enrollment_request.user,
+        enrollment_request.program,
+    )
+    if prerequisite_evaluation.required and not prerequisite_evaluation.eligible:
+        messages.error(request, prerequisite_evaluation.blocking_message)
+        return redirect("progression:instructor.enrollment_requests", pk=pk)
 
     # Create enrollment
     enrollment = Enrollment.objects.create(

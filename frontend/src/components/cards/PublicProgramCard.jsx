@@ -174,7 +174,7 @@ export default function PublicProgramCard({
                 {/* Title */}
                 <Typography
                     component={Link}
-                    href={`/programs/${program.id}/`}
+                    href={program.publicUrl}
                     variant="subtitle1"
                     fontWeight={600}
                     sx={{
@@ -300,7 +300,7 @@ export default function PublicProgramCard({
                         {enrollmentStatus === "enrolled" ? (
                             <Button
                                 component={Link}
-                                href={`/programs/${program.id}/`}
+                                href={program.publicUrl}
                                 variant="contained"
                                 color="success"
                                 fullWidth
@@ -320,7 +320,7 @@ export default function PublicProgramCard({
                         ) : (
                             <Button
                                 component={Link}
-                                href={`/programs/${program.id}/`}
+                                href={program.publicUrl}
                                 variant="contained"
                                 fullWidth
                                 size="small"

@@ -23,7 +23,7 @@ export default function CoursePublicationControls({ program }) {
     const [processing, setProcessing] = useState(false);
 
     const viewUrl = program.isPublished
-        ? `/programs/${program.id}/`
+        ? program.publicUrl
         : `/instructor/programs/${program.id}/preview/`;
 
     const handlePublish = () => {

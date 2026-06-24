@@ -109,7 +109,7 @@ class TestInstructorCourseBuilder:
         program = Program.objects.get(code="TC-101")
         assert response.status_code == 302
         assert response["Location"] == (
-            f"/instructor/programs/{program.id}/manage/?tab=overview"
+            f"/instructor/programs/{program.id}/manage/?tab=settings"
         )
         assert program.name == "Teacher Course"
         assert program.blueprint == blueprint
@@ -399,7 +399,32 @@ class TestInstructorCourseBuilder:
         assert program.faq == faq
         assert program.custom_pricing == {'price': 100.0, 'currency': 'KES'}
 
-    def test_update_overview_accepts_multipart_resources(
+    def test_update_prerequisites_saves_passing_percent_and_courses(
+        self, client, instructor, program, assignment
+    ):
+        prerequisite = ProgramFactory(name="Beginner Course", code="BEGINNER-100")
+        client.force_login(instructor)
+        url = reverse("core:instructor.program_update_settings", kwargs={"pk": program.id})
+
+        response = client.post(
+            url,
+            data={
+                "tab": "settings",
+                "section": "prerequisites",
+                "prerequisite_passing_percent": 80,
+                "prerequisite_program_ids": [prerequisite.id],
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        program.refresh_from_db()
+        assert program.prerequisite_passing_percent == 80
+        assert list(program.prerequisite_programs.values_list("id", flat=True)) == [
+            prerequisite.id
+        ]
+
+    def test_update_settings_accepts_overview_content_and_resources(
         self,
         client,
         instructor,
@@ -426,7 +451,8 @@ class TestInstructorCourseBuilder:
         response = client.post(
             url,
             data={
-                "tab": "overview",
+                "tab": "settings",
+                "section": "files",
                 "description": "<p>Rich <strong>course</strong> overview.</p>",
                 "whatYouLearn": "<ul><li>Build confidence</li></ul>",
                 "deleteResourceIds": json.dumps([old_resource.id]),
@@ -435,7 +461,10 @@ class TestInstructorCourseBuilder:
         )
 
         assert response.status_code == 302
-        assert response["Location"] == f"/instructor/programs/{program.id}/manage/?tab=overview"
+        assert (
+            response["Location"]
+            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=files"
+        )
 
         program.refresh_from_db()
         assert program.description == "<p>Rich <strong>course</strong> overview.</p>"

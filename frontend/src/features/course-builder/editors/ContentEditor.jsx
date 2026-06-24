@@ -62,7 +62,6 @@ export default function ContentEditor({ node, onSave, blueprint }) {
     const [isPreview, setIsPreview] = useState(
         node.properties?.is_preview || false,
     );
-    const [isLocked, setIsLocked] = useState(false);
     const [startDate, setStartDate] = useState(
         node.properties?.start_date || "",
     );
@@ -148,12 +147,14 @@ export default function ContentEditor({ node, onSave, blueprint }) {
             videoSource: true,
             videoUrl: true,
             meetingPassword: true,
-            startDate: true,
-            startTime: true,
-            endDate: true,
-            endTime: true,
-            timezone: true,
         };
+        if (lessonType === "live_class") {
+            nextTouched.startDate = true;
+            nextTouched.startTime = true;
+            nextTouched.endDate = true;
+            nextTouched.endTime = true;
+            nextTouched.timezone = true;
+        }
         if (lessonType === "document") {
             nextTouched.document = true;
         }
@@ -337,19 +338,20 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                       strict_completion: strictCompletion,
                   }
                 : undefined;
+        const baseProperties = { ...(node.properties || {}) };
+        delete baseProperties.start_date;
+        delete baseProperties.start_time;
+        delete baseProperties.end_date;
+        delete baseProperties.end_time;
 
         onSave(node.id, {
             title,
             description,
             properties: {
-                ...node.properties,
+                ...baseProperties,
                 content,
                 duration,
                 is_preview: isPreview,
-                start_date: startDate,
-                start_time: startTime,
-                end_date: endDate,
-                end_time: endTime,
                 video_source: videoSource,
                 video_url: videoUrl,
                 meeting_password: meetingPassword,
@@ -359,6 +361,12 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                 participant_video: participantVideo,
                 mute_upon_entry: muteUponEntry,
                 require_auth: requireAuth,
+                ...(lessonType === "live_class" && {
+                    start_date: startDate,
+                    start_time: startTime,
+                    end_date: endDate,
+                    end_time: endTime,
+                }),
                 ...(lessonType === "document" && {
                     document: documentPayload,
                 }),
@@ -937,59 +945,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                                 </Box>
                             }
                         />
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={isLocked}
-                                    onChange={(e) =>
-                                        setIsLocked(e.target.checked)
-                                    }
-                                />
-                            }
-                            label={
-                                <Typography variant="body2">
-                                    Unlock the lesson after a certain time after
-                                    the purchase
-                                </Typography>
-                            }
-                        />
                     </Box>
-
-                    {/* Date/Time Row for Non-Zoom (Zoom handles it in specific block) */}
-                    {lessonType !== "live_class" && (
-                        <Box sx={{ display: "flex", gap: 2 }}>
-                            <Box sx={{ flex: 1 }}>
-                                <InputLabel
-                                    shrink
-                                    sx={{ mb: 1, fontWeight: 500 }}
-                                >
-                                    Lesson start date
-                                </InputLabel>
-                                <TextField
-                                    type="date"
-                                    fullWidth
-                                    size="small"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                />
-                            </Box>
-                            <Box sx={{ flex: 1 }}>
-                                <InputLabel
-                                    shrink
-                                    sx={{ mb: 1, fontWeight: 500 }}
-                                >
-                                    Lesson start time
-                                </InputLabel>
-                                <TextField
-                                    type="time"
-                                    fullWidth
-                                    size="small"
-                                    value={startTime}
-                                    onChange={(e) => setStartTime(e.target.value)}
-                                />
-                            </Box>
-                        </Box>
-                    )}
 
                     {/* Rich Text Editor - Short Description */}
                     <Box

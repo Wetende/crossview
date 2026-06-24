@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
     getAvailableBuilderTabs,
     getBuilderTabUrl,
+    getSettingsSectionUrl,
+    normalizeSettingsSection,
     normalizeBuilderTab,
 } from "./builderTabs";
 
@@ -40,8 +42,18 @@ describe("builderTabs", () => {
         expect(getBuilderTabUrl(42, "curriculum")).toBe(
             "/instructor/programs/42/manage/",
         );
-        expect(getBuilderTabUrl(42, "overview")).toBe(
-            "/instructor/programs/42/manage/?tab=overview",
+        expect(getBuilderTabUrl(42, "settings")).toBe(
+            "/instructor/programs/42/manage/?tab=settings",
         );
+        expect(getSettingsSectionUrl(42, "access")).toBe(
+            "/instructor/programs/42/manage/?tab=settings&section=access",
+        );
+    });
+
+    it("normalizes settings sections without accepting removed top-level tabs", () => {
+        expect(normalizeBuilderTab(baseProgram, "access")).toBe("curriculum");
+        expect(normalizeBuilderTab(baseProgram, "prerequisites")).toBe("curriculum");
+        expect(normalizeSettingsSection("access")).toBe("access");
+        expect(normalizeSettingsSection("missing")).toBe("main");
     });
 });

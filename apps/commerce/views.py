@@ -10,6 +10,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from inertia import render
 
 from apps.core.models import Program
+from apps.core.services.course_prerequisites import CoursePrerequisiteService
 from apps.core.utils import get_post_data, is_admin
 
 from .exceptions import CommerceError
@@ -85,7 +86,12 @@ def program_checkout(request, pk: int):
     amount_minor, currency = program_price_minor(program)
     if amount_minor <= 0:
         messages.error(request, "This program does not require paid checkout.")
-        return redirect("core:program_detail", pk=pk)
+        return redirect(f"/programs/{program.slug}/")
+
+    prerequisite_evaluation = CoursePrerequisiteService.evaluate(request.user, program)
+    if prerequisite_evaluation.required and not prerequisite_evaluation.eligible:
+        messages.error(request, prerequisite_evaluation.blocking_message)
+        return redirect(f"/programs/{program.slug}/")
 
     pending_order = (
         Order.objects.filter(
@@ -135,6 +141,15 @@ def program_checkout(request, pk: int):
 def program_checkout_initialize(request, pk: int):
     try:
         program = _lookup_program(pk)
+        prerequisite_evaluation = CoursePrerequisiteService.evaluate(
+            request.user,
+            program,
+        )
+        if prerequisite_evaluation.required and not prerequisite_evaluation.eligible:
+            raise CommerceError(
+                prerequisite_evaluation.blocking_message,
+                code="prerequisites_required",
+            )
         order = (
             Order.objects.filter(
                 user=request.user,
@@ -210,7 +225,7 @@ def paystack_callback(request):
         "Payment is pending confirmation. We will update your access shortly.",
     )
     if order.program_id:
-        return redirect("core:program_detail", pk=order.program_id)
+        return redirect(f"/programs/{order.program.slug}/")
     return redirect("commerce:student_orders")
 
 

@@ -86,14 +86,6 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
           <Stack direction="row" gap={1.25} flexWrap="wrap">
             <Button
               component={Link}
-              href={`/admin/programs/${program.id}/content/`}
-              variant="outlined"
-              sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
-            >
-              Content setup
-            </Button>
-            <Button
-              component={Link}
               href={`/admin/programs/${program.id}/edit/`}
               variant="outlined"
               sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}

@@ -3,7 +3,9 @@ Core models - Custom User model and base classes.
 """
 
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.text import slugify
 
 from .learning_outcomes import extract_learning_outcome_items_from_html
 
@@ -228,8 +230,17 @@ class Program(TimeStampedModel):
         unique=True,
         error_messages={"unique": "A program with this code already exists."},
     )
+    slug = models.SlugField(
+        max_length=255,
+        unique=True,
+        blank=True,
+        db_index=True,
+        help_text="Public course URL slug.",
+    )
     description = models.TextField(blank=True, null=True)
+    preview_description = models.TextField(blank=True, default="")
     is_published = models.BooleanField(default=False)
+    is_featured = models.BooleanField(default=False)
 
     # Extended Course Manager Fields
     faq = models.JSONField(default=list, blank=True)
@@ -237,14 +248,19 @@ class Program(TimeStampedModel):
     custom_pricing = models.JSONField(default=dict, blank=True)
 
     # Access, progression, and rating fields
-    prerequisites_enabled = models.BooleanField(default=False)
     prerequisite_programs = models.ManyToManyField(
         "self",
         symmetrical=False,
         blank=True,
         related_name="unlocks_programs",
     )
+    prerequisite_passing_percent = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Minimum published course score required for prerequisite courses. Use 0 for completion-only prerequisites.",
+    )
     access_duration_days = models.PositiveIntegerField(null=True, blank=True)
+    lock_lessons_in_order = models.BooleanField(default=True)
     drip_enabled = models.BooleanField(default=False)
     DRIP_MODE_CHOICES = [
         ("none", "None"),
@@ -322,6 +338,7 @@ class Program(TimeStampedModel):
         indexes = [
             models.Index(fields=["name"]),
             models.Index(fields=["is_published"]),
+            models.Index(fields=["is_published", "is_featured"]),
             models.Index(fields=["created_at"], name="program_created_idx"),
             models.Index(
                 fields=["is_published", "created_at"],
@@ -344,7 +361,22 @@ class Program(TimeStampedModel):
     def __str__(self):
         return self.name
 
+    def _generate_unique_slug(self):
+        base_slug = slugify(self.slug or self.name or self.code) or "course"
+        slug = base_slug[:255]
+        suffix = 2
+        queryset = Program.objects.all()
+        if self.pk:
+            queryset = queryset.exclude(pk=self.pk)
+
+        while queryset.filter(slug=slug).exists():
+            suffix_text = f"-{suffix}"
+            slug = f"{base_slug[: 255 - len(suffix_text)]}{suffix_text}"
+            suffix += 1
+        return slug
+
     def save(self, *args, **kwargs):
+        self.slug = self._generate_unique_slug()
         self.what_you_learn_html = str(self.what_you_learn_html or "").strip()
         self.what_you_learn_items = extract_learning_outcome_items_from_html(
             self.what_you_learn_html

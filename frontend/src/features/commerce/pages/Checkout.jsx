@@ -94,10 +94,10 @@ export default function Checkout({ paystack }) {
 
     const items = isDirectMode ? (preview?.items || []) : (cart?.items || []);
     const totalMinor = isDirectMode ? preview?.totalMinor : cart?.totalMinor;
-    const totalCurrency = isDirectMode ? preview?.currency : cart?.currency;
     const isEmpty = isDirectMode
         ? !previewLoading && items.length === 0
         : !cartLoading && items.length === 0;
+    const directProgramUrl = isDirectMode ? items[0]?.program?.publicUrl : "";
 
     const getOrderPageUrl = useCallback((orderId, paymentError = "") => {
         const params = new URLSearchParams();
@@ -237,8 +237,9 @@ export default function Checkout({ paystack }) {
                 {step === STEP_REVIEW && (
                     <Button
                         component={Link}
-                        href={isDirectMode ? `/programs/${directProgramId}/` : "/programs/"}
+                        href={isDirectMode ? directProgramUrl : "/programs/"}
                         startIcon={<IconArrowLeft size={18} />}
+                        disabled={isDirectMode && !directProgramUrl}
                         sx={{ mb: 2 }}
                     >
                         {isDirectMode ? "Back to Program" : "Browse More Programs"}

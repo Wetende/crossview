@@ -78,13 +78,18 @@ describe("CoursePublicationControls", () => {
     test("shows the public URL and unpublishes a live course", async () => {
         render(
             <CoursePublicationControls
-                program={{ id: 21, name: "AI Basics", isPublished: true }}
+                program={{
+                    id: 21,
+                    name: "AI Basics",
+                    isPublished: true,
+                    publicUrl: "/programs/ai-basics/",
+                }}
             />,
         );
 
         expect(screen.getByRole("link", { name: /view course/i })).toHaveAttribute(
             "href",
-            "/programs/21/",
+            "/programs/ai-basics/",
         );
 
         fireEvent.click(screen.getByRole("button", { name: "Published" }));

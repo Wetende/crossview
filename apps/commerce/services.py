@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.core.models import Program, User
+from apps.core.services.course_prerequisites import CoursePrerequisiteService
 from apps.progression.models import Enrollment, EnrollmentRequest
 
 from .exceptions import CommerceError
@@ -69,6 +70,10 @@ def program_price_minor(program: Program) -> tuple[int, str]:
     return max(0, int(round(amount_float * 100))), currency
 
 
+def program_public_url(program: Program) -> str:
+    return f"/programs/{program.slug}/"
+
+
 def build_paystack_dedupe_key(
     event: str,
     event_id: str = "",
@@ -117,6 +122,8 @@ def serialize_cart_item(item: CartItem) -> dict:
             "id": item.program_id,
             "name": item.program.name if item.program_id else "",
             "code": item.program.code if item.program_id else "",
+            "slug": item.program.slug if item.program_id else "",
+            "publicUrl": program_public_url(item.program) if item.program_id else "",
         },
         "createdAt": item.created_at.isoformat() if item.created_at else None,
     }
@@ -155,6 +162,8 @@ def serialize_wishlist_item(item: WishlistItem) -> dict:
             "id": item.program_id,
             "name": item.program.name if item.program_id else "",
             "code": item.program.code if item.program_id else "",
+            "slug": item.program.slug if item.program_id else "",
+            "publicUrl": program_public_url(item.program) if item.program_id else "",
             "thumbnail": item.program.thumbnail.url
             if item.program_id and item.program.thumbnail
             else None,
@@ -176,6 +185,8 @@ def serialize_order_item(item: OrderItem) -> dict:
             "id": item.program_id,
             "name": item.program_name,
             "code": item.program_code,
+            "slug": item.program.slug if item.program_id else "",
+            "publicUrl": program_public_url(item.program) if item.program_id else "",
         },
         "paidAt": item.paid_at.isoformat() if item.paid_at else None,
         "createdAt": item.created_at.isoformat() if item.created_at else None,
@@ -352,6 +363,13 @@ class CartService:
         ).exists():
             raise CommerceError(
                 "You are already enrolled in this program.", code="already_enrolled"
+            )
+
+        prerequisite_evaluation = CoursePrerequisiteService.evaluate(user, program)
+        if prerequisite_evaluation.required and not prerequisite_evaluation.eligible:
+            raise CommerceError(
+                prerequisite_evaluation.blocking_message,
+                code="prerequisites_required",
             )
 
         return amount_minor, currency
@@ -848,6 +866,8 @@ class CheckoutService:
                         "id": program.id,
                         "name": program.name,
                         "code": program.code or "",
+                        "slug": program.slug,
+                        "publicUrl": program_public_url(program),
                     },
                     "amountMinor": amount_minor,
                     "currency": item_currency,

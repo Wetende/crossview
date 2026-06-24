@@ -147,7 +147,7 @@ export default function Cart() {
                                                 variant="subtitle1"
                                                 fontWeight={600}
                                                 component={Link}
-                                                href={`/programs/${item.program.id}/`}
+                                                href={item.program.publicUrl}
                                                 sx={{
                                                     textDecoration: "none",
                                                     color: "text.primary",

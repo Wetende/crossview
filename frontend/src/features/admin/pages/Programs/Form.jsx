@@ -20,9 +20,11 @@ import {
     Chip,
     Alert,
     FormControl,
+    FormControlLabel,
     Select,
     MenuItem,
     Autocomplete,
+    Switch,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -64,8 +66,16 @@ export default function ProgramForm({
     const { data, setData, post, processing } = useForm({
         name: program?.name || formData.name || "",
         code: program?.code || formData.code || "",
+        slug: program?.slug || formData.slug || "",
         level: program?.level || formData.level || "",
         description: program?.description || formData.description || "",
+        previewDescription:
+            program?.previewDescription || formData.previewDescription || "",
+        durationHours: program?.durationHours ?? formData.durationHours ?? 0,
+        videoHours: program?.videoHours ?? formData.videoHours ?? 0,
+        isFeatured: Boolean(program?.isFeatured || formData.isFeatured),
+        lockLessonsInOrder:
+            program?.lockLessonsInOrder ?? formData.lockLessonsInOrder ?? true,
         instructorIds:
             currentInstructorIds.length > 0
                 ? currentInstructorIds
@@ -260,6 +270,139 @@ export default function ProgramForm({
                                                     placeholder="e.g. DIT-2026"
                                                 />
                                             </Box>
+                                            <Box>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        mb: 1,
+                                                        color: "text.secondary",
+                                                    }}
+                                                >
+                                                    URL slug
+                                                </Typography>
+                                                <TextField
+                                                    value={data.slug}
+                                                    onChange={(e) =>
+                                                        setData(
+                                                            "slug",
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    error={!!errors.slug}
+                                                    helperText={
+                                                        errors.slug ||
+                                                        "Used for the public course URL."
+                                                    }
+                                                    fullWidth
+                                                    placeholder="e.g. diploma-information-technology"
+                                                />
+                                            </Box>
+                                            <Stack
+                                                direction={{
+                                                    xs: "column",
+                                                    sm: "row",
+                                                }}
+                                                spacing={2}
+                                            >
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            mb: 1,
+                                                            color: "text.secondary",
+                                                        }}
+                                                    >
+                                                        Course duration
+                                                    </Typography>
+                                                    <TextField
+                                                        type="number"
+                                                        value={
+                                                            data.durationHours
+                                                        }
+                                                        onChange={(e) =>
+                                                            setData(
+                                                                "durationHours",
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        error={
+                                                            !!errors.durationHours
+                                                        }
+                                                        helperText={
+                                                            errors.durationHours ||
+                                                            "Hours"
+                                                        }
+                                                        fullWidth
+                                                        inputProps={{ min: 0 }}
+                                                    />
+                                                </Box>
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            mb: 1,
+                                                            color: "text.secondary",
+                                                        }}
+                                                    >
+                                                        Video duration
+                                                    </Typography>
+                                                    <TextField
+                                                        type="number"
+                                                        value={data.videoHours}
+                                                        onChange={(e) =>
+                                                            setData(
+                                                                "videoHours",
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                        error={
+                                                            !!errors.videoHours
+                                                        }
+                                                        helperText={
+                                                            errors.videoHours ||
+                                                            "Hours"
+                                                        }
+                                                        fullWidth
+                                                        inputProps={{ min: 0 }}
+                                                    />
+                                                </Box>
+                                            </Stack>
+                                            <FormControlLabel
+                                                control={
+                                                    <Switch
+                                                        checked={
+                                                            data.lockLessonsInOrder
+                                                        }
+                                                        onChange={(e) =>
+                                                            setData(
+                                                                "lockLessonsInOrder",
+                                                                e.target
+                                                                    .checked,
+                                                            )
+                                                        }
+                                                    />
+                                                }
+                                                label="Lock lessons in order"
+                                            />
+                                            {!isInstructorLayout && (
+                                                <FormControlLabel
+                                                    control={
+                                                        <Switch
+                                                            checked={
+                                                                data.isFeatured
+                                                            }
+                                                            onChange={(e) =>
+                                                                setData(
+                                                                    "isFeatured",
+                                                                    e.target
+                                                                        .checked,
+                                                                )
+                                                            }
+                                                        />
+                                                    }
+                                                    label="Featured course"
+                                                />
+                                            )}
                                         </Stack>
                                     </CardContent>
                                 </Card>
@@ -602,6 +745,20 @@ export default function ProgramForm({
                                                     p: 2,
                                                 },
                                             }}
+                                        />
+                                        <TextField
+                                            value={data.previewDescription}
+                                            onChange={(e) =>
+                                                setData(
+                                                    "previewDescription",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            multiline
+                                            rows={3}
+                                            fullWidth
+                                            placeholder="Short preview description for cards and summaries"
+                                            sx={{ mt: 3 }}
                                         />
                                     </CardContent>
                                 </Card>

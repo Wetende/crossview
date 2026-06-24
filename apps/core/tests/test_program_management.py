@@ -52,7 +52,7 @@ class TestProgramManagement(TestCase):
         
         assert response.status_code == 302
         new_program = Program.objects.get(name="New Program")
-        assert response.url == reverse('core:admin.program.content', kwargs={'pk': new_program.id})
+        assert response.url == f"/instructor/programs/{new_program.id}/manage/?tab=settings"
         assert Program.objects.filter(name="New Program").exists()
         assert new_program.blueprint == self.blueprint
 
@@ -80,14 +80,24 @@ class TestProgramManagement(TestCase):
         file_content = b"dummy content"
         test_file = SimpleUploadedFile("syllabus.pdf", file_content, content_type="application/pdf")
 
-        data = {
-            "description": "Test description",
-            "materials": [test_file]
-        }
-        
-        response = self.client.post(reverse('core:admin.program.content', args=[program.id]), data=data)
-        
+        response = self.client.post(
+            reverse('core:instructor.program_update_settings', args=[program.id]),
+            data={
+                "tab": "settings",
+                "description": "Test description",
+                "whatYouLearn": "<ul><li>Outcome one</li></ul>",
+                "materials": [test_file],
+            },
+        )
+
         assert response.status_code == 302
+        assert (
+            response["Location"]
+            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=main"
+        )
+        program.refresh_from_db()
+        assert program.description == "Test description"
+        assert program.what_you_learn_items == ["Outcome one"]
         assert ProgramResource.objects.filter(program=program).count() == 1
         resource = ProgramResource.objects.get(program=program)
         assert resource.title == "syllabus.pdf"

@@ -69,6 +69,7 @@ function CourseDetailsSidebar({
     enrollmentData,
     enrollmentMode,
     ctaState,
+    prerequisiteStatus,
     isAuthenticated,
     onShowDetails,
     onBuyNow,
@@ -213,6 +214,54 @@ function CourseDetailsSidebar({
                             </Button>
                         </Stack>
                     </>
+                ) : ctaState === "prerequisites_required" ? (
+                    <>
+                        <MuiAlert
+                            severity="warning"
+                            icon={<IconLock size={18} />}
+                            sx={{ mb: 2 }}
+                        >
+                            <Typography variant="body2" fontWeight={700}>
+                                Prerequisites required
+                            </Typography>
+                            <Typography variant="caption" component="div">
+                                {prerequisiteStatus?.blockingMessage ||
+                                    "Complete the required courses first."}
+                            </Typography>
+                        </MuiAlert>
+                        <Button
+                            variant="outlined"
+                            fullWidth
+                            size="large"
+                            disabled
+                            sx={{ mb: 2, py: 1.5 }}
+                        >
+                            PREREQUISITES REQUIRED
+                        </Button>
+                        <List dense disablePadding sx={{ mb: 2 }}>
+                            {(prerequisiteStatus?.requirements || []).map(
+                                (item) => (
+                                    <ListItem key={item.programId} disableGutters>
+                                        <ListItemIcon sx={{ minWidth: 30 }}>
+                                            {item.passed ? (
+                                                <IconCheck size={18} />
+                                            ) : (
+                                                <IconLock size={18} />
+                                            )}
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={item.name}
+                                            secondary={
+                                                item.score == null
+                                                    ? "No published score yet"
+                                                    : `Score: ${item.score}%`
+                                            }
+                                        />
+                                    </ListItem>
+                                ),
+                            )}
+                        </List>
+                    </>
                 ) : ctaState === "pending_payment" ? (
                     <>
                         <Button
@@ -345,7 +394,7 @@ function CourseDetailsSidebar({
                     <>
                         <Button
                             component={Link}
-                            href={`/login/?next=/programs/${program.id}/`}
+                            href={`/login/?next=${encodeURIComponent(program.publicUrl)}`}
                             variant="contained"
                             fullWidth
                             size="large"
@@ -492,7 +541,7 @@ function PopularCourses({ courses }) {
                     <Card
                         key={course.id}
                         component={Link}
-                        href={`/programs/${course.id}/`}
+                        href={course.publicUrl}
                         sx={{
                             textDecoration: "none",
                             display: "flex",
@@ -594,6 +643,7 @@ export default function ProgramDetail({
     enrollmentData,
     enrollmentMode = "free",
     ctaState = "not_enrolled",
+    prerequisiteStatus = null,
     isPreview = false,
     builderUrl = null,
 }) {
@@ -719,6 +769,7 @@ export default function ProgramDetail({
                                 enrollmentData={enrollmentData}
                                 enrollmentMode={enrollmentMode}
                                 ctaState={ctaState}
+                                prerequisiteStatus={prerequisiteStatus}
                                 isAuthenticated={!!auth?.user}
                                 onShowDetails={handleShowDetails}
                                 onBuyNow={handleBuyNow}

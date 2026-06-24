@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.text import slugify
 from django.views.decorators.csrf import ensure_csrf_cookie
 from inertia import render
 
@@ -111,6 +112,10 @@ def _build_level_options(programs: list, level_key: str = "level") -> list:
     return options
 
 
+def _program_public_url(program) -> str:
+    return f"/programs/{program.slug}/"
+
+
 def _build_pagination(page: int, per_page: int, total: int) -> dict:
     return {
         "page": page,
@@ -166,6 +171,7 @@ def landing_page(request):
             Program.objects.filter(is_published=True)
             .only(
                 "id",
+                "slug",
                 "name",
                 "code",
                 "description",
@@ -233,6 +239,8 @@ def landing_page(request):
             programs_data.append(
                 {
                     "id": program.id,
+                    "slug": program.slug,
+                    "publicUrl": _program_public_url(program),
                     "name": program.name,
                     "code": program.code or "",
                     "description": program.description or "",
@@ -335,19 +343,22 @@ def public_programs_list(request):
         programs = list(
             programs_query.only(
                 "id",
+                "slug",
                 "name",
                 "code",
                 "description",
+                "preview_description",
                 "created_at",
                 "thumbnail",
                 "category",
                 "level",
+                "is_featured",
                 "badge_type",
                 "video_hours",
                 "custom_pricing",
                 "rating_average",
                 "rating_count",
-            ).order_by("name")[offset : offset + per_page]
+            ).order_by("-is_featured", "name")[offset : offset + per_page]
         )
         program_ids = [program.id for program in programs]
 
@@ -400,13 +411,17 @@ def public_programs_list(request):
         programs_data.append(
             {
                 "id": program.id,
+                "slug": program.slug,
+                "publicUrl": _program_public_url(program),
                 "name": program.name,
                 "code": program.code or "",
                 "description": program.description or "",
+                "preview_description": program.preview_description or "",
                 "created_at": program.created_at.isoformat(),
                 "thumbnail": program.thumbnail.url if program.thumbnail else None,
                 "category": program.category or "",
                 "level": program.level or "",
+                "isFeatured": program.is_featured,
                 "badge_type": program.badge_type,
                 "duration_hours": _minutes_to_hours(
                     stats_by_program_id[program.id]["duration_minutes"]
@@ -474,8 +489,9 @@ def public_programs_list(request):
 
 def public_program_detail(
     request,
-    pk: int,
+    slug: str | None = None,
     *,
+    pk: int | None = None,
     is_preview: bool = False,
     builder_url: str | None = None,
 ):
@@ -494,7 +510,7 @@ def public_program_detail(
         program = get_object_or_404(Program, pk=pk)
     else:
         # Strict check
-        program = get_object_or_404(Program, pk=pk, is_published=True)
+        program = get_object_or_404(Program, slug=slug, is_published=True)
 
     # Build curriculum tree for display
     def build_tree(nodes):
@@ -607,13 +623,15 @@ def public_program_detail(
     if program.category:
         related_qs = Program.objects.filter(
             is_published=True, category=program.category
-        ).exclude(pk=pk)[:4]
+        ).exclude(pk=program.pk)[:4]
 
         for p in related_qs:
             price_data = p.custom_pricing or {}
             related_programs.append(
                 {
                     "id": p.id,
+                    "slug": p.slug,
+                    "publicUrl": _program_public_url(p),
                     "name": p.name,
                     "thumbnail": p.thumbnail.url if p.thumbnail else None,
                     "category": p.category or "",
@@ -704,23 +722,40 @@ def public_program_detail(
     else:
         enrollment_mode = "free"
 
+    from apps.core.services.course_prerequisites import CoursePrerequisiteService
+
+    prerequisite_evaluation = CoursePrerequisiteService.evaluate(
+        request.user if request.user.is_authenticated else None,
+        program,
+    )
+    prerequisite_status = prerequisite_evaluation.as_dict()
+
     if enrollment_status == "enrolled":
         cta_state = "enrolled"
+    elif enrollment_status == "pending":
+        cta_state = "pending"
+    elif (
+        request.user.is_authenticated
+        and prerequisite_evaluation.required
+        and not prerequisite_evaluation.eligible
+    ):
+        cta_state = "prerequisites_required"
     elif pending_payment:
         cta_state = "pending_payment"
     elif enrollment_mode == "paid":
         cta_state = "not_enrolled_paid"
-    elif enrollment_status == "pending":
-        cta_state = "pending"
     else:
         cta_state = "not_enrolled"
 
     # Build program data
     program_data = {
         "id": program.id,
+        "slug": program.slug,
+        "publicUrl": _program_public_url(program),
         "name": program.name,
         "code": program.code or "",
         "description": program.description or "",
+        "preview_description": program.preview_description or "",
         "thumbnail": program.thumbnail.url if program.thumbnail else None,
         "category": program.category or "",
         "level": program.level or "",
@@ -729,6 +764,7 @@ def public_program_detail(
         "assessment_count": assessment_count,
         "video_hours": program.video_hours,
         "badge_type": program.badge_type,
+        "isFeatured": program.is_featured,
         "price": price,
         "original_price": price_data.get("original_price"),
         "faq": program.faq or [],
@@ -747,8 +783,9 @@ def public_program_detail(
         ],
         "rating": float(program.rating_average or 0),
         "review_count": program.rating_count,
-        "reviews": approved_reviews,
-    }
+            "reviews": approved_reviews,
+            "prerequisites": prerequisite_status,
+        }
 
     return render(
         request,
@@ -762,6 +799,7 @@ def public_program_detail(
             "enrollmentData": enrollment_data,
             "enrollmentMode": enrollment_mode,
             "ctaState": cta_state,
+            "prerequisiteStatus": prerequisite_status,
             "isPreview": is_preview,
             "builderUrl": builder_url,
         },
@@ -793,7 +831,7 @@ def program_review_submit(request, pk: int):
     from apps.reviews.models import ProgramReview
 
     if request.method != "POST":
-        return redirect("core:program_detail", pk=pk)
+        return redirect("core:programs")
 
     program = Program.objects.filter(pk=pk, is_published=True).first()
     if not program:
@@ -803,7 +841,7 @@ def program_review_submit(request, pk: int):
     enrollment = Enrollment.objects.filter(user=request.user, program=program).first()
     if not enrollment or enrollment.status != "completed":
         messages.error(request, "You can only review courses after completing them.")
-        return redirect("core:program_detail", pk=pk)
+        return redirect(_program_public_url(program))
 
     data = get_post_data(request)
     try:
@@ -813,7 +851,7 @@ def program_review_submit(request, pk: int):
 
     if rating < 1 or rating > 5:
         messages.error(request, "Rating must be between 1 and 5.")
-        return redirect("core:program_detail", pk=pk)
+        return redirect(_program_public_url(program))
 
     raw_review = str(data.get("review_html") or data.get("review") or "").strip()
     review_text = strip_tags(raw_review).strip()
@@ -821,7 +859,7 @@ def program_review_submit(request, pk: int):
 
     if review_text and len(review_text) > 5000:
         messages.error(request, "Review is too long (max 5000 characters).")
-        return redirect("core:program_detail", pk=pk)
+        return redirect(_program_public_url(program))
 
     review, created = ProgramReview.objects.get_or_create(
         program=program,
@@ -845,7 +883,7 @@ def program_review_submit(request, pk: int):
         review.save()
 
     messages.success(request, "Review submitted and awaiting moderation.")
-    return redirect("core:program_detail", pk=pk)
+    return redirect(_program_public_url(program))
 
 
 @login_required
@@ -2078,9 +2116,15 @@ def admin_program_create(request):
             blueprint_id=cleaned["blueprint_id"],
             name=cleaned["name"],
             code=cleaned["code"],
+            slug=cleaned["slug"],
             description=cleaned["description"],
+            preview_description=cleaned["preview_description"],
             is_published=False,
+            is_featured=cleaned["is_featured"],
+            lock_lessons_in_order=cleaned["lock_lessons_in_order"],
             level=cleaned["level"],
+            duration_hours=cleaned["duration_hours"],
+            video_hours=cleaned["video_hours"],
             exam_body=cleaned["exam_body"],
             qualification_family=cleaned["qualification_family"],
             award_type=cleaned["award_type"],
@@ -2096,7 +2140,7 @@ def admin_program_create(request):
                 role="instructor",
             )
 
-        return redirect("core:admin.program.content", pk=program.id)
+        return redirect(f"/instructor/programs/{program.id}/manage/?tab=settings")
 
     # GET - show create form
     return render(
@@ -2142,8 +2186,15 @@ def admin_program_edit(request, pk: int):
         # Update program
         program.name = cleaned["name"]
         program.code = cleaned["code"]
+        if cleaned["slug"]:
+            program.slug = cleaned["slug"]
         program.description = cleaned["description"]
+        program.preview_description = cleaned["preview_description"]
         program.level = cleaned["level"]
+        program.duration_hours = cleaned["duration_hours"]
+        program.video_hours = cleaned["video_hours"]
+        program.is_featured = cleaned["is_featured"]
+        program.lock_lessons_in_order = cleaned["lock_lessons_in_order"]
 
         # Exam body metadata
         program.exam_body = cleaned["exam_body"]
@@ -2222,100 +2273,6 @@ def admin_program_assign_instructors(request, program_id: int):
 
     return redirect("core:admin.program", pk=program.id)
 
-
-
-@login_required
-def admin_program_content(request, pk: int):
-    """
-    Manage program content/syllabus.
-    """
-    if not _require_admin(request.user):
-        return redirect("/dashboard/")
-
-    from django.shortcuts import get_object_or_404
-
-    from apps.core.models import ProgramResource
-    from apps.platform.models import PlatformSettings
-    from apps.platform.exam_body_registry import get_registry_for_frontend
-
-    program = get_object_or_404(Program, pk=pk)
-
-    if request.method == "POST":
-        # Handle file uploads (standard multipart/form-data)
-        data = request.POST
-        files = request.FILES
-
-        # Update General Info
-        program.description = data.get("description", "")
-        program.category = data.get("category", "")
-
-        program.level = (data.get("level") or "").strip()
-
-        # Update content/syllabus from rich text editor HTML.
-        what_you_learn_raw = str(data.get("whatYouLearn", "")).strip()
-        program.what_you_learn_html = what_you_learn_raw
-        program.what_you_learn_items = extract_learning_outcome_items_from_html(
-            what_you_learn_raw
-        )
-
-        # Handle Thumbnail
-        if "thumbnail" in files:
-            program.thumbnail = files["thumbnail"]
-
-        program.save()
-
-        # Handle Course Materials
-        # Robust handling for different array naming conventions (materials, materials[], materials[0])
-        for key in files:
-            if key == "materials" or key.startswith("materials["):
-                file_list = files.getlist(key)
-                for f in file_list:
-                    ProgramResource.objects.create(
-                        program=program, file=f, title=f.name, resource_type="material"
-                    )
-
-        messages.success(request, "Program content saved successfully")
-        return redirect("core:admin.program", pk=program.id)
-
-    # GET - show content form
-
-    # Get platform settings
-    platform_settings = PlatformSettings.get_settings()
-    # Logic: only show categories if explicitly configured in platform settings.
-    categories = platform_settings.program_categories or []
-
-    return render(
-        request,
-        "Admin/Programs/Content",
-        {
-            "program": {
-                **_serialize_program(program),
-                "thumbnailUrl": program.thumbnail.url if program.thumbnail else None,
-            },
-            "initialData": {
-                "description": program.description or "",
-                "category": program.category or "",
-                "level": program.level or "",
-                "examBody": program.exam_body or "",
-                "qualificationFamily": program.qualification_family or "",
-                "whatYouLearn": program.what_you_learn_html or "",
-            },
-            "courseLevels": _build_level_options(
-                list(Program.objects.values("level").order_by("level"))
-            ),
-            "examBodyRegistry": get_registry_for_frontend(),
-            "categories": categories,
-            "resources": [
-                {
-                    "id": r.id,
-                    "title": r.title,
-                    "url": r.file.url,
-                    "type": r.resource_type,
-                }
-                for r in program.resources.all()
-            ],
-        },
-    )
 
 
 @login_required
@@ -2424,8 +2381,14 @@ def _serialize_program(program: Program) -> dict:
         "id": program.id,
         "name": program.name,
         "code": program.code or "",
+        "slug": program.slug or "",
         "level": program.level or "",
         "description": program.description or "",
+        "previewDescription": program.preview_description or "",
+        "durationHours": program.duration_hours,
+        "videoHours": program.video_hours,
+        "isFeatured": program.is_featured,
+        "lockLessonsInOrder": program.lock_lessons_in_order,
         "blueprintId": program.blueprint_id,
         "blueprintName": program.blueprint.name if program.blueprint else None,
         "isPublished": program.is_published,
@@ -2865,8 +2828,30 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
     errors = {}
     name = str(data.get("name") or "").strip()
     code = str(data.get("code") or "").strip()
+    slug = slugify(str(data.get("slug") or "").strip())
     platform_settings = PlatformSettings.get_settings()
     active_blueprint = platform_settings.active_blueprint
+
+    def _to_bool(value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
+
+    def _to_non_negative_int(field_name: str, label: str) -> int:
+        raw_value = data.get(field_name)
+        if raw_value in (None, ""):
+            return 0
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            errors[field_name] = f"{label} must be a number."
+            return 0
+        if value < 0:
+            errors[field_name] = f"{label} must be zero or more."
+            return 0
+        return value
 
     if not name:
         errors["name"] = "Name is required"
@@ -2880,6 +2865,13 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
         if duplicate_code.exists():
             errors["code"] = "A program with this code already exists."
 
+    if slug:
+        duplicate_slug = Program.objects.filter(slug=slug)
+        if program:
+            duplicate_slug = duplicate_slug.exclude(pk=program.pk)
+        if duplicate_slug.exists():
+            errors["slug"] = "A course with this URL slug already exists."
+
     if program:
         blueprint_id = program.blueprint_id
     elif active_blueprint:
@@ -2891,9 +2883,17 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
     return {
         "name": name,
         "code": code,
+        "slug": slug,
         "blueprint_id": blueprint_id,
         "description": data.get("description", ""),
+        "preview_description": data.get("previewDescription") or data.get("preview_description") or "",
         "level": str(data.get("level") or "").strip(),
+        "duration_hours": _to_non_negative_int("durationHours", "Course duration"),
+        "video_hours": _to_non_negative_int("videoHours", "Video duration"),
+        "is_featured": _to_bool(data.get("isFeatured")),
+        "lock_lessons_in_order": _to_bool(
+            data.get("lockLessonsInOrder", True),
+        ),
         "exam_body": data.get("examBody") or None,
         "qualification_family": data.get("qualificationFamily") or None,
         "award_type": data.get("awardType") or None,
@@ -3042,9 +3042,14 @@ def instructor_program_create(request):
                 blueprint_id=cleaned["blueprint_id"],
                 name=cleaned["name"],
                 code=cleaned["code"],
+                slug=cleaned["slug"],
                 description=cleaned["description"],
+                preview_description=cleaned["preview_description"],
                 is_published=False,
                 level=cleaned["level"],
+                duration_hours=cleaned["duration_hours"],
+                video_hours=cleaned["video_hours"],
+                lock_lessons_in_order=cleaned["lock_lessons_in_order"],
                 exam_body=cleaned["exam_body"],
                 qualification_family=cleaned["qualification_family"],
                 award_type=cleaned["award_type"],
@@ -3057,7 +3062,7 @@ def instructor_program_create(request):
                 is_primary=True,
             )
 
-        return redirect(f"/instructor/programs/{program.id}/manage/?tab=overview")
+        return redirect(f"/instructor/programs/{program.id}/manage/?tab=settings")
 
     return render(
         request,
@@ -6519,6 +6524,7 @@ def serialize_program_data(program):
     """
     from apps.platform.exam_body_registry import get_registry_for_frontend
     from apps.platform.models import PlatformSettings
+    from apps.progression.models import InstructorAssignment
 
     platform_settings = PlatformSettings.get_settings()
     platform_features = platform_settings.get_default_features_for_mode()
@@ -6541,13 +6547,46 @@ def serialize_program_data(program):
         }
         for p in Program.objects.exclude(pk=program.pk).order_by("name")[:200]
     ]
+    assignments = list(
+        InstructorAssignment.objects.filter(program=program)
+        .select_related("instructor")
+        .order_by("-is_primary", "assigned_at", "id")
+    )
+    owner_assignment = next((assignment for assignment in assignments if assignment.is_primary), None)
+    if owner_assignment is None and assignments:
+        owner_assignment = assignments[0]
+    owner = owner_assignment.instructor if owner_assignment else None
+    owner_id = owner.id if owner else None
+
+    def _serialize_instructor(user):
+        return {
+            "id": user.id,
+            "name": user.get_full_name() or user.username or user.email,
+            "email": user.email,
+        }
+
+    co_instructors = [
+        _serialize_instructor(assignment.instructor)
+        for assignment in assignments
+        if assignment.instructor_id != owner_id
+    ]
+    available_co_instructors = [
+        _serialize_instructor(user)
+        for user in User.objects.filter(groups__name="Instructors")
+        .exclude(pk=owner_id)
+        .order_by("first_name", "last_name", "email")[:200]
+    ]
+    certificate_enabled = bool(program.blueprint and program.blueprint.certificate_enabled)
 
     return {
         "program": {
             "id": program.id,
+            "slug": program.slug,
+            "publicUrl": _program_public_url(program),
             "name": program.name,
             "code": program.code,
             "description": program.description,
+            "previewDescription": program.preview_description,
             "level": level,
             "category": program.category,
             "examBody": program.exam_body or "",
@@ -6556,6 +6595,18 @@ def serialize_program_data(program):
             "assessmentMode": program.assessment_mode or "",
             "thumbnail": program.thumbnail.url if program.thumbnail else None,
             "isPublished": program.is_published,
+            "isFeatured": program.is_featured,
+            "lockLessonsInOrder": program.lock_lessons_in_order,
+            "durationHours": program.duration_hours,
+            "videoHours": program.video_hours,
+            "owner": _serialize_instructor(owner) if owner else None,
+            "coInstructors": co_instructors,
+            "certificateEnabled": certificate_enabled,
+            "certificateLabel": (
+                "Enabled by academic blueprint"
+                if certificate_enabled
+                else "Not enabled for this course blueprint"
+            ),
             "whatYouLearn": program.what_you_learn_items or [],
             "whatYouLearnHtml": resolve_learning_outcomes_html(
                 program.what_you_learn_html,
@@ -6574,7 +6625,7 @@ def serialize_program_data(program):
             "faq": program.faq,
             "notices": program.notices,
             "customPricing": program.custom_pricing,
-            "prerequisitesEnabled": program.prerequisites_enabled,
+            "prerequisitePassingPercent": program.prerequisite_passing_percent,
             "prerequisiteProgramIds": prerequisite_program_ids,
             "accessDurationDays": program.access_duration_days,
             "dripEnabled": program.drip_enabled,
@@ -6613,6 +6664,7 @@ def serialize_program_data(program):
             ),
         },
         "availablePrerequisites": available_prerequisites,
+        "availableCoInstructors": available_co_instructors,
         "examBodyRegistry": get_registry_for_frontend(),
         "platformFeatures": platform_features,
         "deploymentMode": platform_settings.deployment_mode,
@@ -6702,7 +6754,7 @@ def instructor_program_manage(request, pk: int):
     New MasterStudy-style Course Manager.
     Entry point for Curriculum Builder, Settings, etc.
     """
-    if not is_instructor(request.user):
+    if not (is_instructor(request.user) or request.user.is_staff):
         return redirect("/dashboard/")
 
     from django.shortcuts import get_object_or_404
@@ -7613,14 +7665,12 @@ def instructor_node_update(request, node_id: int):
     node.title = data.get("title", node.title)
     node.description = data.get("description", node.description)
 
-    # Handle properties update (e.g. video URL, duration) if passed
+    # The Course Builder editor submits the full node properties object.
+    # Treat it as canonical so removed fields do not linger invisibly.
     if "properties" in data:
-        # Shallow merge
-        props = node.properties.copy() if isinstance(node.properties, dict) else {}
         incoming_props = data.get("properties") or {}
         if isinstance(incoming_props, dict):
-            props.update(incoming_props)
-        node.properties = props
+            node.properties = incoming_props
 
     node_props = node.properties if isinstance(node.properties, dict) else {}
     updated_lesson_type = str(node_props.get("lesson_type") or "").lower()
@@ -7707,7 +7757,7 @@ def instructor_program_preview(request, pk: int):
 
     return public_program_detail(
         request,
-        pk,
+        pk=pk,
         is_preview=True,
         builder_url=f"/instructor/programs/{pk}/manage/",
     )
@@ -7759,8 +7809,8 @@ def instructor_node_reorder(request, program_id: int):
 
 @login_required
 def instructor_program_update_settings(request, pk: int):
-    """Update course settings: Overview, Settings, FAQ, Pricing, Notices, Drip, Prerequisites, Access."""
-    if not is_instructor(request.user) or request.method != "POST":
+    """Update course builder tabs and Settings sub-sections."""
+    if not (is_instructor(request.user) or request.user.is_staff) or request.method != "POST":
         return redirect("/dashboard/")
 
     from apps.progression.models import InstructorAssignment
@@ -7779,19 +7829,17 @@ def instructor_program_update_settings(request, pk: int):
     data = get_post_data(request)
     files = request.FILES
     active_tab = str(data.get("tab") or request.GET.get("tab") or "").strip().lower()
-    valid_builder_tabs = {
-        "overview",
-        "settings",
-        "pricing",
-        "faq",
-        "notice",
-        "drip",
-        "practicum",
-        "prerequisites",
-        "access",
-    }
+    settings_section = str(
+        data.get("section") or request.GET.get("section") or "main"
+    ).strip().lower()
+    valid_builder_tabs = {"settings", "pricing", "faq", "notice", "drip", "practicum"}
+    valid_settings_sections = {"main", "access", "prerequisites", "files", "certificate"}
 
     def _redirect_to_builder():
+        if active_tab == "settings" and settings_section in valid_settings_sections:
+            return redirect(
+                f"/instructor/programs/{pk}/manage/?tab=settings&section={settings_section}"
+            )
         if active_tab in valid_builder_tabs:
             return redirect(f"/instructor/programs/{pk}/manage/?tab={active_tab}")
         return redirect("core:instructor.program_manage", pk=pk)
@@ -7900,7 +7948,7 @@ def instructor_program_update_settings(request, pk: int):
             _program_depends_on(dep_id, target_program_id, seen) for dep_id in dep_ids
         )
 
-    # --- Settings tab: name, code, category, level, thumbnail ---
+    # --- Settings tab: details, welcome content, thumbnail, resources ---
     if "name" in data:
         name_val = str(data.get("name", "")).strip()
         if not name_val:
@@ -7917,6 +7965,16 @@ def instructor_program_update_settings(request, pk: int):
             messages.error(request, "A program with this code already exists.")
             return _redirect_to_builder()
         program.code = code_val
+
+    if "slug" in data:
+        slug_value = slugify(str(data.get("slug") or "").strip())
+        if not slug_value:
+            messages.error(request, "Course URL slug is required.")
+            return _redirect_to_builder()
+        if Program.objects.filter(slug=slug_value).exclude(pk=program.pk).exists():
+            messages.error(request, "A course with this URL slug already exists.")
+            return _redirect_to_builder()
+        program.slug = slug_value
 
     if "category" in data:
         program.category = str(data.get("category", "")).strip() or None
@@ -7940,9 +7998,34 @@ def instructor_program_update_settings(request, pk: int):
     if "thumbnail" in files:
         program.thumbnail = files["thumbnail"]
 
-    # --- Overview tab: description, whatYouLearn ---
     if "description" in data:
         program.description = str(data.get("description", "")).strip()
+
+    if "preview_description" in data:
+        program.preview_description = str(data.get("preview_description", "")).strip()
+
+    if "duration_hours" in data:
+        duration_hours = _to_int(data.get("duration_hours"))
+        if duration_hours is None or duration_hours < 0:
+            messages.error(request, "Course duration must be zero or more hours.")
+            return _redirect_to_builder()
+        program.duration_hours = duration_hours
+
+    if "video_hours" in data:
+        video_hours = _to_int(data.get("video_hours"))
+        if video_hours is None or video_hours < 0:
+            messages.error(request, "Video duration must be zero or more hours.")
+            return _redirect_to_builder()
+        program.video_hours = video_hours
+
+    if "lock_lessons_in_order" in data:
+        program.lock_lessons_in_order = _to_bool(data.get("lock_lessons_in_order"))
+
+    if "is_featured" in data:
+        if not request.user.is_staff:
+            messages.error(request, "Only staff can feature courses.")
+            return _redirect_to_builder()
+        program.is_featured = _to_bool(data.get("is_featured"))
 
     if "whatYouLearn" in data:
         what_you_learn_raw = str(data.get("whatYouLearn", "")).strip()
@@ -7963,7 +8046,6 @@ def instructor_program_update_settings(request, pk: int):
     if "notices" in data:
         program.notices = data["notices"]
 
-    # --- Overview tab: resources ---
     from apps.core.models import ProgramResource
 
     delete_resource_ids = data.get("deleteResourceIds", [])
@@ -7983,6 +8065,19 @@ def instructor_program_update_settings(request, pk: int):
     for key in files:
         if key == "materials" or key.startswith("materials["):
             material_files.extend(files.getlist(key))
+
+    co_instructor_ids = data.get("co_instructor_ids", None)
+    normalized_co_instructor_ids = None
+    if co_instructor_ids is not None:
+        if not isinstance(co_instructor_ids, list):
+            co_instructor_ids = [co_instructor_ids]
+
+        normalized_co_instructor_ids = []
+        for value in co_instructor_ids:
+            parsed = _to_int(value)
+            if parsed:
+                normalized_co_instructor_ids.append(parsed)
+        normalized_co_instructor_ids = list(dict.fromkeys(normalized_co_instructor_ids))
 
     # --- Prerequisites ---
     prerequisite_ids = data.get("prerequisite_program_ids", [])
@@ -8027,8 +8122,21 @@ def instructor_program_update_settings(request, pk: int):
     if not isinstance(drip_schedule, list):
         drip_schedule = []
 
-    if "prerequisites_enabled" in data:
-        program.prerequisites_enabled = _to_bool(data.get("prerequisites_enabled"))
+    if "prerequisite_passing_percent" in data:
+        raw_percent = data.get("prerequisite_passing_percent")
+        try:
+            prerequisite_passing_percent = int(raw_percent)
+        except (TypeError, ValueError):
+            messages.error(request, "Prerequisite passing percent must be a number.")
+            return _redirect_to_builder()
+        if prerequisite_passing_percent < 0 or prerequisite_passing_percent > 100:
+            messages.error(
+                request,
+                "Prerequisite passing percent must be between 0 and 100.",
+            )
+            return _redirect_to_builder()
+        program.prerequisite_passing_percent = prerequisite_passing_percent
+
     if "access_duration_days" in data:
         program.access_duration_days = access_duration_days
     if "drip_enabled" in data:
@@ -8064,6 +8172,60 @@ def instructor_program_update_settings(request, pk: int):
                 .values_list("id", flat=True)
             )
             program.prerequisite_programs.set(valid_ids)
+
+        if normalized_co_instructor_ids is not None:
+            owner_assignment = (
+                InstructorAssignment.objects.filter(program=program, is_primary=True)
+                .select_related("instructor")
+                .first()
+            )
+            if owner_assignment is None:
+                owner_assignment = (
+                    InstructorAssignment.objects.filter(program=program)
+                    .select_related("instructor")
+                    .order_by("assigned_at", "id")
+                    .first()
+                )
+
+            owner_id = owner_assignment.instructor_id if owner_assignment else request.user.id
+            if not request.user.is_staff and request.user.id == owner_id:
+                normalized_co_instructor_ids = [
+                    instructor_id
+                    for instructor_id in normalized_co_instructor_ids
+                    if instructor_id != request.user.id
+                ]
+
+            valid_instructor_ids = set(
+                User.objects.filter(
+                    id__in=normalized_co_instructor_ids,
+                    groups__name="Instructors",
+                )
+                .exclude(pk=owner_id)
+                .values_list("id", flat=True)
+            )
+
+            if owner_id:
+                owner_assignment, _ = InstructorAssignment.objects.get_or_create(
+                    program=program,
+                    instructor_id=owner_id,
+                    defaults={"role": "Primary Instructor", "is_primary": True},
+                )
+                if not owner_assignment.is_primary:
+                    owner_assignment.is_primary = True
+                    owner_assignment.role = owner_assignment.role or "Primary Instructor"
+                    owner_assignment.save(update_fields=["is_primary", "role"])
+
+            InstructorAssignment.objects.filter(
+                program=program,
+                is_primary=False,
+            ).exclude(instructor_id__in=valid_instructor_ids).delete()
+
+            for instructor_id in valid_instructor_ids:
+                InstructorAssignment.objects.get_or_create(
+                    program=program,
+                    instructor_id=instructor_id,
+                    defaults={"role": "Instructor", "is_primary": False},
+                )
 
         if "drip_schedule" in data:
             updates = []

@@ -29,20 +29,30 @@ import SettingsPanel from "../components/SettingsPanel";
 import CoursePublicationControls from "../components/CoursePublicationControls";
 import {
     getBuilderTabUrl,
+    getRequestedSettingsSection,
+    getSettingsSectionUrl,
     getRequestedBuilderTab,
     normalizeBuilderTab,
+    normalizeSettingsSection,
 } from "../utils/builderTabs";
 
 const RIGHT_DRAWER_WIDTH = 300;
 const getInitialTab = (program) =>
     normalizeBuilderTab(program, getRequestedBuilderTab());
 
-const syncBuilderTabUrl = (programId, tab, { replace = false } = {}) => {
+const syncBuilderTabUrl = (
+    programId,
+    tab,
+    { replace = false, settingsSection = "main" } = {},
+) => {
     if (typeof window === "undefined") {
         return;
     }
 
-    const nextUrl = getBuilderTabUrl(programId, tab);
+    const nextUrl =
+        tab === "settings"
+            ? getSettingsSectionUrl(programId, settingsSection)
+            : getBuilderTabUrl(programId, tab);
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     if (currentUrl === nextUrl) {
         return;
@@ -60,6 +70,9 @@ export default function InstructorProgramBuilder({
 }) {
     const { mode, toggleMode } = useThemeMode();
     const [activeTab, setActiveTab] = useState(() => getInitialTab(program));
+    const [settingsSection, setSettingsSection] = useState(() =>
+        getRequestedSettingsSection(),
+    );
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [guideOpen, setGuideOpen] = useState(false);
     const [curriculum, setCurriculum] = useState(initialCurriculum);
@@ -80,10 +93,21 @@ export default function InstructorProgramBuilder({
     useEffect(() => {
         const applyCurrentLocationTab = () => {
             const nextTab = getInitialTab(program);
+            const nextSettingsSection = getRequestedSettingsSection();
             setActiveTab(nextTab);
+            setSettingsSection(nextSettingsSection);
 
-            if (getRequestedBuilderTab() !== nextTab) {
-                syncBuilderTabUrl(program.id, nextTab, { replace: true });
+            const requestedSection = new URLSearchParams(
+                window.location.search,
+            ).get("section");
+            const shouldNormalizeSettingsSection =
+                nextTab === "settings" && requestedSection !== nextSettingsSection;
+
+            if (getRequestedBuilderTab() !== nextTab || shouldNormalizeSettingsSection) {
+                syncBuilderTabUrl(program.id, nextTab, {
+                    replace: true,
+                    settingsSection: nextSettingsSection,
+                });
             }
         };
 
@@ -111,8 +135,25 @@ export default function InstructorProgramBuilder({
 
     const handleTabChange = (nextTab) => {
         const normalizedTab = normalizeBuilderTab(program, nextTab);
+        const nextSettingsSection =
+            normalizedTab === "settings"
+                ? normalizeSettingsSection(settingsSection)
+                : "main";
         setActiveTab(normalizedTab);
-        syncBuilderTabUrl(program.id, normalizedTab);
+        if (normalizedTab === "settings") {
+            setSettingsSection(nextSettingsSection);
+        }
+        syncBuilderTabUrl(program.id, normalizedTab, {
+            settingsSection: nextSettingsSection,
+        });
+    };
+
+    const handleSettingsSectionChange = (nextSection) => {
+        const normalizedSection = normalizeSettingsSection(nextSection);
+        setSettingsSection(normalizedSection);
+        syncBuilderTabUrl(program.id, "settings", {
+            settingsSection: normalizedSection,
+        });
     };
 
     return (
@@ -231,21 +272,29 @@ export default function InstructorProgramBuilder({
                             </Box>
                         </Box>
                     )}
-                    {(activeTab === "overview" ||
-                        activeTab === "settings" ||
+                    {(activeTab === "settings" ||
                         activeTab === "pricing" ||
                         activeTab === "faq" ||
                         activeTab === "notice" ||
                         activeTab === "drip" ||
-                        activeTab === "practicum" ||
-                        activeTab === "prerequisites" ||
-                        activeTab === "access") && (
-                        <Box sx={{ maxWidth: 640, mx: "auto", pt: 2, pb: 4 }}>
+                        activeTab === "practicum") && (
+                        <Box
+                            sx={{
+                                maxWidth: activeTab === "settings" ? 1040 : 720,
+                                mx: "auto",
+                                pt: 2,
+                                pb: 4,
+                            }}
+                        >
                             <Card>
                                 <CardContent>
                                     <SettingsPanel
                                         program={program}
                                         activeTab={activeTab}
+                                        settingsSection={settingsSection}
+                                        onSettingsSectionChange={
+                                            handleSettingsSectionChange
+                                        }
                                         curriculum={curriculum}
                                         platformFeatures={platformFeatures}
                                         deploymentMode={deploymentMode}
