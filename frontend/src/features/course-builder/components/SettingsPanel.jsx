@@ -13,7 +13,6 @@ import {
     InputLabel,
     List,
     ListItem,
-    ListItemButton,
     ListItemIcon,
     ListItemText,
     MenuItem,
@@ -31,16 +30,18 @@ import {
     FolderOutlined as FilesIcon,
     Link as LinkIcon,
     LockOutlined as AccessIcon,
+    SchoolOutlined as AcademicIcon,
     Settings as MainIcon,
-    Upload as UploadIcon,
 } from "@mui/icons-material";
 import { PricingEditor, FAQEditor, NoticeEditor } from "./SettingsEditors";
 import DripEditor from "./DripEditor";
 import RichTextEditor from "@/components/RichTextEditor";
+import SidebarLayout from "./SidebarLayout";
 import { SETTINGS_SECTIONS } from "../utils/builderTabs";
 
 const SETTINGS_SECTION_ICONS = {
     main: MainIcon,
+    academic: AcademicIcon,
     access: AccessIcon,
     prerequisites: LinkIcon,
     files: FilesIcon,
@@ -48,7 +49,9 @@ const SETTINGS_SECTION_ICONS = {
 };
 
 const getUserIsStaff = (user = {}) =>
-    Boolean(user.isStaff || user.is_staff || user.isSuperuser || user.is_superuser);
+    Boolean(
+        user.isStaff || user.is_staff || user.isSuperuser || user.is_superuser,
+    );
 
 export default function SettingsPanel({
     program,
@@ -105,6 +108,7 @@ export default function SettingsPanel({
         deleteResourceIds: [],
         materials: [],
         access_duration_days: program.accessDurationDays || "",
+        access_time_limit_enabled: Boolean(program.accessDurationDays),
         prerequisite_passing_percent: program.prerequisitePassingPercent ?? 50,
         prerequisite_program_ids: program.prerequisiteProgramIds || [],
         custom_pricing: program.customPricing || {},
@@ -163,10 +167,13 @@ export default function SettingsPanel({
     };
 
     const handleQualificationFamilyChange = (value) => {
+        const nextFamilyData = selectedBodyData?.families?.[value] || null;
         setData((current) => ({
             ...current,
             qualificationFamily: value,
             level: "",
+            awardType: nextFamilyData?.awardType || "",
+            assessmentMode: nextFamilyData?.assessmentMode || "",
         }));
     };
 
@@ -177,30 +184,38 @@ export default function SettingsPanel({
                     tab: "settings",
                     section: "main",
                     name: formData.name,
-                    code: formData.code,
                     category: formData.category,
-                    level: formData.level,
                     duration_hours: formData.duration_hours,
                     video_hours: formData.video_hours,
                     description: formData.description,
                     whatYouLearn: formData.whatYouLearn,
                     preview_description: formData.preview_description,
                     lock_lessons_in_order: formData.lock_lessons_in_order,
+                };
+                if (!hasExamBodies) {
+                    payload.level = formData.level;
+                }
+                if (canManageFeatured) {
+                    payload.is_featured = formData.is_featured;
+                }
+                if (formData.thumbnail) {
+                    payload.thumbnail = formData.thumbnail;
+                }
+                return payload;
+            }
+            if (settingsSection === "academic") {
+                const payload = {
+                    tab: "settings",
+                    section: "academic",
+                    code: formData.code,
                     co_instructor_ids: JSON.stringify(
                         formData.co_instructor_ids || [],
                     ),
                 };
-                if (canManageFeatured) {
-                    payload.is_featured = formData.is_featured;
-                }
                 if (hasExamBodies) {
                     payload.examBody = formData.examBody;
                     payload.qualificationFamily = formData.qualificationFamily;
-                    payload.awardType = formData.awardType;
-                    payload.assessmentMode = formData.assessmentMode;
-                }
-                if (formData.thumbnail) {
-                    payload.thumbnail = formData.thumbnail;
+                    payload.level = formData.level;
                 }
                 return payload;
             }
@@ -208,7 +223,9 @@ export default function SettingsPanel({
                 return {
                     tab: "settings",
                     section: "access",
-                    access_duration_days: formData.access_duration_days || "",
+                    access_duration_days: formData.access_time_limit_enabled
+                        ? formData.access_duration_days || ""
+                        : "",
                 };
             }
             if (settingsSection === "prerequisites") {
@@ -279,14 +296,40 @@ export default function SettingsPanel({
         });
     };
 
-    const handleResourceUpload = (event) => {
-        const files = Array.from(event.target.files || []);
+    const addResourceFiles = (fileList) => {
+        const files = Array.from(fileList || []);
         if (files.length > 0) {
-            setData("materials", [...formData.materials, ...files]);
+            setData((current) => ({
+                ...current,
+                materials: [...(current.materials || []), ...files],
+            }));
         }
+    };
+
+    const handleResourceUpload = (event) => {
+        addResourceFiles(event.target.files);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
+    };
+
+    const handleResourceDragOver = (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+    };
+
+    const handleResourceDrop = (event) => {
+        event.preventDefault();
+        addResourceFiles(event.dataTransfer.files);
+    };
+
+    const handleAccessTimeLimitChange = (event) => {
+        const enabled = event.target.checked;
+        setData((current) => ({
+            ...current,
+            access_time_limit_enabled: enabled,
+            access_duration_days: enabled ? current.access_duration_days : "",
+        }));
     };
 
     const handleDeleteResource = (resourceId) => {
@@ -300,241 +343,111 @@ export default function SettingsPanel({
         ]);
     };
 
-    const renderMainSettings = () => (
-        <Stack spacing={3}>
-            <Typography variant="h5" fontWeight="bold">
-                Main
-            </Typography>
-            <TextField
-                label="Course name"
-                fullWidth
-                required
-                value={formData.name}
-                onChange={(event) => setData("name", event.target.value)}
-                error={Boolean(errors.name)}
-                helperText={errors.name}
-            />
-            <TextField
-                label="Course code"
-                fullWidth
-                required
-                value={formData.code}
-                onChange={(event) => setData("code", event.target.value)}
-                error={Boolean(errors.code)}
-                helperText={errors.code || "Unique internal course identifier."}
-            />
-
-            {categories.length > 0 ? (
-                <FormControl fullWidth>
-                    <InputLabel id="category-label">Category</InputLabel>
-                    <Select
-                        labelId="category-label"
-                        value={formData.category}
-                        label="Category"
-                        onChange={(event) =>
-                            setData("category", event.target.value)
-                        }
-                    >
-                        <MenuItem value="">
-                            <em>None</em>
-                        </MenuItem>
-                        {categories.map((category) => (
-                            <MenuItem key={category} value={category}>
-                                {category}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            ) : (
-                <TextField
-                    label="Category"
-                    fullWidth
-                    value={formData.category}
-                    onChange={(event) =>
-                        setData("category", event.target.value)
-                    }
-                />
-            )}
-
-            <TextField
-                label="Level"
-                fullWidth
-                value={formData.level}
-                onChange={(event) => setData("level", event.target.value)}
-                placeholder="e.g. Beginner, Intermediate, Advanced"
-            />
-
-            {hasExamBodies && (
-                <>
-                    <FormControl fullWidth>
-                        <InputLabel id="exam-body-label">
-                            Examining body
-                        </InputLabel>
-                        <Select
-                            labelId="exam-body-label"
-                            value={formData.examBody}
-                            label="Examining body"
-                            onChange={(event) =>
-                                handleExamBodyChange(event.target.value)
-                            }
-                        >
-                            <MenuItem value="">
-                                <em>None</em>
-                            </MenuItem>
-                            {examBodies.map((body) => (
-                                <MenuItem key={body} value={body}>
-                                    {examBodyRegistry[body].label}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    {formData.examBody && (
-                        <FormControl fullWidth>
-                            <InputLabel id="qualification-family-label">
-                                Qualification family
-                            </InputLabel>
-                            <Select
-                                labelId="qualification-family-label"
-                                value={formData.qualificationFamily}
-                                label="Qualification family"
-                                onChange={(event) =>
-                                    handleQualificationFamilyChange(
-                                        event.target.value,
-                                    )
-                                }
-                            >
-                                <MenuItem value="">
-                                    <em>None</em>
-                                </MenuItem>
-                                {qualificationFamilies.map((family) => (
-                                    <MenuItem key={family} value={family}>
-                                        {family}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    )}
-
-                    {formData.qualificationFamily &&
-                        registryLevels.length > 0 && (
-                            <FormControl fullWidth>
-                                <InputLabel id="registry-level-label">
-                                    Registered level
-                                </InputLabel>
-                                <Select
-                                    labelId="registry-level-label"
-                                    value={formData.level}
-                                    label="Registered level"
-                                    onChange={(event) =>
-                                        setData("level", event.target.value)
-                                    }
-                                >
-                                    <MenuItem value="">
-                                        <em>None</em>
-                                    </MenuItem>
-                                    {registryLevels.map((level) => (
-                                        <MenuItem key={level} value={level}>
-                                            {level}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        )}
-
-                    <TextField
-                        label="Award type"
-                        fullWidth
-                        value={formData.awardType}
-                        onChange={(event) =>
-                            setData("awardType", event.target.value)
-                        }
-                    />
-                    <TextField
-                        label="Assessment mode"
-                        fullWidth
-                        value={formData.assessmentMode}
-                        onChange={(event) =>
-                            setData("assessmentMode", event.target.value)
-                        }
-                    />
-                </>
-            )}
-
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <TextField
-                    label="Course duration"
-                    type="number"
-                    fullWidth
-                    value={formData.duration_hours}
-                    onChange={(event) =>
-                        setData("duration_hours", event.target.value)
-                    }
-                    inputProps={{ min: 0 }}
-                    helperText="Total course duration in hours."
-                />
-                <TextField
-                    label="Video duration"
-                    type="number"
-                    fullWidth
-                    value={formData.video_hours}
-                    onChange={(event) =>
-                        setData("video_hours", event.target.value)
-                    }
-                    inputProps={{ min: 0 }}
-                    helperText="Video content duration in hours."
-                />
-            </Stack>
-
-            <Box>
-                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                    Owner
+    const renderSectionPanel = (title, children, contentSx = {}) => (
+        <>
+            <Box
+                sx={{
+                    px: { xs: 2.5, md: 3 },
+                    py: { xs: 2.25, md: 2.75 },
+                    borderBottom: 1,
+                    borderColor: "divider",
+                }}
+            >
+                <Typography
+                    variant="h4"
+                    sx={{
+                        fontWeight: 500,
+                        letterSpacing: 0,
+                        fontSize: { xs: 26, md: 34 },
+                        lineHeight: 1.1,
+                    }}
+                >
+                    {title}
                 </Typography>
-                {program.owner ? (
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar>{program.owner.name?.charAt(0) || "I"}</Avatar>
-                        <Box>
-                            <Typography variant="body2" fontWeight={600}>
-                                {program.owner.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {program.owner.email}
-                            </Typography>
-                        </Box>
-                    </Stack>
-                ) : (
-                    <Alert severity="warning">No owner is assigned.</Alert>
-                )}
             </Box>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3 },
+                    pt: { xs: 2.5, md: 4 },
+                    ...contentSx,
+                }}
+            >
+                {children}
+            </Box>
+        </>
+    );
 
+    const renderFieldLabel = (label, required = false) => (
+        <InputLabel
+            shrink
+            sx={{ mb: 1, fontWeight: 500, color: "text.primary", display: 'block' }}
+        >
+            {label}
+            {required && (
+                <Box component="span" sx={{ color: "error.main" }}>
+                    {" *"}
+                </Box>
+            )}
+        </InputLabel>
+    );
+
+    const renderOwner = () => (
+        <Box>
+            {renderFieldLabel("Owner")}
+            {program.owner ? (
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Avatar>{program.owner.name?.charAt(0) || "I"}</Avatar>
+                    <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                            {program.owner.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {program.owner.email}
+                        </Typography>
+                    </Box>
+                </Stack>
+            ) : (
+                <Alert severity="warning">No owner is assigned.</Alert>
+            )}
+        </Box>
+    );
+
+    const renderCoInstructors = () => (
+        <Box>
+            {renderFieldLabel("Co-instructors")}
             <FormControl fullWidth>
-                <InputLabel id="co-instructors-label">
-                    Co-instructors
-                </InputLabel>
                 <Select
-                    labelId="co-instructors-label"
                     multiple
                     value={formData.co_instructor_ids}
-                    label="Co-instructors"
+                    displayEmpty
                     onChange={(event) =>
                         setData("co_instructor_ids", event.target.value)
                     }
-                    renderValue={(selected) => (
-                        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
-                            {selected.map((id) => {
-                                const instructor = availableCoInstructors.find(
-                                    (option) => option.id === id,
-                                );
-                                return (
-                                    <Chip
-                                        key={id}
-                                        label={instructor?.name || id}
-                                        size="small"
-                                    />
-                                );
-                            })}
-                        </Box>
-                    )}
+                    renderValue={(selected) => {
+                        if (selected.length === 0) {
+                            return (
+                                <Typography color="text.secondary">
+                                    Choose instructor
+                                </Typography>
+                            );
+                        }
+                        return (
+                            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                                {selected.map((id) => {
+                                    const instructor = availableCoInstructors.find(
+                                        (option) => option.id === id,
+                                    );
+                                    return (
+                                        <Chip
+                                            key={id}
+                                            label={instructor?.name || id}
+                                            size="small"
+                                        />
+                                    );
+                                })}
+                            </Box>
+                        );
+                    }}
                 >
                     {availableCoInstructors.map((instructor) => (
                         <MenuItem key={instructor.id} value={instructor.id}>
@@ -543,253 +456,593 @@ export default function SettingsPanel({
                     ))}
                 </Select>
             </FormControl>
+        </Box>
+    );
 
-            <Box>
-                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                    Image
-                </Typography>
-                {program.thumbnail && (
-                    <Box
-                        component="img"
-                        src={program.thumbnail}
-                        alt="Current course thumbnail"
-                        sx={{
-                            width: "100%",
-                            maxHeight: 260,
-                            objectFit: "cover",
-                            borderRadius: 1,
-                            mb: 1,
-                            border: "1px solid",
-                            borderColor: "divider",
-                        }}
+    const renderReadOnlyField = (label, value) => (
+        <Box sx={{ flex: 1 }}>
+            {renderFieldLabel(label)}
+            <TextField
+                fullWidth
+                value={value || "Not set"}
+                InputProps={{ readOnly: true }}
+                sx={{
+                    "& .MuiInputBase-input": {
+                        color: value ? "text.primary" : "text.secondary",
+                    },
+                }}
+            />
+        </Box>
+    );
+
+    const renderMainSettings = () =>
+        renderSectionPanel(
+            "Main",
+            <Stack spacing={3}>
+                <Box>
+                    {renderFieldLabel("Course name", true)}
+                    <TextField
+                        fullWidth
+                        required
+                        value={formData.name}
+                        onChange={(event) => setData("name", event.target.value)}
+                        error={Boolean(errors.name)}
+                        helperText={errors.name}
+                    />
+                </Box>
+
+                <Box>
+                    {renderFieldLabel("Category")}
+                    {categories.length > 0 ? (
+                        <FormControl fullWidth>
+                            <Select
+                                value={formData.category}
+                                displayEmpty
+                                onChange={(event) =>
+                                    setData("category", event.target.value)
+                                }
+                            >
+                                <MenuItem value="">
+                                    <em>None</em>
+                                </MenuItem>
+                                {categories.map((category) => (
+                                    <MenuItem key={category} value={category}>
+                                        {category}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    ) : (
+                        <TextField
+                            fullWidth
+                            value={formData.category}
+                            onChange={(event) =>
+                                setData("category", event.target.value)
+                            }
+                        />
+                    )}
+                </Box>
+
+                {!hasExamBodies && (
+                    <Box>
+                        {renderFieldLabel("Level")}
+                        <TextField
+                            fullWidth
+                            value={formData.level}
+                            onChange={(event) =>
+                                setData("level", event.target.value)
+                            }
+                            placeholder="e.g. Beginner, Intermediate, Advanced"
+                        />
+                    </Box>
+                )}
+
+                <Box>
+                    {renderFieldLabel("Image")}
+                    {program.thumbnail && (
+                        <Box
+                            component="img"
+                            src={program.thumbnail}
+                            alt="Current course thumbnail"
+                            sx={{
+                                width: "100%",
+                                maxHeight: 260,
+                                objectFit: "cover",
+                                borderRadius: 1,
+                                mb: 1,
+                                border: "1px solid",
+                                borderColor: "divider",
+                            }}
+                        />
+                    )}
+                    <Button variant="outlined" component="label" size="small">
+                        {program.thumbnail ? "Change image" : "Upload image"}
+                        <input
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={(event) =>
+                                setData("thumbnail", event.target.files?.[0] || null)
+                            }
+                        />
+                    </Button>
+                </Box>
+
+                <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                    <Box sx={{ flex: 1 }}>
+                        {renderFieldLabel("Course duration")}
+                        <TextField
+                            type="number"
+                            fullWidth
+                            value={formData.duration_hours}
+                            onChange={(event) =>
+                                setData("duration_hours", event.target.value)
+                            }
+                            inputProps={{ min: 0 }}
+                            helperText="Total course duration in hours."
+                        />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                        {renderFieldLabel("Video duration")}
+                        <TextField
+                            type="number"
+                            fullWidth
+                            value={formData.video_hours}
+                            onChange={(event) =>
+                                setData("video_hours", event.target.value)
+                            }
+                            inputProps={{ min: 0 }}
+                            helperText="Video content duration in hours."
+                        />
+                    </Box>
+                </Stack>
+
+                <Box>
+                    {renderFieldLabel("Description")}
+                    <RichTextEditor
+                        value={formData.description}
+                        onChange={(value) => setData("description", value)}
+                        minHeight={220}
+                        placeholder="Introduce your course, who it is for, and what students can expect."
+                    />
+                </Box>
+
+                <Box>
+                    {renderFieldLabel("What You'll Learn")}
+                    <RichTextEditor
+                        value={formData.whatYouLearn}
+                        onChange={(value) => setData("whatYouLearn", value)}
+                        minHeight={180}
+                        placeholder="List the outcomes students should be able to achieve."
+                    />
+                </Box>
+
+                <Box>
+                    {renderFieldLabel("Course preview description")}
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        value={formData.preview_description}
+                        onChange={(event) =>
+                            setData("preview_description", event.target.value)
+                        }
+                        helperText="Short summary used on cards and course previews."
+                    />
+                </Box>
+
+                {canManageFeatured && (
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={formData.is_featured}
+                                onChange={(event) =>
+                                    setData("is_featured", event.target.checked)
+                                }
+                            />
+                        }
+                        label="Featured course"
                     />
                 )}
-                <Button variant="outlined" component="label" size="small">
-                    {program.thumbnail ? "Change image" : "Upload image"}
-                    <input
-                        type="file"
-                        hidden
-                        accept="image/*"
-                        onChange={(event) =>
-                            setData("thumbnail", event.target.files?.[0] || null)
-                        }
-                    />
-                </Button>
-            </Box>
-
-            <Box>
-                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                    Description
-                </Typography>
-                <RichTextEditor
-                    value={formData.description}
-                    onChange={(value) => setData("description", value)}
-                    minHeight={220}
-                    placeholder="Introduce your course, who it is for, and what students can expect."
-                />
-            </Box>
-
-            <Box>
-                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                    What You&apos;ll Learn
-                </Typography>
-                <RichTextEditor
-                    value={formData.whatYouLearn}
-                    onChange={(value) => setData("whatYouLearn", value)}
-                    minHeight={180}
-                    placeholder="List the outcomes students should be able to achieve."
-                />
-            </Box>
-
-            <TextField
-                label="Course preview description"
-                fullWidth
-                multiline
-                minRows={3}
-                value={formData.preview_description}
-                onChange={(event) =>
-                    setData("preview_description", event.target.value)
-                }
-                helperText="Short summary used on cards and course previews."
-            />
-
-            {canManageFeatured && (
                 <FormControlLabel
                     control={
                         <Switch
-                            checked={formData.is_featured}
+                            checked={formData.lock_lessons_in_order}
                             onChange={(event) =>
-                                setData("is_featured", event.target.checked)
+                                setData(
+                                    "lock_lessons_in_order",
+                                    event.target.checked,
+                                )
                             }
                         />
                     }
-                    label="Featured course"
+                    label="Lock lessons in order"
                 />
-            )}
-            <FormControlLabel
-                control={
-                    <Switch
-                        checked={formData.lock_lessons_in_order}
-                        onChange={(event) =>
-                            setData(
-                                "lock_lessons_in_order",
-                                event.target.checked,
-                            )
-                        }
+            </Stack>,
+        );
+
+    const renderAcademicSettings = () =>
+        renderSectionPanel(
+            "Academic Details",
+            <Stack spacing={3}>
+                <Box>
+                    {renderFieldLabel("Course code", true)}
+                    <TextField
+                        fullWidth
+                        required
+                        value={formData.code}
+                        onChange={(event) => setData("code", event.target.value)}
+                        error={Boolean(errors.code)}
+                        helperText={errors.code || "Unique internal course identifier."}
                     />
-                }
-                label="Lock lessons in order"
-            />
-        </Stack>
-    );
+                </Box>
 
-    const renderAccessSettings = () => (
-        <Stack spacing={3}>
-            <Typography variant="h5" fontWeight="bold">
-                Access
-            </Typography>
-            <Alert severity="info">
-                Set how long students keep access after enrollment. Leave blank
-                for unlimited access.
-            </Alert>
-            <TextField
-                label="Access duration (days)"
-                type="number"
-                value={formData.access_duration_days || ""}
-                onChange={(event) =>
-                    setData(
-                        "access_duration_days",
-                        event.target.value ? parseInt(event.target.value, 10) : "",
-                    )
-                }
-                inputProps={{ min: 1 }}
-                sx={{ maxWidth: 360 }}
-            />
-        </Stack>
-    );
+                {hasExamBodies && (
+                    <>
+                        <Box>
+                            {renderFieldLabel("Examining body")}
+                            <FormControl fullWidth>
+                                <Select
+                                    value={formData.examBody}
+                                    displayEmpty
+                                    onChange={(event) =>
+                                        handleExamBodyChange(event.target.value)
+                                    }
+                                >
+                                    <MenuItem value="">
+                                        <em>None</em>
+                                    </MenuItem>
+                                    {examBodies.map((body) => (
+                                        <MenuItem key={body} value={body}>
+                                            {examBodyRegistry[body].label}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Box>
 
-    const renderPrerequisiteSettings = () => (
-        <Stack spacing={3}>
-            <Typography variant="h5" fontWeight="bold">
-                Prerequisites
-            </Typography>
-            <Alert severity="info">
-                Require students to complete selected courses before enrolling in
-                this course.
-            </Alert>
-            <TextField
-                label="Prerequisite passing percent (%)"
-                type="number"
-                fullWidth
-                value={formData.prerequisite_passing_percent}
-                onChange={(event) =>
-                    setData("prerequisite_passing_percent", event.target.value)
-                }
-                inputProps={{ min: 0, max: 100 }}
-                helperText="Use 0 when completion alone is enough."
-            />
-            <FormControl fullWidth>
-                <InputLabel id="prereq-select-label">Courses</InputLabel>
-                <Select
-                    labelId="prereq-select-label"
-                    multiple
-                    value={formData.prerequisite_program_ids}
-                    label="Courses"
-                    onChange={(event) =>
-                        setData("prerequisite_program_ids", event.target.value)
-                    }
-                >
-                    {availablePrerequisites.map((option) => (
-                        <MenuItem key={option.id} value={option.id}>
-                            {option.name} ({option.code})
-                        </MenuItem>
-                    ))}
-                </Select>
-            </FormControl>
-        </Stack>
-    );
-
-    const renderCourseFilesSettings = () => (
-        <Stack spacing={3}>
-            <Typography variant="h5" fontWeight="bold">
-                Course files
-            </Typography>
-            <Alert severity="info">
-                Upload syllabus, reading lists, or other downloadable materials
-                for students. Lesson-specific files stay inside lesson editors.
-            </Alert>
-            {formData.resources.length > 0 && (
-                <Paper variant="outlined" sx={{ p: 1 }}>
-                    <List dense disablePadding>
-                        {formData.resources.map((resource) => (
-                            <ListItem
-                                key={resource.id}
-                                secondaryAction={
-                                    <IconButton
-                                        size="small"
-                                        color="error"
-                                        onClick={() =>
-                                            handleDeleteResource(resource.id)
+                        {formData.examBody && (
+                            <Box>
+                                {renderFieldLabel("Qualification family")}
+                                <FormControl fullWidth>
+                                    <Select
+                                        value={formData.qualificationFamily}
+                                        displayEmpty
+                                        onChange={(event) =>
+                                            handleQualificationFamilyChange(
+                                                event.target.value,
+                                            )
                                         }
                                     >
-                                        <DeleteIcon fontSize="small" />
-                                    </IconButton>
+                                        <MenuItem value="">
+                                            <em>None</em>
+                                        </MenuItem>
+                                        {qualificationFamilies.map((family) => (
+                                            <MenuItem key={family} value={family}>
+                                                {family}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
+                        )}
+
+                        {formData.qualificationFamily &&
+                            registryLevels.length > 0 && (
+                                <Box>
+                                    {renderFieldLabel("Registered level")}
+                                    <FormControl fullWidth>
+                                        <Select
+                                            value={formData.level}
+                                            displayEmpty
+                                            onChange={(event) =>
+                                                setData("level", event.target.value)
+                                            }
+                                        >
+                                            <MenuItem value="">
+                                                <em>None</em>
+                                            </MenuItem>
+                                            {registryLevels.map((level) => (
+                                                <MenuItem key={level} value={level}>
+                                                    {level}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Box>
+                            )}
+
+                        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                            {renderReadOnlyField("Award type", formData.awardType)}
+                            {renderReadOnlyField(
+                                "Assessment mode",
+                                formData.assessmentMode,
+                            )}
+                        </Stack>
+                    </>
+                )}
+
+                <Divider />
+
+                <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
+                    <Box sx={{ flex: 1 }}>{renderOwner()}</Box>
+                    <Box sx={{ flex: 1 }}>{renderCoInstructors()}</Box>
+                </Stack>
+            </Stack>,
+        );
+
+    const renderAccessSettings = () =>
+        renderSectionPanel(
+            "Access",
+            <Box>
+                <Box
+                    sx={{
+                        px: { xs: 2.5, md: 3 },
+                        py: { xs: 2, md: 2.25 },
+                    }}
+                >
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={formData.access_time_limit_enabled}
+                                onChange={handleAccessTimeLimitChange}
+                            />
+                        }
+                        label="Time limit"
+                        sx={{
+                            m: 0,
+                            "& .MuiFormControlLabel-label": {
+                                fontWeight: 600,
+                            },
+                        }}
+                    />
+                    {formData.access_time_limit_enabled && (
+                        <Box
+                            sx={{
+                                maxWidth: 360,
+                                mt: 2,
+                                pl: { xs: 0, md: 5 },
+                            }}
+                        >
+                            {renderFieldLabel("Access duration (days)")}
+                            <TextField
+                                type="number"
+                                fullWidth
+                                value={formData.access_duration_days || ""}
+                                onChange={(event) =>
+                                    setData(
+                                        "access_duration_days",
+                                        event.target.value
+                                            ? parseInt(event.target.value, 10)
+                                            : "",
+                                    )
                                 }
-                            >
-                                <ListItemIcon sx={{ minWidth: 32 }}>
-                                    <DocIcon fontSize="small" color="action" />
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={resource.title || "Resource"}
-                                    secondary={resource.ext ? `.${resource.ext}` : ""}
-                                    primaryTypographyProps={{ variant: "body2" }}
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
-                </Paper>
-            )}
-            <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                hidden
-                onChange={handleResourceUpload}
-            />
-            <Button
-                variant="outlined"
-                startIcon={<UploadIcon />}
-                onClick={() => fileInputRef.current?.click()}
-            >
-                Upload resources
-            </Button>
-            {formData.materials.length > 0 && (
+                                inputProps={{ min: 1 }}
+                                error={!formData.access_duration_days}
+                                helperText={
+                                    !formData.access_duration_days
+                                        ? "Enter days to save a time limit."
+                                        : "Students keep access for this many days after enrollment."
+                                }
+                            />
+                        </Box>
+                    )}
+                </Box>
+            </Box>,
+            { p: 0, pt: 0 },
+        );
+
+    const renderPrerequisiteSettings = () =>
+        renderSectionPanel(
+            "Prerequisites",
+            <Stack spacing={3}>
+                <Alert severity="info">
+                    Require students to complete selected courses before enrolling in
+                    this course.
+                </Alert>
+                <Box>
+                    {renderFieldLabel("Prerequisite passing percent (%)")}
+                    <TextField
+                        type="number"
+                        fullWidth
+                        value={formData.prerequisite_passing_percent}
+                        onChange={(event) =>
+                            setData("prerequisite_passing_percent", event.target.value)
+                        }
+                        inputProps={{ min: 0, max: 100 }}
+                        helperText="Use 0 when completion alone is enough."
+                    />
+                </Box>
+                <Box>
+                    {renderFieldLabel("Courses")}
+                    <FormControl fullWidth>
+                        <Select
+                            multiple
+                            value={formData.prerequisite_program_ids}
+                            displayEmpty
+                            onChange={(event) =>
+                                setData(
+                                    "prerequisite_program_ids",
+                                    event.target.value,
+                                )
+                            }
+                            renderValue={(selected) => {
+                                if (selected.length === 0) {
+                                    return (
+                                        <Typography color="text.secondary">
+                                            Select prerequisite courses
+                                        </Typography>
+                                    );
+                                }
+                                return selected
+                                    .map((id) => {
+                                        const option = availablePrerequisites.find(
+                                            (item) => item.id === id,
+                                        );
+                                        return option?.name || id;
+                                    })
+                                    .join(", ");
+                            }}
+                        >
+                            {availablePrerequisites.map((option) => (
+                                <MenuItem key={option.id} value={option.id}>
+                                    {option.name} ({option.code})
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+            </Stack>,
+        );
+
+    const renderCourseFilesSettings = () =>
+        renderSectionPanel(
+            "Course files",
+            <Stack spacing={3}>
+                <Box>
+                    {renderFieldLabel("Course files")}
+                    <Box
+                        onDragOver={handleResourceDragOver}
+                        onDrop={handleResourceDrop}
+                        sx={{
+                            minHeight: { xs: 220, md: 266 },
+                            border: 1,
+                            borderStyle: "dashed",
+                            borderColor: "divider",
+                            bgcolor: "#f4f7fb",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 2,
+                            px: { xs: 2, md: 4 },
+                            textAlign: "center",
+                            transition:
+                                "background-color 0.2s ease, border-color 0.2s ease",
+                            "&:hover": {
+                                bgcolor: "#edf3fb",
+                                borderColor: "primary.light",
+                            },
+                        }}
+                    >
+                        <Typography
+                            variant="body1"
+                            color="text.secondary"
+                            sx={{ maxWidth: 500, lineHeight: 1.5 }}
+                        >
+                            Upload syllabus, reading lists, or other downloadable
+                            materials for students. Lesson-specific files stay inside
+                            lesson editors.
+                        </Typography>
+                        <Button
+                            variant="contained"
+                            onClick={() => fileInputRef.current?.click()}
+                            sx={{ textTransform: "none", px: 3 }}
+                        >
+                            Browse files
+                        </Button>
+                    </Box>
+                </Box>
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    hidden
+                    onChange={handleResourceUpload}
+                />
+                {formData.materials.length > 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                        {formData.materials.length} file
+                        {formData.materials.length === 1 ? "" : "s"} ready to upload.
+                    </Typography>
+                )}
+                {formData.resources.length > 0 && (
+                    <Paper variant="outlined" sx={{ p: 1 }}>
+                        <List dense disablePadding>
+                            {formData.resources.map((resource) => (
+                                <ListItem
+                                    key={resource.id}
+                                    secondaryAction={
+                                        <IconButton
+                                            size="small"
+                                            color="error"
+                                            onClick={() =>
+                                                handleDeleteResource(resource.id)
+                                            }
+                                        >
+                                            <DeleteIcon fontSize="small" />
+                                        </IconButton>
+                                    }
+                                >
+                                    <ListItemIcon sx={{ minWidth: 32 }}>
+                                        <DocIcon fontSize="small" color="action" />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={resource.title || "Resource"}
+                                        secondary={
+                                            resource.ext ? `.${resource.ext}` : ""
+                                        }
+                                        primaryTypographyProps={{ variant: "body2" }}
+                                    />
+                                </ListItem>
+                            ))}
+                        </List>
+                    </Paper>
+                )}
+            </Stack>,
+        );
+
+    const renderCertificateSettings = () =>
+        renderSectionPanel(
+            "Certificate",
+            <Stack spacing={3}>
+                <Alert severity={program.certificateEnabled ? "success" : "info"}>
+                    {program.certificateLabel}
+                </Alert>
                 <Typography variant="body2" color="text.secondary">
-                    {formData.materials.length} file
-                    {formData.materials.length === 1 ? "" : "s"} ready to upload.
+                    Certificate behavior is controlled by the academic blueprint in
+                    Django admin, so course authors cannot override it here.
                 </Typography>
-            )}
-        </Stack>
+            </Stack>,
+        );
+
+    const isAccessTimeLimitIncomplete =
+        activeTab === "settings" &&
+        settingsSection === "access" &&
+        formData.access_time_limit_enabled &&
+        !formData.access_duration_days;
+
+    const renderSaveAction = () => (
+        <>
+            <Divider />
+            <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    p: { xs: 2.5, md: 3 },
+                }}
+            >
+                <Button
+                    variant="contained"
+                    onClick={handleSubmit}
+                    disabled={processing || isAccessTimeLimitIncomplete}
+                    size="large"
+                >
+                    Save changes
+                </Button>
+            </Box>
+        </>
     );
 
-    const renderCertificateSettings = () => (
-        <Stack spacing={3}>
-            <Typography variant="h5" fontWeight="bold">
-                Certificate
-            </Typography>
-            <Alert severity={program.certificateEnabled ? "success" : "info"}>
-                {program.certificateLabel}
-            </Alert>
-            <Typography variant="body2" color="text.secondary">
-                Certificate behavior is controlled by the academic blueprint in
-                Django admin, so course authors cannot override it here.
-            </Typography>
-        </Stack>
-    );
+    const hideSaveButton =
+        activeTab === "drip" ||
+        activeTab === "practicum" ||
+        (activeTab === "settings" && settingsSection === "certificate");
 
     const renderSettings = () => {
         const sectionRenderers = {
             main: renderMainSettings,
+            academic: renderAcademicSettings,
             access: renderAccessSettings,
             prerequisites: renderPrerequisiteSettings,
             files: renderCourseFilesSettings,
@@ -798,45 +1051,21 @@ export default function SettingsPanel({
         const renderSection =
             sectionRenderers[settingsSection] || renderMainSettings;
 
+        const menuItems = SETTINGS_SECTIONS.map((section) => ({
+            ...section,
+            icon: SETTINGS_SECTION_ICONS[section.value],
+        }));
+
         return (
-            <Box sx={{ display: "flex", minHeight: 520 }}>
-                <Box
-                    sx={{
-                        width: 240,
-                        pr: 3,
-                        borderRight: 1,
-                        borderColor: "divider",
-                    }}
-                >
-                    <Typography variant="h5" sx={{ mb: 2 }}>
-                        Settings
-                    </Typography>
-                    <List disablePadding>
-                        {SETTINGS_SECTIONS.map((section) => {
-                            const Icon = SETTINGS_SECTION_ICONS[section.value];
-                            const selected = settingsSection === section.value;
-                            return (
-                                <ListItemButton
-                                    key={section.value}
-                                    selected={selected}
-                                    onClick={() =>
-                                        onSettingsSectionChange?.(section.value)
-                                    }
-                                    sx={{ borderRadius: 1, mb: 0.5 }}
-                                >
-                                    <ListItemIcon sx={{ minWidth: 34 }}>
-                                        <Icon fontSize="small" />
-                                    </ListItemIcon>
-                                    <ListItemText primary={section.label} />
-                                </ListItemButton>
-                            );
-                        })}
-                    </List>
-                </Box>
-                <Box sx={{ flex: 1, pl: 3, minWidth: 0 }}>
-                    {renderSection()}
-                </Box>
-            </Box>
+            <SidebarLayout
+                sidebarTitle="Settings"
+                menuItems={menuItems}
+                activeSection={settingsSection}
+                onSectionChange={onSettingsSectionChange}
+            >
+                {renderSection()}
+                {!hideSaveButton && renderSaveAction()}
+            </SidebarLayout>
         );
     };
 
@@ -923,29 +1152,14 @@ export default function SettingsPanel({
         }
     };
 
-    const hideSaveButton =
-        activeTab === "drip" ||
-        activeTab === "practicum" ||
-        (activeTab === "settings" && settingsSection === "certificate");
+    if (activeTab === "settings") {
+        return renderSettings();
+    }
 
     return (
         <Stack spacing={3}>
             {renderContent()}
-            {!hideSaveButton && (
-                <>
-                    <Divider />
-                    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button
-                            variant="contained"
-                            onClick={handleSubmit}
-                            disabled={processing}
-                            size="large"
-                        >
-                            Save changes
-                        </Button>
-                    </Box>
-                </>
-            )}
+            {!hideSaveButton && renderSaveAction()}
         </Stack>
     );
 }

@@ -7810,6 +7810,7 @@ def instructor_program_update_settings(request, pk: int):
         return redirect("/dashboard/")
 
     from apps.curriculum.models import CurriculumNode
+    from apps.platform.exam_body_registry import EXAM_BODY_REGISTRY
 
     program = Program.objects.get(pk=pk)
     data = get_post_data(request)
@@ -7819,7 +7820,14 @@ def instructor_program_update_settings(request, pk: int):
         data.get("section") or request.GET.get("section") or "main"
     ).strip().lower()
     valid_builder_tabs = {"settings", "pricing", "faq", "notice", "drip", "practicum"}
-    valid_settings_sections = {"main", "access", "prerequisites", "files", "certificate"}
+    valid_settings_sections = {
+        "main",
+        "academic",
+        "access",
+        "prerequisites",
+        "files",
+        "certificate",
+    }
 
     def _redirect_to_builder():
         if active_tab == "settings" and settings_section in valid_settings_sections:
@@ -7934,15 +7942,75 @@ def instructor_program_update_settings(request, pk: int):
             _program_depends_on(dep_id, target_program_id, seen) for dep_id in dep_ids
         )
 
-    # --- Settings tab: details, welcome content, thumbnail, resources ---
-    if "name" in data:
+    def _get_exam_family_metadata(exam_body: str | None, family: str | None) -> dict:
+        if not exam_body or not family:
+            return {}
+        return (
+            EXAM_BODY_REGISTRY.get(exam_body, {})
+            .get("families", {})
+            .get(family, {})
+        )
+
+    # --- Settings tab: main public course content ---
+    if active_tab == "settings" and settings_section == "main" and "name" in data:
         name_val = str(data.get("name", "")).strip()
         if not name_val:
             messages.error(request, "Program name is required.")
             return _redirect_to_builder()
         program.name = name_val
 
-    if "code" in data:
+    if active_tab == "settings" and settings_section == "main" and "category" in data:
+        program.category = str(data.get("category", "")).strip() or None
+
+    if active_tab == "settings" and settings_section == "main" and "level" in data:
+        selected_level = str(data.get("level") or "").strip()
+        program.level = selected_level
+
+    if active_tab == "settings" and settings_section == "main" and "thumbnail" in files:
+        program.thumbnail = files["thumbnail"]
+
+    if active_tab == "settings" and settings_section == "main" and "description" in data:
+        program.description = str(data.get("description", "")).strip()
+
+    if active_tab == "settings" and settings_section == "main" and "preview_description" in data:
+        program.preview_description = str(data.get("preview_description", "")).strip()
+
+    if active_tab == "settings" and settings_section == "main" and "duration_hours" in data:
+        duration_hours = _to_int(data.get("duration_hours"))
+        if duration_hours is None or duration_hours < 0:
+            messages.error(request, "Course duration must be zero or more hours.")
+            return _redirect_to_builder()
+        program.duration_hours = duration_hours
+
+    if active_tab == "settings" and settings_section == "main" and "video_hours" in data:
+        video_hours = _to_int(data.get("video_hours"))
+        if video_hours is None or video_hours < 0:
+            messages.error(request, "Video duration must be zero or more hours.")
+            return _redirect_to_builder()
+        program.video_hours = video_hours
+
+    if (
+        active_tab == "settings"
+        and settings_section == "main"
+        and "lock_lessons_in_order" in data
+    ):
+        program.lock_lessons_in_order = _to_bool(data.get("lock_lessons_in_order"))
+
+    if active_tab == "settings" and settings_section == "main" and "is_featured" in data:
+        if not request.user.is_staff:
+            messages.error(request, "Only staff can feature courses.")
+            return _redirect_to_builder()
+        program.is_featured = _to_bool(data.get("is_featured"))
+
+    if active_tab == "settings" and settings_section == "main" and "whatYouLearn" in data:
+        what_you_learn_raw = str(data.get("whatYouLearn", "")).strip()
+        program.what_you_learn_html = what_you_learn_raw
+        program.what_you_learn_items = extract_learning_outcome_items_from_html(
+            what_you_learn_raw
+        )
+
+    # --- Settings tab: academic blueprint and instructor metadata ---
+    if active_tab == "settings" and settings_section == "academic" and "code" in data:
         code_val = str(data.get("code", "")).strip() or None
         if not code_val:
             messages.error(request, "Program code is required.")
@@ -7952,63 +8020,26 @@ def instructor_program_update_settings(request, pk: int):
             return _redirect_to_builder()
         program.code = code_val
 
-    if "category" in data:
-        program.category = str(data.get("category", "")).strip() or None
-
-    if "level" in data:
+    if active_tab == "settings" and settings_section == "academic" and "level" in data:
         selected_level = str(data.get("level") or "").strip()
         program.level = selected_level
 
-    if "examBody" in data:
-        program.exam_body = data.get("examBody") or None
+    if (
+        active_tab == "settings"
+        and settings_section == "academic"
+        and ("examBody" in data or "qualificationFamily" in data)
+    ):
+        if "examBody" in data:
+            program.exam_body = data.get("examBody") or None
+        if "qualificationFamily" in data:
+            program.qualification_family = data.get("qualificationFamily") or None
 
-    if "qualificationFamily" in data:
-        program.qualification_family = data.get("qualificationFamily") or None
-
-    if "awardType" in data:
-        program.award_type = data.get("awardType") or None
-
-    if "assessmentMode" in data:
-        program.assessment_mode = data.get("assessmentMode") or None
-
-    if "thumbnail" in files:
-        program.thumbnail = files["thumbnail"]
-
-    if "description" in data:
-        program.description = str(data.get("description", "")).strip()
-
-    if "preview_description" in data:
-        program.preview_description = str(data.get("preview_description", "")).strip()
-
-    if "duration_hours" in data:
-        duration_hours = _to_int(data.get("duration_hours"))
-        if duration_hours is None or duration_hours < 0:
-            messages.error(request, "Course duration must be zero or more hours.")
-            return _redirect_to_builder()
-        program.duration_hours = duration_hours
-
-    if "video_hours" in data:
-        video_hours = _to_int(data.get("video_hours"))
-        if video_hours is None or video_hours < 0:
-            messages.error(request, "Video duration must be zero or more hours.")
-            return _redirect_to_builder()
-        program.video_hours = video_hours
-
-    if "lock_lessons_in_order" in data:
-        program.lock_lessons_in_order = _to_bool(data.get("lock_lessons_in_order"))
-
-    if "is_featured" in data:
-        if not request.user.is_staff:
-            messages.error(request, "Only staff can feature courses.")
-            return _redirect_to_builder()
-        program.is_featured = _to_bool(data.get("is_featured"))
-
-    if "whatYouLearn" in data:
-        what_you_learn_raw = str(data.get("whatYouLearn", "")).strip()
-        program.what_you_learn_html = what_you_learn_raw
-        program.what_you_learn_items = extract_learning_outcome_items_from_html(
-            what_you_learn_raw
+        family_metadata = _get_exam_family_metadata(
+            program.exam_body,
+            program.qualification_family,
         )
+        program.award_type = family_metadata.get("award_type") or None
+        program.assessment_mode = family_metadata.get("assessment_mode") or None
 
     # --- Pricing ---
     if "custom_pricing" in data:
@@ -8024,7 +8055,13 @@ def instructor_program_update_settings(request, pk: int):
 
     from apps.core.models import ProgramResource
 
-    delete_resource_ids = data.get("deleteResourceIds", [])
+    is_settings_tab = active_tab == "settings"
+    is_academic_section = is_settings_tab and settings_section == "academic"
+    is_access_section = is_settings_tab and settings_section == "access"
+    is_prerequisites_section = is_settings_tab and settings_section == "prerequisites"
+    is_files_section = is_settings_tab and settings_section == "files"
+
+    delete_resource_ids = data.get("deleteResourceIds", []) if is_files_section else []
     if delete_resource_ids is None:
         delete_resource_ids = []
     if not isinstance(delete_resource_ids, list):
@@ -8038,11 +8075,14 @@ def instructor_program_update_settings(request, pk: int):
     normalized_delete_resource_ids = list(dict.fromkeys(normalized_delete_resource_ids))
 
     material_files = []
-    for key in files:
-        if key == "materials" or key.startswith("materials["):
-            material_files.extend(files.getlist(key))
+    if is_files_section:
+        for key in files:
+            if key == "materials" or key.startswith("materials["):
+                material_files.extend(files.getlist(key))
 
-    co_instructor_ids = data.get("co_instructor_ids", None)
+    co_instructor_ids = (
+        data.get("co_instructor_ids", None) if is_academic_section else None
+    )
     normalized_co_instructor_ids = None
     if co_instructor_ids is not None:
         if not isinstance(co_instructor_ids, list):
@@ -8056,7 +8096,9 @@ def instructor_program_update_settings(request, pk: int):
         normalized_co_instructor_ids = list(dict.fromkeys(normalized_co_instructor_ids))
 
     # --- Prerequisites ---
-    prerequisite_ids = data.get("prerequisite_program_ids", [])
+    prerequisite_ids = (
+        data.get("prerequisite_program_ids", []) if is_prerequisites_section else []
+    )
     if prerequisite_ids is None:
         prerequisite_ids = []
     if not isinstance(prerequisite_ids, list):
@@ -8081,7 +8123,9 @@ def instructor_program_update_settings(request, pk: int):
             )
             return _redirect_to_builder()
 
-    access_duration_days = _to_int(data.get("access_duration_days"))
+    access_duration_days = (
+        _to_int(data.get("access_duration_days")) if is_access_section else None
+    )
     if access_duration_days is not None and access_duration_days < 1:
         messages.error(request, "Access duration must be a positive number of days.")
         return _redirect_to_builder()
@@ -8098,7 +8142,7 @@ def instructor_program_update_settings(request, pk: int):
     if not isinstance(drip_schedule, list):
         drip_schedule = []
 
-    if "prerequisite_passing_percent" in data:
+    if is_prerequisites_section and "prerequisite_passing_percent" in data:
         raw_percent = data.get("prerequisite_passing_percent")
         try:
             prerequisite_passing_percent = int(raw_percent)
@@ -8113,7 +8157,7 @@ def instructor_program_update_settings(request, pk: int):
             return _redirect_to_builder()
         program.prerequisite_passing_percent = prerequisite_passing_percent
 
-    if "access_duration_days" in data:
+    if is_access_section and "access_duration_days" in data:
         program.access_duration_days = access_duration_days
     if "drip_enabled" in data:
         program.drip_enabled = _to_bool(data.get("drip_enabled"))
@@ -8141,7 +8185,7 @@ def instructor_program_update_settings(request, pk: int):
                 resource_type="material",
             )
 
-        if "prerequisite_program_ids" in data:
+        if is_prerequisites_section and "prerequisite_program_ids" in data:
             valid_ids = list(
                 Program.objects.filter(pk__in=normalized_prerequisite_ids)
                 .exclude(pk=program.pk)

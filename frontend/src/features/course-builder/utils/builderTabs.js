@@ -4,12 +4,12 @@ const CORE_BUILDER_TABS = [
     { label: "Pricing", value: "pricing" },
     { label: "FAQ", value: "faq" },
     { label: "Notice", value: "notice" },
-    { label: "Drip", value: "drip" },
 ];
 
 const PRACTICUM_BUILDER_TAB = { label: "Practicum", value: "practicum" };
 export const SETTINGS_SECTIONS = [
     { label: "Main", value: "main" },
+    { label: "Academic Details", value: "academic" },
     { label: "Access", value: "access" },
     { label: "Prerequisites", value: "prerequisites" },
     { label: "Course files", value: "files" },

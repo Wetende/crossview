@@ -17,8 +17,15 @@ const baseProgram = {
 describe("builderTabs", () => {
     it("normalizes unsupported or unknown tabs to curriculum", () => {
         expect(normalizeBuilderTab(baseProgram, "practicum")).toBe("curriculum");
+        expect(normalizeBuilderTab(baseProgram, "drip")).toBe("curriculum");
         expect(normalizeBuilderTab(baseProgram, "missing")).toBe("curriculum");
         expect(normalizeBuilderTab(baseProgram, null)).toBe("curriculum");
+    });
+
+    it("hides drip from the available builder tabs", () => {
+        expect(getAvailableBuilderTabs(baseProgram).map((tab) => tab.value)).not.toContain(
+            "drip",
+        );
     });
 
     it("includes practicum only when the program blueprint enables it", () => {
@@ -48,11 +55,15 @@ describe("builderTabs", () => {
         expect(getSettingsSectionUrl(42, "access")).toBe(
             "/instructor/programs/42/manage/?tab=settings&section=access",
         );
+        expect(getSettingsSectionUrl(42, "academic")).toBe(
+            "/instructor/programs/42/manage/?tab=settings&section=academic",
+        );
     });
 
     it("normalizes settings sections without accepting removed top-level tabs", () => {
         expect(normalizeBuilderTab(baseProgram, "access")).toBe("curriculum");
         expect(normalizeBuilderTab(baseProgram, "prerequisites")).toBe("curriculum");
+        expect(normalizeSettingsSection("academic")).toBe("academic");
         expect(normalizeSettingsSection("access")).toBe("access");
         expect(normalizeSettingsSection("missing")).toBe("main");
     });

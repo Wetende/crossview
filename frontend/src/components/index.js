@@ -7,6 +7,7 @@ export { default as PageHeader } from "./PageHeader";
 export { default as EmptyState } from "./EmptyState";
 export { default as ConfirmDialog } from "./ConfirmDialog";
 export { default as DataTable } from "./DataTable";
+export { default as PanelSidebar } from "./PanelSidebar";
 
 // Student portal components
 export { default as CurriculumTree } from "./CurriculumTree";

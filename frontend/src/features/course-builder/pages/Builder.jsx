@@ -206,13 +206,16 @@ export default function InstructorProgramBuilder({
                     sx={{
                         height: "100%",
                         overflowY:
-                            activeTab === "curriculum" ? "hidden" : "auto",
-                        p: activeTab === "curriculum" ? 0 : 3,
+                            activeTab === "curriculum" || activeTab === "settings"
+                                ? "hidden"
+                                : "auto",
+                        p:
+                            activeTab === "curriculum" || activeTab === "settings"
+                                ? 0
+                                : 3,
                         flexGrow: 1, // Allow this box to grow
                         minWidth: 0,
                         minHeight: 0,
-                        mr: guideOpen ? `${RIGHT_DRAWER_WIDTH}px` : 0, // Adjust margin when guide is open
-                        transition: "margin 0.2s ease-out", // Smooth transition
                     }}
                 >
                     {activeTab === "curriculum" && (
@@ -272,15 +275,38 @@ export default function InstructorProgramBuilder({
                             </Box>
                         </Box>
                     )}
-                    {(activeTab === "settings" ||
-                        activeTab === "pricing" ||
+                    {activeTab === "settings" && (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                height: "100%",
+                                width: "100%",
+                                flex: 1,
+                                minWidth: 0,
+                                minHeight: 0,
+                            }}
+                        >
+                            <SettingsPanel
+                                program={program}
+                                activeTab={activeTab}
+                                settingsSection={settingsSection}
+                                onSettingsSectionChange={
+                                    handleSettingsSectionChange
+                                }
+                                curriculum={curriculum}
+                                platformFeatures={platformFeatures}
+                                deploymentMode={deploymentMode}
+                            />
+                        </Box>
+                    )}
+                    {(activeTab === "pricing" ||
                         activeTab === "faq" ||
                         activeTab === "notice" ||
                         activeTab === "drip" ||
                         activeTab === "practicum") && (
                         <Box
                             sx={{
-                                maxWidth: activeTab === "settings" ? 1040 : 720,
+                                maxWidth: 720,
                                 mx: "auto",
                                 pt: 2,
                                 pb: 4,
@@ -310,8 +336,9 @@ export default function InstructorProgramBuilder({
                     variant="persistent"
                     open={guideOpen}
                     sx={{
-                        width: RIGHT_DRAWER_WIDTH,
+                        width: guideOpen ? RIGHT_DRAWER_WIDTH : 0,
                         flexShrink: 0,
+                        transition: "width 0.2s ease-out",
                         "& .MuiDrawer-paper": {
                             width: RIGHT_DRAWER_WIDTH,
                             boxSizing: "border-box",

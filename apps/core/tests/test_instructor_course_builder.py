@@ -424,7 +424,111 @@ class TestInstructorCourseBuilder:
             prerequisite.id
         ]
 
-    def test_update_settings_accepts_overview_content_and_resources(
+    def test_update_main_settings_saves_public_course_content(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        program.code = "UNCHANGED-100"
+        program.exam_body = "KASNEB"
+        program.qualification_family = "Certificate"
+        program.award_type = "Certificate"
+        program.assessment_mode = "Exam"
+        program.save()
+
+        client.force_login(instructor)
+        url = reverse("core:instructor.program_update_settings", kwargs={"pk": program.id})
+        response = client.post(
+            url,
+            data={
+                "tab": "settings",
+                "section": "main",
+                "name": "Updated Public Course",
+                "category": "Technology",
+                "description": "<p>Rich <strong>course</strong> overview.</p>",
+                "whatYouLearn": "<ul><li>Build confidence</li></ul>",
+                "preview_description": "Short course preview",
+                "duration_hours": 12,
+                "video_hours": 4,
+                "lock_lessons_in_order": False,
+                "code": "IGNORED-999",
+                "examBody": "Internal",
+                "qualificationFamily": "Short Course",
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        assert (
+            response["Location"]
+            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=main"
+        )
+
+        program.refresh_from_db()
+        assert program.name == "Updated Public Course"
+        assert program.category == "Technology"
+        assert program.description == "<p>Rich <strong>course</strong> overview.</p>"
+        assert program.what_you_learn_html == "<ul><li>Build confidence</li></ul>"
+        assert program.what_you_learn_items == ["Build confidence"]
+        assert program.preview_description == "Short course preview"
+        assert program.duration_hours == 12
+        assert program.video_hours == 4
+        assert program.lock_lessons_in_order is False
+        assert program.code == "UNCHANGED-100"
+        assert program.exam_body == "KASNEB"
+        assert program.qualification_family == "Certificate"
+
+    def test_update_academic_settings_saves_blueprint_metadata(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        co_instructor = UserFactory()
+        group, _ = Group.objects.get_or_create(name="Instructors")
+        co_instructor.groups.add(group)
+
+        client.force_login(instructor)
+        url = reverse("core:instructor.program_update_settings", kwargs={"pk": program.id})
+        response = client.post(
+            url,
+            data={
+                "tab": "settings",
+                "section": "academic",
+                "code": "ACAD-101",
+                "examBody": "KASNEB",
+                "qualificationFamily": "Certificate",
+                "level": "Level I",
+                "awardType": "Wrong editable value",
+                "assessmentMode": "Wrong editable value",
+                "co_instructor_ids": [co_instructor.id],
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        assert (
+            response["Location"]
+            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=academic"
+        )
+
+        program.refresh_from_db()
+        assert program.code == "ACAD-101"
+        assert program.exam_body == "KASNEB"
+        assert program.qualification_family == "Certificate"
+        assert program.level == "Level I"
+        assert program.award_type == "Certificate"
+        assert program.assessment_mode == "Exam"
+        assert InstructorAssignment.objects.filter(
+            program=program,
+            instructor=co_instructor,
+            is_primary=False,
+        ).exists()
+
+    def test_update_course_files_saves_resources(
         self,
         client,
         instructor,
@@ -433,6 +537,10 @@ class TestInstructorCourseBuilder:
         settings,
         tmp_path,
     ):
+        program.description = "Original description"
+        program.what_you_learn_html = "<ul><li>Original outcome</li></ul>"
+        program.what_you_learn_items = ["Original outcome"]
+        program.save()
         settings.MEDIA_ROOT = str(tmp_path / "media")
         old_resource = ProgramResource.objects.create(
             program=program,
@@ -467,9 +575,9 @@ class TestInstructorCourseBuilder:
         )
 
         program.refresh_from_db()
-        assert program.description == "<p>Rich <strong>course</strong> overview.</p>"
-        assert program.what_you_learn_html == "<ul><li>Build confidence</li></ul>"
-        assert program.what_you_learn_items == ["Build confidence"]
+        assert program.description == "Original description"
+        assert program.what_you_learn_html == "<ul><li>Original outcome</li></ul>"
+        assert program.what_you_learn_items == ["Original outcome"]
         assert not ProgramResource.objects.filter(pk=old_resource.pk).exists()
 
         resource = ProgramResource.objects.get(program=program)
