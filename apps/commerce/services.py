@@ -15,6 +15,11 @@ from django.utils import timezone
 
 from apps.core.models import Program, User
 from apps.core.services.course_prerequisites import CoursePrerequisiteService
+from apps.core.services.pricing import (
+    get_available_payment_methods,
+    get_program_pricing,
+    serialize_price_display,
+)
 from apps.progression.models import Enrollment, EnrollmentRequest
 
 from .exceptions import CommerceError
@@ -57,8 +62,32 @@ PAYSTACK_PAYOUT_HOLD_STATUSES = {
 }
 
 
+def _platform_pricing_context() -> dict:
+    from apps.platform.models import PlatformSettings
+
+    platform_settings = PlatformSettings.get_settings()
+    platform_features = platform_settings.get_default_features_for_mode()
+    if isinstance(platform_settings.features, dict):
+        platform_features.update(platform_settings.features)
+    return {
+        "deployment_mode": platform_settings.deployment_mode,
+        "platform_features": platform_features,
+        "currency_code": platform_settings.currency_code,
+    }
+
+
+def program_pricing_policy(program: Program) -> dict:
+    context = _platform_pricing_context()
+    return get_program_pricing(
+        program,
+        deployment_mode=context["deployment_mode"],
+        platform_features=context["platform_features"],
+        currency_code=context["currency_code"],
+    )
+
+
 def program_price_minor(program: Program) -> tuple[int, str]:
-    custom_pricing = program.custom_pricing or {}
+    custom_pricing = program_pricing_policy(program)
     amount = custom_pricing.get("price", 0) or 0
     currency = str(custom_pricing.get("currency", "KES") or "KES").upper()
 
@@ -72,6 +101,50 @@ def program_price_minor(program: Program) -> tuple[int, str]:
 
 def program_public_url(program: Program) -> str:
     return f"/programs/{program.slug}/"
+
+
+def available_payment_methods_for_pricing(
+    pricing: dict,
+    *,
+    configuration: CommerceConfiguration | None = None,
+) -> list[str]:
+    config = configuration or CommerceConfiguration.get_solo()
+    return [
+        method
+        for method in get_available_payment_methods(pricing)
+        if config.is_method_enabled(method)
+    ]
+
+
+def available_payment_methods_for_program(
+    program: Program,
+    *,
+    configuration: CommerceConfiguration | None = None,
+) -> list[str]:
+    return available_payment_methods_for_pricing(
+        program_pricing_policy(program),
+        configuration=configuration,
+    )
+
+
+def program_payment_method_allowed(program: Program, payment_method: str) -> bool:
+    return payment_method in available_payment_methods_for_program(program)
+
+
+def available_payment_methods_for_programs(programs: list[Program]) -> list[str]:
+    configuration = CommerceConfiguration.get_solo()
+    methods_by_program = [
+        set(
+            available_payment_methods_for_program(
+                program,
+                configuration=configuration,
+            )
+        )
+        for program in programs
+    ]
+    if not methods_by_program:
+        return []
+    return sorted(set.intersection(*methods_by_program))
 
 
 def build_paystack_dedupe_key(
@@ -137,17 +210,20 @@ def serialize_cart(cart: Cart | None) -> dict:
             "currency": "",
             "itemCount": 0,
             "totalMinor": 0,
+            "availablePaymentMethods": [],
             "items": [],
         }
 
     items = list(cart.items.select_related("program").all())
     total_minor = sum(item.amount_minor for item in items)
+    programs = [item.program for item in items if item.program_id]
     return {
         "id": cart.id,
         "status": cart.status,
         "currency": cart.currency,
         "itemCount": len(items),
         "totalMinor": total_minor,
+        "availablePaymentMethods": available_payment_methods_for_programs(programs),
         "items": [serialize_cart_item(item) for item in items],
         "createdAt": cart.created_at.isoformat() if cart.created_at else None,
         "updatedAt": cart.updated_at.isoformat() if cart.updated_at else None,
@@ -328,7 +404,7 @@ class CartService:
 
     @staticmethod
     def _validate_program_can_be_purchased(
-        user: User, program: Program
+        user: User, program: Program, payment_method: str | None = None
     ) -> tuple[int, str]:
         if not program.is_published:
             raise CommerceError(
@@ -341,6 +417,19 @@ class CartService:
         if amount_minor <= 0:
             raise CommerceError(
                 "Free programs cannot be added to cart.", code="program_free"
+            )
+
+        available_methods = available_payment_methods_for_program(program)
+        if payment_method:
+            if payment_method not in available_methods:
+                raise CommerceError(
+                    "This course does not support the selected payment method.",
+                    code="payment_method_not_allowed",
+                )
+        elif not available_methods:
+            raise CommerceError(
+                "This course does not collect payment through the LMS.",
+                code="payment_not_available",
             )
 
         if (
@@ -523,7 +612,7 @@ class WishlistService:
                     if stats["duration_minutes"]
                     else 0
                 )
-                price_data = item.program.custom_pricing or {}
+                price_data = program_pricing_policy(item.program)
                 base["program"].update(
                     {
                         "description": item.program.description or "",
@@ -534,6 +623,7 @@ class WishlistService:
                         "rating": 4.5,
                         "price": price_data.get("price", 0),
                         "original_price": price_data.get("original_price"),
+                        "priceDisplay": serialize_price_display(price_data),
                     }
                 )
             return base
@@ -793,7 +883,7 @@ class CheckoutService:
 
     @staticmethod
     def _validate_programs_for_checkout(
-        user: User, programs: list[Program]
+        user: User, programs: list[Program], payment_method: str | None = None
     ) -> list[tuple[Program, int, str]]:
         if not programs:
             raise CommerceError(
@@ -811,7 +901,7 @@ class CheckoutService:
                 )
             seen_program_ids.add(program.id)
             amount_minor, currency = CartService._validate_program_can_be_purchased(
-                user, program
+                user, program, payment_method
             )
             prepared_items.append((program, amount_minor, currency))
             currencies.add(currency)
@@ -882,6 +972,9 @@ class CheckoutService:
                 "itemCount": len(items),
                 "totalMinor": total_minor,
                 "currency": currency,
+                "availablePaymentMethods": available_payment_methods_for_programs(
+                    programs
+                ),
             }
 
         cart = CartService.get_or_create_active_cart(user)
@@ -918,7 +1011,7 @@ class CheckoutService:
 
             programs = [item.program for item in cart_items]
             prepared_items = CheckoutService._validate_programs_for_checkout(
-                user, programs
+                user, programs, payment_method
             )
             currency = prepared_items[0][2]
             subtotal_minor = sum(amount_minor for _, amount_minor, _ in prepared_items)
@@ -978,7 +1071,9 @@ class CheckoutService:
         metadata: dict | None = None,
     ) -> Order:
         CheckoutService._validate_payment_method(payment_method)
-        prepared_items = CheckoutService._validate_programs_for_checkout(user, programs)
+        prepared_items = CheckoutService._validate_programs_for_checkout(
+            user, programs, payment_method
+        )
         currency = prepared_items[0][2]
         subtotal_minor = sum(amount_minor for _, amount_minor, _ in prepared_items)
 
@@ -1066,6 +1161,7 @@ class CheckoutService:
         prepared_items = CheckoutService._validate_programs_for_checkout(
             current_order.user,
             [item.program for item in items if item.program_id],
+            current_order.provider,
         )
         expected_items = sorted(
             (program.id, amount_minor, currency)

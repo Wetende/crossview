@@ -25,6 +25,7 @@ from .services import (
     WishlistService,
     build_paystack_callback_url,
     program_price_minor,
+    program_payment_method_allowed,
     serialize_cart,
     serialize_order,
     serialize_payout,
@@ -86,6 +87,9 @@ def program_checkout(request, pk: int):
     amount_minor, currency = program_price_minor(program)
     if amount_minor <= 0:
         messages.error(request, "This program does not require paid checkout.")
+        return redirect(f"/programs/{program.slug}/")
+    if not program_payment_method_allowed(program, Order.PROVIDER_PAYSTACK):
+        messages.error(request, "This program does not support online checkout.")
         return redirect(f"/programs/{program.slug}/")
 
     prerequisite_evaluation = CoursePrerequisiteService.evaluate(request.user, program)

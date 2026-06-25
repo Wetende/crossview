@@ -6,10 +6,19 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
-from apps.commerce.models import Cart, Order, PaymentAttempt, ProgramAccessGrant, Refund, WebhookEvent
+from apps.commerce.models import (
+    Cart,
+    CommerceConfiguration,
+    Order,
+    PaymentAttempt,
+    ProgramAccessGrant,
+    Refund,
+    WebhookEvent,
+)
 from apps.commerce.services import CheckoutService
 from apps.core.models import Program
 from apps.core.tests.factories import UserFactory
+from apps.platform.models import PlatformSettings
 from apps.progression.models import Enrollment
 
 
@@ -28,6 +37,10 @@ def _create_program(
     currency: str = "KES",
     published: bool = True,
 ) -> Program:
+    settings = PlatformSettings.get_settings()
+    features = settings.features if isinstance(settings.features, dict) else {}
+    settings.features = {**features, "payments": True}
+    settings.save(update_fields=["features", "updated_at"])
     return Program.objects.create(
         name=f"Program {code}",
         code=code,
@@ -102,6 +115,79 @@ def test_cart_add_rejects_unpurchasable_programs(program_kwargs, existing_enroll
 
     assert response.status_code in {400, 404}
     assert response.json()["error"] == expected_error
+
+
+def test_cart_add_rejects_paid_program_with_no_lms_payment_collection():
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-CART-NONE", price=1000)
+    program.custom_pricing = {
+        "price": 1000,
+        "currency": "KES",
+        "payment_collection": "none",
+        "card_display": "hidden",
+    }
+    program.save(update_fields=["custom_pricing", "updated_at"])
+
+    response = client.post(
+        reverse("commerce:cart_add_item"),
+        data=json.dumps({"programId": program.id}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "payment_not_available"
+
+
+def test_offline_only_program_creates_manual_payment_order():
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-OFFLINE-001", price=1000)
+    program.custom_pricing = {
+        "price": 1000,
+        "currency": "KES",
+        "payment_collection": "offline",
+        "card_display": "price",
+    }
+    program.save(update_fields=["custom_pricing", "updated_at"])
+
+    response = client.post(
+        reverse("commerce:orders"),
+        data=json.dumps(
+            {
+                "paymentMethod": "offline_bank_transfer",
+                "programIds": [program.id],
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["order"]["provider"] == "offline_bank_transfer"
+    assert payload["order"]["status"] == "pending_manual_payment"
+    assert "offlinePayment" in payload
+
+
+def test_checkout_preview_filters_globally_disabled_payment_methods():
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-FILTER-METHODS", price=1000)
+    config = CommerceConfiguration.get_solo()
+    config.enabled_payment_methods = {
+        "paystack": False,
+        "offline_bank_transfer": True,
+    }
+    config.save(update_fields=["enabled_payment_methods", "updated_at"])
+
+    response = client.get(
+        reverse("commerce:checkout_preview"),
+        data={"programIds[]": [program.id]},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["availablePaymentMethods"] == ["offline_bank_transfer"]
 
 
 def test_checkout_creates_multi_item_order_and_clears_cart():

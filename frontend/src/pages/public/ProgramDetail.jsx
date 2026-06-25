@@ -49,18 +49,11 @@ import PublicNavbar from "@/components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useCurrency } from "@/hooks/useCurrency";
 import { truncatePlainText } from "@/utils/htmlText";
+import { resolvePriceDisplay } from "@/utils/priceDisplay";
 
 // --- Helper Components ---
-
-function getCurrencyPrefix(currencyCode) {
-    const code = String(currencyCode || "").toUpperCase();
-    if (code === "KES") return "KSh ";
-    if (code === "USD" || !code) return "$";
-    if (code === "EUR") return "EUR ";
-    if (code === "GBP") return "GBP ";
-    return `${code} `;
-}
 
 // Course Details Sidebar with Context-Aware CTAs
 function CourseDetailsSidebar({
@@ -82,13 +75,16 @@ function CourseDetailsSidebar({
     const isEnrolled = enrollmentStatus === "enrolled";
     const isCompleted = enrollmentData?.isCompleted;
     const progressPercent = enrollmentData?.progressPercent || 0;
+    const { formatCurrency } = useCurrency();
+    const priceDisplay = resolvePriceDisplay(program);
 
     // Determine CTA button text based on enrollment mode
     const getCtaText = () => {
         if (ctaState === "not_enrolled_paid") {
-            const programCurrency =
-                program?.customPricing?.currency || program?.currency;
-            return `GET COURSE - ${getCurrencyPrefix(programCurrency)}${program.price}`;
+            const amount = formatCurrency(priceDisplay.price);
+            return priceDisplay.paymentCollection === "offline"
+                ? `PAY OFFLINE - ${amount}`
+                : `GET COURSE - ${amount}`;
         }
         if (enrollmentMode === "approval") {
             return "REQUEST ENROLLMENT";
@@ -529,7 +525,17 @@ function CourseDetailsSidebar({
 
 // Popular Courses Sidebar
 function PopularCourses({ courses }) {
+    const { formatCurrency } = useCurrency();
+
     if (!courses || courses.length === 0) return null;
+
+    const getPriceLabel = (course) => {
+        const priceDisplay = resolvePriceDisplay(course);
+        if (priceDisplay.showPrice) {
+            return formatCurrency(priceDisplay.price);
+        }
+        return priceDisplay.showFree ? "Free" : "";
+    };
 
     return (
         <Box sx={{ mt: 3 }}>
@@ -565,12 +571,7 @@ function PopularCourses({ courses }) {
                                 variant="caption"
                                 color="text.secondary"
                             >
-                                {course.price > 0
-                                    ? `${getCurrencyPrefix(
-                                          course.customPricing?.currency ||
-                                              course.currency,
-                                      )}${course.price}`
-                                    : "Free"}
+                                {getPriceLabel(course)}
                             </Typography>
                         </CardContent>
                     </Card>

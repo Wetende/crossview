@@ -29,6 +29,7 @@ import { IconHeart, IconHeartFilled, IconList, IconClock } from "@tabler/icons-r
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCurrency } from "@/hooks/useCurrency";
 import { truncatePlainText } from "@/utils/htmlText";
+import { resolvePriceDisplay } from "@/utils/priceDisplay";
 
 // ---------------------------------------------------------------------------
 // Badge colors
@@ -61,6 +62,7 @@ export default function PublicProgramCard({
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const { formatCurrency } = useCurrency();
     const descriptionPreview = truncatePlainText(program.description, 180);
+    const priceDisplay = resolvePriceDisplay(program);
 
     const wishlisted = useMemo(
         () => (wishlist?.items || []).some((item) => item.program?.id === program.id),
@@ -259,30 +261,29 @@ export default function PublicProgramCard({
                     </Stack>
 
                     {/* Price */}
-                    <Box>
-                        {program.price > 0 ? (
+                    <Box sx={{ minHeight: 24 }}>
+                        {priceDisplay.showPrice ? (
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <Typography
                                     variant="body1"
                                     fontWeight={700}
                                     color="primary.main"
                                 >
-                                    {formatCurrency(program.price)}
+                                    {formatCurrency(priceDisplay.price)}
                                 </Typography>
-                                {program.original_price &&
-                                    program.original_price > program.price && (
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                textDecoration: "line-through",
-                                                color: "#9CA3AF",
-                                            }}
-                                        >
-                                            {formatCurrency(program.original_price)}
-                                        </Typography>
-                                    )}
+                                {priceDisplay.hasDiscount && (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            textDecoration: "line-through",
+                                            color: "#9CA3AF",
+                                        }}
+                                    >
+                                        {formatCurrency(priceDisplay.originalPrice)}
+                                    </Typography>
+                                )}
                             </Stack>
-                        ) : (
+                        ) : priceDisplay.showFree ? (
                             <Typography
                                 variant="body1"
                                 fontWeight={700}
@@ -290,6 +291,8 @@ export default function PublicProgramCard({
                             >
                                 Free
                             </Typography>
+                        ) : (
+                            <Box aria-hidden="true" />
                         )}
                     </Box>
                 </Box>

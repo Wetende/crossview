@@ -25,9 +25,11 @@ import {
     IconLock,
     IconDeviceMobile,
     IconCreditCard,
+    IconBuildingBank,
 } from "@tabler/icons-react";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { useCart } from "@/contexts/CartContext";
+import OfflineInstructions from "@/features/commerce/components/OfflineInstructions";
 import PaymentPending from "@/features/commerce/components/PaymentPending";
 import { resumePaystackTransaction } from "@/features/commerce/utils/paystackPopup";
 import * as commerceApi from "@/services/commerceApi";
@@ -37,6 +39,7 @@ const STEP_REVIEW = "review";
 const STEP_PROCESSING = "processing";
 const STEP_MPESA_PENDING = "mpesa_pending";
 const STEP_PAYSTACK_PENDING = "paystack_pending"; // Native JS popup waiting
+const STEP_OFFLINE_PENDING = "offline_pending";
 
 export default function Checkout({ paystack }) {
     const { checkout } = usePage().props;
@@ -46,6 +49,7 @@ export default function Checkout({ paystack }) {
     const [error, setError] = useState("");
     const [order, setOrder] = useState(null);
     const [statusText, setStatusText] = useState("");
+    const [offlinePayment, setOfflinePayment] = useState(null);
     const [preview, setPreview] = useState({ mode: "cart", items: [], itemCount: 0, totalMinor: 0, currency: "" });
     const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -94,10 +98,26 @@ export default function Checkout({ paystack }) {
 
     const items = isDirectMode ? (preview?.items || []) : (cart?.items || []);
     const totalMinor = isDirectMode ? preview?.totalMinor : cart?.totalMinor;
+    const availablePaymentMethods = isDirectMode
+        ? preview?.availablePaymentMethods || []
+        : cart?.availablePaymentMethods || [];
+    const allowsPaystack = availablePaymentMethods.includes("paystack");
+    const allowsOffline = availablePaymentMethods.includes("offline_bank_transfer");
     const isEmpty = isDirectMode
         ? !previewLoading && items.length === 0
         : !cartLoading && items.length === 0;
     const directProgramUrl = isDirectMode ? items[0]?.program?.publicUrl : "";
+
+    useEffect(() => {
+        if (isEmpty || availablePaymentMethods.length === 0) {
+            return;
+        }
+        if (!allowsPaystack && allowsOffline) {
+            setPaymentMethod("offline_bank_transfer");
+        } else if (!allowsOffline && paymentMethod === "offline_bank_transfer") {
+            setPaymentMethod("mpesa");
+        }
+    }, [allowsOffline, allowsPaystack, availablePaymentMethods.length, isEmpty, paymentMethod]);
 
     const getOrderPageUrl = useCallback((orderId, paymentError = "") => {
         const params = new URLSearchParams();
@@ -110,6 +130,11 @@ export default function Checkout({ paystack }) {
 
     const handlePlaceOrder = useCallback(async () => {
         setError("");
+
+        if (availablePaymentMethods.length === 0) {
+            setError("This course is not configured for LMS payment.");
+            return;
+        }
 
         if (paymentMethod === "mpesa") {
             if (!phoneNumber || phoneNumber.trim().length < 9) {
@@ -125,9 +150,13 @@ export default function Checkout({ paystack }) {
 
         setStep(STEP_PROCESSING);
 
-        // 1. Create order from cart (always Paystack provider under the hood)
+        // 1. Create order from cart/direct checkout.
+        const provider =
+            paymentMethod === "offline_bank_transfer"
+                ? "offline_bank_transfer"
+                : "paystack";
         const orderRes = await commerceApi.createOrder(
-            "paystack",
+            provider,
             isDirectMode ? [directProgramId] : null,
         );
         if (!orderRes.ok) {
@@ -140,6 +169,12 @@ export default function Checkout({ paystack }) {
         setOrder(newOrder);
         if (!isDirectMode) {
             refreshCart();
+        }
+
+        if (paymentMethod === "offline_bank_transfer") {
+            setOfflinePayment(orderRes.offlinePayment || null);
+            setStep(STEP_OFFLINE_PENDING);
+            return;
         }
 
         // 2. Handle Custom M-Pesa Flow vs Card Popup
@@ -223,7 +258,7 @@ export default function Checkout({ paystack }) {
                 );
             }
         }
-    }, [getOrderPageUrl, handlePaid, isDirectMode, directProgramId, paystack, refreshCart, paymentMethod, phoneNumber]);
+    }, [availablePaymentMethods.length, getOrderPageUrl, handlePaid, isDirectMode, directProgramId, paystack, refreshCart, paymentMethod, phoneNumber]);
 
     // Determine primary program ID for "Go to Course" after payment
     const primaryProgramId = order?.items?.[0]?.program?.id || order?.program?.id || null;
@@ -263,6 +298,13 @@ export default function Checkout({ paystack }) {
                             />
                         </CardContent>
                     </Card>
+                )}
+
+                {step === STEP_OFFLINE_PENDING && order && (
+                    <OfflineInstructions
+                        offlinePayment={offlinePayment}
+                        orderReference={order.reference}
+                    />
                 )}
 
                 {/* M-Pesa STK Pending wait screen */}
@@ -358,50 +400,79 @@ export default function Checkout({ paystack }) {
                                     <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
                                         Payment Method
                                     </Typography>
+                                    {availablePaymentMethods.length === 0 && (
+                                        <Alert severity="warning" sx={{ mb: 2 }}>
+                                            This course is not configured for LMS payment.
+                                        </Alert>
+                                    )}
                                     <FormControl component="fieldset" fullWidth>
                                         <RadioGroup
                                             value={paymentMethod}
                                             onChange={(e) => setPaymentMethod(e.target.value)}
                                         >
-                                            <FormControlLabel
-                                                value="mpesa"
-                                                control={<Radio />}
-                                                label={
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        <IconDeviceMobile size={20} />
-                                                        <Typography fontWeight={600}>M-Pesa (Send Money)</Typography>
-                                                    </Box>
-                                                }
-                                                sx={{ mb: paymentMethod === "mpesa" ? 1 : 2 }}
-                                            />
-                                            {paymentMethod === "mpesa" && (
-                                                <Box sx={{ ml: 4, mb: 3 }}>
-                                                    <TextField
-                                                        fullWidth
-                                                        size="small"
-                                                        label="M-Pesa Phone Number"
-                                                        placeholder="e.g. 0712345678"
-                                                        value={phoneNumber}
-                                                        onChange={(e) => setPhoneNumber(e.target.value)}
-                                                        helperText="We will send a payment prompt to this number."
+                                            {allowsPaystack && (
+                                                <>
+                                                    <FormControlLabel
+                                                        value="mpesa"
+                                                        control={<Radio />}
+                                                        label={
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                <IconDeviceMobile size={20} />
+                                                                <Typography fontWeight={600}>M-Pesa (Send Money)</Typography>
+                                                            </Box>
+                                                        }
+                                                        sx={{ mb: paymentMethod === "mpesa" ? 1 : 2 }}
                                                     />
-                                                </Box>
+                                                    {paymentMethod === "mpesa" && (
+                                                        <Box sx={{ ml: 4, mb: 3 }}>
+                                                            <TextField
+                                                                fullWidth
+                                                                size="small"
+                                                                label="M-Pesa Phone Number"
+                                                                placeholder="e.g. 0712345678"
+                                                                value={phoneNumber}
+                                                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                                                helperText="We will send a payment prompt to this number."
+                                                            />
+                                                        </Box>
+                                                    )}
+
+                                                    <FormControlLabel
+                                                        value="card"
+                                                        control={<Radio />}
+                                                        label={
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                                <IconCreditCard size={20} />
+                                                                <Typography fontWeight={600}>Credit / Debit Card</Typography>
+                                                            </Box>
+                                                        }
+                                                    />
+                                                    {paymentMethod === "card" && (
+                                                        <Box sx={{ ml: 4, mt: 1, mb: allowsOffline ? 2 : 0 }}>
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                You will be redirected to securely enter your card details.
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+                                                </>
                                             )}
 
-                                            <FormControlLabel
-                                                value="card"
-                                                control={<Radio />}
-                                                label={
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        <IconCreditCard size={20} />
-                                                        <Typography fontWeight={600}>Credit / Debit Card</Typography>
-                                                    </Box>
-                                                }
-                                            />
-                                            {paymentMethod === "card" && (
+                                            {allowsOffline && (
+                                                <FormControlLabel
+                                                    value="offline_bank_transfer"
+                                                    control={<Radio />}
+                                                    label={
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <IconBuildingBank size={20} />
+                                                            <Typography fontWeight={600}>Offline bank transfer</Typography>
+                                                        </Box>
+                                                    }
+                                                />
+                                            )}
+                                            {paymentMethod === "offline_bank_transfer" && (
                                                 <Box sx={{ ml: 4, mt: 1 }}>
                                                     <Typography variant="body2" color="text.secondary">
-                                                        You will be redirected to securely enter your card details.
+                                                        Place the order now, then follow the bank transfer instructions.
                                                     </Typography>
                                                 </Box>
                                             )}
@@ -418,11 +489,14 @@ export default function Checkout({ paystack }) {
                                 fullWidth
                                 size="large"
                                 onClick={handlePlaceOrder}
+                                disabled={availablePaymentMethods.length === 0}
                                 startIcon={<IconLock size={18} />}
                                 sx={{ py: 1.5, fontWeight: 700 }}
                             >
                                 {paymentMethod === "mpesa" 
                                      ? `Send STK Push • ${formatMinorCurrency(totalMinor)}`
+                                     : paymentMethod === "offline_bank_transfer"
+                                       ? `Place offline order • ${formatMinorCurrency(totalMinor)}`
                                      : `Pay securely • ${formatMinorCurrency(totalMinor)}`
                                  }
                             </Button>

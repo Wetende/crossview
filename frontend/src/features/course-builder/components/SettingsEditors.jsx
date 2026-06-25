@@ -1,4 +1,5 @@
 import { 
+    Alert,
     Box, 
     Typography, 
     Stack, 
@@ -6,94 +7,144 @@ import {
     Button, 
     Paper, 
     IconButton,
-    Switch,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import RichTextEditor from '@/components/RichTextEditor';
 
 // --- Pricing Editor ---
-export const PricingEditor = ({ data, onChange }) => {
+const hasPositivePrice = (value) => {
+    const numeric = Number(value || 0);
+    return Number.isFinite(numeric) && numeric > 0;
+};
+
+export const PricingEditor = ({
+    data = {},
+    onChange,
+    recommendation = {},
+    recommendations = {},
+    platformFeatures = {},
+    deploymentMode = "custom",
+    examBody = "",
+    qualificationFamily = "",
+}) => {
     const currency = data.currency || 'KES';
-    const salePrice = data.sale_price ?? data.original_price ?? '';
-    const isOneTimePurchase = data.one_time_purchase !== false; // default true
+    const originalPrice = data.original_price ?? data.sale_price ?? '';
+    const paymentsEnabled = Boolean(platformFeatures.payments);
+    const activeRecommendation =
+        (hasPositivePrice(data.price) ? recommendations.paid : recommendations.free) ||
+        recommendation;
+    const paymentCollection =
+        data.payment_collection || activeRecommendation.payment_collection || 'none';
+    const cardDisplay = data.card_display || activeRecommendation.card_display || 'free';
+    const differsFromRecommendation =
+        activeRecommendation.payment_collection &&
+        (paymentCollection !== activeRecommendation.payment_collection ||
+            cardDisplay !== activeRecommendation.card_display);
+
+    const setField = (field, value) => {
+        onChange({ ...data, [field]: value });
+    };
+
+    const handleApplyRecommendation = () => {
+        onChange({
+            ...data,
+            payment_collection: activeRecommendation.payment_collection || 'none',
+            card_display: activeRecommendation.card_display || 'free',
+        });
+    };
 
     return (
-        <Stack spacing={0}>
-            <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>Pricing</Typography>
+        <Stack spacing={3}>
+            <Box>
+                <Typography variant="h5" fontWeight="bold">Pricing</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Configure what learners see and how payment is collected for this course.
+                </Typography>
+            </Box>
 
-            {/* One-time purchase toggle */}
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Switch
-                    checked={isOneTimePurchase}
-                    onChange={e => onChange({ ...data, one_time_purchase: e.target.checked })}
-                    color="primary"
+            <Alert
+                severity="info"
+                action={
+                    differsFromRecommendation ? (
+                        <Button color="inherit" size="small" onClick={handleApplyRecommendation}>
+                            Apply defaults
+                        </Button>
+                    ) : null
+                }
+            >
+                Recommended for {deploymentMode}
+                {examBody ? ` / ${examBody}` : ''}
+                {qualificationFamily ? ` / ${qualificationFamily}` : ''}: {' '}
+                {activeRecommendation.reason || 'Use the course context to choose pricing behavior.'}
+            </Alert>
+
+            {!paymentsEnabled && (
+                <Alert severity="warning">
+                    Online checkout is disabled for this platform. Use offline/manual payment
+                    or no LMS payment collection.
+                </Alert>
+            )}
+
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                <TextField
+                    type="number"
+                    fullWidth
+                    label={`Learner price (${currency})`}
+                    placeholder="0"
+                    value={data.price || ''}
+                    onChange={e => setField('price', e.target.value)}
+                    inputProps={{ min: 0 }}
                 />
-                <Typography variant="body1" sx={{ ml: 1 }}>One-time purchase</Typography>
-            </Box>
+                <TextField
+                    type="number"
+                    fullWidth
+                    label={`Original price (${currency})`}
+                    placeholder="0"
+                    value={originalPrice}
+                    onChange={e => {
+                        const nextData = { ...data, original_price: e.target.value };
+                        delete nextData.sale_price;
+                        onChange(nextData);
+                    }}
+                    inputProps={{ min: 0 }}
+                    helperText="Optional comparison price for discounts."
+                />
+            </Stack>
 
-            {/* Price */}
-            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                Price ({currency})
-            </Typography>
-            <TextField
-                type="number"
-                fullWidth
-                size="small"
-                placeholder="0"
-                value={data.price || ''}
-                onChange={e => onChange({ ...data, price: e.target.value })}
-                sx={{ mb: 3, maxWidth: 280 }}
-                inputProps={{ min: 0 }}
-            />
+            <FormControl fullWidth>
+                <InputLabel>Payment collection</InputLabel>
+                <Select
+                    label="Payment collection"
+                    value={paymentCollection}
+                    onChange={e => setField('payment_collection', e.target.value)}
+                >
+                    <MenuItem value="none">No LMS payment collection</MenuItem>
+                    <MenuItem value="offline">Offline/manual payment</MenuItem>
+                    <MenuItem value="online" disabled={!paymentsEnabled}>
+                        Online checkout
+                    </MenuItem>
+                    <MenuItem value="both" disabled={!paymentsEnabled}>
+                        Online checkout and offline/manual
+                    </MenuItem>
+                </Select>
+            </FormControl>
 
-            {/* Sale Price */}
-            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                Sale price ({currency})
-            </Typography>
-            <TextField
-                type="number"
-                fullWidth
-                size="small"
-                placeholder="0"
-                value={salePrice}
-                onChange={e => {
-                    const nextData = { ...data, sale_price: e.target.value };
-                    delete nextData.original_price;
-                    onChange(nextData);
-                }}
-                sx={{ mb: 3, maxWidth: 280 }}
-                inputProps={{ min: 0 }}
-            />
-
-            {/* Sale date range */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-                <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                        Sale start date
-                    </Typography>
-                    <TextField
-                        type="date"
-                        fullWidth
-                        size="small"
-                        InputLabelProps={{ shrink: true }}
-                        value={data.sale_start_date || ''}
-                        onChange={e => onChange({ ...data, sale_start_date: e.target.value })}
-                    />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>
-                        Sale end date
-                    </Typography>
-                    <TextField
-                        type="date"
-                        fullWidth
-                        size="small"
-                        InputLabelProps={{ shrink: true }}
-                        value={data.sale_end_date || ''}
-                        onChange={e => onChange({ ...data, sale_end_date: e.target.value })}
-                    />
-                </Box>
-            </Box>
+            <FormControl fullWidth>
+                <InputLabel>Public card display</InputLabel>
+                <Select
+                    label="Public card display"
+                    value={cardDisplay}
+                    onChange={e => setField('card_display', e.target.value)}
+                >
+                    <MenuItem value="free">Show Free</MenuItem>
+                    <MenuItem value="price">Show price</MenuItem>
+                    <MenuItem value="hidden">Hide pricing</MenuItem>
+                </Select>
+            </FormControl>
 
         </Stack>
     );

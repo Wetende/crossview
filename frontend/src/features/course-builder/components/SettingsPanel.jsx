@@ -1085,6 +1085,15 @@ export default function SettingsPanel({
                         <PricingEditor
                             data={formData.custom_pricing}
                             onChange={(value) => setData("custom_pricing", value)}
+                            recommendation={program.pricingRecommendation || {}}
+                            recommendations={program.pricingRecommendations || {}}
+                            platformFeatures={platformFeatures}
+                            deploymentMode={deploymentMode}
+                            examBody={formData.examBody || program.examBody}
+                            qualificationFamily={
+                                formData.qualificationFamily ||
+                                program.qualificationFamily
+                            }
                         />
                     </Stack>
                 );

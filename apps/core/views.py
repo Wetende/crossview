@@ -48,6 +48,12 @@ from apps.core.learning_outcomes import (
     resolve_learning_outcomes_html,
 )
 from apps.core.models import AdmissionApplication, Campus, Program, User
+from apps.core.services.pricing import (
+    get_program_pricing,
+    normalize_custom_pricing as normalize_custom_pricing_policy,
+    resolve_pricing_recommendation,
+    serialize_price_display,
+)
 from apps.core.taxonomy import (
     MAX_BUILDER_DEPTH,
     get_builder_hierarchy_or_default,
@@ -115,6 +121,47 @@ def _program_public_url(program) -> str:
     return f"/programs/{program.slug}/"
 
 
+def _get_platform_pricing_context() -> dict:
+    from apps.platform.models import PlatformSettings
+
+    platform_settings = PlatformSettings.get_settings()
+    platform_features = platform_settings.get_default_features_for_mode()
+    if isinstance(platform_settings.features, dict):
+        platform_features.update(platform_settings.features)
+    return {
+        "deployment_mode": platform_settings.deployment_mode,
+        "platform_features": platform_features,
+        "currency_code": platform_settings.currency_code,
+    }
+
+
+def _program_pricing_fields(program, pricing_context: dict | None = None) -> dict:
+    context = pricing_context or _get_platform_pricing_context()
+    pricing = get_program_pricing(
+        program,
+        deployment_mode=context["deployment_mode"],
+        platform_features=context["platform_features"],
+        currency_code=context["currency_code"],
+    )
+    return {
+        "price": pricing.get("price", 0),
+        "original_price": pricing.get("original_price"),
+        "priceDisplay": serialize_price_display(pricing),
+    }
+
+
+def _default_custom_pricing_for_program_data(cleaned: dict) -> dict:
+    context = _get_platform_pricing_context()
+    return normalize_custom_pricing_policy(
+        {},
+        deployment_mode=context["deployment_mode"],
+        exam_body=cleaned.get("exam_body"),
+        qualification_family=cleaned.get("qualification_family"),
+        platform_features=context["platform_features"],
+        currency_code=context["currency_code"],
+    )
+
+
 def _build_pagination(page: int, per_page: int, total: int) -> dict:
     return {
         "page": page,
@@ -178,6 +225,8 @@ def landing_page(request):
                 "badge_type",
                 "category",
                 "custom_pricing",
+                "exam_body",
+                "qualification_family",
                 "created_at",
             )
             .order_by("-created_at")[:6]
@@ -230,6 +279,7 @@ def landing_page(request):
                 return 0
             return round(total_minutes / 60.0, 1)
 
+        pricing_context = _get_platform_pricing_context()
         programs_data = []
         for program in programs:
             stats = stats_by_program_id[program.id]
@@ -249,16 +299,7 @@ def landing_page(request):
                     "lecture_count": stats["lesson_count"],
                     "duration_hours": duration_hours,
                     "rating": 4.5,
-                    "price": (
-                        program.custom_pricing.get("price", 0)
-                        if program.custom_pricing
-                        else 0
-                    ),
-                    "original_price": (
-                        program.custom_pricing.get("original_price")
-                        if program.custom_pricing
-                        else None
-                    ),
+                    **_program_pricing_fields(program, pricing_context),
                     "enrollmentCount": enrollment_counts.get(program.id, 0),
                 }
             )
@@ -355,6 +396,8 @@ def public_programs_list(request):
                 "badge_type",
                 "video_hours",
                 "custom_pricing",
+                "exam_body",
+                "qualification_family",
                 "rating_average",
                 "rating_count",
             ).order_by("-is_featured", "name")[offset : offset + per_page]
@@ -405,8 +448,8 @@ def public_programs_list(request):
             return 0
         return round(total_minutes / 60.0, 1)
 
+    pricing_context = _get_platform_pricing_context()
     for program in programs:
-        price_data = program.custom_pricing or {}
         programs_data.append(
             {
                 "id": program.id,
@@ -428,8 +471,7 @@ def public_programs_list(request):
                 "lecture_count": stats_by_program_id[program.id]["lesson_count"],
                 "assessment_count": stats_by_program_id[program.id]["assessment_count"],
                 "video_hours": program.video_hours,
-                "price": price_data.get("price", 0),
-                "original_price": price_data.get("original_price"),
+                **_program_pricing_fields(program, pricing_context),
                 "rating": float(program.rating_average or 0),
                 "review_count": program.rating_count,
             }
@@ -618,6 +660,7 @@ def public_program_detail(
         )
 
     # Get related/popular programs
+    pricing_context = _get_platform_pricing_context()
     related_programs = []
     if program.category:
         related_qs = Program.objects.filter(
@@ -625,7 +668,6 @@ def public_program_detail(
         ).exclude(pk=program.pk)[:4]
 
         for p in related_qs:
-            price_data = p.custom_pricing or {}
             related_programs.append(
                 {
                     "id": p.id,
@@ -635,7 +677,7 @@ def public_program_detail(
                     "thumbnail": p.thumbnail.url if p.thumbnail else None,
                     "category": p.category or "",
                     "rating": 4.5,
-                    "price": price_data.get("price", 0),
+                    **_program_pricing_fields(p, pricing_context),
                 }
             )
 
@@ -710,13 +752,19 @@ def public_program_detail(
         ).exists()
 
     # Calculate price display and enrollment mode
-    price_data = program.custom_pricing or {}
-    price = price_data.get("price", 0)
+    pricing = get_program_pricing(
+        program,
+        deployment_mode=pricing_context["deployment_mode"],
+        platform_features=pricing_context["platform_features"],
+        currency_code=pricing_context["currency_code"],
+    )
+    price_display = serialize_price_display(pricing)
+    price = pricing.get("price", 0)
 
     # Determine enrollment mode based on pricing
-    if price > 0:
+    if price_display["allowsOnlineCheckout"] or price_display["allowsOfflinePayment"]:
         enrollment_mode = "paid"
-    elif price_data.get("requires_approval", False):
+    elif pricing.get("requires_approval", False):
         enrollment_mode = "approval"
     else:
         enrollment_mode = "free"
@@ -765,7 +813,8 @@ def public_program_detail(
         "badge_type": program.badge_type,
         "isFeatured": program.is_featured,
         "price": price,
-        "original_price": price_data.get("original_price"),
+        "original_price": pricing.get("original_price"),
+        "priceDisplay": price_display,
         "faq": program.faq or [],
         "notices": program.notices or [],
         "what_you_learn": program.what_you_learn_items or [],
@@ -2127,6 +2176,7 @@ def admin_program_create(request):
             qualification_family=cleaned["qualification_family"],
             award_type=cleaned["award_type"],
             assessment_mode=cleaned["assessment_mode"],
+            custom_pricing=_default_custom_pricing_for_program_data(cleaned),
         )
 
         # Assign instructors
@@ -2934,6 +2984,7 @@ def instructor_programs(request):
 
     programs_data = []
     if include_programs:
+        pricing_context = _get_platform_pricing_context()
         programs = list(
             programs_query.only(
                 "id",
@@ -2947,6 +2998,8 @@ def instructor_programs(request):
                 "level",
                 "is_published",
                 "custom_pricing",
+                "exam_body",
+                "qualification_family",
                 "rating_average",
                 "rating_count",
             ).order_by("name")
@@ -2974,7 +3027,7 @@ def instructor_programs(request):
                 "enrollmentCount": enrollment_counts.get(program.id, 0),
                 "level": program.level or "",
                 "isPublished": program.is_published,
-                "price": (program.custom_pricing or {}).get("price", 0),
+                **_program_pricing_fields(program, pricing_context),
                 "rating": float(program.rating_average or 0),
                 "reviewCount": program.rating_count or 0,
             }
@@ -3040,6 +3093,7 @@ def instructor_program_create(request):
                 qualification_family=cleaned["qualification_family"],
                 award_type=cleaned["award_type"],
                 assessment_mode=cleaned["assessment_mode"],
+                custom_pricing=_default_custom_pricing_for_program_data(cleaned),
             )
             InstructorAssignment.objects.create(
                 program=program,
@@ -6516,6 +6570,35 @@ def serialize_program_data(program):
     platform_features = platform_settings.get_default_features_for_mode()
     if isinstance(platform_settings.features, dict):
         platform_features.update(platform_settings.features)
+    pricing = get_program_pricing(
+        program,
+        deployment_mode=platform_settings.deployment_mode,
+        platform_features=platform_features,
+        currency_code=platform_settings.currency_code,
+    )
+    pricing_recommendation = resolve_pricing_recommendation(
+        deployment_mode=platform_settings.deployment_mode,
+        exam_body=program.exam_body,
+        qualification_family=program.qualification_family,
+        platform_features=platform_features,
+        price=pricing.get("price", 0),
+    )
+    pricing_recommendations = {
+        "free": resolve_pricing_recommendation(
+            deployment_mode=platform_settings.deployment_mode,
+            exam_body=program.exam_body,
+            qualification_family=program.qualification_family,
+            platform_features=platform_features,
+            price=0,
+        ),
+        "paid": resolve_pricing_recommendation(
+            deployment_mode=platform_settings.deployment_mode,
+            exam_body=program.exam_body,
+            qualification_family=program.qualification_family,
+            platform_features=platform_features,
+            price=max(float(pricing.get("price") or 0), 1),
+        ),
+    }
     builder_hierarchy = get_builder_hierarchy_or_default(
         program.blueprint.hierarchy_structure if program.blueprint else None,
         deployment_mode=platform_settings.deployment_mode,
@@ -6610,7 +6693,10 @@ def serialize_program_data(program):
             ],
             "faq": program.faq,
             "notices": program.notices,
-            "customPricing": program.custom_pricing,
+            "customPricing": pricing,
+            "priceDisplay": serialize_price_display(pricing),
+            "pricingRecommendation": pricing_recommendation,
+            "pricingRecommendations": pricing_recommendations,
             "prerequisitePassingPercent": program.prerequisite_passing_percent,
             "prerequisiteProgramIds": prerequisite_program_ids,
             "accessDurationDays": program.access_duration_days,
@@ -7813,6 +7899,7 @@ def instructor_program_update_settings(request, pk: int):
     from apps.platform.exam_body_registry import EXAM_BODY_REGISTRY
 
     program = Program.objects.get(pk=pk)
+    pricing_context = _get_platform_pricing_context()
     data = get_post_data(request)
     files = request.FILES
     active_tab = str(data.get("tab") or request.GET.get("tab") or "").strip().lower()
@@ -7877,49 +7964,14 @@ def instructor_program_update_settings(request, pk: int):
         return None
 
     def _normalize_custom_pricing(pricing_data):
-        if not isinstance(pricing_data, dict):
-            return {}
-
-        normalized = {**pricing_data}
-
-        def _to_non_negative_number(value, *, default=0, allow_none=False):
-            if value in (None, ""):
-                return None if allow_none else default
-            try:
-                numeric = float(value)
-            except (TypeError, ValueError):
-                return None if allow_none else default
-            if numeric < 0:
-                numeric = 0
-            return numeric
-
-        price = _to_non_negative_number(normalized.get("price"), default=0)
-        original_price = _to_non_negative_number(
-            normalized.get("original_price"),
-            allow_none=True,
+        return normalize_custom_pricing_policy(
+            pricing_data,
+            deployment_mode=pricing_context["deployment_mode"],
+            exam_body=program.exam_body,
+            qualification_family=program.qualification_family,
+            platform_features=pricing_context["platform_features"],
+            currency_code=pricing_context["currency_code"],
         )
-        legacy_sale_price = _to_non_negative_number(
-            normalized.get("sale_price"),
-            allow_none=True,
-        )
-
-        if original_price is None and legacy_sale_price is not None:
-            if price and legacy_sale_price < price:
-                original_price = price
-                price = legacy_sale_price
-            else:
-                original_price = legacy_sale_price
-
-        normalized["price"] = price
-        normalized["currency"] = str(normalized.get("currency") or "KES").upper()
-
-        if original_price is None or original_price <= 0:
-            normalized.pop("original_price", None)
-        else:
-            normalized["original_price"] = original_price
-
-        normalized.pop("sale_price", None)
-        return normalized
 
     def _program_depends_on(
         source_program_id: int, target_program_id: int, seen=None
@@ -9262,6 +9314,7 @@ def airads_campus_detail(request, slug):
 def _get_virtual_programs_payload() -> list[dict]:
     programs_query = Program.objects.filter(is_published=True).order_by("-created_at")
 
+    pricing_context = _get_platform_pricing_context()
     programs_data = []
     for program in programs_query:
         programs_data.append({
@@ -9273,7 +9326,7 @@ def _get_virtual_programs_payload() -> list[dict]:
             "thumbnail": program.thumbnail.url if program.thumbnail else None,
             "rating": float(program.rating_average or 0),
             "review_count": program.rating_count,
-            "price": program.custom_pricing.get("price", 0) if program.custom_pricing else 0,
+            **_program_pricing_fields(program, pricing_context),
             "school": {"name": program.category},
         })
     return programs_data

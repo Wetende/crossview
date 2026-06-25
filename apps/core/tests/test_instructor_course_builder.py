@@ -397,7 +397,12 @@ class TestInstructorCourseBuilder:
         assert response.status_code == 302
         program.refresh_from_db()
         assert program.faq == faq
-        assert program.custom_pricing == {'price': 100.0, 'currency': 'KES'}
+        assert program.custom_pricing == {
+            "price": 100.0,
+            "currency": "KES",
+            "payment_collection": "offline",
+            "card_display": "price",
+        }
 
     def test_update_prerequisites_saves_passing_percent_and_courses(
         self, client, instructor, program, assignment
