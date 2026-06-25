@@ -1076,12 +1076,6 @@ export default function SettingsPanel({
             case "pricing":
                 return (
                     <Stack spacing={3}>
-                        {!platformFeatures.payments && (
-                            <Alert severity="info">
-                                Payments are currently disabled for this
-                                platform. You can still configure draft pricing.
-                            </Alert>
-                        )}
                         <PricingEditor
                             data={formData.custom_pricing}
                             onChange={(value) => setData("custom_pricing", value)}

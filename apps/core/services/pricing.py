@@ -31,6 +31,8 @@ VALID_CARD_DISPLAYS = {
 }
 
 REGULATED_TVET_BODIES = {"KASNEB", "CDACC", "KNEC", "NITA", "ICM"}
+ONLINE_CAPABLE_DEPLOYMENT_MODES = {"online", "theology"}
+ONLINE_CAPABLE_BODIES = {"INTERNAL"}
 PAYSTACK_PAYMENT_METHOD = "paystack"
 OFFLINE_PAYMENT_METHOD = "offline_bank_transfer"
 
@@ -58,6 +60,41 @@ def online_payments_enabled(platform_features: dict | None = None) -> bool:
     return bool((platform_features or {}).get("payments"))
 
 
+def online_payment_supported_for_context(
+    *,
+    deployment_mode: str = "custom",
+    exam_body: str | None = None,
+    qualification_family: str | None = None,
+) -> bool:
+    """Return whether the course context is allowed to choose online checkout."""
+
+    del qualification_family
+    mode = _normalise_code(deployment_mode) or "custom"
+    body_key = str(exam_body or "").strip().upper()
+
+    if body_key in REGULATED_TVET_BODIES:
+        return False
+    return mode in ONLINE_CAPABLE_DEPLOYMENT_MODES or body_key in ONLINE_CAPABLE_BODIES
+
+
+def online_payment_selectable(
+    *,
+    deployment_mode: str = "custom",
+    exam_body: str | None = None,
+    qualification_family: str | None = None,
+    platform_features: dict | None = None,
+) -> bool:
+    """Return whether a teacher can select online payment for this course."""
+
+    if str(exam_body or "").strip().upper() in REGULATED_TVET_BODIES:
+        return False
+    return online_payment_supported_for_context(
+        deployment_mode=deployment_mode,
+        exam_body=exam_body,
+        qualification_family=qualification_family,
+    ) or online_payments_enabled(platform_features)
+
+
 def resolve_pricing_recommendation(
     *,
     deployment_mode: str = "custom",
@@ -75,67 +112,86 @@ def resolve_pricing_recommendation(
     amount = _to_non_negative_number(price, default=0) or 0
     has_price = amount > 0
     payments_enabled = online_payments_enabled(platform_features)
+    online_supported = online_payment_selectable(
+        deployment_mode=deployment_mode,
+        exam_body=exam_body,
+        qualification_family=qualification_family,
+        platform_features=platform_features,
+    )
+
+    def policy(
+        *,
+        payment_collection: str,
+        card_display: str,
+        reason: str,
+    ) -> dict:
+        return {
+            "payment_collection": payment_collection,
+            "card_display": card_display,
+            "online_payment_supported": online_supported,
+            "platform_payments_enabled": payments_enabled,
+            "reason": reason,
+        }
 
     if body_key in REGULATED_TVET_BODIES:
-        return {
-            "payment_collection": PAYMENT_COLLECTION_NONE,
-            "card_display": CARD_DISPLAY_HIDDEN,
-            "reason": f"{body} courses usually use admissions or manual fee handling.",
-        }
+        return policy(
+            payment_collection=PAYMENT_COLLECTION_NONE,
+            card_display=CARD_DISPLAY_HIDDEN,
+            reason=f"{body} courses usually use admissions or manual fee handling.",
+        )
 
     if body_key == "INTERNAL":
-        return {
-            "payment_collection": PAYMENT_COLLECTION_NONE,
-            "card_display": CARD_DISPLAY_FREE,
-            "reason": (
-                f"Internal {family or 'courses'} default to learner-free access."
+        return policy(
+            payment_collection=(
+                PAYMENT_COLLECTION_BOTH if has_price else PAYMENT_COLLECTION_NONE
             ),
-        }
+            card_display=CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
+            reason=(
+                f"Internal {family or 'courses'} can be free or paid with "
+                "online checkout and/or offline payment."
+            ),
+        )
 
     if mode in {"cbc", "driving"}:
-        return {
-            "payment_collection": PAYMENT_COLLECTION_NONE,
-            "card_display": CARD_DISPLAY_HIDDEN,
-            "reason": (
+        return policy(
+            payment_collection=PAYMENT_COLLECTION_NONE,
+            card_display=CARD_DISPLAY_HIDDEN,
+            reason=(
                 "This deployment usually handles access or fees outside public "
                 "course cards."
             ),
-        }
+        )
 
     if mode == "tvet":
-        return {
-            "payment_collection": PAYMENT_COLLECTION_NONE,
-            "card_display": CARD_DISPLAY_HIDDEN,
-            "reason": "TVET courses default to admissions-style fee handling.",
-        }
+        return policy(
+            payment_collection=PAYMENT_COLLECTION_NONE,
+            card_display=CARD_DISPLAY_HIDDEN,
+            reason="TVET courses default to admissions-style fee handling.",
+        )
 
     if mode in {"online", "theology"}:
-        return {
-            "payment_collection": (
-                PAYMENT_COLLECTION_BOTH
-                if has_price and payments_enabled
-                else PAYMENT_COLLECTION_OFFLINE
-                if has_price
-                else PAYMENT_COLLECTION_NONE
+        return policy(
+            payment_collection=(
+                PAYMENT_COLLECTION_BOTH if has_price else PAYMENT_COLLECTION_NONE
             ),
-            "card_display": CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
-            "reason": (
+            card_display=CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
+            reason=(
                 "Online-style courses can be free or paid; paid courses can use "
                 "checkout and/or offline payment."
             ),
-        }
+        )
 
-    return {
-        "payment_collection": (
+    return policy(
+        payment_collection=(
             PAYMENT_COLLECTION_BOTH
-            if has_price and payments_enabled
+            if has_price and online_supported
             else PAYMENT_COLLECTION_OFFLINE
             if has_price
             else PAYMENT_COLLECTION_NONE
         ),
-        "card_display": CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
-        "reason": "Custom deployments start simple and can be overridden per course.",
-    }
+        card_display=CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
+        reason="Custom deployments start simple and can be overridden per course.",
+    )
 
 
 def normalize_custom_pricing(
@@ -184,7 +240,12 @@ def normalize_custom_pricing(
     if payment_collection not in VALID_PAYMENT_COLLECTIONS:
         payment_collection = recommendation["payment_collection"]
 
-    if not online_payments_enabled(platform_features) and payment_collection in {
+    if not online_payment_selectable(
+        deployment_mode=deployment_mode,
+        exam_body=exam_body,
+        qualification_family=qualification_family,
+        platform_features=platform_features,
+    ) and payment_collection in {
         PAYMENT_COLLECTION_ONLINE,
         PAYMENT_COLLECTION_BOTH,
     }:

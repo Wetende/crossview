@@ -1,5 +1,4 @@
 import { 
-    Alert,
     Box, 
     Typography, 
     Stack, 
@@ -27,9 +26,6 @@ export const PricingEditor = ({
     recommendation = {},
     recommendations = {},
     platformFeatures = {},
-    deploymentMode = "custom",
-    examBody = "",
-    qualificationFamily = "",
 }) => {
     const currency = data.currency || 'KES';
     const originalPrice = data.original_price ?? data.sale_price ?? '';
@@ -37,24 +33,56 @@ export const PricingEditor = ({
     const activeRecommendation =
         (hasPositivePrice(data.price) ? recommendations.paid : recommendations.free) ||
         recommendation;
+    const onlinePaymentSupported = Boolean(
+        activeRecommendation.online_payment_supported ??
+            activeRecommendation.onlinePaymentSupported ??
+            paymentsEnabled,
+    );
     const paymentCollection =
         data.payment_collection || activeRecommendation.payment_collection || 'none';
     const cardDisplay = data.card_display || activeRecommendation.card_display || 'free';
-    const differsFromRecommendation =
-        activeRecommendation.payment_collection &&
-        (paymentCollection !== activeRecommendation.payment_collection ||
-            cardDisplay !== activeRecommendation.card_display);
 
     const setField = (field, value) => {
         onChange({ ...data, [field]: value });
     };
 
-    const handleApplyRecommendation = () => {
-        onChange({
-            ...data,
-            payment_collection: activeRecommendation.payment_collection || 'none',
-            card_display: activeRecommendation.card_display || 'free',
-        });
+    const getPaidPaymentDefault = () => {
+        const recommended = recommendations.paid?.payment_collection;
+        if (recommended && recommended !== 'none') {
+            return recommended;
+        }
+        return onlinePaymentSupported ? 'both' : 'offline';
+    };
+
+    const handlePriceChange = (value) => {
+        const nextData = { ...data, price: value };
+
+        if (hasPositivePrice(value)) {
+            if (!data.payment_collection || data.payment_collection === 'none') {
+                nextData.payment_collection = getPaidPaymentDefault();
+            }
+            if (!data.card_display || data.card_display === 'free') {
+                nextData.card_display = 'price';
+            }
+        } else {
+            nextData.payment_collection = 'none';
+            nextData.card_display = 'free';
+        }
+
+        onChange(nextData);
+    };
+
+    const handlePaymentCollectionChange = (value) => {
+        const nextData = { ...data, payment_collection: value };
+
+        if (value === 'none') {
+            nextData.price = 0;
+            nextData.card_display = 'free';
+        } else if (!nextData.card_display || nextData.card_display === 'free') {
+            nextData.card_display = 'price';
+        }
+
+        onChange(nextData);
     };
 
     return (
@@ -66,29 +94,6 @@ export const PricingEditor = ({
                 </Typography>
             </Box>
 
-            <Alert
-                severity="info"
-                action={
-                    differsFromRecommendation ? (
-                        <Button color="inherit" size="small" onClick={handleApplyRecommendation}>
-                            Apply defaults
-                        </Button>
-                    ) : null
-                }
-            >
-                Recommended for {deploymentMode}
-                {examBody ? ` / ${examBody}` : ''}
-                {qualificationFamily ? ` / ${qualificationFamily}` : ''}: {' '}
-                {activeRecommendation.reason || 'Use the course context to choose pricing behavior.'}
-            </Alert>
-
-            {!paymentsEnabled && (
-                <Alert severity="warning">
-                    Online checkout is disabled for this platform. Use offline/manual payment
-                    or no LMS payment collection.
-                </Alert>
-            )}
-
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                 <TextField
                     type="number"
@@ -96,7 +101,7 @@ export const PricingEditor = ({
                     label={`Learner price (${currency})`}
                     placeholder="0"
                     value={data.price || ''}
-                    onChange={e => setField('price', e.target.value)}
+                    onChange={e => handlePriceChange(e.target.value)}
                     inputProps={{ min: 0 }}
                 />
                 <TextField
@@ -116,19 +121,19 @@ export const PricingEditor = ({
             </Stack>
 
             <FormControl fullWidth>
-                <InputLabel>Payment collection</InputLabel>
+                <InputLabel>Payment</InputLabel>
                 <Select
-                    label="Payment collection"
+                    label="Payment"
                     value={paymentCollection}
-                    onChange={e => setField('payment_collection', e.target.value)}
+                    onChange={e => handlePaymentCollectionChange(e.target.value)}
                 >
-                    <MenuItem value="none">No LMS payment collection</MenuItem>
-                    <MenuItem value="offline">Offline/manual payment</MenuItem>
-                    <MenuItem value="online" disabled={!paymentsEnabled}>
-                        Online checkout
+                    <MenuItem value="none">Free</MenuItem>
+                    <MenuItem value="offline">Manual payment</MenuItem>
+                    <MenuItem value="online" disabled={!onlinePaymentSupported}>
+                        Online payment
                     </MenuItem>
-                    <MenuItem value="both" disabled={!paymentsEnabled}>
-                        Online checkout and offline/manual
+                    <MenuItem value="both" disabled={!onlinePaymentSupported}>
+                        Online or manual payment
                     </MenuItem>
                 </Select>
             </FormControl>
@@ -140,7 +145,12 @@ export const PricingEditor = ({
                     value={cardDisplay}
                     onChange={e => setField('card_display', e.target.value)}
                 >
-                    <MenuItem value="free">Show Free</MenuItem>
+                    <MenuItem
+                        value="free"
+                        disabled={paymentCollection !== 'none' && hasPositivePrice(data.price)}
+                    >
+                        Show Free
+                    </MenuItem>
                     <MenuItem value="price">Show price</MenuItem>
                     <MenuItem value="hidden">Hide pricing</MenuItem>
                 </Select>

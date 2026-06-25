@@ -49,6 +49,16 @@ class TestInstructorCourseBuilder:
 
         assert data["program"]["level"] == "Beginner"
         assert data["program"]["taxonomy"]["level"] == "Beginner"
+        assert (
+            data["program"]["pricingRecommendations"]["paid"]["payment_collection"]
+            == "both"
+        )
+        assert (
+            data["program"]["pricingRecommendations"]["paid"][
+                "online_payment_supported"
+            ]
+            is True
+        )
 
     def test_manage_serializer_includes_publication_state(self, program):
         program.is_published = False

@@ -58,3 +58,36 @@ def test_internal_courses_default_to_free_card_display():
 
     assert pricing["payment_collection"] == "none"
     assert pricing["card_display"] == "free"
+
+
+def test_paid_internal_courses_can_use_online_even_when_tvet_payments_are_off():
+    pricing = normalize_custom_pricing(
+        {"price": 2500},
+        deployment_mode="tvet",
+        exam_body="Internal",
+        qualification_family="Short Course",
+        platform_features={"payments": False},
+    )
+    recommendation = resolve_pricing_recommendation(
+        deployment_mode="tvet",
+        exam_body="Internal",
+        qualification_family="Short Course",
+        platform_features={"payments": False},
+        price=2500,
+    )
+
+    assert pricing["payment_collection"] == "both"
+    assert pricing["card_display"] == "price"
+    assert recommendation["online_payment_supported"] is True
+    assert recommendation["platform_payments_enabled"] is False
+
+
+def test_paid_theology_courses_can_use_online_without_payment_feature_override():
+    pricing = normalize_custom_pricing(
+        {"price": 1500},
+        deployment_mode="theology",
+        platform_features={"payments": False},
+    )
+
+    assert pricing["payment_collection"] == "both"
+    assert pricing["card_display"] == "price"

@@ -267,7 +267,7 @@ class PlatformSettings(TimeStampedModel):
                 'practicum': True,
                 'gamification': False,
                 'self_registration': True,
-                'payments': False,
+                'payments': True,
                 'course_reviews': True,
                 'drip_v2': True,
                 'enrollment_mode': 'instructor_approval',
