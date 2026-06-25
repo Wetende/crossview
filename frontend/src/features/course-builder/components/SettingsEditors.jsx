@@ -41,9 +41,12 @@ export const PricingEditor = ({
     const paymentCollection =
         data.payment_collection || activeRecommendation.payment_collection || 'none';
     const cardDisplay = data.card_display || activeRecommendation.card_display || 'free';
+    const publicCardDisplay = cardDisplay === 'hidden' ? 'hidden' : 'show';
 
-    const setField = (field, value) => {
-        onChange({ ...data, [field]: value });
+    const getVisibleCardDisplay = (nextData) => {
+        return hasPositivePrice(nextData.price) || nextData.payment_collection !== 'none'
+            ? 'price'
+            : 'free';
     };
 
     const getPaidPaymentDefault = () => {
@@ -61,12 +64,14 @@ export const PricingEditor = ({
             if (!data.payment_collection || data.payment_collection === 'none') {
                 nextData.payment_collection = getPaidPaymentDefault();
             }
-            if (!data.card_display || data.card_display === 'free') {
-                nextData.card_display = 'price';
+            if (data.card_display !== 'hidden') {
+                nextData.card_display = getVisibleCardDisplay(nextData);
             }
         } else {
             nextData.payment_collection = 'none';
-            nextData.card_display = 'free';
+            if (data.card_display !== 'hidden') {
+                nextData.card_display = getVisibleCardDisplay(nextData);
+            }
         }
 
         onChange(nextData);
@@ -77,11 +82,19 @@ export const PricingEditor = ({
 
         if (value === 'none') {
             nextData.price = 0;
-            nextData.card_display = 'free';
-        } else if (!nextData.card_display || nextData.card_display === 'free') {
-            nextData.card_display = 'price';
         }
 
+        if (data.card_display !== 'hidden') {
+            nextData.card_display = getVisibleCardDisplay(nextData);
+        }
+
+        onChange(nextData);
+    };
+
+    const handlePublicCardDisplayChange = (value) => {
+        const nextData = { ...data };
+        nextData.card_display =
+            value === 'hidden' ? 'hidden' : getVisibleCardDisplay(nextData);
         onChange(nextData);
     };
 
@@ -142,16 +155,10 @@ export const PricingEditor = ({
                 <InputLabel>Public card display</InputLabel>
                 <Select
                     label="Public card display"
-                    value={cardDisplay}
-                    onChange={e => setField('card_display', e.target.value)}
+                    value={publicCardDisplay}
+                    onChange={e => handlePublicCardDisplayChange(e.target.value)}
                 >
-                    <MenuItem
-                        value="free"
-                        disabled={paymentCollection !== 'none' && hasPositivePrice(data.price)}
-                    >
-                        Show Free
-                    </MenuItem>
-                    <MenuItem value="price">Show price</MenuItem>
+                    <MenuItem value="show">Show pricing</MenuItem>
                     <MenuItem value="hidden">Hide pricing</MenuItem>
                 </Select>
             </FormControl>
