@@ -2,8 +2,28 @@ import json
 from typing import Optional, Set
 
 from django.core.exceptions import PermissionDenied
+from django.http import RawPostDataException
 
 from .models import User
+
+
+def _coerce_post_querydict(post_data) -> dict:
+    data = {}
+    for key, values in post_data.lists():
+        if len(values) == 1:
+            value = values[0]
+            if isinstance(value, str):
+                stripped = value.strip()
+                if stripped.startswith("[") or stripped.startswith("{"):
+                    try:
+                        data[key] = json.loads(stripped)
+                        continue
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+            data[key] = value
+        else:
+            data[key] = values
+    return data
 
 
 def get_post_data(request) -> dict:
@@ -13,9 +33,24 @@ def get_post_data(request) -> dict:
     Inertia.js commonly sends JSON payloads, but some forms in the app still
     submit form-encoded data.
     """
-    if request.body:
-        content_type = str(getattr(request, "content_type", "") or "")
+    content_type = str(getattr(request, "content_type", "") or "")
+    is_form_submission = any(
+        form_content_type in content_type
+        for form_content_type in (
+            "application/x-www-form-urlencoded",
+            "multipart/form-data",
+        )
+    )
+
+    if is_form_submission:
+        return _coerce_post_querydict(request.POST) if request.POST else {}
+
+    try:
         body = request.body
+    except RawPostDataException:
+        return _coerce_post_querydict(request.POST) if request.POST else {}
+
+    if body:
         body_stripped = body.lstrip()
 
         if "application/json" in content_type or body_stripped.startswith(
@@ -27,22 +62,7 @@ def get_post_data(request) -> dict:
                 pass
 
     if request.POST:
-        data = {}
-        for key, values in request.POST.lists():
-            if len(values) == 1:
-                value = values[0]
-                if isinstance(value, str):
-                    stripped = value.strip()
-                    if stripped.startswith("[") or stripped.startswith("{"):
-                        try:
-                            data[key] = json.loads(stripped)
-                            continue
-                        except (json.JSONDecodeError, ValueError):
-                            pass
-                data[key] = value
-            else:
-                data[key] = values
-        return data
+        return _coerce_post_querydict(request.POST)
 
     return {}
 
