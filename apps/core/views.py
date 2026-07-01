@@ -24,6 +24,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 from inertia import render
 
 from apps.assessments.text_normalization import (
@@ -852,6 +853,83 @@ def public_program_detail(
             "builderUrl": builder_url,
         },
     )
+
+
+@require_POST
+def public_program_interest_submit(request, pk: int):
+    """Capture lightweight enrollment interest from a public program page."""
+    program = Program.objects.filter(pk=pk, is_published=True).first()
+    if not program:
+        messages.error(request, "Program not found.")
+        return redirect("core:programs")
+
+    program_detail_url = f"/programs/{program.slug}/"
+
+    data = get_post_data(request)
+    full_name = _clean_admission_value(data, "fullName") or _clean_admission_value(
+        data, "name"
+    )
+    email = _clean_admission_value(data, "email").lower()
+    phone = _clean_admission_value(data, "phone")
+
+    field_errors = {}
+    if not full_name:
+        field_errors["fullName"] = "Full name is required."
+    if not email:
+        field_errors["email"] = "Email address is required."
+    else:
+        from django.core.exceptions import ValidationError
+        from django.core.validators import validate_email
+
+        try:
+            validate_email(email)
+        except ValidationError:
+            field_errors["email"] = "Enter a valid email address."
+    if not phone:
+        field_errors["phone"] = "Phone number is required."
+
+    if field_errors:
+        messages.error(
+            request,
+            "Please complete: "
+            + ", ".join(error.replace(".", "") for error in field_errors.values())
+            + ".",
+        )
+        return redirect(program_detail_url)
+
+    is_virtual = _is_virtual_request(request)
+    study_mode = (
+        AdmissionApplication.STUDY_MODE_VIRTUAL
+        if is_virtual
+        else AdmissionApplication.STUDY_MODE_ON_CAMPUS
+    )
+    campus = None
+    preferred_campus = "Course detail enquiry"
+    if is_virtual:
+        campus = Campus.objects.filter(
+            slug="virtual",
+            campus_type=Campus.CAMPUS_TYPE_VIRTUAL,
+            is_active=True,
+        ).first()
+        preferred_campus = campus.name if campus else "Virtual Campus"
+
+    AdmissionApplication.objects.create(
+        full_name=full_name,
+        phone=phone,
+        whatsapp=phone,
+        email=email,
+        study_mode=study_mode,
+        campus=campus,
+        program=program,
+        preferred_campus=preferred_campus,
+        preferred_programme=program.name,
+        message=_clean_admission_value(data, "message")
+        or "Enrollment interest submitted from the course detail page.",
+        source="program_detail_modal",
+    )
+
+    messages.success(request, "Thanks. Our admissions team will contact you soon.")
+    return redirect(program_detail_url)
 
 
 def _recompute_program_rating(program_id: int):

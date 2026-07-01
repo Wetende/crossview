@@ -22,6 +22,12 @@ import {
     ListItemText,
     Avatar,
     Divider,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    IconButton,
     Snackbar,
     Alert as MuiAlert,
     useTheme,
@@ -40,6 +46,7 @@ import {
     IconLock,
     IconFolder,
     IconShoppingCart,
+    IconX,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
@@ -55,18 +62,118 @@ import { resolvePriceDisplay } from "@/utils/priceDisplay";
 
 // --- Helper Components ---
 
+const emptyInterestForm = {
+    fullName: "",
+    email: "",
+    phone: "",
+};
+
+function EnrollmentInterestModal({
+    open,
+    onClose,
+    program,
+    form,
+    errors,
+    submitting,
+    onFieldChange,
+    onSubmit,
+}) {
+    return (
+        <Dialog
+            open={open}
+            onClose={submitting ? undefined : onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: { borderRadius: 2, overflow: "hidden" },
+            }}
+        >
+            <Box component="form" noValidate onSubmit={onSubmit}>
+                <DialogTitle sx={{ pr: 6, pb: 1 }}>
+                    <Typography variant="h6" fontWeight={800}>
+                        Enroll now
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {program?.name}
+                    </Typography>
+                </DialogTitle>
+
+                <IconButton
+                    aria-label="Close enrollment form"
+                    onClick={onClose}
+                    disabled={submitting}
+                    sx={{ position: "absolute", top: 10, right: 10 }}
+                >
+                    <IconX size={20} />
+                </IconButton>
+
+                <DialogContent sx={{ pt: 2 }}>
+                    <Stack spacing={2.25}>
+                        <TextField
+                            label="Full name"
+                            name="fullName"
+                            value={form.fullName}
+                            onChange={(event) => onFieldChange("fullName", event.target.value)}
+                            placeholder="e.g. Mary Wanjiku"
+                            autoComplete="name"
+                            required
+                            fullWidth
+                            error={!!errors.fullName}
+                            helperText={errors.fullName}
+                        />
+                        <TextField
+                            label="Email address"
+                            name="email"
+                            type="email"
+                            value={form.email}
+                            onChange={(event) => onFieldChange("email", event.target.value)}
+                            placeholder="mary@example.com"
+                            autoComplete="email"
+                            required
+                            fullWidth
+                            error={!!errors.email}
+                            helperText={errors.email}
+                        />
+                        <TextField
+                            label="Phone number"
+                            name="phone"
+                            type="tel"
+                            value={form.phone}
+                            onChange={(event) => onFieldChange("phone", event.target.value)}
+                            placeholder="0715 000 111"
+                            autoComplete="tel"
+                            required
+                            fullWidth
+                            error={!!errors.phone}
+                            helperText={errors.phone}
+                        />
+                    </Stack>
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button onClick={onClose} disabled={submitting} color="inherit">
+                        Cancel
+                    </Button>
+                    <Button type="submit" variant="contained" disabled={submitting}>
+                        {submitting ? "Submitting..." : "Submit details"}
+                    </Button>
+                </DialogActions>
+            </Box>
+        </Dialog>
+    );
+}
+
 // Course Details Sidebar with Context-Aware CTAs
 function CourseDetailsSidebar({
     program,
     enrollmentStatus,
     enrollmentData,
-    enrollmentMode,
     ctaState,
     prerequisiteStatus,
     isAuthenticated,
     onShowDetails,
-    onBuyNow,
     onAddToCart,
+    onOpenEnrollmentInterest,
     onToggleWishlist,
     wishlisted,
     isPreview = false,
@@ -75,22 +182,7 @@ function CourseDetailsSidebar({
     const isEnrolled = enrollmentStatus === "enrolled";
     const isCompleted = enrollmentData?.isCompleted;
     const progressPercent = enrollmentData?.progressPercent || 0;
-    const { formatCurrency } = useCurrency();
-    const priceDisplay = resolvePriceDisplay(program);
-
-    // Determine CTA button text based on enrollment mode
-    const getCtaText = () => {
-        if (ctaState === "not_enrolled_paid") {
-            const amount = formatCurrency(priceDisplay.price);
-            return priceDisplay.paymentCollection === "offline"
-                ? `PAY OFFLINE - ${amount}`
-                : `GET COURSE - ${amount}`;
-        }
-        if (enrollmentMode === "approval") {
-            return "REQUEST ENROLLMENT";
-        }
-        return "ENROLL NOW";
-    };
+    const ctaText = "ENROLL NOW";
 
     return (
         <Card sx={{ mb: 3, position: "sticky", top: 100 }}>
@@ -312,7 +404,10 @@ function CourseDetailsSidebar({
                                     variant="contained"
                                     fullWidth
                                     size="large"
-                                    onClick={() => onBuyNow && onBuyNow(program.id)}
+                                    onClick={() =>
+                                        onOpenEnrollmentInterest &&
+                                        onOpenEnrollmentInterest()
+                                    }
                                     sx={{
                                         mb: 1.5,
                                         py: 1.5,
@@ -320,7 +415,7 @@ function CourseDetailsSidebar({
                                         bgcolor: theme.palette.primary.main,
                                     }}
                                 >
-                                    {getCtaText()}
+                                    {ctaText}
                                 </Button>
                                 <Button
                                     variant="outlined"
@@ -341,12 +436,13 @@ function CourseDetailsSidebar({
                             </>
                         ) : (
                             <Button
-                                component={Link}
-                                href={`/programs/${program.id}/enroll/`}
-                                method="post"
                                 variant="contained"
                                 fullWidth
                                 size="large"
+                                onClick={() =>
+                                    onOpenEnrollmentInterest &&
+                                    onOpenEnrollmentInterest()
+                                }
                                 sx={{
                                     mb: 2,
                                     py: 1.5,
@@ -354,7 +450,7 @@ function CourseDetailsSidebar({
                                     bgcolor: theme.palette.primary.main,
                                 }}
                             >
-                                {getCtaText()}
+                                {ctaText}
                             </Button>
                         )}
                         <Stack
@@ -389,11 +485,13 @@ function CourseDetailsSidebar({
                 ) : (
                     <>
                         <Button
-                            component={Link}
-                            href={`/login/?next=${encodeURIComponent(program.publicUrl)}`}
                             variant="contained"
                             fullWidth
                             size="large"
+                            onClick={() =>
+                                onOpenEnrollmentInterest &&
+                                onOpenEnrollmentInterest()
+                            }
                             sx={{
                                 mb: 2,
                                 py: 1.5,
@@ -401,7 +499,7 @@ function CourseDetailsSidebar({
                                 bgcolor: theme.palette.primary.main,
                             }}
                         >
-                            LOGIN TO ENROLL
+                            {ctaText}
                         </Button>
                         <Stack
                             direction="row"
@@ -642,7 +740,6 @@ export default function ProgramDetail({
     popularPrograms = [],
     enrollmentStatus,
     enrollmentData,
-    enrollmentMode = "free",
     ctaState = "not_enrolled",
     prerequisiteStatus = null,
     isPreview = false,
@@ -653,6 +750,10 @@ export default function ProgramDetail({
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const [tabValue, setTabValue] = useState(0);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [interestModalOpen, setInterestModalOpen] = useState(false);
+    const [interestForm, setInterestForm] = useState(emptyInterestForm);
+    const [interestErrors, setInterestErrors] = useState({});
+    const [interestSubmitting, setInterestSubmitting] = useState(false);
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
     const shortDescription = truncatePlainText(program.description, 200);
 
@@ -663,6 +764,99 @@ export default function ProgramDetail({
 
     const handleBuyNow = (programId) => {
         router.visit(`/checkout/?mode=direct&programId=${programId}`);
+    };
+
+    const getDefaultInterestForm = () => ({
+        fullName: auth?.user?.fullName || auth?.user?.name || "",
+        email: auth?.user?.email || "",
+        phone: auth?.user?.phone || "",
+    });
+
+    const handleOpenEnrollmentInterest = () => {
+        setInterestForm(getDefaultInterestForm());
+        setInterestErrors({});
+        setInterestModalOpen(true);
+    };
+
+    const handleCloseEnrollmentInterest = () => {
+        if (interestSubmitting) return;
+        setInterestModalOpen(false);
+    };
+
+    const handleInterestFieldChange = (field, value) => {
+        setInterestForm((current) => ({ ...current, [field]: value }));
+        setInterestErrors((current) => {
+            if (!current[field]) return current;
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const validateInterestForm = () => {
+        const nextErrors = {};
+        const email = interestForm.email.trim();
+
+        if (!interestForm.fullName.trim()) {
+            nextErrors.fullName = "Full name is required.";
+        }
+        if (!email) {
+            nextErrors.email = "Email address is required.";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            nextErrors.email = "Enter a valid email address.";
+        }
+        if (!interestForm.phone.trim()) {
+            nextErrors.phone = "Phone number is required.";
+        }
+
+        setInterestErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
+    };
+
+    const handleSubmitEnrollmentInterest = (event) => {
+        event.preventDefault();
+        if (!validateInterestForm()) return;
+
+        router.post(`/programs/${program.id}/interest/`, {
+            fullName: interestForm.fullName.trim(),
+            email: interestForm.email.trim(),
+            phone: interestForm.phone.trim(),
+        }, {
+            preserveScroll: true,
+            onStart: () => setInterestSubmitting(true),
+            onSuccess: () => {
+                setInterestModalOpen(false);
+                setCartSnackbar({
+                    open: true,
+                    message: "Thanks. Our admissions team will contact you soon.",
+                    severity: "success",
+                });
+
+                if (!auth?.user) return;
+
+                if (ctaState === "not_enrolled_paid") {
+                    handleBuyNow(program.id);
+                    return;
+                }
+
+                router.post(
+                    `/programs/${program.id}/enroll/`,
+                    {
+                        message: "Enrollment interest submitted from the course detail page.",
+                    },
+                    { preserveScroll: true },
+                );
+            },
+            onError: (errors) => {
+                setInterestErrors(errors || {});
+                setCartSnackbar({
+                    open: true,
+                    message: "Could not submit your details. Please check the form.",
+                    severity: "error",
+                });
+            },
+            onFinish: () => setInterestSubmitting(false),
+        });
     };
 
     const handleAddToCart = async (programId) => {
@@ -768,12 +962,11 @@ export default function ProgramDetail({
                                 program={program}
                                 enrollmentStatus={enrollmentStatus}
                                 enrollmentData={enrollmentData}
-                                enrollmentMode={enrollmentMode}
                                 ctaState={ctaState}
                                 prerequisiteStatus={prerequisiteStatus}
                                 isAuthenticated={!!auth?.user}
                                 onShowDetails={handleShowDetails}
-                                onBuyNow={handleBuyNow}
+                                onOpenEnrollmentInterest={handleOpenEnrollmentInterest}
                                 onAddToCart={handleAddToCart}
                                 onToggleWishlist={handleToggleWishlist}
                                 wishlisted={isWishlisted}
@@ -1182,6 +1375,17 @@ export default function ProgramDetail({
             </Box>
 
             {/* Modals */}
+            <EnrollmentInterestModal
+                open={interestModalOpen}
+                onClose={handleCloseEnrollmentInterest}
+                program={program}
+                form={interestForm}
+                errors={interestErrors}
+                submitting={interestSubmitting}
+                onFieldChange={handleInterestFieldChange}
+                onSubmit={handleSubmitEnrollmentInterest}
+            />
+
             <CourseDetailsModal
                 open={detailsModalOpen}
                 onClose={handleCloseDetails}
