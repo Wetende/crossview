@@ -180,6 +180,13 @@ CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read the cookie
 CSRF_COOKIE_SAMESITE = 'Lax'  # Required for SPA cookie handling
 CSRF_USE_SESSIONS = False  # Use cookies, not sessions for CSRF
 
+# Google Identity Services must receive the requesting origin on cross-origin
+# client requests. Local HTTP testing requires the looser documented policy.
+SECURE_REFERRER_POLICY = os.getenv(
+    "SECURE_REFERRER_POLICY",
+    "strict-origin-when-cross-origin",
+)
+
 # =============================================================================
 # Security Settings (Production-only when DEBUG=False)
 # =============================================================================
@@ -218,6 +225,12 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/"
+
+GOOGLE_ONE_TAP_CLIENT_ID = os.getenv(
+    "GOOGLE_ONE_TAP_CLIENT_ID",
+    os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
+).strip()
+GOOGLE_ONE_TAP_ENABLED = bool(GOOGLE_ONE_TAP_CLIENT_ID)
 
 # =============================================================================
 # Internationalization

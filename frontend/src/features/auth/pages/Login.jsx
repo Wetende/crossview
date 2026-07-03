@@ -12,6 +12,7 @@ import {
     Alert,
     InputAdornment,
     IconButton,
+    Divider,
 } from "@mui/material";
 import { IconEye, IconEyeOff, IconMail, IconLock } from "@tabler/icons-react";
 import { motion } from "framer-motion";
@@ -27,15 +28,25 @@ const fadeInUp = {
  * Login Page - Authentication form
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
  */
-export default function Login({ registrationEnabled = true, errors = {} }) {
+export default function Login({
+    registrationEnabled = true,
+    errors = {},
+    socialAuth = {},
+    nextUrl = "",
+}) {
     const { platform } = usePage().props;
     const institutionName = platform?.institutionName || "LMS";
     const [showPassword, setShowPassword] = useState(false);
+    const isEnrollmentFlow = nextUrl.startsWith("/programs/enrollment/resume/");
+    const registerUrl = nextUrl
+        ? `/register/?${new URLSearchParams({ next: nextUrl }).toString()}`
+        : "/register/";
 
     const { data, setData, post, processing } = useForm({
         email: "",
         password: "",
         remember: false,
+        next: nextUrl,
     });
 
     const handleSubmit = (e) => {
@@ -52,7 +63,11 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
 
     return (
         <>
-            <Head title="Sign In" />
+            <Head title="Sign In">
+                {socialAuth.google?.enabled && (
+                    <script src="https://accounts.google.com/gsi/client" async defer />
+                )}
+            </Head>
             <Box
                 sx={{
                     minHeight: "100vh",
@@ -84,7 +99,9 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                                     {institutionName}
                                 </Typography>
                                 <Typography variant="body1" color="text.secondary">
-                                    Welcome back! Please sign in to continue.
+                                    {isEnrollmentFlow
+                                        ? "Sign in with Google to continue your enrollment."
+                                        : "Welcome back! Please sign in to continue."}
                                 </Typography>
                             </Box>
 
@@ -93,6 +110,35 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                                 <Alert severity="error" sx={{ mb: 3 }}>
                                     {errors.auth || "Invalid email or password"}
                                 </Alert>
+                            )}
+
+                            {socialAuth.google?.enabled && (
+                                <>
+                                    <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+                                        <div
+                                            id="g_id_onload"
+                                            data-client_id={socialAuth.google.clientId}
+                                            data-login_uri={socialAuth.google.loginUrl}
+                                            data-context="signin"
+                                            data-ux_mode="popup"
+                                            data-auto_prompt="true"
+                                        />
+                                        <div
+                                            className="g_id_signin"
+                                            data-type="standard"
+                                            data-size="large"
+                                            data-theme="outline"
+                                            data-text="continue_with"
+                                            data-shape="rectangular"
+                                            data-logo_alignment="left"
+                                        />
+                                    </Box>
+                                    <Divider sx={{ mb: 2 }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            or sign in with email
+                                        </Typography>
+                                    </Divider>
+                                </>
                             )}
 
                             {/* Login Form */}
@@ -219,7 +265,7 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                                 >
                                     Don&apos;t have an account?{" "}
                                     <Link
-                                        href="/register/"
+                                        href={registerUrl}
                                         style={{ color: "inherit", fontWeight: 600 }}
                                     >
                                         Create one

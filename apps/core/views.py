@@ -5,6 +5,7 @@ Requirements: 1.1-1.4, 2.1-2.6, 3.1-3.6, 4.1-4.5, 5.1-5.6, 6.1-6.6
 
 from datetime import datetime
 import re
+from urllib.parse import urlencode
 from typing import Optional
 
 from django.conf import settings
@@ -18,12 +19,18 @@ from django.db.models import Count, Q
 from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.dateparse import parse_date, parse_datetime
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.html import strip_tags
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.http import (
+    url_has_allowed_host_and_scheme,
+    urlsafe_base64_decode,
+    urlsafe_base64_encode,
+)
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 from inertia import render
 
 from apps.assessments.text_normalization import (
@@ -1125,6 +1132,109 @@ def _get_client_ip(request) -> Optional[str]:
 # =============================================================================
 
 
+def _verify_google_one_tap_credential(credential: str) -> dict:
+    """Verify a Google One Tap ID token and return its claims."""
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token
+
+    return id_token.verify_oauth2_token(
+        credential,
+        google_requests.Request(),
+        settings.GOOGLE_ONE_TAP_CLIENT_ID,
+    )
+
+
+def _unique_username_from_email(email: str) -> str:
+    base = str(email or "").strip().lower()[:140] or "google-user"
+    candidate = base
+    suffix = 1
+    while User.objects.filter(username=candidate).exists():
+        suffix += 1
+        candidate = f"{base[:135]}-{suffix}"
+    return candidate
+
+
+def _get_or_create_google_one_tap_user(payload: dict) -> tuple[User, bool]:
+    email = str(payload.get("email") or "").strip().lower()
+    if not email:
+        raise ValueError("Google did not return an email address.")
+    if payload.get("email_verified") is not True:
+        raise ValueError("Google email address is not verified.")
+
+    user = User.objects.filter(email__iexact=email).order_by("id").first()
+    if user:
+        return user, False
+
+    user = User.objects.create_user(
+        username=_unique_username_from_email(email),
+        email=email,
+        password=None,
+        first_name=str(payload.get("given_name") or "").strip(),
+        last_name=str(payload.get("family_name") or "").strip(),
+    )
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    return user, True
+
+
+def _safe_next_url(request, fallback: str = "/dashboard/") -> str:
+    data = get_post_data(request) if request.method == "POST" else {}
+    next_url = str(data.get("next") or request.GET.get("next") or "").strip()
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return fallback
+
+
+def _login_url_with_next(request) -> str:
+    login_url = reverse("core:login")
+    next_url = _safe_next_url(request, fallback="")
+    if next_url:
+        return f"{login_url}?{urlencode({'next': next_url})}"
+    return login_url
+
+
+@csrf_exempt
+@require_POST
+def google_one_tap_login(request):
+    """Accept a Google One Tap credential POST and establish a Django session."""
+    if not getattr(settings, "GOOGLE_ONE_TAP_ENABLED", False):
+        messages.error(request, "Google sign-in is not configured.")
+        return redirect(_login_url_with_next(request))
+
+    csrf_cookie = request.COOKIES.get("g_csrf_token")
+    csrf_body = request.POST.get("g_csrf_token")
+    if not csrf_cookie or not csrf_body or csrf_cookie != csrf_body:
+        messages.error(request, "Google sign-in could not be verified. Please try again.")
+        return redirect(_login_url_with_next(request))
+
+    credential = request.POST.get("credential", "")
+    if not credential:
+        messages.error(request, "Google did not return a sign-in credential.")
+        return redirect(_login_url_with_next(request))
+
+    try:
+        payload = _verify_google_one_tap_credential(credential)
+        user, _ = _get_or_create_google_one_tap_user(payload)
+    except Exception:
+        messages.error(request, "Google sign-in failed. Please try again.")
+        return redirect(_login_url_with_next(request))
+
+    if not user.is_active:
+        messages.error(
+            request,
+            "Your account is pending approval. Please wait for an administrator to activate your account.",
+        )
+        return redirect(_login_url_with_next(request))
+
+    login(request, user, backend="apps.core.backends.EmailBackend")
+
+    return redirect(_safe_next_url(request))
+
+
 @ensure_csrf_cookie
 def login_page(request):
     """
@@ -1133,7 +1243,7 @@ def login_page(request):
     # Redirect if already authenticated
     if request.user.is_authenticated:
         role = _get_user_role(request.user)
-        return redirect(get_dashboard_url(role))
+        return redirect(_safe_next_url(request, get_dashboard_url(role)))
 
     if request.method == "POST":
         # Get POST data (handles both form-encoded and JSON from Inertia)
@@ -1154,7 +1264,7 @@ def login_page(request):
 
             # Role-based redirect (Requirement: 2.2)
             role = _get_user_role(user)
-            return redirect(get_dashboard_url(role))
+            return redirect(_safe_next_url(request, get_dashboard_url(role)))
 
         # Check if user exists but is inactive (pending approval)
         try:
@@ -1169,6 +1279,8 @@ def login_page(request):
                             "auth": "Your account is pending approval. Please wait for an administrator to activate your account."
                         },
                         "registrationEnabled": _get_registration_enabled(request),
+                        "socialAuth": _get_social_auth_context(request),
+                        "nextUrl": _safe_next_url(request, fallback=""),
                     },
                 )
         except User.DoesNotExist:
@@ -1181,6 +1293,8 @@ def login_page(request):
             {
                 "errors": {"auth": "Invalid email or password"},
                 "registrationEnabled": _get_registration_enabled(request),
+                "socialAuth": _get_social_auth_context(request),
+                "nextUrl": _safe_next_url(request, fallback=""),
             },
         )
 
@@ -1189,6 +1303,8 @@ def login_page(request):
         "Auth/Login",
         {
             "registrationEnabled": _get_registration_enabled(request),
+            "socialAuth": _get_social_auth_context(request),
+            "nextUrl": _safe_next_url(request, fallback=""),
         },
     )
 
@@ -1201,7 +1317,7 @@ def register_page(request):
     # Redirect if already authenticated
     if request.user.is_authenticated:
         role = _get_user_role(request.user)
-        return redirect(get_dashboard_url(role))
+        return redirect(_safe_next_url(request, get_dashboard_url(role)))
 
     # Check if registration is enabled (Requirement: 3.5)
     registration_enabled = _get_registration_enabled(request)
@@ -1211,6 +1327,8 @@ def register_page(request):
             "Auth/Register",
             {
                 "registrationEnabled": False,
+                "socialAuth": _get_social_auth_context(request),
+                "nextUrl": _safe_next_url(request, fallback=""),
             },
         )
 
@@ -1254,6 +1372,8 @@ def register_page(request):
                 {
                     "errors": errors,
                     "registrationEnabled": True,
+                    "socialAuth": _get_social_auth_context(request),
+                    "nextUrl": _safe_next_url(request, fallback=""),
                 },
             )
 
@@ -1287,13 +1407,15 @@ def register_page(request):
             # Student - immediate login
             login(request, user, backend="apps.core.backends.EmailBackend")
             messages.success(request, "Account created successfully!")
-            return redirect(get_dashboard_url("student"))
+            return redirect(_safe_next_url(request, get_dashboard_url("student")))
 
     return render(
         request,
         "Auth/Register",
         {
             "registrationEnabled": True,
+            "socialAuth": _get_social_auth_context(request),
+            "nextUrl": _safe_next_url(request, fallback=""),
         },
     )
 
@@ -1823,6 +1945,23 @@ def _get_registration_enabled(request) -> bool:
         return settings.is_feature_enabled("self_registration")
     except Exception:
         return True  # Default enabled
+
+
+def _get_social_auth_context(request) -> dict:
+    """Return enabled social login providers for auth pages."""
+    google_enabled = bool(getattr(settings, "GOOGLE_ONE_TAP_ENABLED", False))
+    login_url = request.build_absolute_uri(reverse("core:google_onetap_login"))
+    next_url = _safe_next_url(request)
+    if next_url:
+        login_url = f"{login_url}?{urlencode({'next': next_url})}"
+    return {
+        "google": {
+            "enabled": google_enabled,
+            "clientId": getattr(settings, "GOOGLE_ONE_TAP_CLIENT_ID", ""),
+            "loginUrl": login_url,
+            "context": "signin",
+        }
+    }
 
 
 def _validate_password_strength(password: str) -> Optional[str]:

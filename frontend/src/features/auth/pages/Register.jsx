@@ -17,6 +17,7 @@ import {
     RadioGroup,
     FormControlLabel,
     Radio,
+    Divider,
 } from "@mui/material";
 import {
     IconEye,
@@ -40,11 +41,19 @@ const fadeInUp = {
  * Register Page - Student self-registration
  * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
  */
-export default function Register({ registrationEnabled, errors = {} }) {
+export default function Register({
+    registrationEnabled,
+    errors = {},
+    socialAuth = {},
+    nextUrl = "",
+}) {
     const { platform } = usePage().props;
     const institutionName = platform?.institutionName || "LMS";
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const loginUrl = nextUrl
+        ? `/login/?${new URLSearchParams({ next: nextUrl }).toString()}`
+        : "/login/";
 
     const { data, setData, post, processing } = useForm({
         first_name: "",
@@ -53,6 +62,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
         password: "",
         password_confirm: "",
         role: "student",
+        next: nextUrl,
     });
 
     const handleSubmit = (e) => {
@@ -90,7 +100,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
                                 </Typography>
                                 <Button
                                     component={Link}
-                                    href="/login/"
+                                    href={loginUrl}
                                     variant="contained"
                                 >
                                     Back to Login
@@ -105,7 +115,11 @@ export default function Register({ registrationEnabled, errors = {} }) {
 
     return (
         <>
-            <Head title="Create Account" />
+            <Head title="Create Account">
+                {socialAuth.google?.enabled && (
+                    <script src="https://accounts.google.com/gsi/client" async defer />
+                )}
+            </Head>
             <Box
                 sx={{
                     minHeight: "100vh",
@@ -183,6 +197,35 @@ export default function Register({ registrationEnabled, errors = {} }) {
                                 <Alert severity="error" sx={{ mb: 3 }}>
                                     {errors.auth}
                                 </Alert>
+                            )}
+
+                            {socialAuth.google?.enabled && (
+                                <>
+                                    <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+                                        <div
+                                            id="g_id_onload"
+                                            data-client_id={socialAuth.google.clientId}
+                                            data-login_uri={socialAuth.google.loginUrl}
+                                            data-context="signup"
+                                            data-ux_mode="popup"
+                                            data-auto_prompt="true"
+                                        />
+                                        <div
+                                            className="g_id_signin"
+                                            data-type="standard"
+                                            data-size="large"
+                                            data-theme="outline"
+                                            data-text="signup_with"
+                                            data-shape="rectangular"
+                                            data-logo_alignment="left"
+                                        />
+                                    </Box>
+                                    <Divider sx={{ mb: 2 }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            or create account with email
+                                        </Typography>
+                                    </Divider>
+                                </>
                             )}
 
                             {/* Registration Form */}
@@ -328,7 +371,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
 
                                 <Typography variant="body2" textAlign="center" color="text.secondary">
                                     Already have an account?{" "}
-                                    <Link href="/login/" style={{ color: "inherit", fontWeight: 600 }}>
+                                    <Link href={loginUrl} style={{ color: "inherit", fontWeight: 600 }}>
                                         Sign In
                                     </Link>
                                 </Typography>

@@ -5,11 +5,14 @@ Requirements: 2.2, 2.3, 3.2, 3.3, 3.4, 4.2
 Uses Hypothesis for property-based testing with minimum 100 iterations.
 """
 
+import json
+
 import pytest
+from urllib.parse import parse_qs, urlparse
 from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 from hypothesis.extra.django import TestCase
-from django.test import Client
+from django.test import Client, override_settings
 from django.contrib.auth import get_user_model
 
 from apps.core.tests.factories import UserFactory
@@ -83,6 +86,127 @@ class TestRoleBasedRedirect:
 
         assert response.status_code == 302
         assert response.url == "/dashboard/"
+
+
+@pytest.mark.django_db
+def test_login_page_exposes_google_social_auth_when_configured(client):
+    with override_settings(
+        GOOGLE_ONE_TAP_ENABLED=True,
+        GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
+    ):
+        response = client.get("/login/", HTTP_X_INERTIA=True)
+
+    props = response.json()["props"]
+    assert response.status_code == 200
+    assert props["socialAuth"]["google"]["enabled"] is True
+    assert props["socialAuth"]["google"]["clientId"] == "google-client-id"
+    assert "/auth/google/onetap/" in props["socialAuth"]["google"]["loginUrl"]
+
+
+@pytest.mark.django_db
+def test_login_page_preserves_enrollment_return_url_for_google(client):
+    next_url = "/programs/enrollment/resume/?intent=signed-intent"
+    with override_settings(
+        GOOGLE_ONE_TAP_ENABLED=True,
+        GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
+    ):
+        response = client.get(
+            "/login/",
+            {"next": next_url},
+            HTTP_X_INERTIA=True,
+        )
+
+    props = response.json()["props"]
+    google_query = parse_qs(urlparse(props["socialAuth"]["google"]["loginUrl"]).query)
+    assert props["nextUrl"] == next_url
+    assert google_query["next"] == [next_url]
+
+
+@pytest.mark.django_db
+def test_email_login_preserves_json_enrollment_return_url(client):
+    user = UserFactory(password="TestPass123")
+    next_url = "/programs/enrollment/resume/?intent=signed-intent"
+
+    response = client.post(
+        "/login/",
+        data=json.dumps(
+            {
+                "email": user.email,
+                "password": "TestPass123",
+                "next": next_url,
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 302
+    assert response.url == next_url
+
+
+@pytest.mark.django_db
+def test_register_page_hides_google_social_auth_when_not_configured(client):
+    with override_settings(GOOGLE_ONE_TAP_ENABLED=False):
+        response = client.get("/register/", HTTP_X_INERTIA=True)
+
+    props = response.json()["props"]
+    assert response.status_code == 200
+    assert props["socialAuth"]["google"]["enabled"] is False
+
+
+@pytest.mark.django_db
+def test_google_one_tap_creates_student_and_logs_them_in(client, monkeypatch):
+    def fake_verify(credential):
+        assert credential == "signed-google-jwt"
+        return {
+            "email": "new-google-student@example.com",
+            "email_verified": True,
+            "given_name": "Google",
+            "family_name": "Student",
+            "sub": "google-subject-id",
+        }
+
+    monkeypatch.setattr("apps.core.views._verify_google_one_tap_credential", fake_verify)
+    client.cookies["g_csrf_token"] = "csrf-from-google"
+
+    with override_settings(
+        GOOGLE_ONE_TAP_ENABLED=True,
+        GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
+    ):
+        response = client.post(
+            "/auth/google/onetap/?next=/dashboard/",
+            {
+                "credential": "signed-google-jwt",
+                "g_csrf_token": "csrf-from-google",
+            },
+        )
+
+    user = User.objects.get(email="new-google-student@example.com")
+    assert response.status_code == 302
+    assert response.url == "/dashboard/"
+    assert user.username == "new-google-student@example.com"
+    assert user.first_name == "Google"
+    assert user.last_name == "Student"
+    assert not user.has_usable_password()
+    assert str(user.pk) == client.session["_auth_user_id"]
+
+
+@pytest.mark.django_db
+def test_google_one_tap_rejects_missing_google_csrf_token(client):
+    with override_settings(
+        GOOGLE_ONE_TAP_ENABLED=True,
+        GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
+    ):
+        response = client.post(
+            "/auth/google/onetap/",
+            {
+                "credential": "signed-google-jwt",
+                "g_csrf_token": "csrf-from-google",
+            },
+        )
+
+    assert response.status_code == 302
+    assert response.url == "/login/"
+    assert "_auth_user_id" not in client.session
 
 
 @pytest.mark.django_db
