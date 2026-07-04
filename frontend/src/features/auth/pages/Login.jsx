@@ -17,6 +17,7 @@ import {
 import { IconEye, IconEyeOff, IconMail, IconLock } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import PlatformLogo from "@/components/common/PlatformLogo";
+import GoogleIdentityScript from "@/features/auth/components/GoogleIdentityScript";
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -63,11 +64,8 @@ export default function Login({
 
     return (
         <>
-            <Head title="Sign In">
-                {socialAuth.google?.enabled && (
-                    <script src="https://accounts.google.com/gsi/client" async defer />
-                )}
-            </Head>
+            <Head title="Sign In" />
+            {socialAuth.google?.enabled && <GoogleIdentityScript />}
             <Box
                 sx={{
                     minHeight: "100vh",
@@ -121,7 +119,7 @@ export default function Login({
                                             data-login_uri={socialAuth.google.loginUrl}
                                             data-next={nextUrl || undefined}
                                             data-context="signin"
-                                            data-ux_mode="popup"
+                                            data-ux_mode="redirect"
                                             data-auto_prompt="true"
                                         />
                                         <div
