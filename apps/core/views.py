@@ -1951,9 +1951,6 @@ def _get_social_auth_context(request) -> dict:
     """Return enabled social login providers for auth pages."""
     google_enabled = bool(getattr(settings, "GOOGLE_ONE_TAP_ENABLED", False))
     login_url = request.build_absolute_uri(reverse("core:google_onetap_login"))
-    next_url = _safe_next_url(request)
-    if next_url:
-        login_url = f"{login_url}?{urlencode({'next': next_url})}"
     return {
         "google": {
             "enabled": google_enabled,

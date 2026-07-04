@@ -206,6 +206,7 @@ export default function Register({
                                             id="g_id_onload"
                                             data-client_id={socialAuth.google.clientId}
                                             data-login_uri={socialAuth.google.loginUrl}
+                                            data-next={nextUrl || undefined}
                                             data-context="signup"
                                             data-ux_mode="popup"
                                             data-auto_prompt="true"

@@ -117,9 +117,10 @@ def test_login_page_preserves_enrollment_return_url_for_google(client):
         )
 
     props = response.json()["props"]
-    google_query = parse_qs(urlparse(props["socialAuth"]["google"]["loginUrl"]).query)
+    google_url = urlparse(props["socialAuth"]["google"]["loginUrl"])
     assert props["nextUrl"] == next_url
-    assert google_query["next"] == [next_url]
+    assert google_url.path == "/auth/google/onetap/"
+    assert parse_qs(google_url.query) == {}
 
 
 @pytest.mark.django_db
@@ -173,7 +174,7 @@ def test_google_one_tap_creates_student_and_logs_them_in(client, monkeypatch):
         GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
     ):
         response = client.post(
-            "/auth/google/onetap/?next=/dashboard/",
+            "/auth/google/onetap/",
             {
                 "credential": "signed-google-jwt",
                 "g_csrf_token": "csrf-from-google",
@@ -188,6 +189,40 @@ def test_google_one_tap_creates_student_and_logs_them_in(client, monkeypatch):
     assert user.last_name == "Student"
     assert not user.has_usable_password()
     assert str(user.pk) == client.session["_auth_user_id"]
+
+
+@pytest.mark.django_db
+def test_google_one_tap_preserves_posted_enrollment_return_url(client, monkeypatch):
+    next_url = "/programs/enrollment/resume/?intent=signed-intent"
+
+    def fake_verify(_credential):
+        return {
+            "email": "google-enrollment-student@example.com",
+            "email_verified": True,
+            "given_name": "Enroll",
+            "family_name": "Student",
+            "sub": "google-enrollment-subject-id",
+        }
+
+    monkeypatch.setattr("apps.core.views._verify_google_one_tap_credential", fake_verify)
+    client.cookies["g_csrf_token"] = "csrf-from-google"
+
+    with override_settings(
+        GOOGLE_ONE_TAP_ENABLED=True,
+        GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
+    ):
+        response = client.post(
+            "/auth/google/onetap/",
+            {
+                "credential": "signed-google-jwt",
+                "g_csrf_token": "csrf-from-google",
+                "next": next_url,
+            },
+        )
+
+    assert response.status_code == 302
+    assert response.url == next_url
+    assert User.objects.filter(email="google-enrollment-student@example.com").exists()
 
 
 @pytest.mark.django_db
