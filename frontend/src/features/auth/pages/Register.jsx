@@ -17,6 +17,7 @@ import {
     RadioGroup,
     FormControlLabel,
     Radio,
+    Divider,
 } from "@mui/material";
 import {
     IconEye,
@@ -29,6 +30,7 @@ import {
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import PlatformLogo from "@/components/common/PlatformLogo";
+import { GoogleSignInButton } from "@/features/auth/components/GoogleIdentityScript";
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -40,11 +42,19 @@ const fadeInUp = {
  * Register Page - Student self-registration
  * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
  */
-export default function Register({ registrationEnabled, errors = {} }) {
+export default function Register({
+    registrationEnabled,
+    errors = {},
+    socialAuth = {},
+    nextUrl = "",
+}) {
     const { platform } = usePage().props;
     const institutionName = platform?.institutionName || "LMS";
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const loginUrl = nextUrl
+        ? `/login/?${new URLSearchParams({ next: nextUrl }).toString()}`
+        : "/login/";
 
     const { data, setData, post, processing } = useForm({
         first_name: "",
@@ -53,6 +63,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
         password: "",
         password_confirm: "",
         role: "student",
+        next: nextUrl,
     });
 
     const handleSubmit = (e) => {
@@ -183,6 +194,26 @@ export default function Register({ registrationEnabled, errors = {} }) {
                                 <Alert severity="error" sx={{ mb: 3 }}>
                                     {errors.auth}
                                 </Alert>
+                            )}
+
+                            {socialAuth.google?.enabled && (
+                                <>
+                                    <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+                                        <GoogleSignInButton
+                                            clientId={socialAuth.google.clientId}
+                                            loginUri={socialAuth.google.loginUrl}
+                                            nextUrl={nextUrl}
+                                            context="signup"
+                                            text="signup_with"
+                                            autoPrompt={!nextUrl}
+                                        />
+                                    </Box>
+                                    <Divider sx={{ mb: 2 }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            or create account with email
+                                        </Typography>
+                                    </Divider>
+                                </>
                             )}
 
                             {/* Registration Form */}
@@ -328,7 +359,7 @@ export default function Register({ registrationEnabled, errors = {} }) {
 
                                 <Typography variant="body2" textAlign="center" color="text.secondary">
                                     Already have an account?{" "}
-                                    <Link href="/login/" style={{ color: "inherit", fontWeight: 600 }}>
+                                    <Link href={loginUrl} style={{ color: "inherit", fontWeight: 600 }}>
                                         Sign In
                                     </Link>
                                 </Typography>

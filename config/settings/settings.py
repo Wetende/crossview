@@ -219,6 +219,12 @@ LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/"
 
+GOOGLE_ONE_TAP_CLIENT_ID = os.getenv(
+    "GOOGLE_ONE_TAP_CLIENT_ID",
+    os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
+).strip()
+GOOGLE_ONE_TAP_ENABLED = bool(GOOGLE_ONE_TAP_CLIENT_ID)
+
 # =============================================================================
 # Internationalization
 # =============================================================================

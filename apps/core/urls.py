@@ -22,6 +22,7 @@ urlpatterns = [
     # Authentication
     path("login/", views.login_page, name="login"),
     path("register/", views.register_page, name="register"),
+    path("auth/google/onetap/", views.google_one_tap_login, name="google_onetap_login"),
     path("logout/", views.logout_view, name="logout"),
     path("forgot-password/", views.forgot_password_page, name="forgot_password"),
     path(
