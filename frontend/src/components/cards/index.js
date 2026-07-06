@@ -4,3 +4,4 @@
 
 export { default as EnrolledCourseCard } from './EnrolledCourseCard';
 export { default as ProgramManageCard } from './ProgramManageCard';
+export { default as CourseMetricStrip } from './CourseMetricStrip';

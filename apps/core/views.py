@@ -3,6 +3,7 @@ Core views - Public pages and authentication.
 Requirements: 1.1-1.4, 2.1-2.6, 3.1-3.6, 4.1-4.5, 5.1-5.6, 6.1-6.6
 """
 
+from collections import defaultdict
 from datetime import datetime
 import re
 from urllib.parse import urlencode
@@ -71,6 +72,13 @@ from apps.core.utils import (
     get_post_data,
     is_instructor,
     should_render_inertia_prop,
+)
+
+COURSE_ASSESSMENT_TYPES = {"quiz", "assignment", "practicum", "peer_review"}
+COURSE_DURATION_TOKEN_RE = re.compile(
+    r"(?P<value>\d+(?:\.\d+)?)\s*"
+    r"(?P<unit>hours?|hrs?|hr|h|minutes?|mins?|min|m)\b",
+    re.IGNORECASE,
 )
 
 
@@ -157,6 +165,120 @@ def _program_pricing_fields(program, pricing_context: dict | None = None) -> dic
     }
 
 
+def _to_non_negative_number(value) -> float | None:
+    if value is None or value == "" or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number < 0:
+        return None
+    return number
+
+
+def _parse_duration_to_minutes(value) -> int:
+    number = _to_non_negative_number(value)
+    if number is not None:
+        return int(round(number))
+
+    text = str(value or "").strip().lower()
+    if not text:
+        return 0
+
+    total_minutes = 0.0
+    matched = False
+    for match in COURSE_DURATION_TOKEN_RE.finditer(text):
+        matched = True
+        amount = float(match.group("value"))
+        unit = match.group("unit").lower()
+        if unit.startswith(("h", "hr")):
+            total_minutes += amount * 60
+        else:
+            total_minutes += amount
+
+    return int(round(total_minutes)) if matched else 0
+
+
+def _node_duration_minutes(properties: dict | None) -> int:
+    props = properties if isinstance(properties, dict) else {}
+    for key in ("duration_minutes", "durationMinutes"):
+        minutes = _to_non_negative_number(props.get(key))
+        if minutes is not None:
+            return int(round(minutes))
+
+    for key in ("duration_seconds", "durationSeconds"):
+        seconds = _to_non_negative_number(props.get(key))
+        if seconds is not None:
+            return int(round(seconds / 60))
+
+    return _parse_duration_to_minutes(props.get("duration"))
+
+
+def _minutes_to_hours(total_minutes: int) -> float:
+    if not total_minutes:
+        return 0
+    return round(total_minutes / 60.0, 1)
+
+
+def _is_assessment_node(node_type: str | None, properties: dict | None) -> bool:
+    props = properties if isinstance(properties, dict) else {}
+    node_type_norm = str(node_type or "").strip().lower()
+    lesson_type_norm = str(props.get("lesson_type") or "").strip().lower()
+    return (
+        node_type_norm in COURSE_ASSESSMENT_TYPES
+        or lesson_type_norm in COURSE_ASSESSMENT_TYPES
+    )
+
+
+def _program_curriculum_stats(
+    program_ids: list[int], *, published_only: bool = True
+) -> defaultdict:
+    from apps.curriculum.models import CurriculumNode
+
+    stats_by_program_id = defaultdict(
+        lambda: {
+            "lesson_count": 0,
+            "assessment_count": 0,
+            "duration_minutes": 0,
+        }
+    )
+    filtered_program_ids = [program_id for program_id in program_ids if program_id]
+    if not filtered_program_ids:
+        return stats_by_program_id
+
+    node_filter = {
+        "program_id__in": filtered_program_ids,
+        "children__isnull": True,
+    }
+    if published_only:
+        node_filter["is_published"] = True
+
+    leaf_nodes = CurriculumNode.objects.filter(**node_filter).values_list(
+        "program_id", "node_type", "properties"
+    )
+
+    for program_id, node_type, properties in leaf_nodes:
+        is_assessment = _is_assessment_node(node_type, properties)
+        if is_assessment:
+            stats_by_program_id[program_id]["assessment_count"] += 1
+            continue
+
+        stats_by_program_id[program_id]["lesson_count"] += 1
+        stats_by_program_id[program_id]["duration_minutes"] += _node_duration_minutes(
+            properties
+        )
+
+    return stats_by_program_id
+
+
+def _program_duration_hours(program: Program, stats: dict) -> int | float:
+    configured_hours = getattr(program, "duration_hours", 0) or 0
+    if configured_hours:
+        return configured_hours
+    return _minutes_to_hours(stats.get("duration_minutes", 0))
+
+
 def _default_custom_pricing_for_program_data(cleaned: dict) -> dict:
     context = _get_platform_pricing_context()
     return normalize_custom_pricing_policy(
@@ -231,6 +353,7 @@ def landing_page(request):
                 "thumbnail",
                 "badge_type",
                 "category",
+                "duration_hours",
                 "custom_pricing",
                 "exam_body",
                 "qualification_family",
@@ -247,50 +370,13 @@ def landing_page(request):
             .values_list("program_id", "count")
         )
 
-        from collections import defaultdict
-        from apps.curriculum.models import CurriculumNode
-
-        stats_by_program_id = defaultdict(
-            lambda: {"lesson_count": 0, "duration_minutes": 0}
-        )
-        assessment_types = {"quiz", "assignment", "practicum", "peer_review"}
-
-        if program_ids:
-            leaf_nodes = CurriculumNode.objects.filter(
-                program_id__in=program_ids,
-                is_published=True,
-                children__isnull=True,
-            ).values_list("program_id", "node_type", "properties")
-
-            for program_id, node_type, properties in leaf_nodes:
-                node_type_norm = (node_type or "").strip().lower()
-                props = properties if isinstance(properties, dict) else {}
-                lesson_type_norm = str(props.get("lesson_type") or "").strip().lower()
-                if (
-                    node_type_norm in assessment_types
-                    or lesson_type_norm in assessment_types
-                ):
-                    continue
-                stats_by_program_id[program_id]["lesson_count"] += 1
-                minutes = props.get("duration_minutes", 0)
-                try:
-                    minutes_int = int(minutes) if minutes is not None else 0
-                except (TypeError, ValueError):
-                    minutes_int = 0
-                stats_by_program_id[program_id]["duration_minutes"] += max(
-                    0, minutes_int
-                )
-
-        def _minutes_to_hours(total_minutes: int) -> float:
-            if not total_minutes:
-                return 0
-            return round(total_minutes / 60.0, 1)
+        stats_by_program_id = _program_curriculum_stats(program_ids)
 
         pricing_context = _get_platform_pricing_context()
         programs_data = []
         for program in programs:
             stats = stats_by_program_id[program.id]
-            duration_hours = _minutes_to_hours(stats["duration_minutes"])
+            duration_hours = _program_duration_hours(program, stats)
 
             programs_data.append(
                 {
@@ -304,6 +390,7 @@ def landing_page(request):
                     "badge_type": program.badge_type,
                     "category": program.category,
                     "lecture_count": stats["lesson_count"],
+                    "assessment_count": stats["assessment_count"],
                     "duration_hours": duration_hours,
                     "rating": 4.5,
                     **_program_pricing_fields(program, pricing_context),
@@ -341,8 +428,6 @@ def public_programs_list(request):
     """
     Public catalog of published programs.
     """
-    from collections import defaultdict
-    from apps.curriculum.models import CurriculumNode
     from apps.progression.models import Enrollment, EnrollmentRequest
 
     try:
@@ -401,6 +486,7 @@ def public_programs_list(request):
                 "level",
                 "is_featured",
                 "badge_type",
+                "duration_hours",
                 "video_hours",
                 "custom_pricing",
                 "exam_body",
@@ -410,50 +496,9 @@ def public_programs_list(request):
             ).order_by("-is_featured", "name")[offset : offset + per_page]
         )
         program_ids = [program.id for program in programs]
-
-        assessment_types = {"quiz", "assignment"}
-        leaf_nodes = CurriculumNode.objects.filter(
-            program_id__in=program_ids,
-            is_published=True,
-            children__isnull=True,
-        ).values_list("program_id", "node_type", "properties")
-
-        stats_by_program_id = defaultdict(
-            lambda: {
-                "lesson_count": 0,
-                "assessment_count": 0,
-                "duration_minutes": 0,
-            }
-        )
-
-        for program_id, node_type, properties in leaf_nodes:
-            node_type_norm = (node_type or "").strip().lower()
-            props = properties if isinstance(properties, dict) else {}
-            lesson_type_norm = str(props.get("lesson_type") or "").strip().lower()
-            is_assessment = (
-                node_type_norm in assessment_types
-                or lesson_type_norm in assessment_types
-            )
-
-            if is_assessment:
-                stats_by_program_id[program_id]["assessment_count"] += 1
-            else:
-                stats_by_program_id[program_id]["lesson_count"] += 1
-
-            if not is_assessment:
-                minutes = props.get("duration_minutes", 0)
-                try:
-                    minutes_int = int(minutes) if minutes is not None else 0
-                except (TypeError, ValueError):
-                    minutes_int = 0
-                stats_by_program_id[program_id]["duration_minutes"] += max(
-                    0, minutes_int
-                )
-
-    def _minutes_to_hours(total_minutes: int) -> float:
-        if not total_minutes:
-            return 0
-        return round(total_minutes / 60.0, 1)
+        stats_by_program_id = _program_curriculum_stats(program_ids)
+    else:
+        stats_by_program_id = _program_curriculum_stats([])
 
     pricing_context = _get_platform_pricing_context()
     for program in programs:
@@ -472,8 +517,8 @@ def public_programs_list(request):
                 "level": program.level or "",
                 "isFeatured": program.is_featured,
                 "badge_type": program.badge_type,
-                "duration_hours": _minutes_to_hours(
-                    stats_by_program_id[program.id]["duration_minutes"]
+                "duration_hours": _program_duration_hours(
+                    program, stats_by_program_id[program.id]
                 ),
                 "lecture_count": stats_by_program_id[program.id]["lesson_count"],
                 "assessment_count": stats_by_program_id[program.id]["assessment_count"],
@@ -575,7 +620,7 @@ def public_program_detail(
                     "id": node.id,
                     "title": node.title,
                     "type": node.node_type,
-                    "duration": node.properties.get("duration_minutes", 0),
+                    "duration": _node_duration_minutes(node.properties),
                     "isPreview": node.properties.get("is_preview", False),
                     "children": build_tree(children) if children.exists() else [],
                 }
@@ -600,42 +645,13 @@ def public_program_detail(
     curriculum = build_tree(root_nodes)
 
     # Compute sidebar stats from curriculum leaf nodes.
-    # Treat leaf nodes as lessons unless they are assessments (quiz/assignment).
-    assessment_types = {"quiz", "assignment"}
-    base_node_filter = {"program": program}
-    if not is_preview:
-        base_node_filter["is_published"] = True
-
-    leaf_nodes_qs = CurriculumNode.objects.filter(
-        **base_node_filter,
-        children__isnull=True,
-    ).values_list("node_type", "properties")
-
-    lesson_count = 0
-    assessment_count = 0
-    duration_minutes = 0
-
-    for node_type, properties in leaf_nodes_qs:
-        node_type_norm = (node_type or "").strip().lower()
-        props = properties if isinstance(properties, dict) else {}
-        lesson_type_norm = str(props.get("lesson_type") or "").strip().lower()
-        is_assessment = (
-            node_type_norm in assessment_types or lesson_type_norm in assessment_types
-        )
-
-        if is_assessment:
-            assessment_count += 1
-            continue
-
-        lesson_count += 1
-        minutes = props.get("duration_minutes", 0)
-        try:
-            minutes_int = int(minutes) if minutes is not None else 0
-        except (TypeError, ValueError):
-            minutes_int = 0
-        duration_minutes += max(0, minutes_int)
-
-    duration_hours = round(duration_minutes / 60.0, 1) if duration_minutes else 0
+    # Treat leaf nodes as lessons unless they are assessments.
+    program_stats = _program_curriculum_stats(
+        [program.id], published_only=not is_preview
+    )[program.id]
+    lesson_count = program_stats["lesson_count"]
+    assessment_count = program_stats["assessment_count"]
+    duration_hours = _program_duration_hours(program, program_stats)
 
     # Get total completable nodes count
     total_nodes_filter = {
@@ -862,22 +878,9 @@ def public_program_detail(
 
 
 def _recompute_program_rating(program_id: int):
-    from django.db.models import Avg, Count
-
-    from apps.reviews.models import ProgramReview
-
-    aggregates = ProgramReview.objects.filter(
-        program_id=program_id,
-        status="approved",
-    ).aggregate(avg_rating=Avg("rating"), count_rating=Count("id"))
-
-    avg_rating = aggregates.get("avg_rating") or 0
-    count_rating = aggregates.get("count_rating") or 0
-
-    Program.objects.filter(pk=program_id).update(
-        rating_average=round(float(avg_rating), 2),
-        rating_count=int(count_rating),
-    )
+    # Public aggregate review stats are controlled from Course Builder settings.
+    # Individual submitted reviews can still be moderated and displayed.
+    return None
 
 
 @login_required
@@ -1631,6 +1634,21 @@ def _get_student_dashboard_data(user) -> dict:
         .values_list("program_id", "cnt")
     )
 
+    assessment_counts = dict(
+        CurriculumNode.objects.filter(
+            program_id__in=program_ids,
+            is_published=True,
+            children__isnull=True,
+        )
+        .filter(
+            Q(node_type__in=assessment_types)
+            | Q(properties__lesson_type__in=assessment_types)
+        )
+        .values("program_id")
+        .annotate(cnt=Count("id"))
+        .values_list("program_id", "cnt")
+    )
+
     completion_counts = dict(
         NodeCompletion.objects.filter(enrollment_id__in=enrollment_ids)
         .values("enrollment_id")
@@ -1666,6 +1684,7 @@ def _get_student_dashboard_data(user) -> dict:
                 "category": program.category or "",
                 "durationHours": program.duration_hours or 0,
                 "lectureCount": lesson_count,
+                "assessmentCount": assessment_counts.get(enrollment.program_id, 0),
                 "ratingAverage": float(program.rating_average or 0),
                 "ratingCount": program.rating_count or 0,
                 "badgeType": program.badge_type,
@@ -3146,11 +3165,15 @@ def instructor_programs(request):
                 "custom_pricing",
                 "exam_body",
                 "qualification_family",
+                "duration_hours",
                 "rating_average",
                 "rating_count",
             ).order_by("name")
         )
         filtered_program_ids = [program.id for program in programs]
+        stats_by_program_id = _program_curriculum_stats(
+            filtered_program_ids, published_only=False
+        )
 
         from apps.progression.models import Enrollment
 
@@ -3173,6 +3196,13 @@ def instructor_programs(request):
                 "enrollmentCount": enrollment_counts.get(program.id, 0),
                 "level": program.level or "",
                 "isPublished": program.is_published,
+                "durationHours": _program_duration_hours(
+                    program, stats_by_program_id[program.id]
+                ),
+                "lectureCount": stats_by_program_id[program.id]["lesson_count"],
+                "assessmentCount": stats_by_program_id[program.id][
+                    "assessment_count"
+                ],
                 **_program_pricing_fields(program, pricing_context),
                 "rating": float(program.rating_average or 0),
                 "reviewCount": program.rating_count or 0,
@@ -8059,6 +8089,7 @@ def instructor_program_update_settings(request, pk: int):
         "access",
         "prerequisites",
         "files",
+        "reviews",
         "certificate",
     }
 
@@ -8083,6 +8114,14 @@ def instructor_program_update_settings(request, pk: int):
             if value in (None, ""):
                 return None
             return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _to_float(value):
+        try:
+            if value in (None, ""):
+                return None
+            return float(value)
         except (TypeError, ValueError):
             return None
 
@@ -8258,6 +8297,7 @@ def instructor_program_update_settings(request, pk: int):
     is_access_section = is_settings_tab and settings_section == "access"
     is_prerequisites_section = is_settings_tab and settings_section == "prerequisites"
     is_files_section = is_settings_tab and settings_section == "files"
+    is_reviews_section = is_settings_tab and settings_section == "reviews"
 
     delete_resource_ids = data.get("deleteResourceIds", []) if is_files_section else []
     if delete_resource_ids is None:
@@ -8354,6 +8394,20 @@ def instructor_program_update_settings(request, pk: int):
             )
             return _redirect_to_builder()
         program.prerequisite_passing_percent = prerequisite_passing_percent
+
+    if is_reviews_section and "rating_average" in data:
+        rating_average = _to_float(data.get("rating_average"))
+        if rating_average is None or rating_average < 0 or rating_average > 5:
+            messages.error(request, "Average rating must be between 0 and 5.")
+            return _redirect_to_builder()
+        program.rating_average = round(rating_average, 2)
+
+    if is_reviews_section and "rating_count" in data:
+        rating_count = _to_int(data.get("rating_count"))
+        if rating_count is None or rating_count < 0:
+            messages.error(request, "Review count must be zero or more.")
+            return _redirect_to_builder()
+        program.rating_count = rating_count
 
     if is_access_section and "access_duration_days" in data:
         program.access_duration_days = access_duration_days
@@ -9459,22 +9513,38 @@ def airads_campus_detail(request, slug):
 
 def _get_virtual_programs_payload() -> list[dict]:
     programs_query = Program.objects.filter(is_published=True).order_by("-created_at")
+    programs = list(programs_query)
+    stats_by_program_id = _program_curriculum_stats(
+        [program.id for program in programs]
+    )
 
     pricing_context = _get_platform_pricing_context()
     programs_data = []
-    for program in programs_query:
-        programs_data.append({
-            "id": program.id,
-            "title": program.name,
-            "description": program.description or "",
-            "category": program.category or "",
-            "level": program.level or "",
-            "thumbnail": program.thumbnail.url if program.thumbnail else None,
-            "rating": float(program.rating_average or 0),
-            "review_count": program.rating_count,
-            **_program_pricing_fields(program, pricing_context),
-            "school": {"name": program.category},
-        })
+    for program in programs:
+        stats = stats_by_program_id[program.id]
+        programs_data.append(
+            {
+                "id": program.id,
+                "slug": program.slug,
+                "publicUrl": _program_public_url(program),
+                "name": program.name,
+                "title": program.name,
+                "description": program.description or "",
+                "category": program.category or "",
+                "level": program.level or "",
+                "examBody": program.exam_body or "",
+                "qualificationFamily": program.qualification_family or "",
+                "awardType": program.award_type or "",
+                "thumbnail": program.thumbnail.url if program.thumbnail else None,
+                "rating": float(program.rating_average or 0),
+                "review_count": program.rating_count,
+                "duration_hours": _program_duration_hours(program, stats),
+                "lecture_count": stats["lesson_count"],
+                "assessment_count": stats["assessment_count"],
+                **_program_pricing_fields(program, pricing_context),
+                "school": {"name": program.category},
+            }
+        )
     return programs_data
 
 

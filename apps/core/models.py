@@ -273,8 +273,8 @@ class Program(TimeStampedModel):
         choices=DRIP_MODE_CHOICES,
         default="none",
     )
-    rating_average = models.DecimalField(max_digits=3, decimal_places=2, default=0)
-    rating_count = models.PositiveIntegerField(default=0)
+    rating_average = models.DecimalField(max_digits=3, decimal_places=2, default=4)
+    rating_count = models.PositiveIntegerField(default=60)
 
     # Course Display Fields (for public listing/detail pages)
     thumbnail = models.ImageField(

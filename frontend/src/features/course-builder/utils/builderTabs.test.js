@@ -65,6 +65,7 @@ describe("builderTabs", () => {
         expect(normalizeBuilderTab(baseProgram, "prerequisites")).toBe("curriculum");
         expect(normalizeSettingsSection("academic")).toBe("academic");
         expect(normalizeSettingsSection("access")).toBe("access");
+        expect(normalizeSettingsSection("reviews")).toBe("reviews");
         expect(normalizeSettingsSection("missing")).toBe("main");
     });
 });

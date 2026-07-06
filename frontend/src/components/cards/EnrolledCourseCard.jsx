@@ -18,7 +18,7 @@ import {
     useTheme,
     Rating,
 } from "@mui/material";
-import { IconClock, IconList } from "@tabler/icons-react";
+import CourseMetricStrip from "./CourseMetricStrip";
 
 // Badge colors using theme palette
 const getBadgeColor = (type, theme) => {
@@ -154,31 +154,14 @@ export default function EnrolledCourseCard({ enrollment }) {
                     </Typography>
                 </Box>
 
-                {/* Lectures & Hours Pill */}
-                <Box
+                <CourseMetricStrip
+                    source={enrollment}
                     sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 3,
-                        bgcolor: theme.palette.grey[100],
-                        borderRadius: 2,
-                        p: 1.5,
                         mb: 2,
+                        bgcolor: theme.palette.grey[100],
+                        borderColor: "transparent",
                     }}
-                >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        <IconList size={18} color={theme.palette.text.secondary} />
-                        <Typography variant="body2" color="text.secondary">
-                            {enrollment.lectureCount || 0} Lectures
-                        </Typography>
-                    </Stack>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                        <IconClock size={18} color={theme.palette.text.secondary} />
-                        <Typography variant="body2" color="text.secondary">
-                            {enrollment.durationHours || 0} Hours
-                        </Typography>
-                    </Stack>
-                </Box>
+                />
 
                 {/* Star Rating */}
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>

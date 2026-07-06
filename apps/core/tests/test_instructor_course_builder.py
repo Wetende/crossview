@@ -599,6 +599,38 @@ class TestInstructorCourseBuilder:
         assert resource.title == "syllabus.pdf"
         assert resource.resource_type == "material"
 
+    def test_update_reviews_settings_saves_teacher_controlled_rating(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        client.force_login(instructor)
+        url = reverse("core:instructor.program_update_settings", kwargs={"pk": program.id})
+        response = client.post(
+            url,
+            data={
+                "tab": "settings",
+                "section": "reviews",
+                "rating_average": "4.5",
+                "rating_count": "75",
+                "name": "Ignored Review Section Name",
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        assert (
+            response["Location"]
+            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=reviews"
+        )
+
+        program.refresh_from_db()
+        assert float(program.rating_average) == 4.5
+        assert program.rating_count == 75
+        assert program.name != "Ignored Review Section Name"
+
     def test_update_drip_can_disable_and_redirect_back_to_drip_tab(
         self,
         client,

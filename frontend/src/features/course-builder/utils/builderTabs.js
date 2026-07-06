@@ -13,6 +13,7 @@ export const SETTINGS_SECTIONS = [
     { label: "Access", value: "access" },
     { label: "Prerequisites", value: "prerequisites" },
     { label: "Course files", value: "files" },
+    { label: "Reviews", value: "reviews" },
     { label: "Certificate", value: "certificate" },
 ];
 

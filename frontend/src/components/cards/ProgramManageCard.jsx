@@ -28,10 +28,9 @@ import {
     IconFileDescription,
     IconPencil,
     IconStar,
-    IconList,
-    IconClock,
 } from "@tabler/icons-react";
 import { useCurrency } from "@/hooks/useCurrency";
+import CourseMetricStrip from "./CourseMetricStrip";
 
 const getBadgeColor = (type, theme) => {
     switch (type) {
@@ -99,6 +98,7 @@ export default function ProgramManageCard({
 
     const priceInfo = getPriceDisplay();
     const isPublished = program.isPublished || program.is_published;
+    const reviewCount = program.reviewCount ?? program.review_count ?? 0;
 
     return (
         <Card
@@ -180,35 +180,14 @@ export default function ProgramManageCard({
                     {program.name}
                 </Typography>
 
-                <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
+                <CourseMetricStrip
+                    source={program}
                     sx={{
-                        width: "100%",
-                        border: 1,
+                        mb: 1.5,
                         borderColor: theme.palette.grey[200],
                         bgcolor: theme.palette.grey[50],
-                        borderRadius: 2,
-                        px: 2,
-                        py: 0.75,
-                        mb: 1.5,
-                        color: "text.secondary",
                     }}
-                >
-                    <Stack direction="row" alignItems="center" spacing={0.5}>
-                        <IconList size={15} />
-                        <Typography variant="caption" fontWeight={600} fontSize="0.72rem">
-                            {program.lectureCount || program.lecture_count || program.lessonsCount || program.lessons_count || 0} Lectures
-                        </Typography>
-                    </Stack>
-                    <Stack direction="row" alignItems="center" spacing={0.5}>
-                        <IconClock size={15} />
-                        <Typography variant="caption" fontWeight={600} fontSize="0.72rem">
-                            {program.durationHours || program.duration_hours || 0} Hours
-                        </Typography>
-                    </Stack>
-                </Stack>
+                />
 
                 <Stack
                     direction="row"
@@ -224,7 +203,7 @@ export default function ProgramManageCard({
                             readOnly
                         />
                         <Typography variant="body2" fontWeight={600} color="text.secondary">
-                            {program.rating?.toFixed(1) || "0.0"}
+                            {program.rating?.toFixed(1) || "0.0"} ({reviewCount})
                         </Typography>
                     </Stack>
                     <Stack direction="column" alignItems="flex-end" spacing={-0.5}>
