@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -494,6 +496,84 @@ class TestInstructorCourseBuilder:
         assert program.code == "UNCHANGED-100"
         assert program.exam_body == "KASNEB"
         assert program.qualification_family == "Certificate"
+
+
+    def test_lesson_inline_image_upload_saves_media_url(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+        settings,
+        tmp_path,
+    ):
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+        settings.MEDIA_URL = "/media/"
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Text Session",
+            node_type="Session",
+            properties={"lesson_type": "text", "files": []},
+        )
+        upload = SimpleUploadedFile(
+            "clipboard.png",
+            b"clipboard image bytes",
+            content_type="image/png",
+        )
+
+        client.force_login(instructor)
+        response = client.post(
+            reverse(
+                "core:instructor.lesson_image_upload",
+                kwargs={"node_id": node.id},
+            ),
+            {"file": upload},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert payload["image"]["url"].startswith(
+            f"/media/lesson_images/{program.id}/{node.id}/"
+        )
+        assert payload["image"]["path"].startswith(
+            f"lesson_images/{program.id}/{node.id}/"
+        )
+        assert Path(settings.MEDIA_ROOT, payload["image"]["path"]).exists()
+
+        node.refresh_from_db()
+        assert node.properties["files"] == []
+
+    def test_lesson_inline_image_upload_rejects_non_images(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Text Session",
+            node_type="Session",
+            properties={"lesson_type": "text"},
+        )
+        upload = SimpleUploadedFile(
+            "notes.txt",
+            b"not an image",
+            content_type="text/plain",
+        )
+
+        client.force_login(instructor)
+        response = client.post(
+            reverse(
+                "core:instructor.lesson_image_upload",
+                kwargs={"node_id": node.id},
+            ),
+            {"file": upload},
+        )
+
+        assert response.status_code == 400
+        assert "Only JPG" in response.json()["error"]
 
     def test_update_academic_settings_saves_blueprint_metadata(
         self,

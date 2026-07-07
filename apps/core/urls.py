@@ -143,6 +143,11 @@ urlpatterns = [
         name="instructor.lesson_document_delete",
     ),
     path(
+        "instructor/nodes/<int:node_id>/images/upload/",
+        views.instructor_lesson_image_upload,
+        name="instructor.lesson_image_upload",
+    ),
+    path(
         "instructor/nodes/<int:node_id>/quiz/images/upload/",
         views.instructor_quiz_image_upload,
         name="instructor.quiz_image_upload",

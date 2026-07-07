@@ -8542,6 +8542,80 @@ def instructor_program_update_settings(request, pk: int):
 
 
 @login_required
+@require_POST
+def instructor_lesson_image_upload(request, node_id: int):
+    """
+    Upload an inline image for rich text lesson content.
+    Returns JSON with an image URL that can be embedded in editor HTML.
+    """
+    import os
+    import uuid
+
+    allowed_content_types = {
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/png": "png",
+        "image/gif": "gif",
+        "image/webp": "webp",
+    }
+
+    if not is_instructor(request.user):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    from apps.curriculum.models import CurriculumNode
+
+    program_ids = get_instructor_program_ids(request.user)
+    try:
+        node = CurriculumNode.objects.get(pk=node_id, program_id__in=program_ids)
+    except CurriculumNode.DoesNotExist:
+        return JsonResponse({"error": "Node not found"}, status=404)
+
+    if "file" not in request.FILES:
+        return JsonResponse({"error": "No file provided"}, status=400)
+
+    uploaded_file = request.FILES["file"]
+    content_type = str(uploaded_file.content_type or "").lower()
+    if content_type not in allowed_content_types:
+        return JsonResponse(
+            {"error": "Only JPG, PNG, GIF, and WebP images are allowed"},
+            status=400,
+        )
+
+    max_size = 10 * 1024 * 1024
+    if uploaded_file.size > max_size:
+        return JsonResponse({"error": "Image exceeds 10MB limit"}, status=400)
+
+    upload_dir = os.path.join(
+        settings.MEDIA_ROOT, "lesson_images", str(node.program_id), str(node_id)
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+
+    ext = allowed_content_types[content_type]
+    unique_name = f"{uuid.uuid4().hex}.{ext}"
+    file_path = os.path.join(upload_dir, unique_name)
+
+    with open(file_path, "wb+") as dest:
+        for chunk in uploaded_file.chunks():
+            dest.write(chunk)
+
+    relative_path = f"lesson_images/{node.program_id}/{node_id}/{unique_name}"
+    file_url = f"{settings.MEDIA_URL}{relative_path}"
+
+    return JsonResponse(
+        {
+            "success": True,
+            "image": {
+                "name": uploaded_file.name,
+                "url": file_url,
+                "path": relative_path,
+                "size": uploaded_file.size,
+                "uploaded_at": timezone.now().isoformat(),
+            },
+        }
+    )
+
+
+@login_required
 def instructor_quiz_image_upload(request, node_id: int):
     """
     Upload a quiz image (used by image-matching editor).

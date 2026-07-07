@@ -1,10 +1,19 @@
 import React from "react";
+import axios from "axios";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
-import { Box, Paper, IconButton, Divider, Tooltip } from "@mui/material";
+import {
+    Alert,
+    Box,
+    LinearProgress,
+    Paper,
+    IconButton,
+    Divider,
+    Tooltip,
+} from "@mui/material";
 import {
     FormatBold,
     FormatItalic,
@@ -19,6 +28,12 @@ import {
     Undo,
     Redo,
 } from "@mui/icons-material";
+import {
+    fileToDataUrl,
+    getImageFilesFromClipboard,
+    getUploadedImageUrl,
+    isImageFile,
+} from "@/utils/richTextImages";
 
 const MenuButton = ({ onClick, active, disabled, icon, title }) => (
     <Tooltip title={title} arrow>
@@ -57,13 +72,109 @@ const extensions = [
     Image,
 ];
 
+const getImageInsertErrorMessage = (error) => {
+    const responseData = error?.response?.data;
+    if (typeof responseData?.error === "string") {
+        return responseData.error;
+    }
+    if (typeof responseData?.message === "string") {
+        return responseData.message;
+    }
+    if (typeof error?.message === "string") {
+        return error.message;
+    }
+    return "Could not insert the image. Please try again.";
+};
+
 export default function RichTextEditorImpl({
     value,
     onChange,
     placeholder,
     minHeight = 150,
+    imageUploadUrl,
+    onImageUploadError,
 }) {
     const imageInputRef = React.useRef(null);
+    const editorRef = React.useRef(null);
+    const imageUploadUrlRef = React.useRef(imageUploadUrl);
+    const onImageUploadErrorRef = React.useRef(onImageUploadError);
+    const [uploadingImageCount, setUploadingImageCount] = React.useState(0);
+    const [imageInsertError, setImageInsertError] = React.useState("");
+
+    React.useEffect(() => {
+        imageUploadUrlRef.current = imageUploadUrl;
+    }, [imageUploadUrl]);
+
+    React.useEffect(() => {
+        onImageUploadErrorRef.current = onImageUploadError;
+    }, [onImageUploadError]);
+
+    const resolveImageSource = React.useCallback(async (file) => {
+        const uploadUrl = imageUploadUrlRef.current;
+        if (!uploadUrl) {
+            return fileToDataUrl(file);
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await axios.post(uploadUrl, formData);
+        const uploadedUrl = getUploadedImageUrl(response.data);
+        if (!uploadedUrl) {
+            throw new Error("The upload completed without an image URL.");
+        }
+        return uploadedUrl;
+    }, []);
+
+    const insertImageFiles = React.useCallback(
+        async (files) => {
+            const imageFiles = files.filter(isImageFile);
+            const currentEditor = editorRef.current;
+            if (!currentEditor || imageFiles.length === 0) {
+                return;
+            }
+
+            setImageInsertError("");
+            setUploadingImageCount((count) => count + imageFiles.length);
+
+            try {
+                for (const file of imageFiles) {
+                    const src = await resolveImageSource(file);
+                    currentEditor
+                        .chain()
+                        .focus()
+                        .setImage({
+                            src,
+                            alt: file.name || "Image",
+                        })
+                        .run();
+                }
+            } catch (error) {
+                const message = getImageInsertErrorMessage(error);
+                setImageInsertError(message);
+                onImageUploadErrorRef.current?.(message, error);
+            } finally {
+                setUploadingImageCount((count) =>
+                    Math.max(0, count - imageFiles.length),
+                );
+            }
+        },
+        [resolveImageSource],
+    );
+
+    const handlePaste = React.useCallback(
+        (_view, event) => {
+            const imageFiles = getImageFilesFromClipboard(event.clipboardData);
+            if (imageFiles.length === 0) {
+                return false;
+            }
+
+            event.preventDefault();
+            void insertImageFiles(imageFiles);
+            return true;
+        },
+        [insertImageFiles],
+    );
 
     const editor = useEditor({
         extensions,
@@ -74,12 +185,17 @@ export default function RichTextEditorImpl({
             }
         },
         editorProps: {
+            handlePaste,
             attributes: {
                 class: "rich-text-editor-content",
                 style: `min-height: ${minHeight}px; outline: none; padding: 16px;`,
             },
         },
     });
+
+    if (editor) {
+        editorRef.current = editor;
+    }
 
     React.useEffect(() => {
         if (editor && value !== editor.getHTML()) {
@@ -103,22 +219,15 @@ export default function RichTextEditorImpl({
     };
 
     const handleImageFileChange = (event) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        if (!file.type.startsWith("image/")) {
+        const imageFiles = Array.from(event.target.files || []).filter(
+            isImageFile,
+        );
+        if (imageFiles.length === 0) {
             event.target.value = "";
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const src = reader.result;
-            if (typeof src === "string") {
-                editor.chain().focus().setImage({ src }).run();
-            }
-        };
-        reader.readAsDataURL(file);
+        void insertImageFiles(imageFiles);
         event.target.value = "";
     };
 
@@ -227,6 +336,18 @@ export default function RichTextEditorImpl({
                     title="Insert Image"
                 />
             </Box>
+
+            {uploadingImageCount > 0 && <LinearProgress />}
+
+            {imageInsertError && (
+                <Alert
+                    severity="error"
+                    onClose={() => setImageInsertError("")}
+                    sx={{ borderRadius: 0 }}
+                >
+                    {imageInsertError}
+                </Alert>
+            )}
 
             <Box
                 sx={(theme) => ({

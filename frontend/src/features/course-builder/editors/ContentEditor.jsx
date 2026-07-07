@@ -131,6 +131,11 @@ export default function ContentEditor({ node, onSave, blueprint }) {
         node.title === "Untitled Lesson";
 
     const lessonType = (node.properties?.lesson_type || "text").toLowerCase();
+    const hasPersistedNodeId =
+        Boolean(node.id) && !String(node.id).startsWith("temp_");
+    const inlineImageUploadUrl = hasPersistedNodeId
+        ? `/instructor/nodes/${node.id}/images/upload/`
+        : undefined;
 
     // Mark a field as touched
     const handleBlur = (fieldName) => {
@@ -968,6 +973,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                             onChange={setDescription}
                             placeholder="Enter a brief description of the lesson (min 50 characters)..."
                             minHeight={100}
+                            imageUploadUrl={inlineImageUploadUrl}
                         />
                         {descriptionErrorMessage && (
                             <FormHelperText error>
@@ -1065,6 +1071,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                                       : "Write your lesson content here (min 200 characters)..."
                             }
                             minHeight={250}
+                            imageUploadUrl={inlineImageUploadUrl}
                         />
                         {requiresLessonContent &&
                             contentErrorMessage && (
