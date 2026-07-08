@@ -8,6 +8,7 @@ import {
     Typography,
 } from "@mui/material";
 import DOMPurify from "dompurify";
+import { richTextImageSx } from "@/utils/richTextImages";
 
 const parseDurationToMs = (durationText) => {
     const source = String(durationText || "").toLowerCase().trim();
@@ -188,7 +189,10 @@ const LiveClassRenderer = ({
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
                         Overview
                     </Typography>
-                    <div dangerouslySetInnerHTML={{ __html: sanitizedDescription }} />
+                    <Box
+                        sx={{ "& img": { ...richTextImageSx, borderRadius: 1, my: 2 } }}
+                        dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+                    />
                 </Paper>
             )}
 
@@ -199,7 +203,7 @@ const LiveClassRenderer = ({
                         p: { xs: 2, md: 3 },
                         borderRadius: 2,
                         minHeight: 220,
-                        "& img": { maxWidth: "100%", height: "auto", borderRadius: 1 },
+                        "& img": { ...richTextImageSx, borderRadius: 1, my: 2 },
                     }}
                 >
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>

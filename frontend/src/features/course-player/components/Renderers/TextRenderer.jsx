@@ -1,6 +1,6 @@
-import React from 'react';
-import { Box, Paper, Typography, Divider } from '@mui/material';
+import { Paper, Typography } from '@mui/material';
 import DOMPurify from 'dompurify';
+import { richTextImageSx } from '@/utils/richTextImages';
 
 const TextRenderer = ({ content }) => {
     // If content is just a string, treat it as HTML
@@ -29,7 +29,7 @@ const TextRenderer = ({ content }) => {
                 borderRadius: 2,
                 minHeight: '60vh',
                 typography: 'body1',
-                '& img': { maxWidth: '100%', height: 'auto', borderRadius: 8, my: 2 },
+                '& img': { ...richTextImageSx, borderRadius: 2, my: 2 },
                 '& h1, & h2, & h3': { fontWeight: 700, mt: 3, mb: 2 },
                 '& p': { mb: 2, lineHeight: 1.7 },
                 '& ul, & ol': { mb: 2, pl: 3 },

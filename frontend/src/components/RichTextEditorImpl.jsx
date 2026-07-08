@@ -33,6 +33,7 @@ import {
     getImageFilesFromClipboard,
     getUploadedImageUrl,
     isImageFile,
+    richTextImageSx,
 } from "@/utils/richTextImages";
 
 const MenuButton = ({ onClick, active, disabled, icon, title }) => (
@@ -399,7 +400,7 @@ export default function RichTextEditorImpl({
                                     : "inherit",
                         },
                         "& a": { color: "primary.main" },
-                        "& img": { maxWidth: "100%", height: "auto" },
+                        "& img": { ...richTextImageSx, my: 1.5 },
                     },
                     "& .ProseMirror p.is-editor-empty:first-child::before": {
                         content: `"${placeholder || "Start typing..."}"`,

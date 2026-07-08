@@ -1,3 +1,13 @@
+export const RICH_TEXT_IMAGE_MAX_WIDTH = "720px";
+
+export const richTextImageSx = {
+    display: "block",
+    width: "auto",
+    maxWidth: `min(100%, ${RICH_TEXT_IMAGE_MAX_WIDTH})`,
+    height: "auto",
+    mx: "auto",
+};
+
 export const isImageFile = (file) =>
     Boolean(file?.type && file.type.startsWith("image/"));
 

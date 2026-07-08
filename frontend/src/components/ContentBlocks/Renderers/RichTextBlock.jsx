@@ -1,6 +1,6 @@
-import React from 'react';
 import { Box } from '@mui/material';
 import DOMPurify from 'dompurify';
+import { richTextImageSx } from '@/utils/richTextImages';
 
 const RichTextBlock = ({ data }) => {
     if (!data || !data.html) return null;
@@ -9,7 +9,7 @@ const RichTextBlock = ({ data }) => {
 
     return (
         <Box 
-            sx={{ mb: 3, typography: 'body1' }}
+            sx={{ mb: 3, typography: 'body1', '& img': { ...richTextImageSx, my: 2 } }}
             dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
         />
     );

@@ -1,9 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import {
+    RICH_TEXT_IMAGE_MAX_WIDTH,
     getImageFilesFromClipboard,
     getUploadedImageUrl,
     isImageFile,
+    richTextImageSx,
 } from "./richTextImages";
 
 describe("rich text image helpers", () => {
@@ -67,5 +69,16 @@ describe("rich text image helpers", () => {
             "/media/c.png",
         );
         expect(getUploadedImageUrl(null)).toBe("");
+    });
+
+    test("caps rich text image display width", () => {
+        expect(RICH_TEXT_IMAGE_MAX_WIDTH).toBe("720px");
+        expect(richTextImageSx).toMatchObject({
+            display: "block",
+            width: "auto",
+            maxWidth: "min(100%, 720px)",
+            height: "auto",
+            mx: "auto",
+        });
     });
 });
