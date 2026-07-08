@@ -5,6 +5,7 @@ import {
     RICH_TEXT_IMAGE_ALIGNS,
     RICH_TEXT_IMAGE_CROPS,
     RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    RICH_TEXT_IMAGE_LAYOUTS,
     RICH_TEXT_IMAGE_MAX_WIDTH,
     RICH_TEXT_IMAGE_SIZES,
     getImageFilesFromClipboard,
@@ -93,6 +94,11 @@ describe("rich text image helpers", () => {
                 width: "100%",
                 maxWidth: "100%",
             },
+            "&[data-rich-text-image-layout='inline']": {
+                display: "inline-block",
+                width: "min(48%, var(--rich-text-image-width))",
+                maxWidth: "calc(50% - 12px)",
+            },
         });
     });
 
@@ -105,17 +111,20 @@ describe("rich text image helpers", () => {
                 imageSize: RICH_TEXT_IMAGE_SIZES.SMALL,
                 imageAlign: RICH_TEXT_IMAGE_ALIGNS.LEFT,
                 imageCrop: RICH_TEXT_IMAGE_CROPS.COVER,
+                imageLayout: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
             }),
         ).toEqual({
             imageSize: "small",
             imageAlign: "left",
             imageCrop: "cover",
+            imageLayout: "inline",
         });
         expect(
             normalizeRichTextImageAttributes({
                 imageSize: "tiny",
                 imageAlign: "right",
                 imageCrop: "square",
+                imageLayout: "float",
             }),
         ).toEqual(DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES);
     });
@@ -125,17 +134,20 @@ describe("rich text image helpers", () => {
             "data-rich-text-image-size",
             "data-rich-text-image-align",
             "data-rich-text-image-crop",
+            "data-rich-text-image-layout",
         ]);
         expect(
             getRichTextImageDataAttributes({
                 imageSize: RICH_TEXT_IMAGE_SIZES.FULL,
                 imageAlign: RICH_TEXT_IMAGE_ALIGNS.LEFT,
                 imageCrop: RICH_TEXT_IMAGE_CROPS.COVER,
+                imageLayout: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
             }),
         ).toEqual({
             "data-rich-text-image-size": "full",
             "data-rich-text-image-align": "left",
             "data-rich-text-image-crop": "cover",
+            "data-rich-text-image-layout": "inline",
         });
     });
 });

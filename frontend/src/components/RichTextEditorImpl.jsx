@@ -1,6 +1,7 @@
 import React from "react";
 import axios from "axios";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -33,11 +34,14 @@ import {
     FormatAlignLeft,
     FormatAlignCenter,
     Crop169,
+    ViewColumn,
+    ViewStream,
 } from "@mui/icons-material";
 import {
     DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
     RICH_TEXT_IMAGE_ALIGNS,
     RICH_TEXT_IMAGE_CROPS,
+    RICH_TEXT_IMAGE_LAYOUTS,
     RICH_TEXT_IMAGE_SIZES,
     fileToDataUrl,
     getImageFilesFromClipboard,
@@ -47,6 +51,7 @@ import {
     normalizeRichTextImageAlign,
     normalizeRichTextImageAttributes,
     normalizeRichTextImageCrop,
+    normalizeRichTextImageLayout,
     normalizeRichTextImageSize,
     richTextImageSx,
 } from "@/utils/richTextImages";
@@ -117,6 +122,19 @@ const RichTextImage = Image.extend({
                         ],
                 }),
             },
+            imageLayout: {
+                default: DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageLayout,
+                parseHTML: (element) =>
+                    normalizeRichTextImageLayout(
+                        element.getAttribute("data-rich-text-image-layout"),
+                    ),
+                renderHTML: (attributes) => ({
+                    "data-rich-text-image-layout":
+                        getRichTextImageDataAttributes(attributes)[
+                            "data-rich-text-image-layout"
+                        ],
+                }),
+            },
         };
     },
 });
@@ -152,6 +170,86 @@ const IMAGE_ALIGN_CONTROLS = [
     },
 ];
 
+const IMAGE_LAYOUT_CONTROLS = [
+    {
+        value: RICH_TEXT_IMAGE_LAYOUTS.STACKED,
+        title: "Place image on its own line",
+        icon: <ViewStream fontSize="small" />,
+    },
+    {
+        value: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
+        title: "Place image on the same line",
+        icon: <ViewColumn fontSize="small" />,
+    },
+];
+
+const ImageControls = ({
+    activeImageAttributes,
+    onUpdateImage,
+    onToggleCrop,
+}) => (
+    <>
+        {IMAGE_SIZE_CONTROLS.map((option) => (
+            <MenuButton
+                key={option.value}
+                onClick={() =>
+                    onUpdateImage({
+                        imageSize: option.value,
+                    })
+                }
+                active={activeImageAttributes.imageSize === option.value}
+                icon={option.icon}
+                title={option.title}
+            />
+        ))}
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        {IMAGE_ALIGN_CONTROLS.map((option) => (
+            <MenuButton
+                key={option.value}
+                onClick={() =>
+                    onUpdateImage({
+                        imageAlign: option.value,
+                    })
+                }
+                active={activeImageAttributes.imageAlign === option.value}
+                icon={option.icon}
+                title={option.title}
+            />
+        ))}
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        {IMAGE_LAYOUT_CONTROLS.map((option) => (
+            <MenuButton
+                key={option.value}
+                onClick={() =>
+                    onUpdateImage({
+                        imageLayout: option.value,
+                        imageSize:
+                            option.value === RICH_TEXT_IMAGE_LAYOUTS.INLINE
+                                ? RICH_TEXT_IMAGE_SIZES.SMALL
+                                : activeImageAttributes.imageSize,
+                    })
+                }
+                active={activeImageAttributes.imageLayout === option.value}
+                icon={option.icon}
+                title={option.title}
+            />
+        ))}
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <MenuButton
+            onClick={onToggleCrop}
+            active={activeImageAttributes.imageCrop === RICH_TEXT_IMAGE_CROPS.COVER}
+            icon={<Crop169 fontSize="small" />}
+            title="Crop image to 16:9"
+        />
+    </>
+);
+
 const extensions = [
     StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -180,6 +278,76 @@ const getImageInsertErrorMessage = (error) => {
     return "Could not insert the image. Please try again.";
 };
 
+const SCROLLABLE_OVERFLOW_VALUES = new Set(["auto", "scroll", "overlay"]);
+
+const getNearestScrollTarget = (element) => {
+    if (!element || typeof window === "undefined") {
+        return null;
+    }
+
+    let currentElement = element.parentElement;
+    while (currentElement && currentElement !== document.body) {
+        const style = window.getComputedStyle(currentElement);
+        const canScrollY =
+            SCROLLABLE_OVERFLOW_VALUES.has(style.overflowY) ||
+            SCROLLABLE_OVERFLOW_VALUES.has(style.overflow);
+
+        if (canScrollY && currentElement.scrollHeight > currentElement.clientHeight) {
+            return currentElement;
+        }
+
+        currentElement = currentElement.parentElement;
+    }
+
+    return window;
+};
+
+const getSelectedImageElement = (currentEditor) => {
+    if (!currentEditor?.isActive("image")) {
+        return null;
+    }
+
+    const selectedNode = currentEditor.view.nodeDOM(
+        currentEditor.state.selection.from,
+    );
+
+    if (selectedNode instanceof HTMLImageElement) {
+        return selectedNode;
+    }
+
+    if (selectedNode instanceof Element) {
+        return selectedNode.matches("img")
+            ? selectedNode
+            : selectedNode.querySelector("img");
+    }
+
+    return null;
+};
+
+const isElementVisibleInScrollTarget = (element, scrollTarget) => {
+    if (!element || !scrollTarget) {
+        return false;
+    }
+
+    const elementRect = element.getBoundingClientRect();
+    const containerRect =
+        scrollTarget === window
+            ? {
+                  top: 0,
+                  left: 0,
+                  bottom: window.innerHeight,
+                  right: window.innerWidth,
+              }
+            : scrollTarget.getBoundingClientRect();
+
+    return (
+        elementRect.bottom > containerRect.top &&
+        elementRect.top < containerRect.bottom &&
+        elementRect.right > containerRect.left &&
+        elementRect.left < containerRect.right
+    );
+};
+
 export default function RichTextEditorImpl({
     value,
     onChange,
@@ -189,12 +357,17 @@ export default function RichTextEditorImpl({
     onImageUploadError,
 }) {
     const imageInputRef = React.useRef(null);
+    const editorSurfaceRef = React.useRef(null);
     const editorRef = React.useRef(null);
     const imageUploadUrlRef = React.useRef(imageUploadUrl);
     const onImageUploadErrorRef = React.useRef(onImageUploadError);
+    const imageMenuScrollTargetRef = React.useRef(null);
     const [, refreshToolbar] = React.useReducer((value) => value + 1, 0);
     const [uploadingImageCount, setUploadingImageCount] = React.useState(0);
     const [imageInsertError, setImageInsertError] = React.useState("");
+    const [imageMenuVisible, setImageMenuVisible] = React.useState(true);
+    const [imageMenuScrollTarget, setImageMenuScrollTarget] =
+        React.useState(null);
 
     React.useEffect(() => {
         imageUploadUrlRef.current = imageUploadUrl;
@@ -233,17 +406,50 @@ export default function RichTextEditorImpl({
             setUploadingImageCount((count) => count + imageFiles.length);
 
             try {
+                let insertAfterSelection =
+                    currentEditor.isActive("image")
+                        ? currentEditor.state.selection.to
+                        : null;
+                const selectedImageAttributes = normalizeRichTextImageAttributes(
+                    currentEditor.getAttributes("image"),
+                );
+
                 for (const file of imageFiles) {
                     const src = await resolveImageSource(file);
-                    currentEditor
-                        .chain()
-                        .focus()
-                        .setImage({
-                            src,
-                            alt: file.name || "Image",
-                            ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
-                        })
-                        .run();
+                    const imageAttributes = {
+                        src,
+                        alt: file.name || "Image",
+                        ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+                        ...(selectedImageAttributes.imageLayout ===
+                        RICH_TEXT_IMAGE_LAYOUTS.INLINE
+                            ? {
+                                  imageLayout: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
+                                  imageSize:
+                                      selectedImageAttributes.imageSize ===
+                                      RICH_TEXT_IMAGE_SIZES.FULL
+                                          ? RICH_TEXT_IMAGE_SIZES.SMALL
+                                          : selectedImageAttributes.imageSize,
+                                  imageAlign:
+                                      selectedImageAttributes.imageAlign,
+                                  imageCrop: selectedImageAttributes.imageCrop,
+                              }
+                            : {}),
+                    };
+
+                    if (insertAfterSelection !== null) {
+                        currentEditor
+                            .chain()
+                            .focus()
+                            .insertContentAt(insertAfterSelection, {
+                                type: "image",
+                                attrs: imageAttributes,
+                            })
+                            .run();
+                        insertAfterSelection += 1;
+                        continue;
+                    }
+
+                    currentEditor.chain().focus().setImage(imageAttributes).run();
                 }
             } catch (error) {
                 const message = getImageInsertErrorMessage(error);
@@ -272,6 +478,35 @@ export default function RichTextEditorImpl({
         [insertImageFiles],
     );
 
+    const selectImageFromEvent = React.useCallback(
+        (event, { preventDefault = true } = {}) => {
+            const target = event.target;
+            if (!(target instanceof Element)) {
+                return false;
+            }
+
+            const imageElement = target.closest(".ProseMirror img");
+            const currentEditor = editorRef.current;
+            if (!imageElement || !currentEditor?.view.dom.contains(imageElement)) {
+                return false;
+            }
+
+            if (preventDefault) {
+                event.preventDefault();
+            }
+            const position = currentEditor.view.posAtDOM(imageElement, 0);
+            currentEditor.chain().focus().setNodeSelection(position).run();
+            setImageMenuVisible(true);
+            return true;
+        },
+        [],
+    );
+
+    const refreshEditorToolbar = React.useCallback(({ editor: currentEditor }) => {
+        setImageMenuVisible(currentEditor.isActive("image"));
+        refreshToolbar();
+    }, []);
+
     const editor = useEditor({
         extensions,
         content: value || "",
@@ -280,10 +515,15 @@ export default function RichTextEditorImpl({
                 onChange(currentEditor.getHTML());
             }
         },
-        onSelectionUpdate: refreshToolbar,
+        onSelectionUpdate: refreshEditorToolbar,
         onTransaction: refreshToolbar,
         editorProps: {
             handlePaste,
+            handleDOMEvents: {
+                click: (_view, event) =>
+                    selectImageFromEvent(event, { preventDefault: false }),
+                contextmenu: (_view, event) => selectImageFromEvent(event),
+            },
             attributes: {
                 class: "rich-text-editor-content",
                 style: `min-height: ${minHeight}px; outline: none; padding: 16px;`,
@@ -294,6 +534,46 @@ export default function RichTextEditorImpl({
     if (editor) {
         editorRef.current = editor;
     }
+
+    React.useLayoutEffect(() => {
+        const nextScrollTarget = getNearestScrollTarget(editorSurfaceRef.current);
+        if (!nextScrollTarget || imageMenuScrollTargetRef.current === nextScrollTarget) {
+            return;
+        }
+
+        imageMenuScrollTargetRef.current = nextScrollTarget;
+        setImageMenuScrollTarget((currentTarget) => ({
+            target: nextScrollTarget,
+            key: (currentTarget?.key || 0) + 1,
+        }));
+    }, [editor, minHeight, value]);
+
+    React.useEffect(() => {
+        const scrollTarget = imageMenuScrollTarget?.target;
+        if (!scrollTarget) {
+            return undefined;
+        }
+
+        const handleScroll = () => {
+            const currentEditor = editorRef.current;
+            const selectedImageElement = getSelectedImageElement(currentEditor);
+            if (!selectedImageElement) {
+                return;
+            }
+
+            setImageMenuVisible(
+                isElementVisibleInScrollTarget(
+                    selectedImageElement,
+                    scrollTarget,
+                ),
+            );
+        };
+
+        scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
+        return () => {
+            scrollTarget.removeEventListener("scroll", handleScroll);
+        };
+    }, [imageMenuScrollTarget]);
 
     React.useEffect(() => {
         if (editor && value !== editor.getHTML()) {
@@ -362,7 +642,11 @@ export default function RichTextEditorImpl({
     };
 
     return (
-        <Paper variant="outlined" sx={{ borderRadius: 1, overflow: "hidden" }}>
+        <Paper
+            ref={editorSurfaceRef}
+            variant="outlined"
+            sx={{ borderRadius: 1, overflow: "hidden" }}
+        >
             <Box
                 sx={{
                     display: "flex",
@@ -470,50 +754,10 @@ export default function RichTextEditorImpl({
                     <>
                         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-                        {IMAGE_SIZE_CONTROLS.map((option) => (
-                            <MenuButton
-                                key={option.value}
-                                onClick={() =>
-                                    updateSelectedImage({
-                                        imageSize: option.value,
-                                    })
-                                }
-                                active={
-                                    activeImageAttributes.imageSize ===
-                                    option.value
-                                }
-                                icon={option.icon}
-                                title={option.title}
-                            />
-                        ))}
-
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
-                        {IMAGE_ALIGN_CONTROLS.map((option) => (
-                            <MenuButton
-                                key={option.value}
-                                onClick={() =>
-                                    updateSelectedImage({
-                                        imageAlign: option.value,
-                                    })
-                                }
-                                active={
-                                    activeImageAttributes.imageAlign ===
-                                    option.value
-                                }
-                                icon={option.icon}
-                                title={option.title}
-                            />
-                        ))}
-
-                        <MenuButton
-                            onClick={toggleImageCrop}
-                            active={
-                                activeImageAttributes.imageCrop ===
-                                RICH_TEXT_IMAGE_CROPS.COVER
-                            }
-                            icon={<Crop169 fontSize="small" />}
-                            title="Crop image to 16:9"
+                        <ImageControls
+                            activeImageAttributes={activeImageAttributes}
+                            onUpdateImage={updateSelectedImage}
+                            onToggleCrop={toggleImageCrop}
                         />
                     </>
                 )}
@@ -529,6 +773,43 @@ export default function RichTextEditorImpl({
                 >
                     {imageInsertError}
                 </Alert>
+            )}
+
+            {imageMenuScrollTarget && imageMenuVisible && (
+                <BubbleMenu
+                    key={imageMenuScrollTarget.key}
+                    editor={editor}
+                    pluginKey="richTextImageControls"
+                    updateDelay={0}
+                    shouldShow={({ editor: currentEditor }) =>
+                        currentEditor.isActive("image")
+                    }
+                    options={{
+                        placement: "top",
+                        offset: 8,
+                        scrollTarget: imageMenuScrollTarget.target,
+                    }}
+                >
+                    <Paper
+                        elevation={6}
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            p: 0.75,
+                            borderRadius: 1,
+                            border: 1,
+                            borderColor: "divider",
+                            bgcolor: "background.paper",
+                        }}
+                    >
+                        <ImageControls
+                            activeImageAttributes={activeImageAttributes}
+                            onUpdateImage={updateSelectedImage}
+                            onToggleCrop={toggleImageCrop}
+                        />
+                    </Paper>
+                </BubbleMenu>
             )}
 
             <Box

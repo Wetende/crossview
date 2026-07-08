@@ -14,6 +14,11 @@ export const RICH_TEXT_IMAGE_CROPS = {
     COVER: "cover",
 };
 
+export const RICH_TEXT_IMAGE_LAYOUTS = {
+    STACKED: "stacked",
+    INLINE: "inline",
+};
+
 export const RICH_TEXT_IMAGE_SMALL_WIDTH = "320px";
 export const RICH_TEXT_IMAGE_MAX_WIDTH = "720px";
 
@@ -21,12 +26,14 @@ export const DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES = {
     imageSize: RICH_TEXT_IMAGE_SIZES.MEDIUM,
     imageAlign: RICH_TEXT_IMAGE_ALIGNS.CENTER,
     imageCrop: RICH_TEXT_IMAGE_CROPS.NONE,
+    imageLayout: RICH_TEXT_IMAGE_LAYOUTS.STACKED,
 };
 
 export const RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES = [
     "data-rich-text-image-size",
     "data-rich-text-image-align",
     "data-rich-text-image-crop",
+    "data-rich-text-image-layout",
 ];
 
 const allowedValues = (values) => Object.values(values);
@@ -46,10 +53,16 @@ export const normalizeRichTextImageCrop = (value) =>
         ? value
         : DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageCrop;
 
+export const normalizeRichTextImageLayout = (value) =>
+    allowedValues(RICH_TEXT_IMAGE_LAYOUTS).includes(value)
+        ? value
+        : DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageLayout;
+
 export const normalizeRichTextImageAttributes = (attributes = {}) => ({
     imageSize: normalizeRichTextImageSize(attributes.imageSize),
     imageAlign: normalizeRichTextImageAlign(attributes.imageAlign),
     imageCrop: normalizeRichTextImageCrop(attributes.imageCrop),
+    imageLayout: normalizeRichTextImageLayout(attributes.imageLayout),
 });
 
 export const getRichTextImageDataAttributes = (attributes = {}) => {
@@ -59,6 +72,7 @@ export const getRichTextImageDataAttributes = (attributes = {}) => {
         "data-rich-text-image-size": normalized.imageSize,
         "data-rich-text-image-align": normalized.imageAlign,
         "data-rich-text-image-crop": normalized.imageCrop,
+        "data-rich-text-image-layout": normalized.imageLayout,
     };
 };
 
@@ -93,6 +107,31 @@ export const richTextImageSx = {
         objectFit: "cover",
     },
     "&[data-rich-text-image-crop='cover'][data-rich-text-image-size='full']": {
+        width: "100%",
+    },
+    "&[data-rich-text-image-layout='inline']": {
+        display: "inline-block",
+        width: "min(48%, var(--rich-text-image-width))",
+        maxWidth: "calc(50% - 12px)",
+        mx: 0.75,
+        verticalAlign: "top",
+    },
+    "&[data-rich-text-image-layout='inline'][data-rich-text-image-size='small']": {
+        width: `min(48%, ${RICH_TEXT_IMAGE_SMALL_WIDTH})`,
+    },
+    "&[data-rich-text-image-layout='inline'][data-rich-text-image-size='full']": {
+        display: "block",
+        width: "100%",
+        maxWidth: "100%",
+        mx: 0,
+    },
+    "&[data-rich-text-image-layout='inline'][data-rich-text-image-crop='cover']": {
+        width: "min(48%, var(--rich-text-image-width))",
+    },
+    "&[data-rich-text-image-layout='inline'][data-rich-text-image-crop='cover'][data-rich-text-image-size='small']": {
+        width: `min(48%, ${RICH_TEXT_IMAGE_SMALL_WIDTH})`,
+    },
+    "&[data-rich-text-image-layout='inline'][data-rich-text-image-crop='cover'][data-rich-text-image-size='full']": {
         width: "100%",
     },
 };
