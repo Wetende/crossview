@@ -10,8 +10,10 @@ import {
     Alert,
     Box,
     LinearProgress,
+    MenuItem,
     Paper,
     IconButton,
+    Select,
     Divider,
     Tooltip,
 } from "@mui/material";
@@ -23,6 +25,7 @@ import {
     FormatListBulleted,
     FormatListNumbered,
     FormatQuote,
+    FormatClear,
     Code as CodeIcon,
     InsertLink,
     InsertPhoto,
@@ -183,6 +186,182 @@ const IMAGE_LAYOUT_CONTROLS = [
     },
 ];
 
+const TEXT_BLOCK_FORMATS = [
+    {
+        value: "paragraph",
+        label: "Paragraph",
+        shortLabel: "P",
+    },
+    {
+        value: "heading2",
+        label: "Heading 2",
+        shortLabel: "H2",
+    },
+    {
+        value: "heading3",
+        label: "Heading 3",
+        shortLabel: "H3",
+    },
+];
+
+const getActiveTextBlockFormat = (editor) => {
+    if (editor.isActive("heading", { level: 2 })) {
+        return "heading2";
+    }
+
+    if (editor.isActive("heading", { level: 3 })) {
+        return "heading3";
+    }
+
+    return "paragraph";
+};
+
+const getTextBlockFormatLabel = (value) =>
+    TEXT_BLOCK_FORMATS.find((format) => format.value === value)?.label ||
+    TEXT_BLOCK_FORMATS[0].label;
+
+const getTextBlockFormatShortLabel = (value) =>
+    TEXT_BLOCK_FORMATS.find((format) => format.value === value)?.shortLabel ||
+    TEXT_BLOCK_FORMATS[0].shortLabel;
+
+const TextBlockFormatSelect = ({ editor }) => {
+    const activeFormat = getActiveTextBlockFormat(editor);
+
+    return (
+        <Tooltip
+            title={`Block style: ${getTextBlockFormatLabel(activeFormat)}`}
+            arrow
+        >
+            <Select
+                value={activeFormat}
+                onChange={(event) => {
+                    const chain = editor.chain().focus();
+                    if (event.target.value === "heading2") {
+                        chain.setHeading({ level: 2 }).run();
+                        return;
+                    }
+                    if (event.target.value === "heading3") {
+                        chain.setHeading({ level: 3 }).run();
+                        return;
+                    }
+                    chain.setParagraph().run();
+                }}
+                size="small"
+                variant="standard"
+                disableUnderline
+                renderValue={(value) => getTextBlockFormatShortLabel(value)}
+                sx={{
+                    minWidth: 52,
+                    height: 32,
+                    px: 0.5,
+                    borderRadius: 1,
+                    color: "text.secondary",
+                    bgcolor: "transparent",
+                    "&:hover": { bgcolor: "action.hover" },
+                    "& .MuiSelect-select": {
+                        py: 0,
+                        pl: 0.5,
+                        pr: 2.75,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        lineHeight: "32px",
+                    },
+                }}
+                MenuProps={{
+                    PaperProps: {
+                        sx: { borderRadius: 1 },
+                    },
+                }}
+            >
+                {TEXT_BLOCK_FORMATS.map((format) => (
+                    <MenuItem key={format.value} value={format.value}>
+                        {format.label}
+                    </MenuItem>
+                ))}
+            </Select>
+        </Tooltip>
+    );
+};
+
+const TextControls = ({ editor, onAddLink }) => (
+    <>
+        <TextBlockFormatSelect editor={editor} />
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            active={editor.isActive("bold")}
+            icon={<FormatBold fontSize="small" />}
+            title="Bold (Ctrl+B)"
+        />
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            active={editor.isActive("italic")}
+            icon={<FormatItalic fontSize="small" />}
+            title="Italic (Ctrl+I)"
+        />
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            active={editor.isActive("underline")}
+            icon={<FormatUnderlined fontSize="small" />}
+            title="Underline (Ctrl+U)"
+        />
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            active={editor.isActive("strike")}
+            icon={<StrikethroughS fontSize="small" />}
+            title="Strikethrough"
+        />
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            active={editor.isActive("code")}
+            icon={<CodeIcon fontSize="small" />}
+            title="Inline code"
+        />
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <MenuButton
+            onClick={onAddLink}
+            active={editor.isActive("link")}
+            icon={<InsertLink fontSize="small" />}
+            title="Insert or edit link"
+        />
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            active={editor.isActive("bulletList")}
+            icon={<FormatListBulleted fontSize="small" />}
+            title="Bullet List"
+        />
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            active={editor.isActive("orderedList")}
+            icon={<FormatListNumbered fontSize="small" />}
+            title="Numbered List"
+        />
+        <MenuButton
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            active={editor.isActive("blockquote")}
+            icon={<FormatQuote fontSize="small" />}
+            title="Quote"
+        />
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <MenuButton
+            onClick={() =>
+                editor.chain().focus().unsetAllMarks().clearNodes().run()
+            }
+            icon={<FormatClear fontSize="small" />}
+            title="Clear formatting"
+        />
+    </>
+);
+
 const ImageControls = ({
     activeImageAttributes,
     onUpdateImage,
@@ -322,6 +501,31 @@ const getSelectedImageElement = (currentEditor) => {
     }
 
     return null;
+};
+
+const shouldShowTextSelectionMenu = ({
+    editor: currentEditor,
+    element,
+    view,
+    state,
+    from,
+    to,
+}) => {
+    const selectedText = state.doc.textBetween(from, to, " ").trim();
+    const isImageNodeSelection =
+        state.selection?.node?.type?.name === "image" ||
+        currentEditor.isActive("image");
+    const isChildOfMenu =
+        typeof document !== "undefined" &&
+        element?.contains(document.activeElement);
+
+    return Boolean(
+        currentEditor.isEditable &&
+            (view.hasFocus() || isChildOfMenu) &&
+            !state.selection.empty &&
+            !isImageNodeSelection &&
+            selectedText.length > 0,
+    );
 };
 
 const isElementVisibleInScrollTarget = (element, scrollTarget) => {
@@ -586,10 +790,28 @@ export default function RichTextEditorImpl({
     }
 
     const addLink = () => {
-        const url = window.prompt("Enter URL:");
-        if (url) {
-            editor.chain().focus().setLink({ href: url }).run();
+        const currentUrl = editor.getAttributes("link").href || "";
+        const url = window.prompt("Enter URL:", currentUrl);
+
+        if (url === null) {
+            return;
         }
+
+        const trimmedUrl = url.trim();
+        if (!trimmedUrl) {
+            let command = editor.chain().focus();
+            if (editor.isActive("link")) {
+                command = command.extendMarkRange("link");
+            }
+            command.unsetLink().run();
+            return;
+        }
+
+        let command = editor.chain().focus();
+        if (editor.isActive("link")) {
+            command = command.extendMarkRange("link");
+        }
+        command.setLink({ href: trimmedUrl }).run();
     };
 
     const addImage = () => {
@@ -773,6 +995,37 @@ export default function RichTextEditorImpl({
                 >
                     {imageInsertError}
                 </Alert>
+            )}
+
+            {imageMenuScrollTarget && (
+                <BubbleMenu
+                    key={`text-${imageMenuScrollTarget.key}`}
+                    editor={editor}
+                    pluginKey="richTextTextControls"
+                    updateDelay={0}
+                    shouldShow={shouldShowTextSelectionMenu}
+                    options={{
+                        placement: "top",
+                        offset: 8,
+                        scrollTarget: imageMenuScrollTarget.target,
+                    }}
+                >
+                    <Paper
+                        elevation={6}
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            p: 0.75,
+                            borderRadius: 1,
+                            border: 1,
+                            borderColor: "divider",
+                            bgcolor: "background.paper",
+                        }}
+                    >
+                        <TextControls editor={editor} onAddLink={addLink} />
+                    </Paper>
+                </BubbleMenu>
             )}
 
             {imageMenuScrollTarget && imageMenuVisible && (
