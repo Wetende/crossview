@@ -27,12 +27,27 @@ import {
     InsertPhoto,
     Undo,
     Redo,
+    PhotoSizeSelectSmall,
+    PhotoSizeSelectLarge,
+    FitScreen,
+    FormatAlignLeft,
+    FormatAlignCenter,
+    Crop169,
 } from "@mui/icons-material";
 import {
+    DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+    RICH_TEXT_IMAGE_ALIGNS,
+    RICH_TEXT_IMAGE_CROPS,
+    RICH_TEXT_IMAGE_SIZES,
     fileToDataUrl,
     getImageFilesFromClipboard,
+    getRichTextImageDataAttributes,
     getUploadedImageUrl,
     isImageFile,
+    normalizeRichTextImageAlign,
+    normalizeRichTextImageAttributes,
+    normalizeRichTextImageCrop,
+    normalizeRichTextImageSize,
     richTextImageSx,
 } from "@/utils/richTextImages";
 
@@ -59,6 +74,84 @@ const MenuButton = ({ onClick, active, disabled, icon, title }) => (
     </Tooltip>
 );
 
+const RichTextImage = Image.extend({
+    addAttributes() {
+        return {
+            ...this.parent?.(),
+            imageSize: {
+                default: DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageSize,
+                parseHTML: (element) =>
+                    normalizeRichTextImageSize(
+                        element.getAttribute("data-rich-text-image-size"),
+                    ),
+                renderHTML: (attributes) => ({
+                    "data-rich-text-image-size":
+                        getRichTextImageDataAttributes(attributes)[
+                            "data-rich-text-image-size"
+                        ],
+                }),
+            },
+            imageAlign: {
+                default: DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageAlign,
+                parseHTML: (element) =>
+                    normalizeRichTextImageAlign(
+                        element.getAttribute("data-rich-text-image-align"),
+                    ),
+                renderHTML: (attributes) => ({
+                    "data-rich-text-image-align":
+                        getRichTextImageDataAttributes(attributes)[
+                            "data-rich-text-image-align"
+                        ],
+                }),
+            },
+            imageCrop: {
+                default: DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageCrop,
+                parseHTML: (element) =>
+                    normalizeRichTextImageCrop(
+                        element.getAttribute("data-rich-text-image-crop"),
+                    ),
+                renderHTML: (attributes) => ({
+                    "data-rich-text-image-crop":
+                        getRichTextImageDataAttributes(attributes)[
+                            "data-rich-text-image-crop"
+                        ],
+                }),
+            },
+        };
+    },
+});
+
+const IMAGE_SIZE_CONTROLS = [
+    {
+        value: RICH_TEXT_IMAGE_SIZES.SMALL,
+        title: "Small image",
+        icon: <PhotoSizeSelectSmall fontSize="small" />,
+    },
+    {
+        value: RICH_TEXT_IMAGE_SIZES.MEDIUM,
+        title: "Medium image",
+        icon: <PhotoSizeSelectLarge fontSize="small" />,
+    },
+    {
+        value: RICH_TEXT_IMAGE_SIZES.FULL,
+        title: "Full width image",
+        icon: <FitScreen fontSize="small" />,
+    },
+];
+
+const IMAGE_ALIGN_CONTROLS = [
+    {
+        value: RICH_TEXT_IMAGE_ALIGNS.LEFT,
+        title: "Align image left",
+        icon: <FormatAlignLeft fontSize="small" />,
+    },
+    {
+        value: RICH_TEXT_IMAGE_ALIGNS.CENTER,
+        title: "Align image center",
+        icon: <FormatAlignCenter fontSize="small" />,
+    },
+];
+
 const extensions = [
     StarterKit.configure({
         heading: { levels: [1, 2, 3] },
@@ -70,7 +163,7 @@ const extensions = [
         openOnClick: false,
         HTMLAttributes: { class: "text-link" },
     }),
-    Image,
+    RichTextImage,
 ];
 
 const getImageInsertErrorMessage = (error) => {
@@ -99,6 +192,7 @@ export default function RichTextEditorImpl({
     const editorRef = React.useRef(null);
     const imageUploadUrlRef = React.useRef(imageUploadUrl);
     const onImageUploadErrorRef = React.useRef(onImageUploadError);
+    const [, refreshToolbar] = React.useReducer((value) => value + 1, 0);
     const [uploadingImageCount, setUploadingImageCount] = React.useState(0);
     const [imageInsertError, setImageInsertError] = React.useState("");
 
@@ -147,6 +241,7 @@ export default function RichTextEditorImpl({
                         .setImage({
                             src,
                             alt: file.name || "Image",
+                            ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
                         })
                         .run();
                 }
@@ -185,6 +280,8 @@ export default function RichTextEditorImpl({
                 onChange(currentEditor.getHTML());
             }
         },
+        onSelectionUpdate: refreshToolbar,
+        onTransaction: refreshToolbar,
         editorProps: {
             handlePaste,
             attributes: {
@@ -230,6 +327,38 @@ export default function RichTextEditorImpl({
 
         void insertImageFiles(imageFiles);
         event.target.value = "";
+    };
+
+    const isImageSelected = editor.isActive("image");
+    const activeImageAttributes = normalizeRichTextImageAttributes(
+        editor.getAttributes("image"),
+    );
+
+    const updateSelectedImage = (attributes) => {
+        if (!isImageSelected) {
+            return;
+        }
+
+        editor
+            .chain()
+            .focus()
+            .updateAttributes(
+                "image",
+                normalizeRichTextImageAttributes({
+                    ...activeImageAttributes,
+                    ...attributes,
+                }),
+            )
+            .run();
+    };
+
+    const toggleImageCrop = () => {
+        updateSelectedImage({
+            imageCrop:
+                activeImageAttributes.imageCrop === RICH_TEXT_IMAGE_CROPS.COVER
+                    ? RICH_TEXT_IMAGE_CROPS.NONE
+                    : RICH_TEXT_IMAGE_CROPS.COVER,
+        });
     };
 
     return (
@@ -336,6 +465,58 @@ export default function RichTextEditorImpl({
                     icon={<InsertPhoto fontSize="small" />}
                     title="Insert Image"
                 />
+
+                {isImageSelected && (
+                    <>
+                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+                        {IMAGE_SIZE_CONTROLS.map((option) => (
+                            <MenuButton
+                                key={option.value}
+                                onClick={() =>
+                                    updateSelectedImage({
+                                        imageSize: option.value,
+                                    })
+                                }
+                                active={
+                                    activeImageAttributes.imageSize ===
+                                    option.value
+                                }
+                                icon={option.icon}
+                                title={option.title}
+                            />
+                        ))}
+
+                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+                        {IMAGE_ALIGN_CONTROLS.map((option) => (
+                            <MenuButton
+                                key={option.value}
+                                onClick={() =>
+                                    updateSelectedImage({
+                                        imageAlign: option.value,
+                                    })
+                                }
+                                active={
+                                    activeImageAttributes.imageAlign ===
+                                    option.value
+                                }
+                                icon={option.icon}
+                                title={option.title}
+                            />
+                        ))}
+
+                        <MenuButton
+                            onClick={toggleImageCrop}
+                            active={
+                                activeImageAttributes.imageCrop ===
+                                RICH_TEXT_IMAGE_CROPS.COVER
+                            }
+                            icon={<Crop169 fontSize="small" />}
+                            title="Crop image to 16:9"
+                        />
+                    </>
+                )}
             </Box>
 
             {uploadingImageCount > 0 && <LinearProgress />}
@@ -401,6 +582,10 @@ export default function RichTextEditorImpl({
                         },
                         "& a": { color: "primary.main" },
                         "& img": { ...richTextImageSx, my: 1.5 },
+                        "& img.ProseMirror-selectednode": {
+                            outline: `2px solid ${theme.palette.primary.main}`,
+                            outlineOffset: 2,
+                        },
                     },
                     "& .ProseMirror p.is-editor-empty:first-child::before": {
                         content: `"${placeholder || "Start typing..."}"`,

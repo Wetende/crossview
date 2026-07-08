@@ -1,11 +1,100 @@
+export const RICH_TEXT_IMAGE_SIZES = {
+    SMALL: "small",
+    MEDIUM: "medium",
+    FULL: "full",
+};
+
+export const RICH_TEXT_IMAGE_ALIGNS = {
+    LEFT: "left",
+    CENTER: "center",
+};
+
+export const RICH_TEXT_IMAGE_CROPS = {
+    NONE: "none",
+    COVER: "cover",
+};
+
+export const RICH_TEXT_IMAGE_SMALL_WIDTH = "320px";
 export const RICH_TEXT_IMAGE_MAX_WIDTH = "720px";
 
+export const DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES = {
+    imageSize: RICH_TEXT_IMAGE_SIZES.MEDIUM,
+    imageAlign: RICH_TEXT_IMAGE_ALIGNS.CENTER,
+    imageCrop: RICH_TEXT_IMAGE_CROPS.NONE,
+};
+
+export const RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES = [
+    "data-rich-text-image-size",
+    "data-rich-text-image-align",
+    "data-rich-text-image-crop",
+];
+
+const allowedValues = (values) => Object.values(values);
+
+export const normalizeRichTextImageSize = (value) =>
+    allowedValues(RICH_TEXT_IMAGE_SIZES).includes(value)
+        ? value
+        : DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageSize;
+
+export const normalizeRichTextImageAlign = (value) =>
+    allowedValues(RICH_TEXT_IMAGE_ALIGNS).includes(value)
+        ? value
+        : DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageAlign;
+
+export const normalizeRichTextImageCrop = (value) =>
+    allowedValues(RICH_TEXT_IMAGE_CROPS).includes(value)
+        ? value
+        : DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageCrop;
+
+export const normalizeRichTextImageAttributes = (attributes = {}) => ({
+    imageSize: normalizeRichTextImageSize(attributes.imageSize),
+    imageAlign: normalizeRichTextImageAlign(attributes.imageAlign),
+    imageCrop: normalizeRichTextImageCrop(attributes.imageCrop),
+});
+
+export const getRichTextImageDataAttributes = (attributes = {}) => {
+    const normalized = normalizeRichTextImageAttributes(attributes);
+
+    return {
+        "data-rich-text-image-size": normalized.imageSize,
+        "data-rich-text-image-align": normalized.imageAlign,
+        "data-rich-text-image-crop": normalized.imageCrop,
+    };
+};
+
 export const richTextImageSx = {
+    "--rich-text-image-width": RICH_TEXT_IMAGE_MAX_WIDTH,
     display: "block",
     width: "auto",
-    maxWidth: `min(100%, ${RICH_TEXT_IMAGE_MAX_WIDTH})`,
+    maxWidth: "min(100%, var(--rich-text-image-width))",
     height: "auto",
+    objectFit: "contain",
     mx: "auto",
+    "&[data-rich-text-image-size='small']": {
+        "--rich-text-image-width": RICH_TEXT_IMAGE_SMALL_WIDTH,
+    },
+    "&[data-rich-text-image-size='medium']": {
+        "--rich-text-image-width": RICH_TEXT_IMAGE_MAX_WIDTH,
+    },
+    "&[data-rich-text-image-size='full']": {
+        width: "100%",
+        maxWidth: "100%",
+    },
+    "&[data-rich-text-image-align='left']": {
+        mx: 0,
+        mr: "auto",
+    },
+    "&[data-rich-text-image-align='center']": {
+        mx: "auto",
+    },
+    "&[data-rich-text-image-crop='cover']": {
+        width: "min(100%, var(--rich-text-image-width))",
+        aspectRatio: "16 / 9",
+        objectFit: "cover",
+    },
+    "&[data-rich-text-image-crop='cover'][data-rich-text-image-size='full']": {
+        width: "100%",
+    },
 };
 
 export const isImageFile = (file) =>

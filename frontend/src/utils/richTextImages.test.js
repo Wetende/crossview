@@ -1,10 +1,17 @@
 import { describe, expect, test } from "vitest";
 
 import {
+    DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+    RICH_TEXT_IMAGE_ALIGNS,
+    RICH_TEXT_IMAGE_CROPS,
+    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
     RICH_TEXT_IMAGE_MAX_WIDTH,
+    RICH_TEXT_IMAGE_SIZES,
     getImageFilesFromClipboard,
+    getRichTextImageDataAttributes,
     getUploadedImageUrl,
     isImageFile,
+    normalizeRichTextImageAttributes,
     richTextImageSx,
 } from "./richTextImages";
 
@@ -76,9 +83,59 @@ describe("rich text image helpers", () => {
         expect(richTextImageSx).toMatchObject({
             display: "block",
             width: "auto",
-            maxWidth: "min(100%, 720px)",
+            maxWidth: "min(100%, var(--rich-text-image-width))",
             height: "auto",
             mx: "auto",
+            "&[data-rich-text-image-size='small']": {
+                "--rich-text-image-width": "320px",
+            },
+            "&[data-rich-text-image-size='full']": {
+                width: "100%",
+                maxWidth: "100%",
+            },
+        });
+    });
+
+    test("normalizes rich text image controls", () => {
+        expect(normalizeRichTextImageAttributes()).toEqual(
+            DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+        );
+        expect(
+            normalizeRichTextImageAttributes({
+                imageSize: RICH_TEXT_IMAGE_SIZES.SMALL,
+                imageAlign: RICH_TEXT_IMAGE_ALIGNS.LEFT,
+                imageCrop: RICH_TEXT_IMAGE_CROPS.COVER,
+            }),
+        ).toEqual({
+            imageSize: "small",
+            imageAlign: "left",
+            imageCrop: "cover",
+        });
+        expect(
+            normalizeRichTextImageAttributes({
+                imageSize: "tiny",
+                imageAlign: "right",
+                imageCrop: "square",
+            }),
+        ).toEqual(DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES);
+    });
+
+    test("builds image data attributes for sanitized rendering", () => {
+        expect(RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES).toEqual([
+            "data-rich-text-image-size",
+            "data-rich-text-image-align",
+            "data-rich-text-image-crop",
+        ]);
+        expect(
+            getRichTextImageDataAttributes({
+                imageSize: RICH_TEXT_IMAGE_SIZES.FULL,
+                imageAlign: RICH_TEXT_IMAGE_ALIGNS.LEFT,
+                imageCrop: RICH_TEXT_IMAGE_CROPS.COVER,
+            }),
+        ).toEqual({
+            "data-rich-text-image-size": "full",
+            "data-rich-text-image-align": "left",
+            "data-rich-text-image-crop": "cover",
         });
     });
 });

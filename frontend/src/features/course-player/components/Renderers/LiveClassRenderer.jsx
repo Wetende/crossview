@@ -8,7 +8,10 @@ import {
     Typography,
 } from "@mui/material";
 import DOMPurify from "dompurify";
-import { richTextImageSx } from "@/utils/richTextImages";
+import {
+    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    richTextImageSx,
+} from "@/utils/richTextImages";
 
 const parseDurationToMs = (durationText) => {
     const source = String(durationText || "").toLowerCase().trim();
@@ -101,8 +104,12 @@ const LiveClassRenderer = ({
     const canJoin = !!streamUrl && (allowJoinAnytime || isStarted);
 
     const countdown = formatMs(msUntilStart);
-    const sanitizedDescription = DOMPurify.sanitize(description || "");
-    const sanitizedContent = DOMPurify.sanitize(content || "");
+    const sanitizedDescription = DOMPurify.sanitize(description || "", {
+        ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    });
+    const sanitizedContent = DOMPurify.sanitize(content || "", {
+        ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    });
 
     return (
         <Stack spacing={3}>

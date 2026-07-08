@@ -1,6 +1,9 @@
 import { Paper, Typography } from '@mui/material';
 import DOMPurify from 'dompurify';
-import { richTextImageSx } from '@/utils/richTextImages';
+import {
+    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    richTextImageSx,
+} from '@/utils/richTextImages';
 
 const TextRenderer = ({ content }) => {
     // If content is just a string, treat it as HTML
@@ -8,7 +11,9 @@ const TextRenderer = ({ content }) => {
     // Assuming HTML string for now based on previous patterns.
     const htmlContent = typeof content === 'string' ? content : (content?.html || '');
 
-    const sanitizedContent = DOMPurify.sanitize(htmlContent);
+    const sanitizedContent = DOMPurify.sanitize(htmlContent, {
+        ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    });
 
     if (!sanitizedContent) {
         return (
