@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useState,
+} from "react";
 import {
     Box,
     Typography,
@@ -21,6 +28,8 @@ import {
     TableRow,
 } from "@mui/material";
 import { AccessTime as TimeIcon } from "@mui/icons-material";
+import AutosaveStatus from "./AutosaveStatus";
+import useAutosave from "../hooks/useAutosave";
 
 const getLessons = (nodes = []) => {
     let lessons = [];
@@ -34,7 +43,10 @@ const getLessons = (nodes = []) => {
     return lessons;
 };
 
-export default function DripEditor({ program, curriculum, onSave }) {
+const DripEditor = forwardRef(function DripEditor(
+    { program, curriculum, onSave },
+    ref,
+) {
     const [dripEnabled, setDripEnabled] = useState(
         Boolean(program?.dripEnabled),
     );
@@ -103,9 +115,7 @@ export default function DripEditor({ program, curriculum, onSave }) {
         }));
     };
 
-    const handleSave = () => {
-        if (!onSave || saving) return;
-
+    const buildSavePayload = useCallback(() => {
         const drip_schedule = dripEnabled
             ? lessons.map((lesson) => {
                   const row = scheduleByNodeId[lesson.id] || {};
@@ -125,18 +135,56 @@ export default function DripEditor({ program, curriculum, onSave }) {
               })
             : [];
 
+        return {
+            drip_enabled: dripEnabled,
+            drip_mode: dripMode,
+            drip_schedule,
+        };
+    }, [dripEnabled, dripMode, lessons, scheduleByNodeId, scheduleMode]);
+
+    const savePayload = useCallback(
+        (payload, callbacks = {}) => {
+            if (!onSave) return;
+            onSave(payload, callbacks);
+        },
+        [onSave],
+    );
+
+    const autosaveValue = useMemo(
+        () => ({
+            dripEnabled,
+            scheduleByNodeId,
+            scheduleMode,
+        }),
+        [dripEnabled, scheduleByNodeId, scheduleMode],
+    );
+
+    const autosave = useAutosave({
+        enabled: Boolean(onSave && program?.id),
+        value: autosaveValue,
+        buildPayload: buildSavePayload,
+        save: savePayload,
+        debounceMs: 2000,
+        saveKey: `drip:${program?.id || "new"}`,
+    });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            flushAutosave: autosave.flush,
+        }),
+        [autosave.flush],
+    );
+
+    const handleSave = () => {
+        if (!onSave || saving) return;
+
         setSaving(true);
-        onSave(
-            {
-                drip_enabled: dripEnabled,
-                drip_mode: dripMode,
-                drip_schedule,
-            },
-            {
-                onFinish: () => setSaving(false),
-                onError: () => setSaving(false),
-            },
-        );
+        void autosave.flush({
+            force: true,
+            onFinish: () => setSaving(false),
+            onError: () => setSaving(false),
+        });
     };
 
     return (
@@ -368,7 +416,19 @@ export default function DripEditor({ program, curriculum, onSave }) {
                     </Typography>
                 </Box>
             )}
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Box
+                sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 2,
+                }}
+            >
+                <AutosaveStatus
+                    status={autosave.status}
+                    lastSavedAt={autosave.lastSavedAt}
+                    disabledReason="Autosave starts after the course exists."
+                />
                 <Button
                     variant="contained"
                     size="large"
@@ -384,4 +444,6 @@ export default function DripEditor({ program, curriculum, onSave }) {
             </Box>
         </Stack>
     );
-}
+});
+
+export default DripEditor;

@@ -1,4 +1,10 @@
-import { useState } from "react";
+import {
+    forwardRef,
+    useCallback,
+    useImperativeHandle,
+    useMemo,
+    useState,
+} from "react";
 import {
     Box,
     Typography,
@@ -32,6 +38,8 @@ import {
 import RichTextEditor from "@/components/RichTextEditor";
 import FileUploader from "@/components/FileUploader";
 import GamificationSettings from "../components/GamificationSettings";
+import AutosaveStatus from "../components/AutosaveStatus";
+import useAutosave from "../hooks/useAutosave";
 import CodeMirror from "@uiw/react-codemirror";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { html } from "@codemirror/lang-html";
@@ -95,7 +103,10 @@ const LAYOUT_OPTIONS = [
     { value: "tabbed", label: "Tabbed" },
 ];
 
-export default function CodeLabEditor({ node, onSave, blueprint }) {
+const CodeLabEditor = forwardRef(function CodeLabEditor(
+    { node, onSave, blueprint },
+    ref,
+) {
     const TITLE_MIN_LENGTH = 5;
     const TITLE_MAX_LENGTH = 100;
 
@@ -226,19 +237,8 @@ export default function CodeLabEditor({ node, onSave, blueprint }) {
         return true;
     };
 
-    // ── Save ──
-    const handleSave = () => {
-        touchAllFields();
-        if (!validate()) {
-            setSnackbar({
-                open: true,
-                message: "Please fix the validation errors",
-                severity: "error",
-            });
-            return;
-        }
-
-        onSave(node.id, {
+    const buildSavePayload = useCallback(
+        () => ({
             title,
             description,
             properties: {
@@ -257,12 +257,108 @@ export default function CodeLabEditor({ node, onSave, blueprint }) {
                     gamification: gamificationSettings,
                 }),
             },
-        });
+        }),
+        [
+            allowReset,
+            description,
+            duration,
+            featureFlags.gamification,
+            gamificationSettings,
+            instructions,
+            isPreview,
+            language,
+            layout,
+            node.properties,
+            showConsole,
+            solutionCode,
+            starterCode,
+            title,
+        ],
+    );
 
-        setSnackbar({
-            open: true,
-            message: "Code Lab saved successfully!",
-            severity: "success",
+    const savePayload = useCallback(
+        (payload, callbacks = {}) => {
+            onSave(node.id, payload, callbacks);
+        },
+        [node.id, onSave],
+    );
+
+    const autosaveValue = useMemo(
+        () => ({
+            allowReset,
+            description,
+            duration,
+            gamificationSettings,
+            isPreview,
+            language,
+            layout,
+            showConsole,
+            solutionCode,
+            starterCode,
+            title,
+        }),
+        [
+            allowReset,
+            description,
+            duration,
+            gamificationSettings,
+            isPreview,
+            language,
+            layout,
+            showConsole,
+            solutionCode,
+            starterCode,
+            title,
+        ],
+    );
+
+    const hasPersistedNodeId =
+        Boolean(node.id) && !String(node.id).startsWith("temp_");
+    const autosave = useAutosave({
+        enabled: hasPersistedNodeId,
+        value: autosaveValue,
+        buildPayload: buildSavePayload,
+        save: savePayload,
+        debounceMs: 1800,
+        saveKey: `code:${node.id}`,
+    });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            flushAutosave: autosave.flush,
+        }),
+        [autosave.flush],
+    );
+
+    // ── Save ──
+    const handleSave = () => {
+        touchAllFields();
+        if (!validate()) {
+            setSnackbar({
+                open: true,
+                message: "Please fix the validation errors",
+                severity: "error",
+            });
+            return;
+        }
+
+        void autosave.flush({
+            force: true,
+            onSuccess: () => {
+                setSnackbar({
+                    open: true,
+                    message: "Code Lab saved successfully!",
+                    severity: "success",
+                });
+            },
+            onError: () => {
+                setSnackbar({
+                    open: true,
+                    message: "Could not save the code lab. Please try again.",
+                    severity: "error",
+                });
+            },
         });
     };
 
@@ -326,6 +422,13 @@ export default function CodeLabEditor({ node, onSave, blueprint }) {
                     helperText={titleErrorMessage}
                     InputProps={{ sx: { fontSize: "1.2rem", fontWeight: 500 } }}
                 />
+                <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
+                    <AutosaveStatus
+                        status={autosave.status}
+                        lastSavedAt={autosave.lastSavedAt}
+                        disabledReason="Create the code lab before autosave can start."
+                    />
+                </Box>
                 <Button
                     variant="contained"
                     onClick={handleSave}
@@ -742,4 +845,6 @@ export default function CodeLabEditor({ node, onSave, blueprint }) {
             </Snackbar>
         </Box>
     );
-}
+});
+
+export default CodeLabEditor;

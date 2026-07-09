@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useState,
+} from "react";
 import {
     Box,
     Typography,
@@ -35,6 +42,8 @@ import { router } from "@inertiajs/react";
 import QuestionsLibraryDrawer from "../components/QuestionsLibraryDrawer";
 import QuestionBankDialog from "../components/QuestionBankDialog";
 import QuestionEditorCard from "../components/QuestionEditorCard";
+import AutosaveStatus from "../components/AutosaveStatus";
+import useAutosave from "../hooks/useAutosave";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import RichTextEditor from "@/components/RichTextEditor";
 
@@ -114,14 +123,17 @@ function PillTabs({ value, onChange, tabs, questionCount }) {
  * AssessmentEditor - Unified editor for quizzes and assignments
  * STM LMS-inspired design with tabs, question banks, and library drawer
  */
-export default function AssessmentEditor({
-    node,
-    onSave,
-    type = "quiz",
-    programId,
-    questionLibrary = [],
-    categories = [],
-}) {
+const AssessmentEditor = forwardRef(function AssessmentEditor(
+    {
+        node,
+        onSave,
+        type = "quiz",
+        programId,
+        questionLibrary = [],
+        categories = [],
+    },
+    ref,
+) {
     const normalizeQuestion = (question) => {
         if (!question) return question;
         const normalized = { ...question };
@@ -303,16 +315,7 @@ export default function AssessmentEditor({
         return true;
     };
 
-    const handleSave = () => {
-        if (!isFormValid()) {
-            setSnackbar({
-                open: true,
-                message: "Please fix validation errors",
-                severity: "error",
-            });
-            return;
-        }
-
+    const buildSavePayload = useCallback(() => {
         const properties = {
             ...node.properties,
         };
@@ -369,11 +372,133 @@ export default function AssessmentEditor({
             delete properties.quiz_id;
         }
 
-        onSave(node.id, { title, properties });
-        setSnackbar({
-            open: true,
-            message: `${isQuiz ? "Quiz" : "Assignment"} saved!`,
-            severity: "success",
+        return { title, properties };
+    }, [
+        allowedFileTypes,
+        allowLate,
+        assessmentPrompt,
+        assignmentAttempts,
+        assignmentSubmissionType,
+        description,
+        isQuiz,
+        limitedRetakeAttempts,
+        materialFiles,
+        maxAttempts,
+        maxFileSizeMb,
+        node.properties,
+        passingGrade,
+        points,
+        pointsCutAfterRetake,
+        questionBanks,
+        questions,
+        quizAttemptHistory,
+        quizDuration,
+        quizStyle,
+        quizTimeUnit,
+        randomizeAnswers,
+        randomizeQuestions,
+        retakeAfterPass,
+        retakePenalty,
+        showCorrectAnswer,
+        title,
+        weight,
+    ]);
+
+    const savePayload = useCallback(
+        (payload, callbacks = {}) => {
+            onSave(node.id, payload, callbacks);
+        },
+        [node.id, onSave],
+    );
+
+    const autosaveValue = useMemo(
+        () => ({
+            allowedFileTypes,
+            assessmentPrompt,
+            assignmentAttempts,
+            assignmentSubmissionType,
+            description,
+            maxAttempts,
+            maxFileSizeMb,
+            passingGrade,
+            questionBanks,
+            questions,
+            quizAttemptHistory,
+            quizDuration,
+            quizStyle,
+            randomizeAnswers,
+            randomizeQuestions,
+            showCorrectAnswer,
+            title,
+            weight,
+        }),
+        [
+            allowedFileTypes,
+            assessmentPrompt,
+            assignmentAttempts,
+            assignmentSubmissionType,
+            description,
+            maxAttempts,
+            maxFileSizeMb,
+            passingGrade,
+            questionBanks,
+            questions,
+            quizAttemptHistory,
+            quizDuration,
+            quizStyle,
+            randomizeAnswers,
+            randomizeQuestions,
+            showCorrectAnswer,
+            title,
+            weight,
+        ],
+    );
+
+    const hasPersistedNodeId =
+        Boolean(node.id) && !String(node.id).startsWith("temp_");
+    const autosave = useAutosave({
+        enabled: hasPersistedNodeId,
+        value: autosaveValue,
+        buildPayload: buildSavePayload,
+        save: savePayload,
+        debounceMs: 1800,
+        saveKey: `assessment:${node.id}`,
+    });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            flushAutosave: autosave.flush,
+        }),
+        [autosave.flush],
+    );
+
+    const handleSave = () => {
+        if (!isFormValid()) {
+            setSnackbar({
+                open: true,
+                message: "Please fix validation errors",
+                severity: "error",
+            });
+            return;
+        }
+
+        void autosave.flush({
+            force: true,
+            onSuccess: () => {
+                setSnackbar({
+                    open: true,
+                    message: `${isQuiz ? "Quiz" : "Assignment"} saved!`,
+                    severity: "success",
+                });
+            },
+            onError: () => {
+                setSnackbar({
+                    open: true,
+                    message: `Could not save the ${isQuiz ? "quiz" : "assignment"}. Please try again.`,
+                    severity: "error",
+                });
+            },
         });
     };
 
@@ -736,6 +861,11 @@ export default function AssessmentEditor({
                     />
                 </Box>
                 <Stack direction="row" spacing={1}>
+                    <AutosaveStatus
+                        status={autosave.status}
+                        lastSavedAt={autosave.lastSavedAt}
+                        disabledReason="Create this assessment before autosave can start."
+                    />
                     <Button
                         variant="outlined"
                         startIcon={<LibraryIcon />}
@@ -1502,4 +1632,6 @@ export default function AssessmentEditor({
             />
         </Box>
     );
-}
+});
+
+export default AssessmentEditor;

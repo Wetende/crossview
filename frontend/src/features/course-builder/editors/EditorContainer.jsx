@@ -1,16 +1,20 @@
+import { forwardRef } from "react";
 import ContentEditor from './ContentEditor';
 import AssessmentEditor from './AssessmentEditor';
 import CodeLabEditor from './CodeLabEditor';
 
-export default function EditorContainer({
-    node,
-    onSave,
-    blueprint,
-    programId,
-    questionLibrary = [],
-    categories = [],
-    quizEditorComponent: QuizEditorComponent = AssessmentEditor,
-}) {
+const EditorContainer = forwardRef(function EditorContainer(
+    {
+        node,
+        onSave,
+        blueprint,
+        programId,
+        questionLibrary = [],
+        categories = [],
+        quizEditorComponent: QuizEditorComponent = AssessmentEditor,
+    },
+    ref,
+) {
     // Determine the type of the node/lesson to choose the correct editor
     // Normalize type string: 'Quiz' -> 'quiz', 'Assignment' -> 'assignment'
     const type = (node.type || node.node_type || '').toLowerCase();
@@ -36,6 +40,7 @@ export default function EditorContainer({
     if (type === 'quiz' || lessonType === 'quiz') {
         return (
             <QuizEditorComponent
+                ref={ref}
                 node={node} 
                 onSave={onSave} 
                 type="quiz"
@@ -49,6 +54,7 @@ export default function EditorContainer({
     if (type === 'assignment' || lessonType === 'assignment') {
         return (
             <AssessmentEditor 
+                ref={ref}
                 node={node} 
                 onSave={onSave} 
                 type="assignment"
@@ -61,8 +67,10 @@ export default function EditorContainer({
 
     // Code Lab
     if (type === 'code' || lessonType === 'code') {
-        return <CodeLabEditor node={node} onSave={onSave} blueprint={blueprint} />;
+        return <CodeLabEditor ref={ref} node={node} onSave={onSave} blueprint={blueprint} />;
     }
 
-    return <ContentEditor node={node} onSave={onSave} blueprint={blueprint} />;
-}
+    return <ContentEditor ref={ref} node={node} onSave={onSave} blueprint={blueprint} />;
+});
+
+export default EditorContainer;

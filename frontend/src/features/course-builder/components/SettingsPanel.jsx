@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+} from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
 import {
     Alert,
@@ -38,6 +45,8 @@ import { PricingEditor, FAQEditor, NoticeEditor } from "./SettingsEditors";
 import DripEditor from "./DripEditor";
 import RichTextEditor from "@/components/RichTextEditor";
 import SidebarLayout from "./SidebarLayout";
+import AutosaveStatus from "./AutosaveStatus";
+import useAutosave from "../hooks/useAutosave";
 import { SETTINGS_SECTIONS } from "../utils/builderTabs";
 
 const SETTINGS_SECTION_ICONS = {
@@ -55,15 +64,18 @@ const getUserIsStaff = (user = {}) =>
         user.isStaff || user.is_staff || user.isSuperuser || user.is_superuser,
     );
 
-export default function SettingsPanel({
-    program,
-    activeTab,
-    settingsSection = "main",
-    onSettingsSectionChange,
-    curriculum,
-    platformFeatures = {},
-    deploymentMode = "custom",
-}) {
+const SettingsPanel = forwardRef(function SettingsPanel(
+    {
+        program,
+        activeTab,
+        settingsSection = "main",
+        onSettingsSectionChange,
+        curriculum,
+        platformFeatures = {},
+        deploymentMode = "custom",
+    },
+    ref,
+) {
     const { props } = usePage();
     const authUser = props.auth?.user || {};
     const canManageFeatured = getUserIsStaff(authUser);
@@ -78,6 +90,7 @@ export default function SettingsPanel({
     const hasExamBodies =
         isTvetMode && Object.keys(examBodyRegistry).length > 0;
     const fileInputRef = useRef(null);
+    const dripEditorRef = useRef(null);
 
     const {
         data: formData,
@@ -181,29 +194,30 @@ export default function SettingsPanel({
         }));
     };
 
-    const getSubmitPayload = () => {
+    const getSubmitPayload = useCallback((currentData = formData, options = {}) => {
+        const { includeFiles = true } = options;
         if (activeTab === "settings") {
             if (settingsSection === "main") {
                 const payload = {
                     tab: "settings",
                     section: "main",
-                    name: formData.name,
-                    category: formData.category,
-                    duration_hours: formData.duration_hours,
-                    video_hours: formData.video_hours,
-                    description: formData.description,
-                    whatYouLearn: formData.whatYouLearn,
-                    preview_description: formData.preview_description,
-                    lock_lessons_in_order: formData.lock_lessons_in_order,
+                    name: currentData.name,
+                    category: currentData.category,
+                    duration_hours: currentData.duration_hours,
+                    video_hours: currentData.video_hours,
+                    description: currentData.description,
+                    whatYouLearn: currentData.whatYouLearn,
+                    preview_description: currentData.preview_description,
+                    lock_lessons_in_order: currentData.lock_lessons_in_order,
                 };
                 if (!hasExamBodies) {
-                    payload.level = formData.level;
+                    payload.level = currentData.level;
                 }
                 if (canManageFeatured) {
-                    payload.is_featured = formData.is_featured;
+                    payload.is_featured = currentData.is_featured;
                 }
-                if (formData.thumbnail) {
-                    payload.thumbnail = formData.thumbnail;
+                if (includeFiles && currentData.thumbnail) {
+                    payload.thumbnail = currentData.thumbnail;
                 }
                 return payload;
             }
@@ -211,15 +225,15 @@ export default function SettingsPanel({
                 const payload = {
                     tab: "settings",
                     section: "academic",
-                    code: formData.code,
+                    code: currentData.code,
                     co_instructor_ids: JSON.stringify(
-                        formData.co_instructor_ids || [],
+                        currentData.co_instructor_ids || [],
                     ),
                 };
                 if (hasExamBodies) {
-                    payload.examBody = formData.examBody;
-                    payload.qualificationFamily = formData.qualificationFamily;
-                    payload.level = formData.level;
+                    payload.examBody = currentData.examBody;
+                    payload.qualificationFamily = currentData.qualificationFamily;
+                    payload.level = currentData.level;
                 }
                 return payload;
             }
@@ -227,8 +241,8 @@ export default function SettingsPanel({
                 return {
                     tab: "settings",
                     section: "access",
-                    access_duration_days: formData.access_time_limit_enabled
-                        ? formData.access_duration_days || ""
+                    access_duration_days: currentData.access_time_limit_enabled
+                        ? currentData.access_duration_days || ""
                         : "",
                 };
             }
@@ -237,9 +251,9 @@ export default function SettingsPanel({
                     tab: "settings",
                     section: "prerequisites",
                     prerequisite_passing_percent:
-                        formData.prerequisite_passing_percent,
+                        currentData.prerequisite_passing_percent,
                     prerequisite_program_ids: JSON.stringify(
-                        formData.prerequisite_program_ids || [],
+                        currentData.prerequisite_program_ids || [],
                     ),
                 };
             }
@@ -247,18 +261,18 @@ export default function SettingsPanel({
                 return {
                     tab: "settings",
                     section: "files",
-                    deleteResourceIds: JSON.stringify(
-                        formData.deleteResourceIds || [],
-                    ),
-                    materials: formData.materials,
+                    deleteResourceIds: includeFiles
+                        ? JSON.stringify(currentData.deleteResourceIds || [])
+                        : "[]",
+                    materials: includeFiles ? currentData.materials : [],
                 };
             }
             if (settingsSection === "reviews") {
                 return {
                     tab: "settings",
                     section: "reviews",
-                    rating_average: formData.rating_average,
-                    rating_count: formData.rating_count,
+                    rating_average: currentData.rating_average,
+                    rating_count: currentData.rating_count,
                 };
             }
             return { tab: "settings", section: settingsSection };
@@ -269,26 +283,32 @@ export default function SettingsPanel({
                 return {
                     tab: activeTab,
                     custom_pricing: JSON.stringify(
-                        formData.custom_pricing || {},
+                        currentData.custom_pricing || {},
                     ),
                 };
             case "faq":
                 return {
                     tab: activeTab,
-                    faq: JSON.stringify(formData.faq || []),
+                    faq: JSON.stringify(currentData.faq || []),
                 };
             case "notice":
                 return {
                     tab: activeTab,
-                    notices: JSON.stringify(formData.notices || []),
+                    notices: JSON.stringify(currentData.notices || []),
                 };
             default:
                 return { tab: activeTab };
         }
-    };
+    }, [
+        activeTab,
+        canManageFeatured,
+        formData,
+        hasExamBodies,
+        settingsSection,
+    ]);
 
     const handleSubmit = () => {
-        transform(() => getSubmitPayload());
+        transform((currentData) => getSubmitPayload(currentData));
         post(`/instructor/programs/${program.id}/manage/settings/`, {
             forceFormData: true,
             preserveScroll: true,
@@ -1067,16 +1087,98 @@ export default function SettingsPanel({
         formData.access_time_limit_enabled &&
         !formData.access_duration_days;
 
+    const autosaveValue = useMemo(
+        () => ({
+            activeTab,
+            payload: getSubmitPayload(formData, { includeFiles: false }),
+            settingsSection,
+        }),
+        [activeTab, formData, getSubmitPayload, settingsSection],
+    );
+
+    const autosaveSectionAllowed =
+        activeTab === "pricing" ||
+        activeTab === "faq" ||
+        activeTab === "notice" ||
+        (activeTab === "settings" &&
+            ["main", "academic", "access", "prerequisites", "reviews"].includes(
+                settingsSection,
+            ));
+    const hasPendingFileWork =
+        Boolean(formData.thumbnail) ||
+        (Array.isArray(formData.materials) && formData.materials.length > 0) ||
+        (Array.isArray(formData.deleteResourceIds) &&
+            formData.deleteResourceIds.length > 0);
+    const settingsAutosaveEnabled =
+        Boolean(program.id) &&
+        autosaveSectionAllowed &&
+        !hasPendingFileWork &&
+        !isAccessTimeLimitIncomplete;
+
+    const saveSettingsPayload = useCallback(
+        (payload, callbacks = {}) => {
+            router.post(
+                `/instructor/programs/${program.id}/manage/settings/`,
+                payload,
+                {
+                    forceFormData: true,
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: callbacks.onSuccess,
+                    onError: callbacks.onError,
+                    onFinish: callbacks.onFinish,
+                },
+            );
+        },
+        [program.id],
+    );
+
+    const settingsAutosave = useAutosave({
+        enabled: settingsAutosaveEnabled,
+        value: autosaveValue,
+        buildPayload: () => getSubmitPayload(formData, { includeFiles: false }),
+        save: saveSettingsPayload,
+        debounceMs: 2000,
+        saveKey: `settings:${program.id}:${activeTab}:${settingsSection}`,
+    });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            flushAutosave:
+                activeTab === "drip"
+                    ? () => dripEditorRef.current?.flushAutosave?.()
+                    : settingsAutosave.flush,
+        }),
+        [activeTab, settingsAutosave.flush],
+    );
+
+    const handleAutosavedSectionChange = async (nextSection) => {
+        await settingsAutosave.flush();
+        onSettingsSectionChange?.(nextSection);
+    };
+
     const renderSaveAction = () => (
         <>
             <Divider />
             <Box
                 sx={{
                     display: "flex",
-                    justifyContent: "flex-end",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 2,
                     p: { xs: 2.5, md: 3 },
                 }}
             >
+                <AutosaveStatus
+                    status={settingsAutosave.status}
+                    lastSavedAt={settingsAutosave.lastSavedAt}
+                    disabledReason={
+                        hasPendingFileWork
+                            ? "Use Save changes to upload or remove files."
+                            : "Autosave is not available for this section."
+                    }
+                />
                 <Button
                     variant="contained"
                     onClick={handleSubmit}
@@ -1117,7 +1219,7 @@ export default function SettingsPanel({
                 sidebarTitle="Settings"
                 menuItems={menuItems}
                 activeSection={settingsSection}
-                onSectionChange={onSettingsSectionChange}
+                onSectionChange={handleAutosavedSectionChange}
             >
                 {renderSection()}
                 {!hideSaveButton && renderSaveAction()}
@@ -1164,6 +1266,7 @@ export default function SettingsPanel({
             case "drip":
                 return (
                     <DripEditor
+                        ref={dripEditorRef}
                         program={program}
                         curriculum={curriculum}
                         onSave={(payload, callbacks = {}) => {
@@ -1177,6 +1280,8 @@ export default function SettingsPanel({
                                 },
                                 {
                                     preserveScroll: true,
+                                    preserveState: true,
+                                    onSuccess: callbacks.onSuccess,
                                     onFinish: callbacks.onFinish,
                                     onError: callbacks.onError,
                                 },
@@ -1221,4 +1326,6 @@ export default function SettingsPanel({
             {!hideSaveButton && renderSaveAction()}
         </Stack>
     );
-}
+});
+
+export default SettingsPanel;

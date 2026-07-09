@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Head, router, usePage } from "@inertiajs/react";
 import {
     Box,
@@ -76,6 +76,8 @@ export default function InstructorProgramBuilder({
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [guideOpen, setGuideOpen] = useState(false);
     const [curriculum, setCurriculum] = useState(initialCurriculum);
+    const activeEditorRef = useRef(null);
+    const settingsPanelRef = useRef(null);
 
     // Get reactive page props for curriculum updates
     const page = usePage();
@@ -127,13 +129,25 @@ export default function InstructorProgramBuilder({
 
     const selectedNode = selectedNodeId ? findNode(selectedNodeId) : null;
 
-    const handleNodeSave = (nodeId, data) => {
+    const handleNodeSave = (nodeId, data, callbacks = {}) => {
         router.post(`/instructor/nodes/${nodeId}/update/`, data, {
             preserveScroll: true,
+            preserveState: true,
+            onSuccess: callbacks.onSuccess,
+            onError: callbacks.onError,
+            onFinish: callbacks.onFinish,
         });
     };
 
-    const handleTabChange = (nextTab) => {
+    const flushActiveAutosave = useCallback(async () => {
+        await Promise.all([
+            activeEditorRef.current?.flushAutosave?.(),
+            settingsPanelRef.current?.flushAutosave?.(),
+        ]);
+    }, []);
+
+    const handleTabChange = async (nextTab) => {
+        await flushActiveAutosave();
         const normalizedTab = normalizeBuilderTab(program, nextTab);
         const nextSettingsSection =
             normalizedTab === "settings"
@@ -224,7 +238,8 @@ export default function InstructorProgramBuilder({
                             <CurriculumTree
                                 program={program}
                                 nodes={curriculum}
-                                onNodeSelect={(node) => {
+                                onNodeSelect={async (node) => {
+                                    await flushActiveAutosave();
                                     setSelectedNodeId(node ? node.id : null);
                                 }}
                                 onCurriculumUpdate={(newCurriculum) => {
@@ -236,6 +251,7 @@ export default function InstructorProgramBuilder({
                             <Box sx={{ flex: 1, p: 3, overflowY: "auto" }}>
                                 {selectedNode ? (
                                     <EditorContainer
+                                        ref={activeEditorRef}
                                         key={selectedNode.id} // Force remount on node change
                                         node={selectedNode}
                                         onSave={handleNodeSave}
@@ -287,6 +303,7 @@ export default function InstructorProgramBuilder({
                             }}
                         >
                             <SettingsPanel
+                                ref={settingsPanelRef}
                                 program={program}
                                 activeTab={activeTab}
                                 settingsSection={settingsSection}
@@ -315,6 +332,7 @@ export default function InstructorProgramBuilder({
                             <Card>
                                 <CardContent>
                                     <SettingsPanel
+                                        ref={settingsPanelRef}
                                         program={program}
                                         activeTab={activeTab}
                                         settingsSection={settingsSection}

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useState,
+} from "react";
 import { router } from "@inertiajs/react";
 import {
     Box,
@@ -34,6 +41,8 @@ import RichTextEditor from "@/components/RichTextEditor";
 import FileUploader from "@/components/FileUploader";
 import GamificationSettings from "../components/GamificationSettings";
 import DocumentPrimaryUploader from "../components/DocumentPrimaryUploader";
+import AutosaveStatus from "../components/AutosaveStatus";
+import useAutosave from "../hooks/useAutosave";
 import {
     Article as ArticleIcon,
     OndemandVideo as VideoIcon,
@@ -48,7 +57,10 @@ import {
     ChatBubbleOutline as ChatIcon,
 } from "@mui/icons-material";
 
-export default function ContentEditor({ node, onSave, blueprint }) {
+const ContentEditor = forwardRef(function ContentEditor(
+    { node, onSave, blueprint },
+    ref,
+) {
     const TITLE_MIN_LENGTH = 5;
     const TITLE_MAX_LENGTH = 100;
 
@@ -325,17 +337,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
         return true;
     };
 
-    const handleSave = () => {
-        touchAllFields();
-        if (!validate()) {
-            setSnackbar({
-                open: true,
-                message: "Please fix the validation errors",
-                severity: "error",
-            });
-            return;
-        }
-
+    const buildSavePayload = useCallback(() => {
         const documentPayload =
             lessonType === "document"
                 ? {
@@ -349,7 +351,7 @@ export default function ContentEditor({ node, onSave, blueprint }) {
         delete baseProperties.end_date;
         delete baseProperties.end_time;
 
-        onSave(node.id, {
+        return {
             title,
             description,
             properties: {
@@ -379,12 +381,136 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     gamification: gamificationSettings,
                 }),
             },
-        });
+        };
+    }, [
+        allowJoinAnytime,
+        content,
+        description,
+        documentData,
+        duration,
+        endDate,
+        endTime,
+        featureFlags.gamification,
+        gamificationSettings,
+        hostVideo,
+        isPreview,
+        lessonType,
+        meetingPassword,
+        muteUponEntry,
+        node.properties,
+        participantVideo,
+        requireAuth,
+        startDate,
+        startTime,
+        strictCompletion,
+        timezone,
+        title,
+        videoSource,
+        videoUrl,
+    ]);
 
-        setSnackbar({
-            open: true,
-            message: "Lesson saved successfully!",
-            severity: "success",
+    const savePayload = useCallback(
+        (payload, callbacks = {}) => {
+            onSave(node.id, payload, callbacks);
+        },
+        [node.id, onSave],
+    );
+
+    const autosaveValue = useMemo(
+        () => ({
+            allowJoinAnytime,
+            content,
+            description,
+            documentData,
+            duration,
+            endDate,
+            endTime,
+            gamificationSettings,
+            hostVideo,
+            isPreview,
+            lessonType,
+            meetingPassword,
+            muteUponEntry,
+            participantVideo,
+            requireAuth,
+            startDate,
+            startTime,
+            strictCompletion,
+            timezone,
+            title,
+            videoSource,
+            videoUrl,
+        }),
+        [
+            allowJoinAnytime,
+            content,
+            description,
+            documentData,
+            duration,
+            endDate,
+            endTime,
+            gamificationSettings,
+            hostVideo,
+            isPreview,
+            lessonType,
+            meetingPassword,
+            muteUponEntry,
+            participantVideo,
+            requireAuth,
+            startDate,
+            startTime,
+            strictCompletion,
+            timezone,
+            title,
+            videoSource,
+            videoUrl,
+        ],
+    );
+
+    const autosave = useAutosave({
+        enabled: hasPersistedNodeId,
+        value: autosaveValue,
+        buildPayload: buildSavePayload,
+        save: savePayload,
+        debounceMs: 1800,
+        saveKey: `content:${node.id}`,
+    });
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            flushAutosave: autosave.flush,
+        }),
+        [autosave.flush],
+    );
+
+    const handleSave = () => {
+        touchAllFields();
+        if (!validate()) {
+            setSnackbar({
+                open: true,
+                message: "Please fix the validation errors",
+                severity: "error",
+            });
+            return;
+        }
+
+        void autosave.flush({
+            force: true,
+            onSuccess: () => {
+                setSnackbar({
+                    open: true,
+                    message: "Lesson saved successfully!",
+                    severity: "success",
+                });
+            },
+            onError: () => {
+                setSnackbar({
+                    open: true,
+                    message: "Could not save the lesson. Please try again.",
+                    severity: "error",
+                });
+            },
         });
     };
 
@@ -466,6 +592,13 @@ export default function ContentEditor({ node, onSave, blueprint }) {
                     helperText={titleErrorMessage}
                     InputProps={{ sx: { fontSize: "1.2rem", fontWeight: 500 } }}
                 />
+                <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
+                    <AutosaveStatus
+                        status={autosave.status}
+                        lastSavedAt={autosave.lastSavedAt}
+                        disabledReason="Create the lesson before autosave can start."
+                    />
+                </Box>
                 <Button
                     variant="contained"
                     onClick={handleSave}
@@ -1154,7 +1287,9 @@ export default function ContentEditor({ node, onSave, blueprint }) {
             </Snackbar>
         </Box>
     );
-}
+});
+
+export default ContentEditor;
 
 // Q&A Tab Component
 // Now receives discussions as props from parent (passed from backend)
