@@ -2,6 +2,9 @@ import { Paper, Typography } from '@mui/material';
 import DOMPurify from 'dompurify';
 import {
     RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE,
+    renderRichTextImageCaptions,
+    richTextImageFigureSx,
     richTextImageSx,
 } from '@/utils/richTextImages';
 
@@ -11,9 +14,11 @@ const TextRenderer = ({ content }) => {
     // Assuming HTML string for now based on previous patterns.
     const htmlContent = typeof content === 'string' ? content : (content?.html || '');
 
-    const sanitizedContent = DOMPurify.sanitize(htmlContent, {
-        ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
-    });
+    const sanitizedContent = renderRichTextImageCaptions(
+        DOMPurify.sanitize(htmlContent, {
+            ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+        }),
+    );
 
     if (!sanitizedContent) {
         return (
@@ -35,6 +40,14 @@ const TextRenderer = ({ content }) => {
                 minHeight: '60vh',
                 typography: 'body1',
                 '& img': { ...richTextImageSx, borderRadius: 2, my: 2 },
+                [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
+                    ...richTextImageFigureSx,
+                    my: 2,
+                    '& > img': {
+                        ...richTextImageFigureSx['& > img'],
+                        borderRadius: 2,
+                    },
+                },
                 '& h1, & h2, & h3': { fontWeight: 700, mt: 3, mb: 2 },
                 '& p': { mb: 2, lineHeight: 1.7 },
                 '& ul, & ol': { mb: 2, pl: 3 },

@@ -13,6 +13,8 @@ import {
     getUploadedImageUrl,
     isImageFile,
     normalizeRichTextImageAttributes,
+    renderRichTextImageCaptions,
+    richTextImageFigureSx,
     richTextImageSx,
 } from "./richTextImages";
 
@@ -100,11 +102,22 @@ describe("rich text image helpers", () => {
                 maxWidth: "calc(50% - 12px)",
             },
         });
+        expect(richTextImageFigureSx).toMatchObject({
+            display: "block",
+            width: "min(100%, var(--rich-text-image-width))",
+            "& > figcaption": {
+                textAlign: "center",
+            },
+        });
     });
 
     test("normalizes rich text image controls", () => {
         expect(normalizeRichTextImageAttributes()).toEqual(
-            DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+            {
+                ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+                alt: "",
+                imageCaption: "",
+            },
         );
         expect(
             normalizeRichTextImageAttributes({
@@ -112,12 +125,16 @@ describe("rich text image helpers", () => {
                 imageAlign: RICH_TEXT_IMAGE_ALIGNS.LEFT,
                 imageCrop: RICH_TEXT_IMAGE_CROPS.COVER,
                 imageLayout: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
+                alt: "  A system diagram  ",
+                imageCaption: "  Figure 1: AI workflow  ",
             }),
         ).toEqual({
             imageSize: "small",
             imageAlign: "left",
             imageCrop: "cover",
             imageLayout: "inline",
+            alt: "A system diagram",
+            imageCaption: "Figure 1: AI workflow",
         });
         expect(
             normalizeRichTextImageAttributes({
@@ -126,7 +143,11 @@ describe("rich text image helpers", () => {
                 imageCrop: "square",
                 imageLayout: "float",
             }),
-        ).toEqual(DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES);
+        ).toEqual({
+            ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+            alt: "",
+            imageCaption: "",
+        });
     });
 
     test("builds image data attributes for sanitized rendering", () => {
@@ -135,6 +156,8 @@ describe("rich text image helpers", () => {
             "data-rich-text-image-align",
             "data-rich-text-image-crop",
             "data-rich-text-image-layout",
+            "data-rich-text-image-caption",
+            "data-rich-text-image-figure",
         ]);
         expect(
             getRichTextImageDataAttributes({
@@ -142,12 +165,32 @@ describe("rich text image helpers", () => {
                 imageAlign: RICH_TEXT_IMAGE_ALIGNS.LEFT,
                 imageCrop: RICH_TEXT_IMAGE_CROPS.COVER,
                 imageLayout: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
+                imageCaption: "Figure 1",
             }),
         ).toEqual({
             "data-rich-text-image-size": "full",
             "data-rich-text-image-align": "left",
             "data-rich-text-image-crop": "cover",
             "data-rich-text-image-layout": "inline",
+            "data-rich-text-image-caption": "Figure 1",
         });
+    });
+
+    test("renders image captions as figures", () => {
+        const html = renderRichTextImageCaptions(
+            [
+                '<p><img src="/media/a.png" alt="AI workflow"',
+                'data-rich-text-image-size="small"',
+                'data-rich-text-image-caption="Figure 1: AI workflow"></p>',
+            ].join(" "),
+        );
+
+        expect(html).toContain('<figure data-rich-text-image-figure="true"');
+        expect(html).toContain('data-rich-text-image-size="small"');
+        expect(html).toContain('data-rich-text-image-align="center"');
+        expect(html).toContain('<img src="/media/a.png" alt="AI workflow"');
+        expect(html).toContain(
+            "<figcaption>Figure 1: AI workflow</figcaption>",
+        );
     });
 });

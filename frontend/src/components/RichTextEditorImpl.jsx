@@ -36,7 +36,10 @@ import {
     FitScreen,
     FormatAlignLeft,
     FormatAlignCenter,
+    Delete as DeleteIcon,
     Crop169,
+    Subtitles,
+    TextFields,
     ViewColumn,
     ViewStream,
 } from "@mui/icons-material";
@@ -56,36 +59,142 @@ import {
     normalizeRichTextImageCrop,
     normalizeRichTextImageLayout,
     normalizeRichTextImageSize,
+    normalizeRichTextImageTextAttribute,
+    RICH_TEXT_IMAGE_CAPTION_ATTRIBUTE,
+    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE,
+    richTextImageFigureSx,
     richTextImageSx,
 } from "@/utils/richTextImages";
 
-const MenuButton = ({ onClick, active, disabled, icon, title }) => (
-    <Tooltip title={title} arrow>
-        <span>
-            <IconButton
-                size="small"
-                onClick={onClick}
-                disabled={disabled}
-                sx={{
-                    color: active ? "primary.main" : "text.secondary",
-                    bgcolor: active ? "primary.lighter" : "transparent",
-                    "&:hover": {
-                        bgcolor: active ? "primary.lighter" : "action.hover",
-                    },
-                    borderRadius: 1,
-                    p: 0.5,
-                }}
-            >
-                {icon}
-            </IconButton>
-        </span>
-    </Tooltip>
-);
+const MenuButton = ({ onClick, active, disabled, icon, title, tone }) => {
+    const isDanger = tone === "danger";
+    let buttonColor = "text.secondary";
+    let hoverBackgroundColor = "action.hover";
+
+    if (active) {
+        buttonColor = "primary.main";
+        hoverBackgroundColor = "primary.lighter";
+    }
+
+    if (isDanger) {
+        buttonColor = "error.main";
+        hoverBackgroundColor = "rgba(211, 47, 47, 0.08)";
+    }
+
+    return (
+        <Tooltip title={title} arrow>
+            <span>
+                <IconButton
+                    size="small"
+                    onClick={onClick}
+                    disabled={disabled}
+                    sx={{
+                        color: buttonColor,
+                        bgcolor: active ? "primary.lighter" : "transparent",
+                        "&:hover": {
+                            bgcolor: hoverBackgroundColor,
+                        },
+                        borderRadius: 1,
+                        p: 0.5,
+                    }}
+                >
+                    {icon}
+                </IconButton>
+            </span>
+        </Tooltip>
+    );
+};
+
+const getImageCaptionFromElement = (element) =>
+    normalizeRichTextImageTextAttribute(
+        element.getAttribute(RICH_TEXT_IMAGE_CAPTION_ATTRIBUTE) ||
+            element
+                .closest?.(`figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`)
+                ?.getAttribute(RICH_TEXT_IMAGE_CAPTION_ATTRIBUTE) ||
+            element
+                .closest?.("figure")
+                ?.querySelector("figcaption")
+                ?.textContent,
+    );
+
+const applyRichTextImageElementAttributes = (imageElement, nodeAttributes) => {
+    const normalized = normalizeRichTextImageAttributes(nodeAttributes);
+    const dataAttributes = getRichTextImageDataAttributes(normalized);
+
+    imageElement.setAttribute("src", nodeAttributes.src || "");
+    imageElement.setAttribute("alt", normalized.alt);
+
+    if (nodeAttributes.title) {
+        imageElement.setAttribute("title", nodeAttributes.title);
+    } else {
+        imageElement.removeAttribute("title");
+    }
+
+    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES.forEach((attributeName) => {
+        imageElement.removeAttribute(attributeName);
+    });
+
+    Object.entries(dataAttributes).forEach(([name, value]) => {
+        imageElement.setAttribute(name, value);
+    });
+};
+
+const applyRichTextImageFigureAttributes = (figureElement, nodeAttributes) => {
+    const normalized = normalizeRichTextImageAttributes(nodeAttributes);
+    const dataAttributes = getRichTextImageDataAttributes(normalized);
+
+    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES.forEach((attributeName) => {
+        figureElement.removeAttribute(attributeName);
+    });
+    figureElement.setAttribute(RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE, "true");
+
+    Object.entries(dataAttributes).forEach(([name, value]) => {
+        figureElement.setAttribute(name, value);
+    });
+};
+
+const createRichTextImageNodeDom = (node) => {
+    const normalized = normalizeRichTextImageAttributes(node.attrs);
+    const imageElement = document.createElement("img");
+    applyRichTextImageElementAttributes(imageElement, node.attrs);
+
+    if (!normalized.imageCaption) {
+        return {
+            dom: imageElement,
+            imageElement,
+            captionElement: null,
+        };
+    }
+
+    const figureElement = document.createElement("figure");
+    const captionElement = document.createElement("figcaption");
+    captionElement.textContent = normalized.imageCaption;
+    applyRichTextImageFigureAttributes(figureElement, node.attrs);
+    figureElement.append(imageElement);
+    figureElement.append(captionElement);
+
+    return {
+        dom: figureElement,
+        imageElement,
+        captionElement,
+    };
+};
 
 const RichTextImage = Image.extend({
     addAttributes() {
         return {
             ...this.parent?.(),
+            alt: {
+                default: "",
+                parseHTML: (element) =>
+                    normalizeRichTextImageTextAttribute(
+                        element.getAttribute("alt"),
+                    ),
+                renderHTML: (attributes) => ({
+                    alt: normalizeRichTextImageTextAttribute(attributes.alt),
+                }),
+            },
             imageSize: {
                 default: DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES.imageSize,
                 parseHTML: (element) =>
@@ -138,6 +247,71 @@ const RichTextImage = Image.extend({
                         ],
                 }),
             },
+            imageCaption: {
+                default: "",
+                parseHTML: getImageCaptionFromElement,
+                renderHTML: (attributes) => {
+                    const imageCaption = normalizeRichTextImageTextAttribute(
+                        attributes.imageCaption,
+                    );
+                    return imageCaption
+                        ? {
+                              [RICH_TEXT_IMAGE_CAPTION_ATTRIBUTE]:
+                                  imageCaption,
+                          }
+                        : {};
+                },
+            },
+        };
+    },
+
+    addNodeView() {
+        return ({ node }) => {
+            let currentNode = node;
+            let view = createRichTextImageNodeDom(node);
+
+            return {
+                dom: view.dom,
+                update: (updatedNode) => {
+                    if (updatedNode.type.name !== currentNode.type.name) {
+                        return false;
+                    }
+
+                    const hadCaption = Boolean(
+                        normalizeRichTextImageAttributes(currentNode.attrs)
+                            .imageCaption,
+                    );
+                    const hasCaption = Boolean(
+                        normalizeRichTextImageAttributes(updatedNode.attrs)
+                            .imageCaption,
+                    );
+                    if (hadCaption !== hasCaption) {
+                        return false;
+                    }
+
+                    currentNode = updatedNode;
+                    applyRichTextImageElementAttributes(
+                        view.imageElement,
+                        updatedNode.attrs,
+                    );
+
+                    if (view.captionElement) {
+                        const normalized =
+                            normalizeRichTextImageAttributes(updatedNode.attrs);
+                        applyRichTextImageFigureAttributes(
+                            view.dom,
+                            updatedNode.attrs,
+                        );
+                        view.captionElement.textContent =
+                            normalized.imageCaption;
+                    }
+
+                    return true;
+                },
+                destroy: () => {
+                    view = null;
+                },
+            };
         };
     },
 });
@@ -366,6 +540,9 @@ const ImageControls = ({
     activeImageAttributes,
     onUpdateImage,
     onToggleCrop,
+    onEditCaption,
+    onEditAltText,
+    onDeleteImage,
 }) => (
     <>
         {IMAGE_SIZE_CONTROLS.map((option) => (
@@ -425,6 +602,30 @@ const ImageControls = ({
             active={activeImageAttributes.imageCrop === RICH_TEXT_IMAGE_CROPS.COVER}
             icon={<Crop169 fontSize="small" />}
             title="Crop image to 16:9"
+        />
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <MenuButton
+            onClick={onEditCaption}
+            active={Boolean(activeImageAttributes.imageCaption)}
+            icon={<Subtitles fontSize="small" />}
+            title="Edit caption"
+        />
+        <MenuButton
+            onClick={onEditAltText}
+            active={Boolean(activeImageAttributes.alt)}
+            icon={<TextFields fontSize="small" />}
+            title="Edit alt text"
+        />
+
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        <MenuButton
+            onClick={onDeleteImage}
+            icon={<DeleteIcon fontSize="small" />}
+            title="Delete image"
+            tone="danger"
         />
     </>
 );
@@ -863,6 +1064,51 @@ export default function RichTextEditorImpl({
         });
     };
 
+    const editSelectedImageCaption = () => {
+        if (!isImageSelected) {
+            return;
+        }
+
+        const caption = window.prompt(
+            "Image caption:",
+            activeImageAttributes.imageCaption,
+        );
+        if (caption === null) {
+            return;
+        }
+
+        updateSelectedImage({
+            imageCaption: caption,
+        });
+    };
+
+    const editSelectedImageAltText = () => {
+        if (!isImageSelected) {
+            return;
+        }
+
+        const altText = window.prompt(
+            "Image description (alt text):",
+            activeImageAttributes.alt,
+        );
+        if (altText === null) {
+            return;
+        }
+
+        updateSelectedImage({
+            alt: altText,
+        });
+    };
+
+    const deleteSelectedImage = () => {
+        if (!isImageSelected) {
+            return;
+        }
+
+        editor.chain().focus().deleteSelection().run();
+        setImageMenuVisible(false);
+    };
+
     return (
         <Paper
             ref={editorSurfaceRef}
@@ -980,6 +1226,9 @@ export default function RichTextEditorImpl({
                             activeImageAttributes={activeImageAttributes}
                             onUpdateImage={updateSelectedImage}
                             onToggleCrop={toggleImageCrop}
+                            onEditCaption={editSelectedImageCaption}
+                            onEditAltText={editSelectedImageAltText}
+                            onDeleteImage={deleteSelectedImage}
                         />
                     </>
                 )}
@@ -1060,6 +1309,9 @@ export default function RichTextEditorImpl({
                             activeImageAttributes={activeImageAttributes}
                             onUpdateImage={updateSelectedImage}
                             onToggleCrop={toggleImageCrop}
+                            onEditCaption={editSelectedImageCaption}
+                            onEditAltText={editSelectedImageAltText}
+                            onDeleteImage={deleteSelectedImage}
                         />
                     </Paper>
                 </BubbleMenu>
@@ -1116,10 +1368,19 @@ export default function RichTextEditorImpl({
                         },
                         "& a": { color: "primary.main" },
                         "& img": { ...richTextImageSx, my: 1.5 },
+                        [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
+                            ...richTextImageFigureSx,
+                            my: 1.5,
+                        },
                         "& img.ProseMirror-selectednode": {
                             outline: `2px solid ${theme.palette.primary.main}`,
                             outlineOffset: 2,
                         },
+                        [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}].ProseMirror-selectednode > img`]:
+                            {
+                                outline: `2px solid ${theme.palette.primary.main}`,
+                                outlineOffset: 2,
+                            },
                     },
                     "& .ProseMirror p.is-editor-empty:first-child::before": {
                         content: `"${placeholder || "Start typing..."}"`,

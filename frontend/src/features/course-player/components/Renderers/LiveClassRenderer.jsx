@@ -10,6 +10,9 @@ import {
 import DOMPurify from "dompurify";
 import {
     RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+    RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE,
+    renderRichTextImageCaptions,
+    richTextImageFigureSx,
     richTextImageSx,
 } from "@/utils/richTextImages";
 
@@ -104,12 +107,16 @@ const LiveClassRenderer = ({
     const canJoin = !!streamUrl && (allowJoinAnytime || isStarted);
 
     const countdown = formatMs(msUntilStart);
-    const sanitizedDescription = DOMPurify.sanitize(description || "", {
-        ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
-    });
-    const sanitizedContent = DOMPurify.sanitize(content || "", {
-        ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
-    });
+    const sanitizedDescription = renderRichTextImageCaptions(
+        DOMPurify.sanitize(description || "", {
+            ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+        }),
+    );
+    const sanitizedContent = renderRichTextImageCaptions(
+        DOMPurify.sanitize(content || "", {
+            ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
+        }),
+    );
 
     return (
         <Stack spacing={3}>
@@ -197,7 +204,17 @@ const LiveClassRenderer = ({
                         Overview
                     </Typography>
                     <Box
-                        sx={{ "& img": { ...richTextImageSx, borderRadius: 1, my: 2 } }}
+                        sx={{
+                            "& img": { ...richTextImageSx, borderRadius: 1, my: 2 },
+                            [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
+                                ...richTextImageFigureSx,
+                                my: 2,
+                                "& > img": {
+                                    ...richTextImageFigureSx["& > img"],
+                                    borderRadius: 1,
+                                },
+                            },
+                        }}
                         dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
                     />
                 </Paper>
@@ -211,6 +228,14 @@ const LiveClassRenderer = ({
                         borderRadius: 2,
                         minHeight: 220,
                         "& img": { ...richTextImageSx, borderRadius: 1, my: 2 },
+                        [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
+                            ...richTextImageFigureSx,
+                            my: 2,
+                            "& > img": {
+                                ...richTextImageFigureSx["& > img"],
+                                borderRadius: 1,
+                            },
+                        },
                     }}
                 >
                     <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
