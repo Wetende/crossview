@@ -40,48 +40,72 @@ export default function CourseOverview({
     };
 
     return (
-        <Box sx={{ maxWidth: 720, mx: 'auto' }}>
-            {/* Hero Section */}
-            <Box sx={{ mb: 4, textAlign: 'center' }}>
-                <Typography variant="h4" fontWeight={800} gutterBottom>
-                    {program?.name || 'Course'}
-                </Typography>
-                {program?.description && (
-                    <Box
-                        sx={{ maxWidth: 560, mx: 'auto', mb: 3, '& p': { mb: 1 }, color: 'text.secondary' }}
-                        dangerouslySetInnerHTML={{
-                            __html: DOMPurify.sanitize(program.description),
-                        }}
-                    />
-                )}
+        <Box sx={{ maxWidth: 840, mx: 'auto' }}>
+            {/* Overview header */}
+            <Box
+                sx={{
+                    mb: { xs: 2.5, md: 3 },
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'stretch', sm: 'flex-start' },
+                    justifyContent: 'space-between',
+                    gap: 2,
+                }}
+            >
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="h5" fontWeight={800} sx={{ mb: program?.description ? 1 : 0 }}>
+                        {program?.name || 'Course'}
+                    </Typography>
+                    {program?.description && (
+                        <Box
+                            sx={{
+                                maxWidth: 620,
+                                color: 'text.secondary',
+                                '& p': { mb: 0.75 },
+                                '& p:last-of-type': { mb: 0 },
+                            }}
+                            dangerouslySetInnerHTML={{
+                                __html: DOMPurify.sanitize(program.description),
+                            }}
+                        />
+                    )}
+                </Box>
 
-                <Button
-                    component={Link}
-                    href={resumeUrl || '#'}
-                    variant="contained"
-                    size="large"
-                    startIcon={<StartIcon />}
+                <Stack
+                    spacing={0.75}
                     sx={{
-                        px: 4,
-                        py: 1.5,
-                        fontWeight: 700,
-                        borderRadius: 2,
-                        fontSize: '1rem',
+                        alignItems: { xs: 'stretch', sm: 'flex-end' },
+                        flexShrink: 0,
                     }}
                 >
-                    {hasStarted ? 'Resume Learning' : 'Start Learning'}
-                </Button>
+                    <Button
+                        component={Link}
+                        href={resumeUrl || '#'}
+                        variant="contained"
+                        size="medium"
+                        startIcon={<StartIcon />}
+                        sx={{
+                            px: 3,
+                            py: 1,
+                            fontWeight: 700,
+                            borderRadius: 1,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        {hasStarted ? 'Resume Learning' : 'Start Learning'}
+                    </Button>
 
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                    {hasStarted
-                        ? `${Math.round(enrollment?.progressPercent || 0)}% complete`
-                        : 'Begin your learning journey'}
-                </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {hasStarted
+                            ? `${Math.round(enrollment?.progressPercent || 0)}% complete`
+                            : 'Begin your learning journey'}
+                    </Typography>
+                </Stack>
             </Box>
 
             {/* Notices */}
             {hasNotices && (
-                <Box sx={{ mb: 4 }}>
+                <Box sx={{ mb: 3 }}>
                     {program.notices.map((notice, idx) => (
                         <Alert
                             key={idx}
@@ -106,8 +130,8 @@ export default function CourseOverview({
 
             {/* What You'll Learn */}
             {hasWhatYouLearn && (
-                <Card variant="outlined" sx={{ mb: 3, borderRadius: 2 }}>
-                    <CardContent sx={{ p: 3 }}>
+                <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
+                    <CardContent sx={{ p: { xs: 2, md: 2.5 }, '&:last-child': { pb: { xs: 2, md: 2.5 } } }}>
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                             <CheckIcon color="success" fontSize="small" />
                             <Typography variant="h6" fontWeight={700}>
@@ -142,8 +166,8 @@ export default function CourseOverview({
 
             {/* Course Resources */}
             {hasResources && (
-                <Card variant="outlined" sx={{ mb: 3, borderRadius: 2 }}>
-                    <CardContent sx={{ p: 3 }}>
+                <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
+                    <CardContent sx={{ p: { xs: 2, md: 2.5 }, '&:last-child': { pb: { xs: 2, md: 2.5 } } }}>
                         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
                             <DownloadIcon color="info" fontSize="small" />
                             <Typography variant="h6" fontWeight={700}>
