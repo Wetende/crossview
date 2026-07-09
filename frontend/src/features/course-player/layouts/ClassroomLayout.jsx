@@ -40,7 +40,9 @@ const ClassroomLayoutInner = ({
     const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
     const isTablet = !isMobile && !isDesktop; // Derived instead of separate query
 
-    const sidebarWidth = 280;
+    const mobileSidebarWidth = 280;
+    const desktopSidebarWidth = 336;
+    const sidebarWidth = isDesktop ? desktopSidebarWidth : mobileSidebarWidth;
     const discussionsWidth = isMobile ? '100%' : 320;
     const hasRightPanel = Boolean(RightPanel);
 
@@ -195,7 +197,7 @@ const ClassroomLayoutInner = ({
                             },
                         }}
                     >
-                        <Box sx={{ pt: 6 }}>
+                        <Box sx={{ pt: 6, height: "100%", boxSizing: "border-box" }}>
                             {LeftPanel}
                         </Box>
                     </SwipeableDrawer>
