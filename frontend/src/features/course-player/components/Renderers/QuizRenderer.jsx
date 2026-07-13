@@ -461,6 +461,10 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
             }
 
             const data = await response.json();
+            if (data?.redirectUrl) {
+                router.visit(data.redirectUrl);
+                return;
+            }
             setResultSummary({
                 runtime: true,
                 score: Number(data?.score || 0),

@@ -32,6 +32,8 @@ from apps.assessments.official_results import (
     get_official_assignment_attempt,
     get_official_quiz_attempt,
 )
+from apps.assessments.quiz_results import build_quiz_results_payload
+from apps.assessments.student_payloads import sanitize_assessment_properties
 from apps.assessments.text_normalization import normalize_true_false_choice
 from apps.practicum.models import PracticumSubmission, SubmissionReview
 from apps.certifications.models import Certificate, CertificateEligibility
@@ -170,8 +172,8 @@ def _record_inline_quiz_attempt(
     if in_progress:
         attempt = in_progress
     else:
-        allowed, _, _ = can_start_quiz_attempt(quiz, enrollment)
-        if not allowed:
+        eligibility = can_start_quiz_attempt(quiz, enrollment)
+        if not eligibility.allowed:
             return None
         submitted_attempts = QuizAttempt.objects.filter(
             enrollment=enrollment,
@@ -202,114 +204,21 @@ def _record_inline_quiz_attempt(
     }
 
 
-def _serialize_quiz_questions_for_course_player(quiz) -> list:
-    questions_payload = []
-
-    for question in quiz.questions.all().order_by("position"):
-        answer_data = question.answer_data or {}
-        question_payload = {
-            "id": question.id,
-            "question_type": question.question_type,
-            "text": question.text,
-            "points": question.points,
-            "answer_data": answer_data,
-        }
-
-        if question.question_type in {"mcq", "mcq_multi"}:
-            question_payload["options"] = [
-                {
-                    "id": option.id,
-                    "text": option.text,
-                    "is_correct": option.is_correct,
-                    "position": option.position,
-                }
-                for option in question.options.all().order_by("position")
-            ]
-
-        if question.question_type == "matching":
-            question_payload["pairs"] = [
-                {
-                    "left_text": pair.left_text,
-                    "right_text": pair.right_text,
-                    "explanation": pair.explanation,
-                }
-                for pair in question.matching_pairs.all().order_by("position")
-            ]
-
-        if question.question_type == "fill_blank":
-            question_payload["gaps"] = [
-                {
-                    "gap_index": gap.gap_index,
-                    "accepted_answers": gap.accepted_answers,
-                    "explanation": gap.explanation,
-                }
-                for gap in question.gap_answers.all().order_by("gap_index")
-            ]
-
-        if question.question_type == "image_matching":
-            question_payload["image_pairs"] = [
-                {
-                    "left_id": f"left_{pair.id}",
-                    "right_id": f"right_{pair.id}",
-                    "question_text": pair.question_text,
-                    "question_image": pair.question_image,
-                    "answer_text": pair.answer_text,
-                    "answer_image": pair.answer_image,
-                }
-                for pair in question.image_matching_pairs.all().order_by("position")
-            ]
-
-        questions_payload.append(question_payload)
-
-    return questions_payload
-
-
 def _hydrate_assessment_node_properties(node: CurriculumNode) -> dict:
-    props = node.properties.copy() if isinstance(node.properties, dict) else {}
-
-    node_type = str(node.node_type or "").lower()
-    lesson_type = str(props.get("lesson_type") or "").lower()
-    is_assignment = node_type == "assignment" or lesson_type == "assignment"
-    is_quiz = node_type == "quiz" or lesson_type == "quiz"
-    includes_questions = is_quiz or (
-        is_assignment and _assignment_requires_questions(props)
-    )
-
-    if not includes_questions:
-        return props
-
-    existing_questions = props.get("questions")
-    if isinstance(existing_questions, list) and len(existing_questions) > 0:
-        return props
-
-    quiz_id = _safe_int(props.get("quiz_id"))
-    if not quiz_id:
-        return props
-
-    from apps.assessments.models import Quiz
-
-    try:
-        quiz = Quiz.objects.prefetch_related(
-            "questions__options",
-            "questions__matching_pairs",
-            "questions__gap_answers",
-            "questions__image_matching_pairs",
-        ).get(pk=quiz_id)
-    except Quiz.DoesNotExist:
-        return props
-
-    props["questions"] = _serialize_quiz_questions_for_course_player(quiz)
-    return props
+    return sanitize_assessment_properties(node.properties)
 
 
-def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[dict]:
+def _build_quiz_results_for_node(
+    node: CurriculumNode,
+    enrollment,
+    selected_attempt_id=None,
+) -> Optional[dict]:
     """
     Build quiz results payload for a node so the CoursePlayer can render
     results inline (score card, question review, retry button).
     Returns None if the node has no linked quiz or no submitted attempts.
     """
-    from apps.assessments.models import Quiz, QuizAttempt
-    from apps.core.views import _normalize_question_text, _coerce_bool
+    from apps.assessments.models import Quiz
 
     props = node.properties if isinstance(node.properties, dict) else {}
     quiz_id = _safe_int(props.get("quiz_id"))
@@ -321,174 +230,59 @@ def _build_quiz_results_for_node(node: CurriculumNode, enrollment) -> Optional[d
     except Quiz.DoesNotExist:
         return None
 
-    attempts = list(
-        QuizAttempt.objects.filter(
-            enrollment=enrollment, quiz=quiz, submitted_at__isnull=False
-        ).order_by("-attempt_number")
+    session_url = f"/student/programs/{enrollment.id}/session/{node.id}/"
+    review_url = (
+        f"/student/quiz/{quiz.id}/results/"
+        f"?enrollment_id={enrollment.id}&node_id={node.id}"
+    )
+    return build_quiz_results_payload(
+        quiz=quiz,
+        enrollment=enrollment,
+        selected_attempt_id=selected_attempt_id,
+        retry_url=f"{session_url}?start_quiz=1",
+        review_url=review_url,
     )
 
-    if not attempts:
-        return None
 
-    show_correct_answer = bool(quiz.show_answers_after_submit)
-    if "quiz_attempt_history" in props:
-        show_attempt_history = _coerce_bool(
-            props.get("quiz_attempt_history"), default=False
-        )
-    else:
-        show_attempt_history = True
+def _attach_quiz_results_for_request(
+    request,
+    node: CurriculumNode,
+    enrollment,
+    node_properties: dict,
+) -> dict:
+    """Show results after a submission until the learner explicitly starts a retake."""
+    node_type = str(node.node_type or "").lower()
+    lesson_type = str(node_properties.get("lesson_type") or "").lower()
+    if node_type != "quiz" and lesson_type != "quiz":
+        return node_properties
 
-    # Build question review
-    question_review = []
-    official_attempt = get_official_quiz_attempt(enrollment, quiz)
-    review_attempt = official_attempt or attempts[0]
+    quiz_id = _safe_int(node_properties.get("quiz_id"))
+    if not quiz_id:
+        return node_properties
 
-    if show_correct_answer and review_attempt:
-        review_questions = quiz.questions.all().prefetch_related(
-            "options",
-            "matching_pairs",
-            "gap_answers",
-            "image_matching_pairs",
-        )
-        for question in review_questions:
-            student_answer = review_attempt.answers.get(str(question.id))
-            if student_answer is None:
-                is_correct, points_earned = False, 0
-            else:
-                is_correct, points_earned = question.check_answer(
-                    student_answer, attempt_id=review_attempt.id
-                )
+    from apps.assessments.models import QuizAttempt
 
-            # Format student answer for display
-            if student_answer is None:
-                student_display = "Not answered"
-            elif question.question_type in {"mcq", "true_false"}:
-                token = str(student_answer).strip()
-                student_display = token
-                for opt in question.options.all():
-                    if str(opt.id) == token or str(opt.position) == token:
-                        student_display = opt.text
-                        break
-                else:
-                    if question.question_type == "true_false":
-                        normalized = normalize_true_false_choice(student_answer)
-                        if normalized is not None:
-                            student_display = "True" if normalized else "False"
-            elif question.question_type == "mcq_multi" and isinstance(
-                student_answer, list
-            ):
-                labels = []
-                for val in student_answer:
-                    token = str(val).strip()
-                    label = token
-                    for opt in question.options.all():
-                        if str(opt.id) == token or str(opt.position) == token:
-                            label = opt.text
-                            break
-                    labels.append(label)
-                student_display = ", ".join(labels) if labels else "Not answered"
-            else:
-                student_display = str(student_answer)
+    has_in_progress_attempt = QuizAttempt.objects.filter(
+        enrollment=enrollment,
+        quiz_id=quiz_id,
+        submitted_at__isnull=True,
+    ).exists()
+    explicitly_reviewing = request.GET.get("show_results") == "1"
+    explicitly_starting = request.GET.get("start_quiz") == "1"
+    should_show_results = explicitly_reviewing or (
+        not explicitly_starting and not has_in_progress_attempt
+    )
+    if not should_show_results:
+        return node_properties
 
-            # Format correct answer for display
-            q_type = question.question_type
-            if q_type == "mcq":
-                opt = (
-                    question.options.filter(is_correct=True)
-                    .order_by("position")
-                    .first()
-                )
-                correct_display = opt.text if opt else "N/A"
-            elif q_type == "true_false":
-                correct_val = (question.answer_data or {}).get("correct")
-                normalized = normalize_true_false_choice(correct_val)
-                if normalized is not None:
-                    correct_display = "True" if normalized else "False"
-                else:
-                    correct_display = "N/A"
-            elif q_type == "mcq_multi":
-                labels = list(
-                    question.options.filter(is_correct=True)
-                    .order_by("position")
-                    .values_list("text", flat=True)
-                )
-                correct_display = ", ".join(labels) if labels else "N/A"
-            elif q_type == "short_answer":
-                keywords = (question.answer_data or {}).get("keywords", [])
-                correct_display = (
-                    ", ".join(str(k).strip() for k in keywords if str(k).strip())
-                    if keywords
-                    else "Manual review"
-                )
-            else:
-                correct_display = "N/A"
-
-            question_review.append(
-                {
-                    "questionId": question.id,
-                    "questionType": question.question_type,
-                    "questionText": _normalize_question_text(question.text),
-                    "studentAnswer": student_display,
-                    "correctAnswer": correct_display,
-                    "isCorrect": is_correct,
-                    "pointsEarned": float(points_earned) if points_earned is not None else 0,
-                    "pointsPossible": question.points,
-                }
-            )
-
-    can_retry, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
-
-    return {
-        "quiz": {
-            "id": quiz.id,
-            "title": quiz.title,
-            "passThreshold": quiz.pass_threshold,
-            "maxAttempts": quiz.max_attempts,
-            "nodeTitle": node.title,
-            "showCorrectAnswer": show_correct_answer,
-            "showAttemptHistory": show_attempt_history,
-            "retryUrl": (
-                f"/student/quiz/{quiz.id}/"
-                f"?enrollment_id={enrollment.id}&node_id={node.id}"
-            ),
-        },
-        "attempts": [
-            {
-                "id": a.id,
-                "attemptNumber": a.attempt_number,
-                "score": float(a.score) if a.score is not None else None,
-                "pointsEarned": float(a.points_earned) if a.points_earned is not None else None,
-                "pointsPossible": a.points_possible,
-                "passed": a.passed,
-                "submittedAt": (a.submitted_at.isoformat() if a.submitted_at else None),
-            }
-            for a in attempts
-        ],
-        "officialAttempt": (
-            {
-                "id": official_attempt.id,
-                "attemptNumber": official_attempt.attempt_number,
-                "score": (
-                    float(official_attempt.score)
-                    if official_attempt.score is not None
-                    else None
-                ),
-                "pointsEarned": float(official_attempt.points_earned) if official_attempt.points_earned is not None else None,
-                "pointsPossible": official_attempt.points_possible,
-                "passed": official_attempt.passed,
-                "submittedAt": (
-                    official_attempt.submitted_at.isoformat()
-                    if official_attempt.submitted_at
-                    else None
-                ),
-            }
-            if official_attempt
-            else None
-        ),
-        "questionReview": question_review,
-        "attemptsRemaining": attempts_remaining,
-        "canRetry": can_retry,
-    }
+    quiz_results = _build_quiz_results_for_node(
+        node,
+        enrollment,
+        selected_attempt_id=request.GET.get("attempt_id"),
+    )
+    if quiz_results:
+        node_properties["quizResults"] = quiz_results
+    return node_properties
 
 
 # =============================================================================
@@ -872,7 +666,12 @@ def _render_course_player(request, enrollment, node, completions, status_map):
     unlock_status = _check_unlock_status(enrollment, node)
 
     # Hydrate properties for assessment nodes so quiz/assignment question paths render inline.
-    node_properties = _hydrate_assessment_node_properties(node)
+    node_properties = _attach_quiz_results_for_request(
+        request,
+        node,
+        enrollment,
+        _hydrate_assessment_node_properties(node),
+    )
 
     # Get content from properties
     content_html = node_properties.get("content_html", "")
@@ -1101,7 +900,12 @@ def session_viewer(request, pk: int, node_id: int):
     siblings = _get_sibling_navigation(node, enrollment.id)
 
     # Hydrate properties for assessment nodes so quiz/assignment question paths render inline.
-    node_properties = _hydrate_assessment_node_properties(node)
+    node_properties = _attach_quiz_results_for_request(
+        request,
+        node,
+        enrollment,
+        _hydrate_assessment_node_properties(node),
+    )
 
     # Get content from properties
     content_html = node_properties.get("content_html", "")
@@ -1179,12 +983,6 @@ def session_viewer(request, pk: int, node_id: int):
         }
         for note in notes_qs
     ]
-
-    # Inject quiz results data when redirected from quiz results page
-    if request.GET.get("show_results") == "1":
-        quiz_results = _build_quiz_results_for_node(node, enrollment)
-        if quiz_results:
-            node_properties["quizResults"] = quiz_results
 
     return render(
         request,
@@ -1633,7 +1431,7 @@ def _build_curriculum_tree(
                 else []
             ),
             "url": f"/student/programs/{enrollment.id}/session/{node.id}/",
-            "properties": node.properties or {},
+            "properties": sanitize_assessment_properties(node.properties),
         }
 
         # Add lastAttempt for question-enabled assessment nodes

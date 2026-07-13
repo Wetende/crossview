@@ -1863,6 +1863,7 @@ class QuizLinkIntegrityTest(TestCase):
             pass_threshold=70,
             max_attempts=3,
             show_answers_after_submit=True,
+            answer_release_policy=Quiz.AnswerReleasePolicy.AFTER_EACH_ATTEMPT,
         )
         quiz_node.properties["quiz_id"] = quiz.id
         quiz_node.save(update_fields=["properties"])
@@ -1971,6 +1972,7 @@ class QuizLinkIntegrityTest(TestCase):
             is_published=True,
             max_attempts=3,
             show_answers_after_submit=True,
+            answer_release_policy=Quiz.AnswerReleasePolicy.AFTER_EACH_ATTEMPT,
         )
         node.properties["quiz_id"] = quiz.id
         node.save(update_fields=["properties"])
@@ -2137,3 +2139,95 @@ class QuizLinkIntegrityTest(TestCase):
         self.assertEqual(current_node["bestAttempt"]["number"], 1)
         self.assertEqual(current_node["bestAttempt"]["score"], 90.0)
         self.assertTrue(current_node["bestAttempt"]["passed"])
+
+    def test_course_player_defaults_to_safe_results_and_requires_explicit_retake(self):
+        program = self._create_program(name="Safe Quiz Payload", code="SAFE-QUIZ")
+        student = User.objects.create_user(
+            username="student.safe.quiz",
+            email="student.safe.quiz@test.com",
+            password="password123",
+        )
+        enrollment = Enrollment.objects.create(
+            user=student,
+            program=program,
+            status="active",
+        )
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Safe Quiz",
+            node_type="Session",
+            properties={
+                "lesson_type": "quiz",
+                "questions": [
+                    {
+                        "id": "authoring-question",
+                        "text": "Private answer",
+                        "correct": 0,
+                    }
+                ],
+            },
+            is_published=True,
+        )
+        quiz = Quiz.objects.create(
+            node=node,
+            title="Safe Quiz",
+            is_published=True,
+            max_attempts=3,
+            answer_release_policy=Quiz.AnswerReleasePolicy.AFTER_PASS_OR_FINAL,
+        )
+        node.properties["quiz_id"] = quiz.id
+        node.save(update_fields=["properties"])
+        question = Question.objects.create(
+            quiz=quiz,
+            question_type="mcq",
+            text="Private answer",
+            points=1,
+            position=0,
+            answer_data={"correct": 0},
+        )
+        wrong_option = QuestionOption.objects.create(
+            question=question,
+            text="Wrong",
+            is_correct=False,
+            position=1,
+        )
+        QuizAttempt.objects.create(
+            enrollment=enrollment,
+            quiz=quiz,
+            attempt_number=1,
+            started_at=timezone.now(),
+            submitted_at=timezone.now(),
+            answers={str(question.id): str(wrong_option.id)},
+            points_earned=0,
+            points_possible=1,
+            score=0,
+            passed=False,
+        )
+
+        self.client.force_login(student)
+        session_url = reverse(
+            "progression:student.session",
+            kwargs={"pk": enrollment.id, "node_id": node.id},
+        )
+        response = self.client.get(session_url, HTTP_X_INERTIA=True)
+
+        self.assertEqual(response.status_code, 200)
+        props = response.json()["props"]
+        active_properties = props["node"]["properties"]
+        self.assertNotIn("questions", active_properties)
+        self.assertIn("quizResults", active_properties)
+        self.assertFalse(active_properties["quizResults"]["correctAnswersReleased"])
+
+        curriculum_node = next(
+            item for item in props["curriculum"] if item["id"] == node.id
+        )
+        self.assertNotIn("questions", curriculum_node["properties"])
+
+        retake_response = self.client.get(
+            f"{session_url}?start_quiz=1",
+            HTTP_X_INERTIA=True,
+        )
+        self.assertEqual(retake_response.status_code, 200)
+        retake_properties = retake_response.json()["props"]["node"]["properties"]
+        self.assertNotIn("questions", retake_properties)
+        self.assertNotIn("quizResults", retake_properties)

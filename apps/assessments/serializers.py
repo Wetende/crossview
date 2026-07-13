@@ -297,13 +297,32 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 class QuizSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        policy = attrs.get("answer_release_policy")
+        legacy_visibility = attrs.get("show_answers_after_submit")
+
+        if policy is None and legacy_visibility is not None:
+            attrs["answer_release_policy"] = (
+                Quiz.AnswerReleasePolicy.AFTER_EACH_ATTEMPT
+                if legacy_visibility
+                else Quiz.AnswerReleasePolicy.NEVER
+            )
+        elif policy is not None:
+            attrs["show_answers_after_submit"] = (
+                policy != Quiz.AnswerReleasePolicy.NEVER
+            )
+
+        return attrs
     
     class Meta:
         model = Quiz
         fields = [
             'id', 'node', 'title', 'description', 'time_limit_minutes',
             'max_attempts', 'pass_threshold', 'randomize_questions',
-            'show_answers_after_submit', 'retake_penalty_percent',
+            'show_answers_after_submit', 'answer_release_policy',
+            'allow_retake_after_pass', 'retake_penalty_percent',
             'shuffle_options', 'is_published', 'questions',
             'created_at', 'updated_at'
         ]
@@ -339,4 +358,3 @@ class QuestionBankEntrySerializer(serializers.ModelSerializer):
             'tags', 'usage_count', 'question_type', 'created_at', 'updated_at'
         ]
         read_only_fields = ['owner', 'usage_count', 'owner_name', 'bank_name', 'question_type']
-

@@ -90,6 +90,8 @@ class SyncQuizQuestionsTest(TestCase):
             "randomize_questions": True,
             "randomize_answers": True,
             "show_correct_answer": True,
+            "answer_release_policy": "after_pass_or_final",
+            "retake_after_pass": True,
             "quiz_style": "pagination",
             "quiz_attempt_history": True,
             "retake_penalty": 5,
@@ -121,6 +123,11 @@ class SyncQuizQuestionsTest(TestCase):
         self.assertEqual(quiz.description, "Test quiz description")
         self.assertTrue(quiz.shuffle_options)
         self.assertTrue(quiz.show_answers_after_submit)
+        self.assertEqual(
+            quiz.answer_release_policy,
+            Quiz.AnswerReleasePolicy.AFTER_PASS_OR_FINAL,
+        )
+        self.assertTrue(quiz.allow_retake_after_pass)
         self.assertEqual(float(quiz.retake_penalty_percent), 0.0)
 
         self.node.refresh_from_db()
@@ -178,7 +185,7 @@ class SyncQuizQuestionsTest(TestCase):
         self.assertEqual(float(quiz.retake_penalty_percent), 0.0)
         self.assertEqual(quiz.questions.count(), 0)
 
-    def test_sync_defaults_retake_after_pass_to_false_when_unspecified(self):
+    def test_sync_defaults_retake_after_pass_to_true_when_unspecified(self):
         self.node.properties = {
             "passing_grade": 70,
             "max_attempts": 3,
@@ -198,7 +205,11 @@ class SyncQuizQuestionsTest(TestCase):
         _sync_quiz_questions(self.node, self.node.properties.get("questions", []))
 
         quiz = Quiz.objects.get(node=self.node)
-        self.assertFalse(quiz.allow_retake_after_pass)
+        self.assertTrue(quiz.allow_retake_after_pass)
+        self.assertEqual(
+            quiz.answer_release_policy,
+            Quiz.AnswerReleasePolicy.AFTER_PASS_OR_FINAL,
+        )
 
     def test_sync_true_false_stores_boolean_but_preserves_editor_index(self):
         self.node.properties = {

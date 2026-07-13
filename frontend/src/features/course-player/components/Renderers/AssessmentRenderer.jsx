@@ -14,20 +14,6 @@ import {
 } from "@mui/material";
 import QuizRenderer from "./QuizRenderer";
 
-const normalizeSubmissionType = (value) => {
-    const normalized = String(value || "").trim().toLowerCase();
-    const map = {
-        file: "file",
-        file_upload: "file",
-        text: "text",
-        text_entry: "text",
-        both: "both",
-        external_link: "text",
-        media_recording: "text",
-    };
-    return map[normalized] || "file";
-};
-
 const normalizeAssignmentMode = (props) => {
     if (!props || typeof props !== "object") return "submission_only";
     const explicit = String(props.assignment_mode || "").trim().toLowerCase();
@@ -65,14 +51,6 @@ const assignmentRequiresSubmission = (mode, typedResponseMode) => {
 
 const stripHtml = (value) => String(value || "").replace(/<[^>]*>/g, "").trim();
 
-const buildQuizStartUrl = ({ quizId, enrollmentId, nodeId }) => {
-    const params = new URLSearchParams();
-    if (enrollmentId) params.set("enrollment_id", String(enrollmentId));
-    if (nodeId) params.set("node_id", String(nodeId));
-    const query = params.toString();
-    return `/student/quiz/${quizId}/${query ? `?${query}` : ""}`;
-};
-
 const AssessmentRenderer = ({
     node,
     enrollmentId,
@@ -108,11 +86,6 @@ const AssessmentRenderer = ({
     const assignmentAttempts = Number.isFinite(Number(properties.assignment_attempts))
         ? Number(properties.assignment_attempts)
         : null;
-
-    const shouldShowPromptQuestionPath =
-        isAssignment &&
-        assignmentMode === "submission_only" &&
-        typedResponseMode === "short_answer_question";
 
     const shouldShowQuestions =
         isQuiz ||
@@ -158,7 +131,7 @@ const AssessmentRenderer = ({
     const renderQuestionsSection = () => {
         if (!shouldShowQuestions) return null;
 
-        if (hasQuestions) {
+        if (hasQuizLink || hasQuestions) {
             return (
                 <QuizRenderer
                     node={{
@@ -174,44 +147,6 @@ const AssessmentRenderer = ({
                     onComplete={onComplete}
                     useBackendRuntime={hasQuizLink}
                 />
-            );
-        }
-
-        if (hasQuizLink) {
-            const startQuizUrl = buildQuizStartUrl({
-                quizId: properties.quiz_id,
-                enrollmentId,
-                nodeId: node?.id,
-            });
-            const label = isQuiz
-                ? "Start Quiz"
-                : shouldShowPromptQuestionPath
-                  ? "Answer Question"
-                  : "Answer Questions";
-
-            return (
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, mb: shouldShowSubmission ? 3 : 0 }}>
-                    <Stack spacing={1.5}>
-                        <Typography variant="h6" fontWeight={700}>
-                            {isQuiz
-                                ? node?.title || "Quiz"
-                                : shouldShowPromptQuestionPath
-                                  ? "Question"
-                                  : "Questions"}
-                        </Typography>
-                        <Typography color="text.secondary">
-                            Open and complete this question set.
-                        </Typography>
-                        <Box>
-                            <Button
-                                variant="contained"
-                                onClick={() => router.visit(startQuizUrl)}
-                            >
-                                {label}
-                            </Button>
-                        </Box>
-                    </Stack>
-                </Paper>
             );
         }
 

@@ -6,12 +6,23 @@ completion checks, gradebook aggregation, and certification eligibility.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from apps.assessments.models import AssignmentSubmission, QuizAttempt
 
 
 FINALIZED_ASSIGNMENT_STATUSES = {"graded", "returned"}
+
+
+@dataclass(frozen=True)
+class QuizAttemptEligibility:
+    """Attempt quota and policy decision for a learner's quiz."""
+
+    allowed: bool
+    attempts_used: int
+    attempts_remaining: int
+    lock_reason: Optional[str] = None
 
 
 def _safe_float(value) -> float:
@@ -35,16 +46,22 @@ def get_official_quiz_attempt(enrollment, quiz) -> Optional[QuizAttempt]:
     )
 
 
-def can_start_quiz_attempt(quiz, enrollment) -> Tuple[bool, int, int]:
-    """Return (allowed, attempts_used, attempts_remaining) with retry policy enforced."""
+def can_start_quiz_attempt(quiz, enrollment) -> QuizAttemptEligibility:
+    """Return numeric quota separately from any policy that blocks another attempt."""
     attempts_used = QuizAttempt.objects.filter(
         enrollment=enrollment,
         quiz=quiz,
         submitted_at__isnull=False,
     ).count()
+    attempts_remaining = max(0, quiz.max_attempts - attempts_used)
 
-    if attempts_used >= quiz.max_attempts:
-        return False, attempts_used, 0
+    if attempts_remaining == 0:
+        return QuizAttemptEligibility(
+            allowed=False,
+            attempts_used=attempts_used,
+            attempts_remaining=0,
+            lock_reason="max_attempts_reached",
+        )
 
     if not quiz.allow_retake_after_pass:
         has_passed = QuizAttempt.objects.filter(
@@ -54,9 +71,18 @@ def can_start_quiz_attempt(quiz, enrollment) -> Tuple[bool, int, int]:
             passed=True,
         ).exists()
         if has_passed:
-            return False, attempts_used, 0
+            return QuizAttemptEligibility(
+                allowed=False,
+                attempts_used=attempts_used,
+                attempts_remaining=attempts_remaining,
+                lock_reason="passed_retake_disabled",
+            )
 
-    return True, attempts_used, max(0, quiz.max_attempts - attempts_used)
+    return QuizAttemptEligibility(
+        allowed=True,
+        attempts_used=attempts_used,
+        attempts_remaining=attempts_remaining,
+    )
 
 
 def get_official_assignment_attempt(enrollment, assignment) -> Optional[AssignmentSubmission]:
