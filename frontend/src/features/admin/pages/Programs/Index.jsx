@@ -35,6 +35,7 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import DataTable from "@/components/DataTable";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { ReportToolbar } from "@/features/reports";
 
 export default function ProgramsIndex({
   programs = [],
@@ -239,14 +240,26 @@ export default function ProgramsIndex({
               Manage academic programs and courses
             </Typography>
           </Box>
-          <Button
-            component={Link}
-            href="/admin/programs/create/"
-            variant="contained"
-            startIcon={<AddIcon />}
-          >
-            Create Program
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <ReportToolbar
+              scope="admin"
+              reportId="admin.programs"
+              queryParams={{
+                search: filters.search,
+                status: filters.status,
+                level: filters.level,
+                blueprint: filters.blueprint,
+              }}
+            />
+            <Button
+              component={Link}
+              href="/admin/programs/create/"
+              variant="contained"
+              startIcon={<AddIcon />}
+            >
+              Create Program
+            </Button>
+          </Stack>
         </Box>
 
         {/* Filters */}

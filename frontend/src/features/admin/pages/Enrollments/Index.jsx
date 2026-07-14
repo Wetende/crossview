@@ -31,6 +31,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import DataTable from '@/components/DataTable';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { ReportToolbar } from '@/features/reports';
 
 const statusColors = {
   active: 'success',
@@ -179,6 +180,15 @@ export default function EnrollmentsIndex({
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
+            <ReportToolbar
+              scope="admin"
+              reportId="admin.enrollments"
+              queryParams={{
+                search: filters.search,
+                program: filters.program,
+                status: filters.status,
+              }}
+            />
             <Button
               component={Link}
               href="/admin/enrollments/bulk/"

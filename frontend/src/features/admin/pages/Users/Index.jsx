@@ -32,6 +32,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import DataTable from '@/components/DataTable';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { ReportToolbar } from '@/features/reports';
 
 const roleColors = {
   admin: 'error',
@@ -221,14 +222,25 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
               Manage students, instructors, and administrators
             </Typography>
           </Box>
-          <Button
-            component={Link}
-            href="/admin/users/create/"
-            variant="contained"
-            startIcon={<AddIcon />}
-          >
-            Add User
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <ReportToolbar
+              scope="admin"
+              reportId="admin.users"
+              queryParams={{
+                search: filters.search,
+                role: filters.role,
+                status: filters.status,
+              }}
+            />
+            <Button
+              component={Link}
+              href="/admin/users/create/"
+              variant="contained"
+              startIcon={<AddIcon />}
+            >
+              Add User
+            </Button>
+          </Stack>
         </Box>
 
         {/* Filters */}
