@@ -4,6 +4,11 @@ This document defines how shared LMS work moves across `crossview`, `airads`, an
 
 `crossview` is the canonical shared engine.
 
+The file-level ownership contract lives in
+[`docs/shared-surface-manifest.md`](shared-surface-manifest.md). The executable
+promotion sequence and required gates live in
+[`docs/upstream-sync.md`](upstream-sync.md).
+
 ## Operating Model
 
 - `crossview` owns the shared LMS engine.
@@ -101,6 +106,10 @@ Before promoting shared work:
 - Confirm shared work uses settings, config, or shared props instead of hardcoded institution values.
 - Confirm the change would make sense for at least one non-originating tenant.
 - Split mixed work into separate commits before promotion.
+- Run every required backend and frontend gate from a clean integration
+  worktree before updating a shared remote branch.
+- Record the promoted refs, exclusions, commands, and results under
+  `docs/sync-reports/`.
 
 ## Acceptance Criteria
 
