@@ -1,3 +1,4 @@
+import { isValidElement } from "react";
 import { Box, Typography, Button } from "@mui/material";
 import { IconInbox } from "@tabler/icons-react";
 
@@ -16,6 +17,7 @@ export default function EmptyState({
     action,
 }) {
     const Icon = icon || IconInbox;
+    const iconNode = isValidElement(Icon) ? Icon : <Icon size={48} stroke={1.5} />;
 
     return (
         <Box
@@ -38,11 +40,7 @@ export default function EmptyState({
                     mb: 3,
                 }}
             >
-                {typeof Icon === "function" ? (
-                    <Icon size={48} stroke={1.5} />
-                ) : (
-                    Icon
-                )}
+                {iconNode}
             </Box>
 
             <Typography variant="h6" gutterBottom>

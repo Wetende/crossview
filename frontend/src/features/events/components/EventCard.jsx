@@ -5,7 +5,6 @@ import {
     CardMedia,
     Typography,
     Stack,
-    Divider,
     useTheme,
 } from "@mui/material";
 import { IconClock, IconMapPin } from "@tabler/icons-react";
@@ -50,9 +49,9 @@ export default function EventCard({ event }) {
                 }}
             >
                 <CardMedia
-                    component="img"
+                    component="img" loading="lazy"
                     height="200"
-                    image={event.image || "/static/images/course-placeholder.jpg"}
+                    image={event.image || "/static/images/course-placeholder.svg"}
                     alt={event.title}
                     sx={{
                         objectFit: "cover",

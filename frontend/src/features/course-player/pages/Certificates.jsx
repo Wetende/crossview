@@ -11,7 +11,6 @@ import {
     Stack,
     Typography,
     Alert,
-    Button,
     Chip,
     IconButton,
     Tooltip,
@@ -247,7 +246,7 @@ export default function Certificates({ certificates }) {
                     {certificates.length === 0 ? (
                         <motion.div {...fadeIn}>
                             <Alert severity="info" icon={<VerifiedIcon />}>
-                                You haven't earned any certificates yet. Complete a
+                                You haven&apos;t earned any certificates yet. Complete a
                                 program to receive your certificate!
                             </Alert>
                         </motion.div>

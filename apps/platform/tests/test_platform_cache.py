@@ -45,6 +45,8 @@ def test_platform_cache_keys_are_invalidated_on_save():
         "Engineering & ICT",
         "Business Management",
     ]
+    assert initial_payload["logoUrl"] == ""
+    assert initial_payload["faviconUrl"] == ""
     assert initial_levels == [{"value": "beginner", "label": "Beginner"}]
     assert cache.get(PLATFORM_PAYLOAD_CACHE_KEY) is not None
     assert cache.get(PLATFORM_COURSE_LEVELS_CACHE_KEY) is not None

@@ -38,7 +38,7 @@ export default function PlatformLogo({
 
     const mark = hasLogo ? (
         <Box
-            component="img"
+            component="img" loading="lazy"
             src={logoUrl}
             alt={institutionName}
             sx={{

@@ -209,7 +209,7 @@ export default function CourseDetailsModal({
                                 }}
                             >
                                 <Box
-                                    component="img"
+                                    component="img" loading="lazy"
                                     src={program.thumbnail}
                                     alt={program.name}
                                     sx={{

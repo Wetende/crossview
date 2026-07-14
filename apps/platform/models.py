@@ -2,10 +2,8 @@
 Platform settings models - Single-tenant configuration.
 """
 
-from django.conf import settings as django_settings
 from django.db import models
 from django.core.cache import cache
-from django.templatetags.static import static
 from apps.core.models import TimeStampedModel
 
 
@@ -164,18 +162,15 @@ class PlatformSettings(TimeStampedModel):
         """Return the preferred logo URL for public surfaces."""
         if self.logo:
             return self.logo.url
-        return static("airads-logo.png")
+        return ""
 
     def get_favicon_url(self) -> str:
-        """
-        Return the preferred favicon URL.
-
-        We intentionally prefer the platform logo so the browser tab stays aligned
-        with the visible AIRADS branding rather than an older standalone favicon.
-        """
+        """Return the configured favicon, falling back to the platform logo."""
+        if self.favicon:
+            return self.favicon.url
         if self.logo:
             return self.logo.url
-        return static("airads-logo.png")
+        return ""
 
     @classmethod
     def get_settings(cls):
@@ -224,7 +219,6 @@ class PlatformSettings(TimeStampedModel):
             "features": features,
             "publicContent": public_content,
             "socialLinks": social_links,
-            "virtualCampusUrl": getattr(django_settings, "VIRTUAL_CAMPUS_BASE_URL", "https://virtual.airads.ac.ke"),
         }
         cache.set(PLATFORM_PAYLOAD_CACHE_KEY, payload, timeout=900)
         return payload

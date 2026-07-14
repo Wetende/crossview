@@ -208,7 +208,7 @@ const BlockRenderer = ({
                 <Box sx={{ mb: 3, textAlign: "center" }}>
                     {data?.url ? (
                         <Box
-                            component="img"
+                            component="img" loading="lazy"
                             src={data.url}
                             alt={data?.alt || "Content image"}
                             sx={{

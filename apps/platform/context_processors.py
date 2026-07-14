@@ -12,8 +12,8 @@ def platform_branding(request):
         settings = PlatformSettings.get_settings()
         return {
             'platform_branding': {
-                'logo_url': settings.logo.url if settings.logo else None,
-                'favicon_url': settings.favicon.url if settings.favicon else None,
+                'logo_url': settings.get_logo_url(),
+                'favicon_url': settings.get_favicon_url(),
                 'primary_color': settings.primary_color,
                 'secondary_color': settings.secondary_color,
                 'institution_name': settings.institution_name,

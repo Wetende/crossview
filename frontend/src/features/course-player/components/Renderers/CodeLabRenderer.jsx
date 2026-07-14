@@ -27,7 +27,6 @@ import DOMPurify from "dompurify";
 import CodeMirror from "@uiw/react-codemirror";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { html } from "@codemirror/lang-html";
-import { css } from "@codemirror/lang-css";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
@@ -266,7 +265,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
     // Build srcdoc
     const srcdoc = useMemo(
         () => buildIframeSrcdoc(code, language),
-        [code, language, iframeKey],
+        [code, language],
     );
 
     // Decide if preview is browser-runnable
@@ -385,7 +384,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                 </Stack>
                 {!hasRun && (
                     <Typography variant="caption" color="text.disabled">
-                        Click "Run" to see output
+                        Click &quot;Run&quot; to see output
                     </Typography>
                 )}
             </Stack>

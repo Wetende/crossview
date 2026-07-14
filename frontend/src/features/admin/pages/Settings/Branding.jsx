@@ -58,7 +58,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
               Branding & Appearance
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Customize your institution's look and feel
+              Customize your institution&apos;s look and feel
             </Typography>
           </Box>
 

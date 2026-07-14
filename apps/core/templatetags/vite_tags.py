@@ -13,6 +13,7 @@ register = template.Library()
 
 MANIFEST_PATH = Path(settings.BASE_DIR) / "static" / "dist" / ".vite" / "manifest.json"
 VITE_DEV_PORTS = [5173, 5174]  # Check multiple ports
+VITE_DEV_HOSTS = ["127.0.0.1", "localhost"]  # Vite may bind to either host locally.
 
 
 def get_manifest():
@@ -42,16 +43,17 @@ def is_vite_dev_running():
 
     import socket
 
-    for port in VITE_DEV_PORTS:
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(0.5)
-            result = sock.connect_ex(("localhost", port))
-            sock.close()
-            if result == 0:
-                return port  # Return the port that's running
-        except:
-            pass
+    for host in VITE_DEV_HOSTS:
+        for port in VITE_DEV_PORTS:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.5)
+                result = sock.connect_ex((host, port))
+                sock.close()
+                if result == 0:
+                    return host, port
+            except OSError:
+                pass
     return False
 
 
@@ -59,7 +61,8 @@ def get_vite_dev_server():
     """Get the Vite dev server URL."""
     port = is_vite_dev_running()
     if port:
-        return f"http://localhost:{port}"
+        host, port_number = port
+        return f"http://{host}:{port_number}"
     return None
 
 

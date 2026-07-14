@@ -203,9 +203,6 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                 </Box>
 
                 {/* Main Content Layout */}
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
-                    <Stack spacing={3}>
                         {/* Description */}
                         <Paper variant="outlined" sx={{ borderColor: tokens.hairline, borderRadius: '4px', p: { xs: 3, sm: '40px 44px' }, bgcolor: tokens.card }}>
                             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Course Description</Typography>
@@ -287,9 +284,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                               </TableContainer>
                             )}
                         </Paper>
-                    </Stack>
-                  </Grid>
-                </Grid>
+
             </Stack>
         </motion.div>
       </Stack>

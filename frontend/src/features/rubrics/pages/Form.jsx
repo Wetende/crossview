@@ -4,7 +4,7 @@
  * Supports scope selection (global/program/course)
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import {
   Box,
@@ -233,12 +233,12 @@ export default function RubricForm({
 
               {/* Program Selector (for program scope) */}
               {scope === 'program' && userPrograms.length > 0 && (
-                <FormControl fullWidth error={!!errors.programId}>
-                  <InputLabel>Program *</InputLabel>
+                <FormControl fullWidth required error={!!errors.programId}>
+                  <InputLabel>Program</InputLabel>
                   <Select
                     value={programId}
                     onChange={(e) => setProgramId(e.target.value)}
-                    label="Program *"
+                    label="Program"
                     required
                   >
                     {userPrograms.map((prog) => (

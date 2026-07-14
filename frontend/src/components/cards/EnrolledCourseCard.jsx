@@ -70,7 +70,7 @@ export default function EnrolledCourseCard({ enrollment }) {
             {/* Thumbnail with optional badge */}
             <Box sx={{ position: "relative" }}>
                 <CardMedia
-                    component="img"
+                    component="img" loading="lazy"
                     height="140"
                     image={
                         enrollment.thumbnail ||

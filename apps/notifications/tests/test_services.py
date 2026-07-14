@@ -10,6 +10,7 @@ from apps.progression.models import Enrollment
 from apps.notifications.models import Notification
 from apps.notifications.models import NotificationPreference
 from apps.notifications.services import NotificationService
+from apps.platform.models import PlatformSettings
 
 User = get_user_model()
 
@@ -55,6 +56,23 @@ class NotificationServiceTests(TestCase):
         )
         
         self.assertEqual(notification.action_url, '/programs/1/announcements/')
+
+    def test_notify_user_registered_uses_platform_identity(self):
+        platform = PlatformSettings.get_settings()
+        platform.institution_name = "Example Academy"
+        platform.contact_email = "help@example.test"
+        platform.save()
+
+        sent = NotificationService.notify_user_registered(
+            self.user,
+            authentication_method="google",
+        )
+
+        self.assertTrue(sent)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Welcome to Example Academy")
+        self.assertIn("signing in with Google", mail.outbox[0].body)
+        self.assertIn("help@example.test", mail.outbox[0].body)
 
     def test_bulk_create_notifications(self):
         """Test bulk creating notifications for multiple users."""

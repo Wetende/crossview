@@ -215,6 +215,40 @@ class NotificationService:
         return sent > 0
 
     @staticmethod
+    def notify_user_registered(user, authentication_method="password"):
+        """Send a tenant-neutral welcome email after account creation."""
+        from apps.platform.models import PlatformSettings
+
+        try:
+            platform = PlatformSettings.get_settings()
+            institution_name = platform.institution_name or "Learning Platform"
+            contact_email = platform.contact_email or ""
+        except Exception:
+            institution_name = "Learning Platform"
+            contact_email = ""
+
+        display_name = user.first_name or user.email.split("@", 1)[0]
+        message_lines = [
+            f"Hello {display_name},",
+            "",
+            f"Welcome to {institution_name}. Your account is ready.",
+            f"Account email: {user.email}",
+        ]
+        if authentication_method == "google":
+            message_lines.append("You can continue by signing in with Google.")
+        else:
+            message_lines.append("You can sign in with the password you created.")
+        if contact_email:
+            message_lines.extend(["", f"Need help? Contact {contact_email}."])
+
+        return NotificationService.send_email_notification(
+            recipient=user,
+            notification_type="system",
+            subject=f"Welcome to {institution_name}",
+            message="\n".join(message_lines),
+        )
+
+    @staticmethod
     def notify_enrollment_requested(enrollment_request, reviewers, action_url=None):
         """
         Notify reviewers (instructors/admins) that a student requested enrollment.

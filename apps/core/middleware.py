@@ -39,6 +39,7 @@ class InertiaShareMiddleware:
                         "firstName": request.user.first_name,
                         "lastName": request.user.last_name,
                         "fullName": request.user.get_full_name() or request.user.email,
+                        "phone": getattr(request.user, "phone", "") or "",
                         "role": self._get_user_role(request.user),
                         "isSuperuser": request.user.is_superuser,
                     },

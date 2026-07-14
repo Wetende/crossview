@@ -462,16 +462,16 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                 <Stack spacing={3}>
                     {/* ── Language & Layout Row ── */}
                     <Stack direction="row" spacing={2}>
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <FormControl size="small" required sx={{ minWidth: 200 }}>
                             <InputLabel shrink sx={{ fontWeight: 500 }}>
-                                Language *
+                                Language
                             </InputLabel>
                             <Select
                                 value={language}
                                 onChange={(e) =>
                                     handleLanguageChange(e.target.value)
                                 }
-                                label="Language *"
+                                label="Language"
                             >
                                 {Object.entries(LANGUAGE_CONFIG).map(
                                     ([key, config]) => (

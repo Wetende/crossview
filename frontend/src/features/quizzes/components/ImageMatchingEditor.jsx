@@ -15,6 +15,7 @@ import {
     Edit as EditIcon,
     Add as AddIcon,
     Image as ImageIcon,
+    Close as CloseIcon,
 } from "@mui/icons-material";
 import AnswerExplanationPopover from "./AnswerExplanationPopover";
 
@@ -264,7 +265,7 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
                 {preview ? (
                     <Box sx={{ position: "relative", width: "100%" }}>
                         <img
-                            src={preview}
+                            loading="lazy" src={preview}
                             alt="Uploaded"
                             style={{
                                 maxWidth: "100%",

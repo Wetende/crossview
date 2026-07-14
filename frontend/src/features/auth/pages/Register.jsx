@@ -101,7 +101,7 @@ export default function Register({
                                 </Typography>
                                 <Button
                                     component={Link}
-                                    href="/login/"
+                                    href={loginUrl}
                                     variant="contained"
                                 >
                                     Back to Login

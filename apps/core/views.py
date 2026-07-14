@@ -1242,7 +1242,10 @@ def google_one_tap_login(request):
         try:
             from apps.notifications.services import NotificationService
 
-            NotificationService.notify_user_registered(user)
+            NotificationService.notify_user_registered(
+                user,
+                authentication_method="google",
+            )
         except Exception:
             pass
 
