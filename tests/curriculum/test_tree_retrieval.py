@@ -39,11 +39,12 @@ class TestTreeRetrieval:
         # Setup for each hypothesis example
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         program = Program.objects.create(
             name="Test Program",
+            code="CURR-TREE-PROP",
             blueprint=blueprint
         )
         repo = CurriculumNodeRepository()
@@ -55,8 +56,8 @@ class TestTreeRetrieval:
             for i in range(num_roots):
                 root = CurriculumNode.objects.create(
                     program=program,
-                    node_type="Year",
-                    title=f"Year {i+1}",
+                    node_type="Section",
+                    title=f"Section {i+1}",
                     position=i
                 )
                 created_nodes.append(root)
@@ -65,8 +66,8 @@ class TestTreeRetrieval:
                 for j in range(children_per_node):
                     child = CurriculumNode.objects.create(
                         program=program,
-                        node_type="Unit",
-                        title=f"Unit {i+1}.{j+1}",
+                        node_type="Lesson",
+                        title=f"Lesson {i+1}.{j+1}",
                         parent=root,
                         position=j
                     )
@@ -94,11 +95,12 @@ class TestTreeRetrieval:
         """get_subtree should return the node and all its descendants."""
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         program = Program.objects.create(
             name="Test Program",
+            code="CURR-SUBTREE",
             blueprint=blueprint
         )
         repo = CurriculumNodeRepository()
@@ -106,35 +108,28 @@ class TestTreeRetrieval:
         try:
             root = CurriculumNode.objects.create(
                 program=program,
-                node_type="Year",
-                title="Year 1"
+                node_type="Section",
+                title="Section 1"
             )
             child1 = CurriculumNode.objects.create(
                 program=program,
-                node_type="Unit",
-                title="Unit 1",
+                node_type="Lesson",
+                title="Lesson 1",
                 parent=root
             )
             child2 = CurriculumNode.objects.create(
                 program=program,
-                node_type="Unit",
-                title="Unit 2",
+                node_type="Lesson",
+                title="Lesson 2",
                 parent=root
-            )
-            grandchild = CurriculumNode.objects.create(
-                program=program,
-                node_type="Session",
-                title="Session 1",
-                parent=child1
             )
             
             subtree = repo.get_subtree(root.id)
             
-            assert len(subtree) == 4
+            assert len(subtree) == 3
             assert root in subtree
             assert child1 in subtree
             assert child2 in subtree
-            assert grandchild in subtree
         finally:
             CurriculumNode.objects.filter(program=program).delete()
             program.delete()
@@ -144,11 +139,12 @@ class TestTreeRetrieval:
         """get_ancestors should return path from root to parent."""
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         program = Program.objects.create(
             name="Test Program",
+            code="CURR-ANCESTORS",
             blueprint=blueprint
         )
         repo = CurriculumNodeRepository()
@@ -156,27 +152,20 @@ class TestTreeRetrieval:
         try:
             root = CurriculumNode.objects.create(
                 program=program,
-                node_type="Year",
-                title="Year 1"
+                node_type="Section",
+                title="Section 1"
             )
             child = CurriculumNode.objects.create(
                 program=program,
-                node_type="Unit",
-                title="Unit 1",
+                node_type="Lesson",
+                title="Lesson 1",
                 parent=root
             )
-            grandchild = CurriculumNode.objects.create(
-                program=program,
-                node_type="Session",
-                title="Session 1",
-                parent=child
-            )
             
-            ancestors = repo.get_ancestors(grandchild.id)
+            ancestors = repo.get_ancestors(child.id)
             
-            assert len(ancestors) == 2
+            assert len(ancestors) == 1
             assert ancestors[0].pk == root.pk
-            assert ancestors[1].pk == child.pk
         finally:
             CurriculumNode.objects.filter(program=program).delete()
             program.delete()

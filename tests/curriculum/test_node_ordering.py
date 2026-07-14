@@ -29,11 +29,12 @@ class TestNodeOrdering:
     def setup(self):
         self.blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         self.program = Program.objects.create(
             name="Test Program",
+            code="CURR-ORDER",
             blueprint=self.blueprint
         )
         self.repo = CurriculumNodeRepository()
@@ -56,8 +57,8 @@ class TestNodeOrdering:
         for i in range(num_siblings):
             node = CurriculumNode.objects.create(
                 program=self.program,
-                node_type="Year",
-                title=f"Year {i+1}",
+                node_type="Section",
+                title=f"Section {i+1}",
                 position=i
             )
             siblings.append(node)
@@ -78,16 +79,16 @@ class TestNodeOrdering:
         """Reordering should not affect parent relationships."""
         root = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 1"
+            node_type="Section",
+            title="Section 1"
         )
         
         children = []
         for i in range(3):
             child = CurriculumNode.objects.create(
                 program=self.program,
-                node_type="Unit",
-                title=f"Unit {i+1}",
+                node_type="Lesson",
+                title=f"Lesson {i+1}",
                 parent=root,
                 position=i
             )
@@ -108,8 +109,8 @@ class TestNodeOrdering:
         for i in range(3):
             node = CurriculumNode.objects.create(
                 program=self.program,
-                node_type="Year",
-                title=f"Year {i+1}",
+                node_type="Section",
+                title=f"Section {i+1}",
                 position=i
             )
             nodes.append(node)

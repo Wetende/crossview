@@ -7,7 +7,6 @@ Property test for Node Move Depth Validation.
 Tests that moving nodes validates against maximum hierarchy depth.
 """
 import pytest
-from hypothesis import given, strategies as st, settings as hyp_settings
 
 from apps.blueprints.models import AcademicBlueprint
 from apps.core.models import Program
@@ -29,11 +28,12 @@ class TestNodeMoveDepthValidation:
     def setup(self):
         self.blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],  # Max depth = 2 (0-indexed)
+            hierarchy_structure=["Section", "Lesson"],  # Max depth = 1 (0-indexed)
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         self.program = Program.objects.create(
             name="Test Program",
+            code="CURR-MOVE",
             blueprint=self.blueprint
         )
         self.repo = CurriculumNodeRepository()
@@ -51,18 +51,18 @@ class TestNodeMoveDepthValidation:
         """
         root1 = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 1"
+            node_type="Section",
+            title="Section 1"
         )
         root2 = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 2"
+            node_type="Section",
+            title="Section 2"
         )
         child = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Unit",
-            title="Unit 1",
+            node_type="Lesson",
+            title="Lesson 1",
             parent=root1
         )
         
@@ -81,89 +81,61 @@ class TestNodeMoveDepthValidation:
         """
         root = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 1"
+            node_type="Section",
+            title="Section 1"
         )
-        unit = CurriculumNode.objects.create(
+        lesson = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Unit",
-            title="Unit 1",
+            node_type="Lesson",
+            title="Lesson 1",
             parent=root
         )
-        session = CurriculumNode.objects.create(
+        another_root = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Session",
-            title="Session 1",
-            parent=unit
+            node_type="Section",
+            title="Section 2"
         )
-        
-        # Create another branch
-        another_session = CurriculumNode.objects.create(
-            program=self.program,
-            node_type="Session",
-            title="Session 2",
-            parent=unit
-        )
-        
-        # Try to move unit under session (would exceed depth)
-        # This would make: root -> session -> unit -> session (depth 3, max is 2)
+
+        # A root moved under a lesson would land at depth 2, past the
+        # two-level builder's maximum depth of 1.
         with pytest.raises(MaxDepthExceededException):
-            self.repo.move_node(unit.id, session.id)
+            self.repo.move_node(another_root.id, lesson.id)
 
     def test_move_subtree_considers_subtree_depth(self):
         """Moving a subtree should consider the depth of the entire subtree."""
         root = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 1"
+            node_type="Section",
+            title="Section 1"
         )
-        unit = CurriculumNode.objects.create(
+        CurriculumNode.objects.create(
             program=self.program,
-            node_type="Unit",
-            title="Unit 1",
+            node_type="Lesson",
+            title="Lesson 1",
             parent=root
-        )
-        session = CurriculumNode.objects.create(
-            program=self.program,
-            node_type="Session",
-            title="Session 1",
-            parent=unit
         )
         
         # Create another root
         root2 = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 2"
-        )
-        unit2 = CurriculumNode.objects.create(
-            program=self.program,
-            node_type="Unit",
-            title="Unit 2",
-            parent=root2
+            node_type="Section",
+            title="Section 2"
         )
         
-        # Try to move unit (with session child) under unit2
-        # Would result in: root2 -> unit2 -> unit -> session (depth 3, max is 2)
+        # Moving a container with a lesson under another container would push
+        # the lesson to depth 2.
         with pytest.raises(MaxDepthExceededException):
-            self.repo.move_node(unit.id, unit2.id)
+            self.repo.move_node(root.id, root2.id)
 
-    def test_move_to_root_succeeds(self):
-        """Moving a node to root level should always succeed."""
+    def test_root_move_to_root_succeeds(self):
+        """Keeping a root node at root level should succeed."""
         root = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 1"
-        )
-        unit = CurriculumNode.objects.create(
-            program=self.program,
-            node_type="Unit",
-            title="Unit 1",
-            parent=root
+            node_type="Section",
+            title="Section 1"
         )
         
-        # Move unit to root
-        moved = self.repo.move_node(unit.id, None)
+        moved = self.repo.move_node(root.id, None)
         
         moved.refresh_from_db()
         assert moved.parent_id is None

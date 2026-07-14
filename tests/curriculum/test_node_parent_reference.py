@@ -28,11 +28,12 @@ class TestNodeParentReferenceIntegrity:
         """Set up blueprint and program for tests."""
         self.blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         self.program = Program.objects.create(
             name="Test Program",
+            code="CURR-PARENT",
             blueprint=self.blueprint
         )
         yield
@@ -53,8 +54,8 @@ class TestNodeParentReferenceIntegrity:
         # Create root node
         root = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 1",
+            node_type="Section",
+            title="Section 1",
             parent=None
         )
         
@@ -63,8 +64,8 @@ class TestNodeParentReferenceIntegrity:
         for i in range(num_children):
             child = CurriculumNode.objects.create(
                 program=self.program,
-                node_type="Unit",
-                title=f"Unit {i+1}",
+                node_type="Lesson",
+                title=f"Lesson {i+1}",
                 parent=root
             )
             children.append(child)
@@ -80,21 +81,21 @@ class TestNodeParentReferenceIntegrity:
         """Root nodes should have null parent."""
         root = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
-            title="Year 1",
+            node_type="Section",
+            title="Section 1",
             parent=None
         )
         
         root.refresh_from_db()
         assert root.parent is None
 
-    @given(depth=st.integers(min_value=1, max_value=3))
+    @given(depth=st.integers(min_value=1, max_value=2))
     @hyp_settings(max_examples=10, deadline=None)
     def test_nested_parent_chain_integrity(self, depth):
         """
         For any depth of nesting, the parent chain should be valid.
         """
-        node_types = ["Year", "Unit", "Session"]
+        node_types = ["Section", "Lesson"]
         
         # Create chain of nodes
         parent = None

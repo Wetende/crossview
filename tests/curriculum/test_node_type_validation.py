@@ -28,11 +28,12 @@ class TestNodeTypeValidation:
     def setup(self):
         self.blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         self.program = Program.objects.create(
             name="Test Program",
+            code="CURR-TYPE",
             blueprint=self.blueprint
         )
         yield
@@ -40,7 +41,7 @@ class TestNodeTypeValidation:
         self.program.delete()
         self.blueprint.delete()
 
-    @given(node_type=st.sampled_from(["Year", "Unit", "Session"]))
+    @given(node_type=st.sampled_from(["Section", "Lesson"]))
     @hyp_settings(max_examples=30, deadline=None)
     def test_valid_node_types_accepted(self, node_type):
         """
@@ -61,7 +62,7 @@ class TestNodeTypeValidation:
 
     @given(
         invalid_type=st.text(min_size=1, max_size=20).filter(
-            lambda x: x not in ["Year", "Unit", "Session"]
+            lambda x: x not in ["Section", "Lesson"]
         )
     )
     @hyp_settings(max_examples=30, deadline=None)
@@ -88,6 +89,7 @@ class TestNodeTypeValidation:
         """Nodes in programs without blueprints should accept any type."""
         program_no_blueprint = Program.objects.create(
             name="No Blueprint Program",
+            code="CURR-TYPE-CUSTOM",
             blueprint=None
         )
         

@@ -44,11 +44,12 @@ class TestPropertiesMerge:
     def setup(self):
         self.blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": [{"name": "test", "weight": 100}]}
         )
         self.program = Program.objects.create(
             name="Test Program",
+            code="CURR-PROPS",
             blueprint=self.blueprint
         )
         self.service = NodePropertiesService()
@@ -71,7 +72,7 @@ class TestPropertiesMerge:
         """
         node = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
+            node_type="Section",
             title="Test Node",
             properties=existing
         )
@@ -105,7 +106,7 @@ class TestPropertiesMerge:
         """
         node = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
+            node_type="Section",
             title="Test Node",
             properties=existing
         )
@@ -122,7 +123,7 @@ class TestPropertiesMerge:
         """Merging into empty properties should just set new properties."""
         node = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
+            node_type="Section",
             title="Test Node",
             properties={}
         )
@@ -138,7 +139,7 @@ class TestPropertiesMerge:
         existing = {"key1": "value1", "key2": 42}
         node = CurriculumNode.objects.create(
             program=self.program,
-            node_type="Year",
+            node_type="Section",
             title="Test Node",
             properties=existing
         )
