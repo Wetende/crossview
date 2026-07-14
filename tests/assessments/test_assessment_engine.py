@@ -23,7 +23,7 @@ def create_test_fixtures():
     
     blueprint = AcademicBlueprint.objects.create(
         name=f"Test Blueprint {unique_id}",
-        hierarchy_structure=["Year", "Unit", "Session"],
+        hierarchy_structure=["Section", "Session"],
         grading_logic={
             "type": "weighted",
             "components": [
@@ -36,6 +36,7 @@ def create_test_fixtures():
     
     program = Program.objects.create(
         name=f"Test Program {unique_id}",
+        code=f"ASSESS-{unique_id}",
         blueprint=blueprint
     )
     
@@ -307,7 +308,7 @@ class TestBulkPublish:
         
         blueprint = AcademicBlueprint.objects.create(
             name=f"Test Blueprint {unique_id}",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Session"],
             grading_logic={
                 "type": "weighted",
                 "components": [{"name": "cat", "weight": 0.3}, {"name": "exam", "weight": 0.7}],
@@ -315,7 +316,11 @@ class TestBulkPublish:
             }
         )
         
-        program = Program.objects.create(name=f"Test Program {unique_id}", blueprint=blueprint)
+        program = Program.objects.create(
+            name=f"Test Program {unique_id}",
+            code=f"ASSESS-BULK-{unique_id}",
+            blueprint=blueprint,
+        )
         node = CurriculumNode.objects.create(
             program=program, node_type="Session", title="Test Session", position=0
         )
@@ -357,7 +362,7 @@ class TestBulkPublish:
         
         blueprint = AcademicBlueprint.objects.create(
             name=f"Test Blueprint {unique_id}",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Section", "Session"],
             grading_logic={
                 "type": "weighted",
                 "components": [{"name": "cat", "weight": 0.3}, {"name": "exam", "weight": 0.7}],
@@ -365,7 +370,11 @@ class TestBulkPublish:
             }
         )
         
-        program = Program.objects.create(name=f"Test Program {unique_id}", blueprint=blueprint)
+        program = Program.objects.create(
+            name=f"Test Program {unique_id}",
+            code=f"ASSESS-PUBLISHED-{unique_id}",
+            blueprint=blueprint,
+        )
         node = CurriculumNode.objects.create(
             program=program, node_type="Session", title="Test Session", position=0
         )

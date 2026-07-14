@@ -8,6 +8,7 @@ Tests that for any assessment result saved with component scores,
 retrieving the result returns identical component scores in result_data.
 """
 import pytest
+import uuid
 from hypothesis import given, strategies as st, settings as hyp_settings, HealthCheck
 
 from apps.assessments.models import AssessmentResult
@@ -36,22 +37,23 @@ result_data_strategy = st.fixed_dictionaries({
 
 def create_test_fixtures():
     """Create required test fixtures."""
+    unique_id = str(uuid.uuid4())[:8]
+
     # Create blueprint
     blueprint = AcademicBlueprint.objects.create(
-        name="Test Blueprint",
-        hierarchy_structure=["Year", "Unit", "Session"],
+        name=f"Test Blueprint {unique_id}",
+        hierarchy_structure=["Section", "Session"],
         grading_logic={"type": "weighted", "components": [{"name": "exam", "weight": 1.0}]}
     )
     
     # Create program
     program = Program.objects.create(
-        name="Test Program",
+        name=f"Test Program {unique_id}",
+        code=f"ASSESS-RESULT-{unique_id}",
         blueprint=blueprint
     )
     
     # Create user with unique username
-    import uuid
-    unique_id = str(uuid.uuid4())[:8]
     user = User.objects.create_user(
         username=f"testuser_{unique_id}",
         email=f"test_{unique_id}@example.com",

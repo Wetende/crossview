@@ -23,7 +23,7 @@ def create_test_fixtures():
     
     blueprint = AcademicBlueprint.objects.create(
         name=f"Test Blueprint {unique_id}",
-        hierarchy_structure=["Year", "Unit", "Session"],
+        hierarchy_structure=["Section", "Session"],
         grading_logic={
             "type": "weighted",
             "components": [
@@ -36,6 +36,7 @@ def create_test_fixtures():
     
     program = Program.objects.create(
         name=f"Test Program {unique_id}",
+        code=f"ASSESS-SERIAL-{unique_id}",
         blueprint=blueprint
     )
     

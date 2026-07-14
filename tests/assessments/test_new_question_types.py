@@ -1,4 +1,6 @@
 
+from decimal import Decimal
+
 import pytest
 from apps.assessments.models import (
     Quiz,
@@ -17,7 +19,10 @@ class TestNewQuestionTypes:
     @pytest.fixture(autouse=True)
     def setup_data(self):
         # Create minimal required relationships
-        self.program = Program.objects.create(name="Test Program")
+        self.program = Program.objects.create(
+            name="Test Program",
+            code="ASSESS-QUESTION-TYPES",
+        )
         self.node = CurriculumNode.objects.create(program=self.program, title="Test Node", node_type='lesson')
         self.quiz = Quiz.objects.create(node=self.node, title="Test Quiz", pass_threshold=70)
 
@@ -111,10 +116,10 @@ class TestNewQuestionTypes:
         assert is_correct is True
         assert points == 10
         
-        # Incorrect order
+        # One item remains in its correct position, earning partial credit.
         is_correct, points = q.check_answer(["Step 2", "Step 1", "Step 3"])
         assert is_correct is False
-        assert points == 0
+        assert points == Decimal("3.33")
 
     def test_mcq_multi_all_correct(self):
         q = Question.objects.create(
@@ -134,10 +139,10 @@ class TestNewQuestionTypes:
         is_correct, points = q.check_answer([1, 3])
         assert is_correct is True
         
-        # Missing one
+        # Missing one correct option earns half credit without a false-positive pass.
         is_correct, points = q.check_answer([1])
         assert is_correct is False
-        assert points == 0
+        assert points == Decimal("5.00")
 
     def test_image_matching_partial_credit(self):
         q = Question.objects.create(
