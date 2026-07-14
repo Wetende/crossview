@@ -30,7 +30,7 @@ class TestVerificationReturnsCorrectResponse:
         # Create required objects
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -73,7 +73,7 @@ class TestVerificationReturnsCorrectResponse:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -131,7 +131,7 @@ class TestVerificationReturnsCorrectResponse:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -240,7 +240,7 @@ class TestVerificationLogging:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(

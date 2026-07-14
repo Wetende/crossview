@@ -32,7 +32,7 @@ class TestCertificateDownload:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -72,7 +72,7 @@ class TestCertificateDownload:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -120,7 +120,7 @@ class TestSignedURL:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -160,7 +160,7 @@ class TestSignedURL:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -224,7 +224,7 @@ class TestPublicVerificationURL:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -266,7 +266,7 @@ class TestPublicVerificationURL:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(

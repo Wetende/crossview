@@ -26,7 +26,7 @@ class TestRevocationWorkflow:
         
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
@@ -40,7 +40,11 @@ class TestRevocationWorkflow:
             first_name="Test",
             last_name="User"
         )
-        program = Program.objects.create(name="Test Program", blueprint=blueprint)
+        program = Program.objects.create(
+            name="Test Program",
+            code=f"CERT-{serial_suffix}",
+            blueprint=blueprint,
+        )
         enrollment = Enrollment.objects.create(user=user, program=program)
         
         return Certificate.objects.create(

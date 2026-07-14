@@ -85,15 +85,15 @@ class TestSerialNumberUniquenessAndFormat:
         assert len(parsed['code']) == 6
         assert parsed['code'].isalnum()
 
-    def test_default_prefix_is_cct(self):
+    def test_default_prefix_is_generic_lms(self):
         """
-        Property: Default prefix SHALL be 'CCT'.
+        Property: The shared engine default prefix SHALL be tenant-neutral 'LMS'.
         **Validates: Requirements 3.3**
         """
         generator = SerialNumberGenerator()
         serial = generator.generate()
         
-        assert serial.startswith('CCT-')
+        assert serial.startswith('LMS-')
 
     def test_is_unique_returns_true_for_new_serial(self):
         """
@@ -119,7 +119,7 @@ class TestSerialNumberUniquenessAndFormat:
         # Create required objects
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Section", "Lesson"],
             grading_logic={"type": "weighted", "components": []}
         )
         template = CertificateTemplate.objects.create(
