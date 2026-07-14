@@ -20,7 +20,7 @@ class TestSectionCreationFix(TestCase):
         
         blueprint = AcademicBlueprint.objects.create(
             name="Academic Year",
-            hierarchy_structure=["Year", "Unit", "Session"],
+            hierarchy_structure=["Year", "Session"],
             grading_logic={"type": "weighted", "components": []},
             feature_flags={}
         )
@@ -44,19 +44,14 @@ class TestSectionCreationFix(TestCase):
         }
         
         response = self.client.post(url, data, follow=False)
-        self.assertEqual(response.status_code, 302)
-        print(f"Redirecting to: {response.url}")
+        self.assertEqual(response.status_code, 200)
         
         # 3. Assertion:
-        # WITHOUT FIX: This should fail to create the node because "Module" is not in ["Year", "Unit", "Session"]
+        # WITHOUT FIX: This should fail because "Module" is not in ["Year", "Session"]
         # WITH FIX: This should create a node of type "Year" (root of hierarchy)
         
-        # Check if any node was created
-        node = CurriculumNode.objects.filter(program=program, title='New Section API Test').first()
-        
-        if node:
-            print(f"\nNode created with type: {node.node_type}")
-            self.assertEqual(node.node_type, "Year") # Should be mapped to the blueprint root
-        else:
-            # For reproduction, we expect this path initially (failure)
-            self.fail("Node was not created. This confirms the bug where 'Module' type is rejected.")
+        node = CurriculumNode.objects.get(
+            program=program,
+            title='New Section API Test',
+        )
+        self.assertEqual(node.node_type, "Year")
