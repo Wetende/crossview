@@ -15,7 +15,11 @@ class TestContentSchedulingViews:
     def setup_data(self):
         from apps.core.models import User, Program
         self.student = User.objects.create_user(username="student", email="student@test.com", password="password")
-        self.program = Program.objects.create(name="Test Program", is_published=True)
+        self.program = Program.objects.create(
+            name="Test Program",
+            is_published=True,
+            drip_enabled=True,
+        )
 
 
     def _get_inertia_props(self, response):
@@ -127,3 +131,69 @@ class TestContentSchedulingViews:
         node_data = props['curriculum'][0]
         
         assert node_data['isLocked'] is False
+
+    def test_disabled_drip_does_not_lock_existing_schedule(self, client, setup_data):
+        self.program.drip_enabled = False
+        self.program.save(update_fields=["drip_enabled", "updated_at"])
+        node_drip = CurriculumNode.objects.create(
+            program=self.program,
+            title="Stored Schedule",
+            node_type="lesson",
+            position=1,
+            is_published=True,
+            unlock_after_days=3,
+        )
+        Enrollment.objects.create(
+            user=self.student,
+            program=self.program,
+            status='active'
+        )
+
+        client.force_login(self.student)
+
+        url = reverse('progression:student.program', args=[self.program.id])
+        response = client.get(url)
+        props = self._get_inertia_props(response)
+        node_data = props['curriculum'][0]
+
+        assert node_data['id'] == node_drip.id
+        assert node_data['isLocked'] is False
+        assert node_data['lockReason'] is None
+
+    def test_parent_module_drip_locks_child_lesson(self, client, setup_data):
+        module = CurriculumNode.objects.create(
+            program=self.program,
+            title="Module 2",
+            node_type="Module",
+            position=1,
+            is_published=True,
+            unlock_after_days=7,
+        )
+        lesson = CurriculumNode.objects.create(
+            program=self.program,
+            parent=module,
+            title="Lesson 2.1",
+            node_type="lesson",
+            position=1,
+            is_published=True,
+        )
+        Enrollment.objects.create(
+            user=self.student,
+            program=self.program,
+            status='active'
+        )
+
+        client.force_login(self.student)
+
+        url = reverse('progression:student.program', args=[self.program.id])
+        response = client.get(url)
+        props = self._get_inertia_props(response)
+        module_data = props['curriculum'][0]
+        lesson_data = module_data['children'][0]
+
+        assert module_data['id'] == module.id
+        assert module_data['isLocked'] is True
+        assert module_data['lockReason'] == 'drip'
+        assert lesson_data['id'] == lesson.id
+        assert lesson_data['isLocked'] is True
+        assert lesson_data['lockReason'] == 'drip'

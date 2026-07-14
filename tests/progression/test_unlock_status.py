@@ -25,13 +25,14 @@ def _make_program_with_mixed_nodes(num_nodes: int, sequential: bool = True):
     
     blueprint = AcademicBlueprint.objects.create(
         name=f'Test Blueprint {timestamp}',
-        hierarchy_structure=['Year', 'Unit', 'Session'],
+        hierarchy_structure=['Unit', 'Session'],
         grading_logic={'type': 'weighted', 'components': []},
         progression_rules={'sequential': sequential}
     )
     
     program = Program.objects.create(
         name=f'Test Program {timestamp}',
+        code=f"TEST-{str(timestamp).replace('.', '')}",
         blueprint=blueprint,
         is_published=True
     )
@@ -211,13 +212,14 @@ class TestLockReasonIncluded:
         
         blueprint = AcademicBlueprint.objects.create(
             name=f'Test Blueprint {timestamp}',
-            hierarchy_structure=['Year', 'Unit', 'Session'],
+            hierarchy_structure=['Unit', 'Session'],
             grading_logic={'type': 'weighted', 'components': []},
             progression_rules={'sequential': False}  # Disable sequential
         )
         
         program = Program.objects.create(
             name=f'Test Program {timestamp}',
+            code=f"TEST-{str(timestamp).replace('.', '')}",
             blueprint=blueprint,
             is_published=True
         )

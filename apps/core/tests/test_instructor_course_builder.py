@@ -711,6 +711,63 @@ class TestInstructorCourseBuilder:
         assert program.rating_count == 75
         assert program.name != "Ignored Review Section Name"
 
+    def test_update_drip_saves_relative_schedule_and_redirects_back_to_drip_tab(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        module = CurriculumNode.objects.create(
+            program=program,
+            title="Module 2",
+            node_type="Unit",
+        )
+        lesson = CurriculumNode.objects.create(
+            program=program,
+            parent=module,
+            title="Lesson 2.1",
+            node_type="Session",
+        )
+
+        client.force_login(instructor)
+        url = reverse("core:instructor.program_update_settings", kwargs={"pk": program.id})
+        response = client.post(
+            url,
+            data={
+                "tab": "drip",
+                "drip_enabled": True,
+                "drip_mode": "relative",
+                "drip_schedule": [
+                    {
+                        "node_id": module.id,
+                        "unlock_after_days": 7,
+                        "unlock_date": None,
+                    },
+                    {
+                        "node_id": lesson.id,
+                        "unlock_after_days": None,
+                        "unlock_date": None,
+                    },
+                ],
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == f"/instructor/programs/{program.id}/manage/?tab=drip"
+
+        program.refresh_from_db()
+        assert program.drip_enabled is True
+        assert program.drip_mode == "relative"
+
+        module.refresh_from_db()
+        lesson.refresh_from_db()
+        assert module.unlock_after_days == 7
+        assert module.unlock_date is None
+        assert lesson.unlock_after_days is None
+        assert lesson.unlock_date is None
+
     def test_update_drip_can_disable_and_redirect_back_to_drip_tab(
         self,
         client,

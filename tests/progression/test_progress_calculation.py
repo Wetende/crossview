@@ -29,13 +29,14 @@ def _make_program_with_nodes(num_completable: int, num_containers: int = 0):
     
     blueprint = AcademicBlueprint.objects.create(
         name=f'Test Blueprint {timestamp}',
-        hierarchy_structure=['Year', 'Unit', 'Session'],
+        hierarchy_structure=['Unit', 'Session'],
         grading_logic={'type': 'weighted', 'components': []},
         progression_rules={'sequential': False}
     )
     
     program = Program.objects.create(
         name=f'Test Program {timestamp}',
+        code=f"TEST-{str(timestamp).replace('.', '')}",
         blueprint=blueprint,
         is_published=True
     )
@@ -97,30 +98,21 @@ def _make_program_with_subtree():
     
     blueprint = AcademicBlueprint.objects.create(
         name=f'Test Blueprint {timestamp}',
-        hierarchy_structure=['Year', 'Unit', 'Session'],
+        hierarchy_structure=['Unit', 'Session'],
         grading_logic={'type': 'weighted', 'components': []},
         progression_rules={'sequential': False}
     )
     
     program = Program.objects.create(
         name=f'Test Program {timestamp}',
+        code=f"TEST-{str(timestamp).replace('.', '')}",
         blueprint=blueprint,
         is_published=True
     )
     
-    # Create root container
-    root = CurriculumNode.objects.create(
-        program=program,
-        node_type='Year',
-        title='Year 1',
-        position=0,
-        completion_rules={'is_completable': False}
-    )
-    
-    # Create two units under root
+    # Create two root units
     unit1 = CurriculumNode.objects.create(
         program=program,
-        parent=root,
         node_type='Unit',
         title='Unit 1',
         position=0,
@@ -129,7 +121,6 @@ def _make_program_with_subtree():
     
     unit2 = CurriculumNode.objects.create(
         program=program,
-        parent=root,
         node_type='Unit',
         title='Unit 2',
         position=1,
@@ -175,7 +166,6 @@ def _make_program_with_subtree():
     
     return {
         'enrollment': enrollment,
-        'root': root,
         'unit1': unit1,
         'unit2': unit2,
         'unit1_sessions': unit1_sessions,
@@ -205,6 +195,7 @@ def _make_program_with_plain_leaf_nodes(num_leaf_nodes: int):
 
     program = Program.objects.create(
         name=f"Plain Leaf Program {timestamp}",
+        code=f"LEAF-{str(timestamp).replace('.', '')}",
         blueprint=blueprint,
         is_published=True,
     )

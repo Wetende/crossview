@@ -176,28 +176,39 @@ class ScheduleLockChecker:
              return AccessResult(can_access=False, status='locked', lock_reason='enrollment_required')
 
         now = timezone.now()
+        scheduled_nodes = [*node.get_ancestors(), node]
+        active_locks = []
 
-        # 1. Absolute unlock date
-        if node.unlock_date and node.unlock_date > now:
+        for scheduled_node in scheduled_nodes:
+            # 1. Absolute unlock date
+            if scheduled_node.unlock_date and scheduled_node.unlock_date > now:
+                active_locks.append(
+                    (
+                        scheduled_node.unlock_date,
+                        "scheduled",
+                        scheduled_node.id,
+                    )
+                )
+
+            # 2. Relative unlock days
+            if scheduled_node.unlock_after_days:
+                unlock_at = enrollment.created_at + timedelta(
+                    days=scheduled_node.unlock_after_days
+                )
+                if unlock_at > now:
+                    active_locks.append((unlock_at, "drip", scheduled_node.id))
+
+        if active_locks:
+            unlock_at, lock_reason, blocking_node_id = max(
+                active_locks, key=lambda lock: lock[0]
+            )
             return AccessResult(
                 can_access=False,
                 status='locked',
-                lock_reason='scheduled',
-                blocking_nodes=[],
-                unlocks_at=node.unlock_date
+                lock_reason=lock_reason,
+                blocking_nodes=[blocking_node_id],
+                unlocks_at=unlock_at
             )
-
-        # 2. Relative unlock days
-        if node.unlock_after_days:
-            unlock_at = enrollment.created_at + timedelta(days=node.unlock_after_days)
-            if unlock_at > now:
-                return AccessResult(
-                    can_access=False,
-                    status='locked',
-                    lock_reason='drip',
-                    blocking_nodes=[],
-                    unlocks_at=unlock_at
-                )
 
         return AccessResult(can_access=True, status='unlocked')
 
@@ -534,10 +545,12 @@ class ProgressionEngine:
                 unlocks_at=None,
             )
 
-        # Schedule checks next
-        schedule_result = self.schedule_checker.is_unlocked(enrollment, node)
-        if not schedule_result.can_access:
-            return schedule_result
+        # Schedule checks next. Stored schedules are preserved when drip is
+        # disabled, but they should not affect students until re-enabled.
+        if getattr(enrollment.program, "drip_enabled", False):
+            schedule_result = self.schedule_checker.is_unlocked(enrollment, node)
+            if not schedule_result.can_access:
+                return schedule_result
 
         completed_ids = set(NodeCompletion.objects.filter(
             enrollment=enrollment

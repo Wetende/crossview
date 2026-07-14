@@ -1,5 +1,6 @@
 const CORE_BUILDER_TABS = [
     { label: "Curriculum", value: "curriculum" },
+    { label: "Drip", value: "drip" },
     { label: "Settings", value: "settings" },
     { label: "Pricing", value: "pricing" },
     { label: "FAQ", value: "faq" },

@@ -17,15 +17,15 @@ const baseProgram = {
 describe("builderTabs", () => {
     it("normalizes unsupported or unknown tabs to curriculum", () => {
         expect(normalizeBuilderTab(baseProgram, "practicum")).toBe("curriculum");
-        expect(normalizeBuilderTab(baseProgram, "drip")).toBe("curriculum");
         expect(normalizeBuilderTab(baseProgram, "missing")).toBe("curriculum");
         expect(normalizeBuilderTab(baseProgram, null)).toBe("curriculum");
     });
 
-    it("hides drip from the available builder tabs", () => {
-        expect(getAvailableBuilderTabs(baseProgram).map((tab) => tab.value)).not.toContain(
-            "drip",
+    it("shows drip as an available builder tab", () => {
+        expect(getAvailableBuilderTabs(baseProgram).map((tab) => tab.value)).toEqual(
+            ["curriculum", "drip", "settings", "pricing", "faq", "notice"],
         );
+        expect(normalizeBuilderTab(baseProgram, "drip")).toBe("drip");
     });
 
     it("includes practicum only when the program blueprint enables it", () => {
@@ -51,6 +51,9 @@ describe("builderTabs", () => {
         );
         expect(getBuilderTabUrl(42, "settings")).toBe(
             "/instructor/programs/42/manage/?tab=settings",
+        );
+        expect(getBuilderTabUrl(42, "drip")).toBe(
+            "/instructor/programs/42/manage/?tab=drip",
         );
         expect(getSettingsSectionUrl(42, "access")).toBe(
             "/instructor/programs/42/manage/?tab=settings&section=access",

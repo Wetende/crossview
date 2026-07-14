@@ -31,16 +31,15 @@ import { AccessTime as TimeIcon } from "@mui/icons-material";
 import AutosaveStatus from "./AutosaveStatus";
 import useAutosave from "../hooks/useAutosave";
 
-const getLessons = (nodes = []) => {
-    let lessons = [];
+const getDripItems = (nodes = [], depth = 0) => {
+    let items = [];
     nodes.forEach((node) => {
+        items.push({ ...node, depth });
         if (node.children && node.children.length > 0) {
-            lessons = lessons.concat(getLessons(node.children));
-        } else if (node.type !== "Module") {
-            lessons.push(node);
+            items = items.concat(getDripItems(node.children, depth + 1));
         }
     });
-    return lessons;
+    return items;
 };
 
 const DripEditor = forwardRef(function DripEditor(
@@ -55,22 +54,21 @@ const DripEditor = forwardRef(function DripEditor(
     );
     const [saving, setSaving] = useState(false);
 
-    const lessons = useMemo(
-        () => (curriculum ? getLessons(curriculum) : []),
+    const dripItems = useMemo(
+        () => (curriculum ? getDripItems(curriculum) : []),
         [curriculum],
     );
 
     const [scheduleByNodeId, setScheduleByNodeId] = useState(() => {
         const map = {};
-        lessons.forEach((lesson) => {
-            map[lesson.id] = {
-                unlockAfterDays: lesson.unlockAfterDays ?? "",
-                unlockDate: lesson.unlockDate
-                    ? String(lesson.unlockDate).slice(0, 10)
+        dripItems.forEach((item) => {
+            map[item.id] = {
+                unlockAfterDays: item.unlockAfterDays ?? "",
+                unlockDate: item.unlockDate
+                    ? String(item.unlockDate).slice(0, 10)
                     : "",
                 active: Boolean(
-                    (lesson.unlockAfterDays ?? null) ||
-                        (lesson.unlockDate ?? null),
+                    (item.unlockAfterDays ?? null) || (item.unlockDate ?? null),
                 ),
             };
         });
@@ -80,21 +78,21 @@ const DripEditor = forwardRef(function DripEditor(
     useEffect(() => {
         setScheduleByNodeId(() => {
             const next = {};
-            lessons.forEach((lesson) => {
-                next[lesson.id] = {
-                    unlockAfterDays: lesson.unlockAfterDays ?? "",
-                    unlockDate: lesson.unlockDate
-                        ? String(lesson.unlockDate).slice(0, 10)
+            dripItems.forEach((item) => {
+                next[item.id] = {
+                    unlockAfterDays: item.unlockAfterDays ?? "",
+                    unlockDate: item.unlockDate
+                        ? String(item.unlockDate).slice(0, 10)
                         : "",
                     active: Boolean(
-                        (lesson.unlockAfterDays ?? null) ||
-                            (lesson.unlockDate ?? null),
+                        (item.unlockAfterDays ?? null) ||
+                            (item.unlockDate ?? null),
                     ),
                 };
             });
             return next;
         });
-    }, [lessons]);
+    }, [dripItems]);
 
     const dripMode = useMemo(() => {
         if (!dripEnabled) return "none";
@@ -117,10 +115,10 @@ const DripEditor = forwardRef(function DripEditor(
 
     const buildSavePayload = useCallback(() => {
         const drip_schedule = dripEnabled
-            ? lessons.map((lesson) => {
-                  const row = scheduleByNodeId[lesson.id] || {};
+            ? dripItems.map((item) => {
+                  const row = scheduleByNodeId[item.id] || {};
                   return {
-                      node_id: lesson.id,
+                      node_id: item.id,
                       unlock_after_days:
                           scheduleMode === "sequence" &&
                           row.active &&
@@ -140,7 +138,7 @@ const DripEditor = forwardRef(function DripEditor(
             drip_mode: dripMode,
             drip_schedule,
         };
-    }, [dripEnabled, dripMode, lessons, scheduleByNodeId, scheduleMode]);
+    }, [dripEnabled, dripItems, dripMode, scheduleByNodeId, scheduleMode]);
 
     const savePayload = useCallback(
         (payload, callbacks = {}) => {
@@ -201,7 +199,7 @@ const DripEditor = forwardRef(function DripEditor(
                         Drip Content Schedule
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                        Control when students can access specific lessons.
+                        Control when students can access modules and lessons.
                     </Typography>
                 </Box>
                 <FormControlLabel
@@ -265,7 +263,7 @@ const DripEditor = forwardRef(function DripEditor(
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {lessons.length === 0 && (
+                                {dripItems.length === 0 && (
                                     <TableRow>
                                         <TableCell
                                             colSpan={3}
@@ -275,28 +273,29 @@ const DripEditor = forwardRef(function DripEditor(
                                                 color: "text.secondary",
                                             }}
                                         >
-                                            No lessons found in curriculum.
+                                            No course materials found in curriculum.
                                         </TableCell>
                                     </TableRow>
                                 )}
-                                {lessons.map((lesson) => (
-                                    <TableRow key={lesson.id}>
+                                {dripItems.map((item) => (
+                                    <TableRow key={item.id}>
                                         <TableCell>
                                             <Box
                                                 sx={{
                                                     display: "flex",
                                                     alignItems: "center",
                                                     gap: 1,
+                                                    pl: item.depth * 2,
                                                 }}
                                             >
                                                 <Typography
                                                     variant="body2"
                                                     fontWeight={500}
                                                 >
-                                                    {lesson.title}
+                                                    {item.title}
                                                 </Typography>
                                                 <Chip
-                                                    label={lesson.type}
+                                                    label={item.type}
                                                     size="small"
                                                     sx={{
                                                         height: 20,
@@ -313,17 +312,17 @@ const DripEditor = forwardRef(function DripEditor(
                                                     placeholder="0"
                                                     value={
                                                         scheduleByNodeId[
-                                                            lesson.id
+                                                            item.id
                                                         ]?.unlockAfterDays ?? ""
                                                     }
                                                     disabled={
                                                         !scheduleByNodeId[
-                                                            lesson.id
+                                                            item.id
                                                         ]?.active
                                                     }
                                                     onChange={(e) =>
                                                         handleScheduleChange(
-                                                            lesson.id,
+                                                            item.id,
                                                             {
                                                                 unlockAfterDays:
                                                                     e.target
@@ -331,15 +330,21 @@ const DripEditor = forwardRef(function DripEditor(
                                                             },
                                                         )
                                                     }
-                                                    InputProps={{
-                                                        endAdornment: (
-                                                            <Typography
-                                                                variant="caption"
-                                                                sx={{ ml: 1 }}
-                                                            >
-                                                                Days
-                                                            </Typography>
-                                                        ),
+                                                    slotProps={{
+                                                        htmlInput: {
+                                                            min: 1,
+                                                            "aria-label": `Unlock ${item.title} after days`,
+                                                        },
+                                                        input: {
+                                                            endAdornment: (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{ ml: 1 }}
+                                                                >
+                                                                    Days
+                                                                </Typography>
+                                                            ),
+                                                        },
                                                     }}
                                                 />
                                             ) : (
@@ -348,17 +353,17 @@ const DripEditor = forwardRef(function DripEditor(
                                                     size="small"
                                                     value={
                                                         scheduleByNodeId[
-                                                            lesson.id
+                                                            item.id
                                                         ]?.unlockDate ?? ""
                                                     }
                                                     disabled={
                                                         !scheduleByNodeId[
-                                                            lesson.id
+                                                            item.id
                                                         ]?.active
                                                     }
                                                     onChange={(e) =>
                                                         handleScheduleChange(
-                                                            lesson.id,
+                                                            item.id,
                                                             {
                                                                 unlockDate:
                                                                     e.target
@@ -366,6 +371,11 @@ const DripEditor = forwardRef(function DripEditor(
                                                             },
                                                         )
                                                     }
+                                                    slotProps={{
+                                                        htmlInput: {
+                                                            "aria-label": `Unlock ${item.title} on date`,
+                                                        },
+                                                    }}
                                                 />
                                             )}
                                         </TableCell>
@@ -373,18 +383,23 @@ const DripEditor = forwardRef(function DripEditor(
                                             <Switch
                                                 size="small"
                                                 checked={Boolean(
-                                                    scheduleByNodeId[lesson.id]
+                                                    scheduleByNodeId[item.id]
                                                         ?.active,
                                                 )}
                                                 onChange={(e) =>
                                                     handleScheduleChange(
-                                                        lesson.id,
+                                                        item.id,
                                                         {
                                                             active: e.target
                                                                 .checked,
                                                         },
                                                     )
                                                 }
+                                                slotProps={{
+                                                    input: {
+                                                        "aria-label": `Enable schedule for ${item.title}`,
+                                                    },
+                                                }}
                                             />
                                         </TableCell>
                                     </TableRow>
