@@ -147,7 +147,7 @@ class Command(BaseCommand):
         self.stdout.write(f'Courses migrated: {report.courses_migrated}')
         self.stdout.write(f'Sections migrated: {report.sections_migrated}')
         self.stdout.write(f'Lessons migrated: {report.lessons_migrated}')
-        self.stdout.write(f'Total nodes created: {report.courses_migrated + report.sections_migrated + report.lessons_migrated}')
+        self.stdout.write(f'Total nodes created: {report.sections_migrated + report.lessons_migrated}')
         
         if report.errors:
             self.stdout.write(self.style.ERROR(f'\nErrors ({len(report.errors)}):'))

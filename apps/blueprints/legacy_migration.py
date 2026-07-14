@@ -8,6 +8,7 @@ from django.db import transaction
 
 from .models import AcademicBlueprint
 from apps.core.models import Program
+from apps.core.taxonomy import DEFAULT_BUILDER_HIERARCHY
 from apps.curriculum.models import CurriculumNode
 
 
@@ -27,7 +28,7 @@ class MigrationReport:
             'courses_migrated': self.courses_migrated,
             'sections_migrated': self.sections_migrated,
             'lessons_migrated': self.lessons_migrated,
-            'total_nodes': self.courses_migrated + self.sections_migrated + self.lessons_migrated,
+            'total_nodes': self.sections_migrated + self.lessons_migrated,
             'errors': self.errors,
             'success': len(self.errors) == 0
         }
@@ -41,15 +42,17 @@ class LegacyMigrationService:
         self.blueprint: Optional[AcademicBlueprint] = None
         self.dry_run = False
 
-    def create_default_theology_blueprint(self) -> AcademicBlueprint:
+    def create_default_blueprint(self) -> AcademicBlueprint:
         """
-        Create the default theology blueprint with hierarchy:
-        ["Course", "Section", "Lesson"]
+        Create a two-tier blueprint for migrated sections and lessons.
+
+        The target Program represents the legacy course level, so Course must
+        not be recreated as a curriculum node.
         """
         blueprint = AcademicBlueprint(
-            name="Theology Program Blueprint",
-            description="Default blueprint for theology courses with Course > Section > Lesson hierarchy",
-            hierarchy_structure=["Course", "Section", "Lesson"],
+            name="Legacy Program Blueprint",
+            description="Default two-tier blueprint for migrated sections and lessons",
+            hierarchy_structure=list(DEFAULT_BUILDER_HIERARCHY),
             grading_logic={
                 "type": "weighted",
                 "components": [
@@ -72,62 +75,19 @@ class LegacyMigrationService:
         self.blueprint = blueprint
         return blueprint
 
-    def migrate_course_to_node(
-        self,
-        course_data: Dict[str, Any],
-        program: Program
-    ) -> CurriculumNode:
-        """
-        Migrate a course record to a root CurriculumNode.
-        
-        Args:
-            course_data: Dictionary with course fields
-            program: The program to attach the node to
-            
-        Returns:
-            Created CurriculumNode
-        """
-        properties = {
-            'original_id': course_data.get('id'),
-            'thumbnail': course_data.get('thumbnail'),
-            'duration': course_data.get('duration'),
-            'level': course_data.get('level'),
-            'price': course_data.get('price'),
-            'instructor_id': course_data.get('instructor_id'),
-        }
-        # Remove None values
-        properties = {k: v for k, v in properties.items() if v is not None}
-        
-        node = CurriculumNode(
-            program=program,
-            parent=None,
-            node_type="Course",
-            title=course_data.get('title', 'Untitled Course'),
-            code=course_data.get('code'),
-            description=course_data.get('description'),
-            properties=properties,
-            position=course_data.get('position', 0),
-            is_published=course_data.get('is_published', False)
-        )
-        
-        if not self.dry_run:
-            node.save(skip_validation=True)
-        
-        self.report.courses_migrated += 1
-        return node
-
     def migrate_section_to_node(
         self,
         section_data: Dict[str, Any],
-        parent_node: CurriculumNode,
-        program: Program
+        course_data: Dict[str, Any],
+        program: Program,
+        position: int,
     ) -> CurriculumNode:
         """
-        Migrate a section record to a child CurriculumNode.
+        Migrate a legacy section to a root container node.
         
         Args:
             section_data: Dictionary with section fields
-            parent_node: The parent course node
+            course_data: The source course metadata
             program: The program
             
         Returns:
@@ -136,23 +96,42 @@ class LegacyMigrationService:
         properties = {
             'original_id': section_data.get('id'),
             'original_course_id': section_data.get('course_id'),
+            'original_position': section_data.get('position'),
+            'legacy_course': {
+                'id': course_data.get('id'),
+                'title': course_data.get('title'),
+                'code': course_data.get('code'),
+                'description': course_data.get('description'),
+                'position': course_data.get('position'),
+                'thumbnail': course_data.get('thumbnail'),
+                'duration': course_data.get('duration'),
+                'level': course_data.get('level'),
+                'price': course_data.get('price'),
+                'instructor_id': course_data.get('instructor_id'),
+                'is_published': course_data.get('is_published'),
+            },
         }
-        properties = {k: v for k, v in properties.items() if v is not None}
+        properties['legacy_course'] = {
+            key: value
+            for key, value in properties['legacy_course'].items()
+            if value is not None
+        }
+        properties = {key: value for key, value in properties.items() if value is not None}
         
         node = CurriculumNode(
             program=program,
-            parent=parent_node,
-            node_type="Section",
+            parent=None,
+            node_type=self.blueprint.hierarchy_structure[0],
             title=section_data.get('title', 'Untitled Section'),
             code=section_data.get('code'),
             description=section_data.get('description'),
             properties=properties,
-            position=section_data.get('position', 0),
+            position=position,
             is_published=section_data.get('is_published', True)
         )
         
         if not self.dry_run:
-            node.save(skip_validation=True)
+            node.save()
         
         self.report.sections_migrated += 1
         return node
@@ -195,7 +174,7 @@ class LegacyMigrationService:
         node = CurriculumNode(
             program=program,
             parent=parent_node,
-            node_type="Lesson",
+            node_type=self.blueprint.hierarchy_structure[1],
             title=lesson_data.get('title', 'Untitled Lesson'),
             code=lesson_data.get('code'),
             description=lesson_data.get('description'),
@@ -206,7 +185,7 @@ class LegacyMigrationService:
         )
         
         if not self.dry_run:
-            node.save(skip_validation=True)
+            node.save()
         
         self.report.lessons_migrated += 1
         return node
@@ -238,34 +217,42 @@ class LegacyMigrationService:
         
         # Create blueprint if needed
         if not self.blueprint:
-            self.create_default_theology_blueprint()
+            self.create_default_blueprint()
         
         # Assign blueprint to program
         if not dry_run:
             program.blueprint = self.blueprint
             program.save()
         
-        # Build lookup maps
-        course_nodes = {}  # original_id -> node
+        # Build lookup maps. Legacy courses map to the target Program rather
+        # than curriculum nodes; their identity is retained on each section.
+        course_map = {}
         section_nodes = {}  # original_id -> node
         
-        # Migrate courses
+        # Register source courses represented by this Program.
         for course_data in courses:
-            try:
-                node = self.migrate_course_to_node(course_data, program)
-                course_nodes[course_data.get('id')] = node
-            except Exception as e:
-                self.report.add_error(f"Failed to migrate course {course_data.get('id')}: {e}")
+            course_id = course_data.get('id')
+            if course_id is None:
+                self.report.add_error("Failed to migrate course without an id")
+                continue
+            course_map[course_id] = course_data
+            self.report.courses_migrated += 1
         
-        # Migrate sections
-        for section_data in sections:
+        # Flatten the redundant legacy Course node: sections are root
+        # containers and lessons remain their direct children.
+        for position, section_data in enumerate(sections):
             try:
                 course_id = section_data.get('course_id')
-                parent_node = course_nodes.get(course_id)
-                if not parent_node:
+                course_data = course_map.get(course_id)
+                if not course_data:
                     self.report.add_error(f"Section {section_data.get('id')} has invalid course_id {course_id}")
                     continue
-                node = self.migrate_section_to_node(section_data, parent_node, program)
+                node = self.migrate_section_to_node(
+                    section_data,
+                    course_data,
+                    program,
+                    position,
+                )
                 section_nodes[section_data.get('id')] = node
             except Exception as e:
                 self.report.add_error(f"Failed to migrate section {section_data.get('id')}: {e}")

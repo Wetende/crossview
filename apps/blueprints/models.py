@@ -12,7 +12,7 @@ class AcademicBlueprint(TimeStampedModel):
     """
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
-    hierarchy_structure = models.JSONField()  # ["Year", "Unit", "Session"]
+    hierarchy_structure = models.JSONField()  # ["Section", "Lesson"]
     grading_logic = models.JSONField()  # {"type": "weighted", "components": [...]}
     progression_rules = models.JSONField(blank=True, null=True)
     gamification_enabled = models.BooleanField(default=False)

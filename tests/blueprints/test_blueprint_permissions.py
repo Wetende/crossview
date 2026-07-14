@@ -51,7 +51,7 @@ def test_blueprint(db):
     return AcademicBlueprint.objects.create(
         name="Test Blueprint",
         description="For testing permissions",
-        hierarchy_structure=["Level", "Module", "Session"],
+        hierarchy_structure=["Module", "Session"],
         grading_logic={"type": "points"},
     )
 

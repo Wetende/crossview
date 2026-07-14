@@ -15,10 +15,16 @@ from apps.blueprints.models import AcademicBlueprint
 
 
 # Strategy for generating valid hierarchy structures
-hierarchy_strategy = st.lists(
-    st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N'))),
+hierarchy_label_strategy = st.text(
     min_size=1,
-    max_size=10
+    max_size=50,
+    alphabet=st.characters(whitelist_categories=('L', 'N')),
+).filter(lambda value: value.lower() not in {"course", "program"})
+
+hierarchy_strategy = st.lists(
+    hierarchy_label_strategy,
+    min_size=2,
+    max_size=2
 )
 
 # Strategy for generating valid grading logic
@@ -98,7 +104,7 @@ class TestBlueprintPersistence:
 
     @given(
         hierarchy=hierarchy_strategy,
-        depth=st.integers(min_value=0, max_value=9)
+        depth=st.integers(min_value=0, max_value=3)
     )
     @hyp_settings(max_examples=50, deadline=None)
     def test_label_for_depth_returns_correct_label(self, hierarchy, depth):

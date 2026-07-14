@@ -31,9 +31,13 @@ class TestBlueprintValidation:
     # Valid hierarchy tests
     @given(
         hierarchy=st.lists(
-            st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L',))),
-            min_size=1,
-            max_size=10
+            st.text(
+                min_size=1,
+                max_size=50,
+                alphabet=st.characters(whitelist_categories=('L',)),
+            ).filter(lambda value: value.lower() not in {"course", "program"}),
+            min_size=2,
+            max_size=2
         )
     )
     @hyp_settings(max_examples=50, deadline=None)
@@ -53,10 +57,22 @@ class TestBlueprintValidation:
             self.validator.validate_hierarchy_structure(None)
 
     @given(
+        hierarchy=st.one_of(
+            st.lists(st.text(min_size=1), min_size=1, max_size=1),
+            st.lists(st.text(min_size=1), min_size=3, max_size=5),
+        )
+    )
+    @hyp_settings(max_examples=30, deadline=None)
+    def test_wrong_number_of_levels_rejected(self, hierarchy):
+        """Hierarchies must define exactly one container and one content label."""
+        with pytest.raises(InvalidHierarchyStructureException):
+            self.validator.validate_hierarchy_structure(hierarchy)
+
+    @given(
         hierarchy=st.lists(
             st.one_of(st.integers(), st.none(), st.floats()),
-            min_size=1,
-            max_size=5
+            min_size=2,
+            max_size=2
         )
     )
     @hyp_settings(max_examples=30, deadline=None)

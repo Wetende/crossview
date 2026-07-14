@@ -91,21 +91,24 @@ class TestMigrationStructurePreservation:
             assert report.sections_migrated == num_courses * sections_per_course
             assert report.lessons_migrated == num_courses * sections_per_course * lessons_per_section
             
-            # Verify hierarchy
-            course_nodes = CurriculumNode.objects.filter(
-                program=program, node_type="Course"
+            # The target Program replaces the redundant legacy Course node.
+            # Sections become root containers and retain course identity as
+            # metadata; lessons remain direct children.
+            section_nodes = CurriculumNode.objects.filter(
+                program=program, node_type="Section"
             )
-            assert course_nodes.count() == num_courses
-            
-            for course_node in course_nodes:
-                assert course_node.parent is None
-                section_nodes = course_node.children.all()
-                assert section_nodes.count() == sections_per_course
-                
-                for section_node in section_nodes:
-                    assert section_node.parent == course_node
-                    lesson_nodes = section_node.children.all()
-                    assert lesson_nodes.count() == lessons_per_section
+            assert section_nodes.count() == num_courses * sections_per_course
+
+            for section_node in section_nodes:
+                assert section_node.parent is None
+                assert section_node.properties["original_course_id"] in range(
+                    1, num_courses + 1
+                )
+                assert section_node.properties["legacy_course"]["title"].startswith(
+                    "Course "
+                )
+                lesson_nodes = section_node.children.all()
+                assert lesson_nodes.count() == lessons_per_section
         finally:
             # Cleanup
             CurriculumNode.objects.filter(program=program).delete()
@@ -130,7 +133,7 @@ class TestMigrationStructurePreservation:
             
             program.refresh_from_db()
             assert program.blueprint is not None
-            assert program.blueprint.hierarchy_structure == ["Course", "Section", "Lesson"]
+            assert program.blueprint.hierarchy_structure == ["Section", "Lesson"]
         finally:
             CurriculumNode.objects.filter(program=program).delete()
             if program.blueprint:

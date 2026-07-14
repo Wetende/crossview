@@ -53,17 +53,17 @@ def validate_builder_hierarchy(structure: object) -> tuple[bool, str | None]:
     if not isinstance(structure, list) or not structure:
         return False, "Hierarchy structure must be a non-empty list"
 
-    pair = _normalized_pair(structure)
-
-    if len(pair) != 2:
+    if len(structure) != 2:
         return (
             False,
             "Hierarchy structure must contain exactly 2 levels: Container and Content",
         )
 
-    for label in pair:
-        if not label:
+    for label in structure:
+        if not isinstance(label, str) or not label.strip():
             return False, "All hierarchy items must be non-empty strings"
+
+    pair = _normalized_pair(structure)
 
     container = pair[0].strip().lower()
     if container in RESERVED_CONTAINER_LABELS:

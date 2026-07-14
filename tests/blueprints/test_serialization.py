@@ -17,10 +17,16 @@ from apps.blueprints.exceptions import InvalidBlueprintJsonException
 
 
 # Strategy for generating valid hierarchy structures
-hierarchy_strategy = st.lists(
-    st.text(min_size=1, max_size=50, alphabet=st.characters(whitelist_categories=('L', 'N'))),
+hierarchy_label_strategy = st.text(
     min_size=1,
-    max_size=10
+    max_size=50,
+    alphabet=st.characters(whitelist_categories=('L', 'N')),
+).filter(lambda value: value.lower() not in {"course", "program"})
+
+hierarchy_strategy = st.lists(
+    hierarchy_label_strategy,
+    min_size=2,
+    max_size=2
 )
 
 # Strategy for generating valid grading logic

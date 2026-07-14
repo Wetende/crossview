@@ -46,6 +46,7 @@ class TestBlueprintDeletionProtection:
         for i in range(num_programs):
             program = Program.objects.create(
                 name=f"Program {i}",
+                code=f"BP-DELETE-{i}",
                 blueprint=blueprint
             )
             programs.append(program)
@@ -66,7 +67,7 @@ class TestBlueprintDeletionProtection:
         """Blueprints without programs should be deletable."""
         blueprint = AcademicBlueprint.objects.create(
             name="Deletable Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Year", "Unit"],
             grading_logic={"type": "pass_fail"}
         )
         
@@ -79,7 +80,7 @@ class TestBlueprintDeletionProtection:
         """Blueprint should be deletable after all programs are removed."""
         blueprint = AcademicBlueprint.objects.create(
             name="Test Blueprint",
-            hierarchy_structure=["Year"],
+            hierarchy_structure=["Year", "Unit"],
             grading_logic={"type": "pass_fail"}
         )
         
