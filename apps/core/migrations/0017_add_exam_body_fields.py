@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0016_virtual_campus_admissions'),
+        ('core', '0014_program_performance_indexes'),
     ]
 
     operations = [
