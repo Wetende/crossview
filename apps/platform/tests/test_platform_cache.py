@@ -1,5 +1,6 @@
 import pytest
 from django.core.cache import cache
+from django.test import override_settings
 
 from apps.platform.models import (
     PLATFORM_COURSE_LEVELS_CACHE_KEY,
@@ -9,12 +10,20 @@ from apps.platform.models import (
 
 
 @pytest.mark.django_db
+@override_settings(
+    STORAGES={
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    },
+)
 def test_platform_cache_keys_are_invalidated_on_save():
     cache.clear()
 
     settings = PlatformSettings.get_settings()
     settings.institution_name = "First Academy"
     settings.course_levels = [{"value": "beginner", "label": "Beginner"}]
+    settings.program_categories = ["Engineering & ICT", "Business Management"]
     settings.public_content = {
         "heroHeadline": "Build your future with confidence",
         "footerDescription": "Flexible programs for modern learners.",
@@ -32,12 +41,17 @@ def test_platform_cache_keys_are_invalidated_on_save():
     assert initial_payload["socialLinks"]["linkedin"] == (
         "https://linkedin.com/company/crossview"
     )
+    assert initial_payload["programCategories"] == [
+        "Engineering & ICT",
+        "Business Management",
+    ]
     assert initial_levels == [{"value": "beginner", "label": "Beginner"}]
     assert cache.get(PLATFORM_PAYLOAD_CACHE_KEY) is not None
     assert cache.get(PLATFORM_COURSE_LEVELS_CACHE_KEY) is not None
 
     settings.institution_name = "Updated Academy"
     settings.course_levels = [{"value": "advanced", "label": "Advanced"}]
+    settings.program_categories = ["Media Studies"]
     settings.public_content = {
         "heroHeadline": "Grow with practical learning",
         "mission": "Support learners with flexible, practical education.",
@@ -58,4 +72,5 @@ def test_platform_cache_keys_are_invalidated_on_save():
     assert refreshed_payload["socialLinks"]["youtube"] == (
         "https://youtube.com/@crossview"
     )
+    assert refreshed_payload["programCategories"] == ["Media Studies"]
     assert refreshed_levels == [{"value": "advanced", "label": "Advanced"}]

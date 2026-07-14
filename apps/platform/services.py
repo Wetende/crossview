@@ -356,6 +356,7 @@ class PlatformSettingsService:
             "address": settings.address,
             "deploymentMode": settings.deployment_mode,
             "courseLevels": settings.get_course_levels(),
+            "programCategories": settings.get_program_categories(),
             "activeBlueprintId": settings.active_blueprint_id,
             "logo": settings.get_logo_url(),
             "favicon": settings.get_favicon_url(),
@@ -571,6 +572,15 @@ class PlatformSettingsService:
         settings = PlatformSettings.get_settings()
         settings.course_levels = course_levels or []
         settings.save(update_fields=["course_levels"])
+
+    @staticmethod
+    def update_program_categories(program_categories: list) -> None:
+        """Update admin-managed program categories."""
+        from apps.platform.models import PlatformSettings
+
+        settings = PlatformSettings.get_settings()
+        settings.program_categories = program_categories or []
+        settings.save(update_fields=["program_categories", "updated_at"])
 
     @staticmethod
     def complete_setup() -> None:

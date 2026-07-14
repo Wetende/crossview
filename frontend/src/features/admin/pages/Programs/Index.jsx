@@ -29,6 +29,8 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import PublishIcon from "@mui/icons-material/Publish";
 import UnpublishedIcon from "@mui/icons-material/Unpublished";
 import DeleteIcon from "@mui/icons-material/Delete";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
 import DataTable from "@/components/DataTable";
@@ -140,6 +142,25 @@ export default function ProgramsIndex({
         />
       ),
     },
+    {
+      id: "isFeatured",
+      label: "Featured",
+      render: (row) =>
+        row.isFeatured ? (
+          <Chip
+            label="Featured"
+            size="small"
+            color="warning"
+            variant="outlined"
+            sx={{
+              fontWeight: 500,
+              fontSize: "0.75rem",
+            }}
+          />
+        ) : (
+          "—"
+        ),
+    },
   ];
 
   const actions = [
@@ -158,6 +179,21 @@ export default function ProgramsIndex({
       icon: <SettingsIcon fontSize="small" />,
       onClick: (row) =>
         router.visit(`/instructor/programs/${row.id}/manage/`),
+    },
+    {
+      label: (row) => (row.isFeatured ? "Remove Featured" : "Make Featured"),
+      icon: (row) =>
+        row.isFeatured ? (
+          <StarBorderIcon fontSize="small" />
+        ) : (
+          <StarIcon fontSize="small" />
+        ),
+      onClick: (row) =>
+        router.post(
+          `/admin/programs/${row.id}/featured/`,
+          {},
+          { preserveScroll: true },
+        ),
     },
     {
       label: (row) => (row.isPublished ? "Unpublish" : "Publish"),

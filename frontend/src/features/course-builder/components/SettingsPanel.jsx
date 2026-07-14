@@ -5,6 +5,7 @@ import {
     useImperativeHandle,
     useMemo,
     useRef,
+    useState,
 } from "react";
 import { useForm, router, usePage } from "@inertiajs/react";
 import {
@@ -81,7 +82,13 @@ const SettingsPanel = forwardRef(function SettingsPanel(
     const canManageFeatured = getUserIsStaff(authUser);
     const availablePrerequisites = props.availablePrerequisites || [];
     const availableCoInstructors = props.availableCoInstructors || [];
-    const categories = props.platform?.programCategories || [];
+    const configuredCategories = useMemo(
+        () =>
+            Array.isArray(props.platform?.programCategories)
+                ? props.platform.programCategories.filter(Boolean)
+                : [],
+        [props.platform?.programCategories],
+    );
     const examBodyRegistry = useMemo(
         () => props.examBodyRegistry || {},
         [props.examBodyRegistry],
@@ -89,8 +96,11 @@ const SettingsPanel = forwardRef(function SettingsPanel(
     const isTvetMode = deploymentMode === "tvet";
     const hasExamBodies =
         isTvetMode && Object.keys(examBodyRegistry).length > 0;
+    const thumbnailInputRef = useRef(null);
     const fileInputRef = useRef(null);
     const dripEditorRef = useRef(null);
+    const [selectedThumbnailPreviewUrl, setSelectedThumbnailPreviewUrl] =
+        useState("");
 
     const {
         data: formData,
@@ -134,6 +144,16 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         drip_enabled: program.dripEnabled || false,
         drip_mode: program.dripMode || "none",
     });
+
+    const categoryOptions = useMemo(() => {
+        if (
+            formData.category &&
+            !configuredCategories.includes(formData.category)
+        ) {
+            return [formData.category, ...configuredCategories];
+        }
+        return configuredCategories;
+    }, [configuredCategories, formData.category]);
 
     const examBodies = useMemo(
         () => Object.keys(examBodyRegistry),
@@ -194,8 +214,37 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         }));
     };
 
+    useEffect(() => {
+        if (!formData.thumbnail) {
+            setSelectedThumbnailPreviewUrl("");
+            return undefined;
+        }
+
+        if (
+            typeof URL === "undefined" ||
+            typeof URL.createObjectURL !== "function"
+        ) {
+            return undefined;
+        }
+
+        const objectUrl = URL.createObjectURL(formData.thumbnail);
+        setSelectedThumbnailPreviewUrl(objectUrl);
+
+        return () => URL.revokeObjectURL(objectUrl);
+    }, [formData.thumbnail]);
+
+    const thumbnailPreviewUrl =
+        selectedThumbnailPreviewUrl || program.thumbnail || "";
+
+    const handleThumbnailChange = (event) => {
+        const selectedFile = event.target.files?.[0] || null;
+        setData("thumbnail", selectedFile);
+        event.target.value = "";
+    };
+
     const getSubmitPayload = useCallback((currentData = formData, options = {}) => {
         const { includeFiles = true } = options;
+
         if (activeTab === "settings") {
             if (settingsSection === "main") {
                 const payload = {
@@ -525,34 +574,28 @@ const SettingsPanel = forwardRef(function SettingsPanel(
 
                 <Box>
                     {renderFieldLabel("Category")}
-                    {categories.length > 0 ? (
-                        <FormControl fullWidth>
-                            <Select
-                                value={formData.category}
-                                displayEmpty
-                                onChange={(event) =>
-                                    setData("category", event.target.value)
-                                }
-                            >
-                                <MenuItem value="">
-                                    <em>None</em>
-                                </MenuItem>
-                                {categories.map((category) => (
-                                    <MenuItem key={category} value={category}>
-                                        {category}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    ) : (
-                        <TextField
-                            fullWidth
+                    <FormControl fullWidth disabled={categoryOptions.length === 0}>
+                        <Select
                             value={formData.category}
+                            displayEmpty
                             onChange={(event) =>
                                 setData("category", event.target.value)
                             }
-                        />
-                    )}
+                        >
+                            <MenuItem value="" disabled={configuredCategories.length > 0}>
+                                <em>
+                                    {configuredCategories.length > 0
+                                        ? "Select category"
+                                        : "No categories configured"}
+                                </em>
+                            </MenuItem>
+                            {categoryOptions.map((category) => (
+                                <MenuItem key={category} value={category}>
+                                    {category}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                 </Box>
 
                 {!hasExamBodies && (
@@ -571,11 +614,15 @@ const SettingsPanel = forwardRef(function SettingsPanel(
 
                 <Box>
                     {renderFieldLabel("Image")}
-                    {program.thumbnail && (
+                    {thumbnailPreviewUrl && (
                         <Box
                             component="img"
-                            src={program.thumbnail}
-                            alt="Current course thumbnail"
+                            src={thumbnailPreviewUrl}
+                            alt={
+                                formData.thumbnail
+                                    ? "Selected course thumbnail preview"
+                                    : "Current course thumbnail"
+                            }
                             sx={{
                                 width: "100%",
                                 maxHeight: 260,
@@ -587,17 +634,29 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             }}
                         />
                     )}
-                    <Button variant="outlined" component="label" size="small">
-                        {program.thumbnail ? "Change image" : "Upload image"}
-                        <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(event) =>
-                                setData("thumbnail", event.target.files?.[0] || null)
-                            }
-                        />
-                    </Button>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Button
+                            variant="outlined"
+                            component="label"
+                            size="small"
+                        >
+                            {thumbnailPreviewUrl ? "Change image" : "Upload image"}
+                            <input
+                                ref={thumbnailInputRef}
+                                type="file"
+                                hidden
+                                accept="image/*"
+                                onChange={handleThumbnailChange}
+                            />
+                        </Button>
+                        {formData.thumbnail && (
+                            <Chip
+                                label={formData.thumbnail.name}
+                                size="small"
+                                variant="outlined"
+                            />
+                        )}
+                    </Stack>
                 </Box>
 
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2}>

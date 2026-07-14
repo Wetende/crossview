@@ -37,6 +37,7 @@ export default function ProgramForm({
     program = null,
     instructors = [],
     courseLevels = [],
+    programCategories = [],
     currentInstructorIds = [],
     examBodyRegistry = {},
     deploymentMode = "custom",
@@ -66,6 +67,7 @@ export default function ProgramForm({
     const { data, setData, post, processing } = useForm({
         name: program?.name || formData.name || "",
         code: program?.code || formData.code || "",
+        category: program?.category || formData.category || "",
         level: program?.level || formData.level || "",
         description: program?.description || formData.description || "",
         previewDescription:
@@ -116,6 +118,18 @@ export default function ProgramForm({
         () => selectedFamilyData?.levels || [],
         [selectedFamilyData],
     );
+
+    const categoryOptions = useMemo(() => {
+        const configuredCategories = Array.isArray(programCategories)
+            ? programCategories.filter(Boolean)
+            : [];
+        if (data.category && !configuredCategories.includes(data.category)) {
+            return [data.category, ...configuredCategories];
+        }
+        return configuredCategories;
+    }, [data.category, programCategories]);
+    const hasConfiguredCategories =
+        Array.isArray(programCategories) && programCategories.length > 0;
 
     // Auto-fill program metadata when family changes.
     useEffect(() => {
@@ -268,6 +282,69 @@ export default function ProgramForm({
                                                     required
                                                     placeholder="e.g. DIT-2026"
                                                 />
+                                            </Box>
+                                            <Box>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        mb: 1,
+                                                        color: "text.secondary",
+                                                    }}
+                                                >
+                                                    Category *
+                                                </Typography>
+                                                <FormControl
+                                                    fullWidth
+                                                    error={!!errors.category}
+                                                    disabled={
+                                                        categoryOptions.length === 0
+                                                    }
+                                                    required={hasConfiguredCategories}
+                                                >
+                                                    <Select
+                                                        value={data.category}
+                                                        displayEmpty
+                                                        required={hasConfiguredCategories}
+                                                        onChange={(e) =>
+                                                            setData(
+                                                                "category",
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                    >
+                                                        <MenuItem
+                                                            value=""
+                                                            disabled={
+                                                                hasConfiguredCategories
+                                                            }
+                                                        >
+                                                            <em>
+                                                                {hasConfiguredCategories
+                                                                    ? "Select category"
+                                                                    : "No categories configured"}
+                                                            </em>
+                                                        </MenuItem>
+                                                        {categoryOptions.map(
+                                                            (category) => (
+                                                                <MenuItem
+                                                                    key={category}
+                                                                    value={category}
+                                                                >
+                                                                    {category}
+                                                                </MenuItem>
+                                                            ),
+                                                        )}
+                                                    </Select>
+                                                    {errors.category && (
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="error"
+                                                            sx={{ mt: 0.5 }}
+                                                        >
+                                                            {errors.category}
+                                                        </Typography>
+                                                    )}
+                                                </FormControl>
                                             </Box>
                                             <Stack
                                                 direction={{

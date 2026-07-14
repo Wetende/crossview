@@ -60,6 +60,11 @@ urlpatterns = [
         views.admin_program_publish,
         name="admin.program.publish",
     ),
+    path(
+        "admin/programs/<int:pk>/featured/",
+        views.admin_program_toggle_featured,
+        name="admin.program.featured",
+    ),
     # Admin User Management
     path("admin/users/", views.admin_users, name="admin.users"),
     path("admin/users/create/", views.admin_user_create, name="admin.user.create"),

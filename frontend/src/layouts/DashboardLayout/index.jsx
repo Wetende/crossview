@@ -53,6 +53,7 @@ import CampaignIcon from "@mui/icons-material/Campaign";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import QuizIcon from "@mui/icons-material/Quiz";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import CategoryIcon from "@mui/icons-material/Category";
 
 // Custom Components
 import NotificationPanel from "@/components/NotificationPanel";
@@ -254,6 +255,11 @@ const roleNavigation = {
                     label: "Programs",
                     href: "/admin/programs/",
                     icon: SchoolIcon,
+                },
+                {
+                    label: "Categories",
+                    href: "/admin/program-categories/",
+                    icon: CategoryIcon,
                 },
                 {
                     label: "Rubrics",

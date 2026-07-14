@@ -2082,6 +2082,7 @@ def admin_programs(request):
                 "blueprint__name",
                 "level",
                 "is_published",
+                "is_featured",
                 "created_at",
             ).order_by("-created_at")[(page - 1) * per_page : page * per_page]
         )
@@ -2106,6 +2107,7 @@ def admin_programs(request):
                 "blueprintId": program.blueprint_id,
                 "level": program.level or "",
                 "isPublished": program.is_published,
+                "isFeatured": program.is_featured,
                 "enrollmentCount": enrollment_counts.get(program.id, 0),
                 "createdAt": program.created_at.isoformat(),
             }
@@ -2285,6 +2287,7 @@ def admin_program_detail(request, pk: int):
                 "blueprintName": program.blueprint.name if program.blueprint else None,
                 "level": program.level or "",
                 "isPublished": program.is_published,
+                "isFeatured": program.is_featured,
                 "createdAt": program.created_at.isoformat(),
                 "examBody": program.exam_body,
                 "awardType": program.award_type,
@@ -2330,6 +2333,7 @@ def admin_program_create(request):
             blueprint_id=cleaned["blueprint_id"],
             name=cleaned["name"],
             code=cleaned["code"],
+            category=cleaned["category"],
             description=cleaned["description"],
             preview_description=cleaned["preview_description"],
             is_published=False,
@@ -2400,6 +2404,7 @@ def admin_program_edit(request, pk: int):
         # Update program
         program.name = cleaned["name"]
         program.code = cleaned["code"]
+        program.category = cleaned["category"]
         program.description = cleaned["description"]
         program.preview_description = cleaned["preview_description"]
         program.level = cleaned["level"]
@@ -2556,6 +2561,38 @@ def admin_program_publish(request, pk: int):
     return redirect("core:admin.program", pk=pk)
 
 
+@login_required
+def admin_program_toggle_featured(request, pk: int):
+    """Toggle featured status for a program. Admin-only."""
+    if not _require_admin(request.user):
+        return redirect("/dashboard/")
+
+    if request.method != "POST":
+        return redirect("core:admin.programs")
+
+    from django.shortcuts import get_object_or_404
+
+    program = get_object_or_404(Program, pk=pk)
+    program.is_featured = not program.is_featured
+    program.save(update_fields=["is_featured", "updated_at"])
+
+    if program.is_featured:
+        messages.success(request, f"Program '{program.name}' is now featured.")
+    else:
+        messages.success(request, f"Program '{program.name}' is no longer featured.")
+
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    next_url = request.POST.get("next") or request.META.get("HTTP_REFERER")
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+    return redirect("core:admin.programs")
+
+
 def _sync_program_publication_state(program: Program, is_published: bool):
     """
     Keep publish state consistent across program-owned learning records.
@@ -2594,6 +2631,7 @@ def _serialize_program(program: Program) -> dict:
         "name": program.name,
         "code": program.code or "",
         "slug": program.slug or "",
+        "category": program.category or "",
         "level": program.level or "",
         "description": program.description or "",
         "previewDescription": program.preview_description or "",
@@ -3022,6 +3060,7 @@ def _get_program_setup_form_props(
         "courseLevels": _build_level_options(
             list(Program.objects.values("level").order_by("level"))
         ),
+        "programCategories": platform_settings.get_program_categories(),
         "currentInstructorIds": current_instructor_ids or [],
         "examBodyRegistry": get_registry_for_frontend(),
         "deploymentMode": platform_settings.deployment_mode,
@@ -3040,8 +3079,10 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
     errors = {}
     name = str(data.get("name") or "").strip()
     code = str(data.get("code") or "").strip()
+    category = str(data.get("category") or "").strip()
     platform_settings = PlatformSettings.get_settings()
     active_blueprint = platform_settings.active_blueprint
+    program_categories = platform_settings.get_program_categories()
 
     def _to_bool(value):
         if isinstance(value, bool):
@@ -3076,6 +3117,14 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
         if duplicate_code.exists():
             errors["code"] = "A program with this code already exists."
 
+    if program_categories:
+        if not category:
+            errors["category"] = "Category is required."
+        elif category not in program_categories and not (
+            program and category == (program.category or "")
+        ):
+            errors["category"] = "Select a valid category."
+
     if program:
         blueprint_id = program.blueprint_id
     elif active_blueprint:
@@ -3087,6 +3136,7 @@ def _validate_program_setup_data(data: dict, *, program: Program | None = None) 
     return {
         "name": name,
         "code": code,
+        "category": category or None,
         "blueprint_id": blueprint_id,
         "description": data.get("description", ""),
         "preview_description": data.get("previewDescription") or data.get("preview_description") or "",
@@ -3259,6 +3309,7 @@ def instructor_program_create(request):
                 blueprint_id=cleaned["blueprint_id"],
                 name=cleaned["name"],
                 code=cleaned["code"],
+                category=cleaned["category"],
                 description=cleaned["description"],
                 preview_description=cleaned["preview_description"],
                 is_published=False,
@@ -7912,8 +7963,10 @@ def instructor_program_update_settings(request, pk: int):
 
     from apps.curriculum.models import CurriculumNode
     from apps.platform.exam_body_registry import EXAM_BODY_REGISTRY
+    from apps.platform.models import PlatformSettings
 
     program = Program.objects.get(pk=pk)
+    program_categories = PlatformSettings.get_settings().get_program_categories()
     pricing_context = _get_platform_pricing_context()
     data = get_post_data(request)
     files = request.FILES
@@ -8036,7 +8089,18 @@ def instructor_program_update_settings(request, pk: int):
         program.name = name_val
 
     if active_tab == "settings" and settings_section == "main" and "category" in data:
-        program.category = str(data.get("category", "")).strip() or None
+        category_val = str(data.get("category", "")).strip()
+        if program_categories:
+            if not category_val:
+                messages.error(request, "Category is required.")
+                return _redirect_to_builder()
+            if (
+                category_val not in program_categories
+                and category_val != (program.category or "")
+            ):
+                messages.error(request, "Select a valid category.")
+                return _redirect_to_builder()
+        program.category = category_val or None
 
     if active_tab == "settings" and settings_section == "main" and "level" in data:
         selected_level = str(data.get("level") or "").strip()

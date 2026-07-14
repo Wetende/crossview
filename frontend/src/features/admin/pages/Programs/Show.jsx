@@ -31,6 +31,8 @@ import {
 import { motion } from 'framer-motion';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import DashboardLayout from '@/layouts/DashboardLayout';
 
 
@@ -46,6 +48,12 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
   const handlePublish = () => {
     router.post(`/admin/programs/${program.id}/publish/`, {}, {
       onSuccess: () => setPublishOpen(false),
+    });
+  };
+
+  const handleFeaturedToggle = () => {
+    router.post(`/admin/programs/${program.id}/featured/`, {}, {
+      preserveScroll: true,
     });
   };
 
@@ -83,10 +91,18 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
             ← Back to programmes
           </Typography>
 
-          <Stack direction="row" gap={1.25} flexWrap="wrap">
-            <Button
-              component={Link}
-              href={`/admin/programs/${program.id}/edit/`}
+	          <Stack direction="row" gap={1.25} flexWrap="wrap">
+	            <Button
+	              onClick={handleFeaturedToggle}
+	              variant="outlined"
+	              startIcon={program.isFeatured ? <StarBorderIcon /> : <StarIcon />}
+	              sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
+	            >
+	              {program.isFeatured ? 'Remove featured' : 'Make featured'}
+	            </Button>
+	            <Button
+	              component={Link}
+	              href={`/admin/programs/${program.id}/edit/`}
               variant="outlined"
               sx={{ borderColor: tokens.hairline, color: tokens.inkSoft }}
             >
@@ -129,18 +145,19 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                     </Typography>
                   </StatusStamp>
 
-                  <Box sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(5, 1fr)' },
-                    rowGap: 2.25, mt: 3.5, pt: 2.75, borderTop: `1px solid ${tokens.hairline}`,
-                  }}>
-                    {[
-                      ['Programme code', program.code || '-'],
-                      ['Examining body', program.examBody || 'Independent'],
-                      ['Award type', program.awardType || '-'],
-                      ['Assessment mode', program.assessmentMode || 'Continuous Mark Assessment'],
-                      ['Created on', new Date(program.createdAt).toLocaleDateString(undefined, {
-                          year: 'numeric',
+	                  <Box sx={{
+	                    display: 'grid',
+	                    gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(6, 1fr)' },
+	                    rowGap: 2.25, mt: 3.5, pt: 2.75, borderTop: `1px solid ${tokens.hairline}`,
+	                  }}>
+	                    {[
+	                      ['Programme code', program.code || '-'],
+	                      ['Examining body', program.examBody || 'Independent'],
+	                      ['Award type', program.awardType || '-'],
+	                      ['Assessment mode', program.assessmentMode || 'Continuous Mark Assessment'],
+	                      ['Featured', program.isFeatured ? 'Yes' : 'No'],
+	                      ['Created on', new Date(program.createdAt).toLocaleDateString(undefined, {
+	                          year: 'numeric',
                           month: 'short',
                           day: 'numeric'
                       })],

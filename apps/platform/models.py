@@ -220,6 +220,7 @@ class PlatformSettings(TimeStampedModel):
             "isSetupComplete": settings.is_setup_complete,
             "currencyCode": settings.currency_code,
             "currencySymbol": settings.currency_symbol,
+            "programCategories": settings.get_program_categories(),
             "features": features,
             "publicContent": public_content,
             "socialLinks": social_links,
@@ -319,3 +320,15 @@ class PlatformSettings(TimeStampedModel):
     def get_course_levels(self) -> list:
         """Return explicitly configured course level options."""
         return self.course_levels or []
+
+    def get_program_categories(self) -> list:
+        """Return normalized admin-configured program categories."""
+        categories = self.program_categories if isinstance(self.program_categories, list) else []
+        normalized = []
+        seen = set()
+        for category in categories:
+            label = str(category).strip()
+            if label and label not in seen:
+                normalized.append(label)
+                seen.add(label)
+        return normalized

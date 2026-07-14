@@ -4,8 +4,7 @@
  * Uses theme colors (Chameleon engine - no hardcoded colors)
  */
 
-import { useState } from "react";
-import { Link } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import {
     Box,
     Card,
@@ -27,9 +26,9 @@ import {
     IconDotsVertical,
     IconFileDescription,
     IconPencil,
-    IconStar,
 } from "@tabler/icons-react";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useState } from "react";
 import CourseMetricStrip from "./CourseMetricStrip";
 
 const getBadgeColor = (type, theme) => {
@@ -47,32 +46,58 @@ const getBadgeColor = (type, theme) => {
 
 export default function ProgramManageCard({
     program,
-    onMakeFeatured,
-    showMakeFeatured = true,
 }) {
     const theme = useTheme();
     const { formatCurrency } = useCurrency();
     const [anchorEl, setAnchorEl] = useState(null);
+
+    const detailHref = `/instructor/programs/${program.id}/`;
+    const editHref = `/instructor/programs/${program.id}/manage/?tab=curriculum`;
+    const unpublishHref = `/instructor/programs/${program.id}/unpublish/`;
     const open = Boolean(anchorEl);
 
-    const handleClick = (event) => {
+    const handleCardClick = () => {
+        router.visit(detailHref);
+    };
+
+    const handleCardKeyDown = (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            router.visit(detailHref);
+        }
+    };
+
+    const handleMenuOpen = (event) => {
+        event.stopPropagation();
         setAnchorEl(event.currentTarget);
     };
 
-    const handleClose = () => {
+    const handleMenuClose = (event) => {
+        event?.stopPropagation?.();
         setAnchorEl(null);
     };
 
+    const handleMoveToDrafts = (event) => {
+        event.stopPropagation();
+        setAnchorEl(null);
+        router.post(unpublishHref, {}, { preserveScroll: true });
+    };
+
     const formatDate = (dateStr) => {
-        if (!dateStr) return null;
+        if (!dateStr) return "recently";
         const date = new Date(dateStr);
+        if (Number.isNaN(date.getTime())) return "recently";
+
         const now = new Date();
-        const diffTime = Math.abs(now - date);
+        const diffTime = Math.max(now - date, 0);
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-        if (diffDays === 0) return "Today";
-        if (diffDays === 1) return "Yesterday";
-        if (diffDays < 30) return `${diffDays} days ago`;
+        if (diffDays < 1) return "recently";
+        if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+        if (diffDays < 30) {
+            const weeks = Math.floor(diffDays / 7);
+            return `${weeks} ${weeks === 1 ? "week" : "weeks"} ago`;
+        }
         if (diffDays < 365) {
             const months = Math.floor(diffDays / 30);
             return `${months} ${months === 1 ? "month" : "months"} ago`;
@@ -102,12 +127,17 @@ export default function ProgramManageCard({
 
     return (
         <Card
+            onClick={handleCardClick}
+            onKeyDown={handleCardKeyDown}
+            role="button"
+            tabIndex={0}
             sx={{
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
                 borderRadius: 2,
                 overflow: "hidden",
+                cursor: "pointer",
                 transition: "transform 0.2s, box-shadow 0.2s",
                 "&:hover": {
                     transform: "translateY(-4px)",
@@ -117,7 +147,7 @@ export default function ProgramManageCard({
         >
             <Box sx={{ position: "relative" }}>
                 <CardMedia
-                    component="img"
+                    component="img" loading="lazy"
                     height="160"
                     image={
                         program.thumbnail ||
@@ -152,17 +182,45 @@ export default function ProgramManageCard({
                     p: 2,
                 }}
             >
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mb: 0.5 }}
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1.5,
+                        mb: 0.5,
+                    }}
                 >
-                    {program.category || "General"}
-                </Typography>
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {program.category || "General"}
+                    </Typography>
+                    <Chip
+                        label={isPublished ? "PUBLISHED" : "DRAFT"}
+                        size="small"
+                        sx={{
+                            height: 20,
+                            fontSize: "0.6rem",
+                            fontWeight: 700,
+                            bgcolor: isPublished
+                                ? theme.palette.success.main
+                                : theme.palette.grey[400],
+                            color: "white",
+                            borderRadius: 1,
+                            flexShrink: 0,
+                        }}
+                    />
+                </Box>
 
                 <Typography
-                    component={Link}
-                    href={`/instructor/programs/${program.id}/`}
                     variant="subtitle1"
                     fontWeight={600}
                     sx={{
@@ -172,7 +230,6 @@ export default function ProgramManageCard({
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
                         minHeight: 48,
-                        textDecoration: "none",
                         color: "text.primary",
                         "&:hover": { color: "primary.main" },
                     }}
@@ -189,11 +246,13 @@ export default function ProgramManageCard({
                     }}
                 />
 
-                <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="flex-end"
-                    sx={{ mb: 2 }}
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-end",
+                        mb: 2,
+                    }}
                 >
                     <Stack direction="row" spacing={0.5} alignItems="center">
                         <Rating
@@ -214,6 +273,7 @@ export default function ProgramManageCard({
                                     textDecoration: "line-through",
                                     color: "text.disabled",
                                     fontSize: "0.7rem",
+                                    whiteSpace: "nowrap",
                                 }}
                             >
                                 {priceInfo.original}
@@ -223,94 +283,86 @@ export default function ProgramManageCard({
                             variant="subtitle1"
                             fontWeight={800}
                             color="text.primary"
+                            sx={{ whiteSpace: "nowrap" }}
                         >
                             {priceInfo.text}
                         </Typography>
-                    </Stack>
-                </Stack>
+	                    </Stack>
+	                </Box>
 
-                <Divider sx={{ mb: 1.5 }} />
+                <Divider sx={{ mt: "auto", mb: 1.5 }} />
 
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mt: "auto" }}>
-                    <Stack spacing={0.5}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <Typography variant="caption" color="text.secondary">
-                                Course status:
-                            </Typography>
-                            <Chip
-                                label={isPublished ? "PUBLISHED" : "DRAFT"}
-                                size="small"
-                                sx={{
-                                    height: 20,
-                                    fontSize: "0.6rem",
-                                    fontWeight: 700,
-                                    bgcolor: isPublished ? theme.palette.success.main : theme.palette.grey[400],
-                                    color: "white",
-                                    borderRadius: 1,
-                                }}
-                            />
-                        </Stack>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <Typography variant="caption" color="text.secondary">
-                                Last updated: <strong>{formatDate(program.updatedAt || program.updated_at) || "recently"}</strong>
-                            </Typography>
-                        </Stack>
-                    </Stack>
-
-                    <Box>
-                        <IconButton size="small" onClick={handleClick} sx={{ border: 1, borderColor: "divider", borderRadius: 1 }}>
-                            <IconDotsVertical size={16} />
-                        </IconButton>
-                        <Menu
-                            anchorEl={anchorEl}
-                            open={open}
-                            onClose={handleClose}
-                            transformOrigin={{ horizontal: "right", vertical: "bottom" }}
-                            anchorOrigin={{ horizontal: "right", vertical: "top" }}
-                            PaperProps={{
-                                elevation: 3,
-                                sx: { mt: 0.5, minWidth: 160, borderRadius: 2 },
-                            }}
-                        >
-                            <MenuItem
-                                component={Link}
-                                href={`/instructor/programs/${program.id}/`}
-                                onClick={handleClose}
-                            >
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1.5,
+                    }}
+                >
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        Last updated:{" "}
+                        <Box component="span" sx={{ color: "text.primary", fontWeight: 700 }}>
+                            {formatDate(program.updatedAt || program.updated_at)}
+                        </Box>
+                    </Typography>
+                    <IconButton
+                        size="small"
+                        onClick={handleMenuOpen}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        aria-label={`Course actions for ${program.name}`}
+                        sx={{
+                            border: 1,
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            flexShrink: 0,
+                        }}
+                    >
+                        <IconDotsVertical size={16} />
+                    </IconButton>
+                    <Menu
+                        anchorEl={anchorEl}
+                        open={open}
+                        onClose={handleMenuClose}
+                        onClick={(event) => event.stopPropagation()}
+                        transformOrigin={{ horizontal: "right", vertical: "bottom" }}
+                        anchorOrigin={{ horizontal: "right", vertical: "top" }}
+                        PaperProps={{
+                            elevation: 3,
+                            sx: { mt: 0.5, minWidth: 190, borderRadius: 2 },
+                        }}
+                    >
+                        {isPublished && (
+                            <MenuItem onClick={handleMoveToDrafts}>
                                 <ListItemIcon>
                                     <IconFileDescription size={18} color={theme.palette.primary.main} />
                                 </ListItemIcon>
                                 <ListItemText primaryTypographyProps={{ variant: "body2", color: theme.palette.primary.main, fontWeight: 500 }}>
-                                    Details
+                                    Move to drafts
                                 </ListItemText>
                             </MenuItem>
-                            <Divider sx={{ my: 0.5 }} />
-                            <MenuItem component={Link} href={`/instructor/programs/${program.id}/manage/`} onClick={handleClose}>
-                                <ListItemIcon>
-                                    <IconPencil size={18} color={theme.palette.text.secondary} />
-                                </ListItemIcon>
-                                <ListItemText primaryTypographyProps={{ variant: "body2", color: "text.secondary", fontWeight: 500 }}>
-                                    Edit
-                                </ListItemText>
-                            </MenuItem>
-                            {showMakeFeatured && (
-                                <MenuItem
-                                    onClick={() => {
-                                        handleClose();
-                                        if (onMakeFeatured) onMakeFeatured();
-                                    }}
-                                >
-                                    <ListItemIcon>
-                                        <IconStar size={18} color={theme.palette.text.secondary} />
-                                    </ListItemIcon>
-                                    <ListItemText primaryTypographyProps={{ variant: "body2", color: "text.secondary", fontWeight: 500 }}>
-                                        Make Featured
-                                    </ListItemText>
-                                </MenuItem>
-                            )}
-                        </Menu>
-                    </Box>
-                </Stack>
+                        )}
+                        {isPublished && <Divider sx={{ my: 0.5 }} />}
+                        <MenuItem component={Link} href={editHref} onClick={handleMenuClose}>
+                            <ListItemIcon>
+                                <IconPencil size={18} color={theme.palette.text.secondary} />
+                            </ListItemIcon>
+                            <ListItemText primaryTypographyProps={{ variant: "body2", color: "text.secondary", fontWeight: 500 }}>
+                                Edit
+                            </ListItemText>
+                        </MenuItem>
+                    </Menu>
+                </Box>
+
             </CardContent>
         </Card>
     );

@@ -102,7 +102,10 @@ class TestInstructorCourseBuilder:
         )
         settings = PlatformSettings.get_settings()
         settings.active_blueprint = blueprint
-        settings.save(update_fields=["active_blueprint", "updated_at"])
+        settings.program_categories = ["Engineering & ICT"]
+        settings.save(
+            update_fields=["active_blueprint", "program_categories", "updated_at"]
+        )
         client.force_login(instructor)
 
         response = client.post(
@@ -110,6 +113,7 @@ class TestInstructorCourseBuilder:
             {
                 "name": "Teacher Course",
                 "code": "TC-101",
+                "category": "Engineering & ICT",
                 "description": "Teacher-created course",
                 "level": "Beginner",
                 "examBody": "Internal",
@@ -126,6 +130,7 @@ class TestInstructorCourseBuilder:
         )
         assert program.name == "Teacher Course"
         assert program.blueprint == blueprint
+        assert program.category == "Engineering & ICT"
         assert program.is_published is False
         assert program.level == "Beginner"
         assert program.exam_body == "Internal"
@@ -186,6 +191,38 @@ class TestInstructorCourseBuilder:
             "A program with this code already exists."
         )
 
+    def test_instructor_create_rejects_unknown_configured_category(
+        self, client, instructor
+    ):
+        blueprint = AcademicBlueprint.objects.create(
+            name="Category Blueprint",
+            hierarchy_structure=["Module", "Lesson"],
+            grading_logic={"type": "weighted", "components": []},
+        )
+        settings = PlatformSettings.get_settings()
+        settings.active_blueprint = blueprint
+        settings.program_categories = ["Engineering & ICT"]
+        settings.save(
+            update_fields=["active_blueprint", "program_categories", "updated_at"]
+        )
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse("core:instructor.program_create"),
+            {
+                "name": "Invalid Category Course",
+                "code": "ICC-101",
+                "category": "Unknown Department",
+            },
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["props"]["errors"]["category"] == (
+            "Select a valid category."
+        )
+        assert not Program.objects.filter(code="ICC-101").exists()
+
     def test_non_instructor_cannot_create_course(self, client):
         user = UserFactory()
         client.force_login(user)
@@ -242,6 +279,30 @@ class TestInstructorCourseBuilder:
         url = reverse('core:instructor.program_manage', kwargs={'pk': other_program.id})
         response = client.get(url)
         assert response.status_code == 302 # Redirects to dashboard
+
+    def test_instructor_cannot_mark_course_featured(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        program.is_featured = False
+        program.save(update_fields=["is_featured"])
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse("core:instructor.program_update_settings", args=[program.id]),
+            data={
+                "tab": "settings",
+                "section": "main",
+                "is_featured": "true",
+            },
+        )
+
+        assert response.status_code == 302
+        program.refresh_from_db()
+        assert program.is_featured is False
 
     def test_invalid_course_cannot_bypass_publish_validation(
         self,
@@ -553,6 +614,42 @@ class TestInstructorCourseBuilder:
         assert program.exam_body == "KASNEB"
         assert program.qualification_family == "Certificate"
 
+    def test_update_main_settings_saves_thumbnail_upload(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+        settings,
+        tmp_path,
+    ):
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+        upload = SimpleUploadedFile(
+            "thumbnail.png",
+            b"\x89PNG\r\n\x1a\nthumbnail",
+            content_type="image/png",
+        )
+
+        client.force_login(instructor)
+        url = reverse("core:instructor.program_update_settings", kwargs={"pk": program.id})
+        response = client.post(
+            url,
+            data={
+                "tab": "settings",
+                "section": "main",
+                "thumbnail": upload,
+            },
+        )
+
+        assert response.status_code == 302
+        assert (
+            response["Location"]
+            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=main"
+        )
+
+        program.refresh_from_db()
+        assert program.thumbnail.name.startswith("programs/thumbnails/thumbnail")
+        assert program.thumbnail.storage.exists(program.thumbnail.name)
 
     def test_lesson_inline_image_upload_saves_media_url(
         self,

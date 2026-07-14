@@ -101,7 +101,7 @@ export default function PublicProgramCard({
             {/* Thumbnail with badge + wishlist heart */}
             <Box sx={{ position: "relative" }}>
                 <CardMedia
-                    component="img"
+                    component="img" loading="lazy"
                     image={
                         program.thumbnail ||
                         "/static/images/course-placeholder.svg"
@@ -228,7 +228,7 @@ export default function PublicProgramCard({
                     <Stack
                         direction="row"
                         spacing={0.5}
-                        alignItems="center"
+                        sx={{ alignItems: "center" }}
                     >
                         <Rating
                             value={program.rating || 0}
@@ -244,11 +244,12 @@ export default function PublicProgramCard({
                     {/* Price */}
                     <Box sx={{ minHeight: 24 }}>
                         {priceDisplay.showPrice ? (
-                            <Stack direction="row" spacing={1} alignItems="center">
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                 <Typography
                                     variant="body1"
                                     fontWeight={700}
                                     color="primary.main"
+                                    sx={{ whiteSpace: "nowrap" }}
                                 >
                                     {formatCurrency(priceDisplay.price)}
                                 </Typography>
@@ -258,6 +259,7 @@ export default function PublicProgramCard({
                                         sx={{
                                             textDecoration: "line-through",
                                             color: "#9CA3AF",
+                                            whiteSpace: "nowrap",
                                         }}
                                     >
                                         {formatCurrency(priceDisplay.originalPrice)}

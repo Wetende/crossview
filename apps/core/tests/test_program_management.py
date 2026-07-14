@@ -32,7 +32,12 @@ class TestProgramManagement(TestCase):
 
     def test_list_programs(self):
         """Test program listing."""
-        Program.objects.create(name="Program 1", code="P1", blueprint=self.blueprint)
+        Program.objects.create(
+            name="Program 1",
+            code="P1",
+            blueprint=self.blueprint,
+            is_featured=True,
+        )
         Program.objects.create(name="Program 2", code="P2", blueprint=self.blueprint)
         
         response = self.client.get(reverse('core:admin.programs'), HTTP_X_INERTIA=True)
@@ -40,6 +45,57 @@ class TestProgramManagement(TestCase):
         data = response.json()
         assert data['component'] == 'Admin/Programs/Index'
         assert len(data['props']['programs']) == 2
+        featured_by_code = {
+            program["code"]: program["isFeatured"] for program in data["props"]["programs"]
+        }
+        assert featured_by_code["P1"] is True
+        assert featured_by_code["P2"] is False
+
+    def test_admin_can_toggle_program_featured(self):
+        """Admins can feature and unfeature programs from admin routes."""
+        program = Program.objects.create(
+            name="Feature Toggle",
+            code="FT101",
+            blueprint=self.blueprint,
+            is_featured=False,
+        )
+
+        response = self.client.post(
+            reverse("core:admin.program.featured", args=[program.id]),
+        )
+
+        assert response.status_code == 302
+        program.refresh_from_db()
+        assert program.is_featured is True
+
+        self.client.post(reverse("core:admin.program.featured", args=[program.id]))
+        program.refresh_from_db()
+        assert program.is_featured is False
+
+    def test_non_admin_cannot_toggle_program_featured(self):
+        """Featured status is not mutable by non-admin users."""
+        program = Program.objects.create(
+            name="Protected Feature Toggle",
+            code="PFT101",
+            blueprint=self.blueprint,
+            is_featured=False,
+        )
+        self.client.logout()
+        user = User.objects.create_user(
+            username="teacher@test.com",
+            email="teacher@test.com",
+            password="password123",
+        )
+        self.client.login(username=user.username, password="password123")
+
+        response = self.client.post(
+            reverse("core:admin.program.featured", args=[program.id]),
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == "/dashboard/"
+        program.refresh_from_db()
+        assert program.is_featured is False
 
     def test_create_program(self):
         data = {
@@ -56,6 +112,45 @@ class TestProgramManagement(TestCase):
         assert Program.objects.filter(name="New Program").exists()
         assert new_program.blueprint == self.blueprint
         assert new_program.slug == "new-program"
+
+    def test_create_program_persists_configured_category(self):
+        settings = PlatformSettings.get_settings()
+        settings.program_categories = ["Engineering & ICT", "Business Management"]
+        settings.save(update_fields=["program_categories", "updated_at"])
+
+        response = self.client.post(
+            reverse("core:admin.program.create"),
+            data={
+                "name": "Category Program",
+                "code": "CAT101",
+                "category": "Engineering & ICT",
+                "description": "A categorized program",
+            },
+        )
+
+        assert response.status_code == 302
+        program = Program.objects.get(code="CAT101")
+        assert program.category == "Engineering & ICT"
+
+    def test_create_program_rejects_unknown_configured_category(self):
+        settings = PlatformSettings.get_settings()
+        settings.program_categories = ["Engineering & ICT"]
+        settings.save(update_fields=["program_categories", "updated_at"])
+
+        response = self.client.post(
+            reverse("core:admin.program.create"),
+            data={
+                "name": "Invalid Category Program",
+                "code": "BADCAT101",
+                "category": "Mystery School",
+            },
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        props = response.json()["props"]
+        assert props["errors"]["category"] == "Select a valid category."
+        assert not Program.objects.filter(code="BADCAT101").exists()
 
     def test_edit_program(self):
         """Test program editing."""
