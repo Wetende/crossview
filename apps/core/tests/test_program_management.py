@@ -181,8 +181,7 @@ class TestProgramManagement(TestCase):
             reverse('core:instructor.program_update_settings', args=[program.id]),
             data={
                 "tab": "settings",
-                "description": "Test description",
-                "whatYouLearn": "<ul><li>Outcome one</li></ul>",
+                "section": "files",
                 "materials": [test_file],
             },
         )
@@ -190,11 +189,8 @@ class TestProgramManagement(TestCase):
         assert response.status_code == 302
         assert (
             response["Location"]
-            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=main"
+            == f"/instructor/programs/{program.id}/manage/?tab=settings&section=files"
         )
-        program.refresh_from_db()
-        assert program.description == "Test description"
-        assert program.what_you_learn_items == ["Outcome one"]
         assert ProgramResource.objects.filter(program=program).count() == 1
         resource = ProgramResource.objects.get(program=program)
         assert resource.title == "syllabus.pdf"
