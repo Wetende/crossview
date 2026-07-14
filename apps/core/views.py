@@ -7438,6 +7438,23 @@ def _sync_quiz_questions(node, questions_data: list):
                 )
             return normalized
 
+        def normalize_correct_indices(raw_indices):
+            if not isinstance(raw_indices, list):
+                raw_indices = [raw_indices]
+
+            normalized_indices = []
+            seen_indices = set()
+            for raw_index in raw_indices:
+                try:
+                    index = int(raw_index)
+                except (TypeError, ValueError):
+                    continue
+                if index < 0 or index in seen_indices:
+                    continue
+                normalized_indices.append(index)
+                seen_indices.add(index)
+            return normalized_indices
+
         # Build answer_data based on question type
         answer_data = {}
         if backend_type == "mcq":
@@ -7448,7 +7465,9 @@ def _sync_quiz_questions(node, questions_data: list):
         elif backend_type == "mcq_multi":
             answer_data = {
                 "options": normalize_assessment_text_list(q_data.get("options", [])),
-                "correct_indices": q_data.get("correct_indices", []),
+                "correct_indices": normalize_correct_indices(
+                    q_data.get("correct_indices", [])
+                ),
             }
         elif backend_type == "true_false":
             answer_data = {

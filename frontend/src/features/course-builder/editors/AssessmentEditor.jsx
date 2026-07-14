@@ -67,6 +67,29 @@ const getPlainTextLength = (value) => {
     return String(value || "").replace(/<[^>]*>/g, "").trim().length;
 };
 
+const getCorrectIndices = (question) => {
+    if (Array.isArray(question?.correct_indices)) return question.correct_indices;
+    if (Array.isArray(question?.answer_data?.correct_indices)) {
+        return question.answer_data.correct_indices;
+    }
+    return [];
+};
+
+const serializeQuestionForSave = (question) => {
+    if (!question || question.type !== "mcq_multi") {
+        return question;
+    }
+
+    const correct_indices = getCorrectIndices(question);
+    const serializedQuestion = { ...question };
+    delete serializedQuestion.correctAnswers;
+    delete serializedQuestion.correct_answers;
+    return {
+        ...serializedQuestion,
+        correct_indices,
+    };
+};
+
 // Pill-style tab component
 function PillTabs({ value, onChange, tabs, questionCount }) {
     return (
@@ -138,14 +161,10 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         if (!question) return question;
         const normalized = { ...question };
         normalized.required = normalized.required ?? true;
-
         if (normalized.type === "mcq_multi") {
-            normalized.correctAnswers = Array.isArray(normalized.correctAnswers)
-                ? normalized.correctAnswers
-                : Array.isArray(normalized.correct_indices)
-                  ? normalized.correct_indices
-                  : [];
-            normalized.correct = normalized.correct ?? null;
+            normalized.correct_indices = getCorrectIndices(normalized);
+            delete normalized.correctAnswers;
+            delete normalized.correct_answers;
         }
 
         if (normalized.type === "ordering") {
@@ -168,20 +187,6 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         }
 
         return normalized;
-    };
-
-    const serializeQuestion = (question) => {
-        const serialized = { ...question };
-
-        if (serialized.type === "mcq_multi") {
-            serialized.correct_indices = Array.isArray(serialized.correctAnswers)
-                ? serialized.correctAnswers
-                      .map((value) => Number(value))
-                      .filter((value) => Number.isInteger(value) && value >= 0)
-                : [];
-        }
-
-        return serialized;
     };
 
     const isQuiz = type === "quiz";
@@ -321,7 +326,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         };
 
         const questionSettings = {
-            questions: questions.map(serializeQuestion),
+            questions: questions.map(serializeQuestionForSave),
             question_banks: questionBanks,
             description,
             weight,
@@ -520,8 +525,8 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
             text: "",
             points: 1,
             options: ["", "", "", ""],
-            correct: type === "mcq_multi" ? null : 0,
-            correctAnswers: [],
+            correct: 0,
+            correct_indices: [],
             categories: [],
             required: true,
             keywords: [],
@@ -627,7 +632,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                         .map((o) => (typeof o === "string" ? o : o?.text))
                         .filter(Boolean),
                     correct: entry.question_data?.answer_data?.correct ?? 0,
-                    correctAnswers:
+                    correct_indices:
                         entry.question_data?.answer_data?.correct_indices || [],
                     pairs: entry.question_data?.matching_pairs || [],
                     gaps: entry.question_data?.gap_answers || [],
