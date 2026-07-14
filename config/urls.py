@@ -24,6 +24,7 @@ urlpatterns = [
     path("messages/", include("apps.messaging.urls")),
     path("api/messages/", include("apps.messaging.api_urls")),
     path("api/discussions/", include("apps.discussions.urls")),
+    path("api/inquiries/", include("apps.inquiries.urls")),
     path("events/", include("apps.events.urls")),  # Events app routes
 ]
 if settings.DEBUG:

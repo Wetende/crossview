@@ -14,6 +14,7 @@ This manifest is the tracked ownership contract for `crossview`, `airads`, and
 | Generic platform configuration | `apps/platform/`, cached platform payloads, uploaded branding fields, currency and category configuration |
 | Generic commerce | Orders, checkout, refunds, pricing, and provider abstractions without an admissions workflow |
 | Generic reporting | `apps/reports/` registry, role-scoped reports, export audit log, print and CSV UI |
+| Generic inquiry intake | `apps/inquiries/` records, validation, admin workflow, and configurable internal notification routing |
 | Shared support contracts | Generic notifications, authentication return URLs, Inertia props, and utilities required by the surfaces above |
 
 Shared code must use platform settings, request context, or explicit extension

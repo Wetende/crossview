@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "apps.reviews",
     "apps.commerce",
     "apps.reports",
+    "apps.inquiries",
 ]
 
 if DEBUG and importlib.util.find_spec("debug_toolbar"):
@@ -301,6 +302,10 @@ CURRICULUM_NODE_REQUIRED_PROPERTIES = {
     "Course": [],
     "Section": [],
 }
+
+# Optional per-deployment override. When blank, inquiry notifications use the
+# contact email stored in PlatformSettings.
+INQUIRY_NOTIFICATION_EMAIL = os.getenv("INQUIRY_NOTIFICATION_EMAIL", "").strip()
 
 # =============================================================================
 # Logging (Environment-controlled verbosity)
