@@ -18,6 +18,7 @@ from apps.commerce.models import (
 from apps.commerce.services import CheckoutService, PayoutService, RefundService
 from apps.core.models import Program
 from apps.core.tests.factories import UserFactory
+from apps.platform.models import PlatformSettings
 
 
 pytestmark = pytest.mark.django_db
@@ -29,6 +30,10 @@ def _build_signature(secret: str, payload: dict) -> str:
 
 
 def _create_program(code: str, *, price: int = 1000, currency: str = "KES") -> Program:
+    platform = PlatformSettings.get_settings()
+    features = platform.features if isinstance(platform.features, dict) else {}
+    platform.features = {**features, "payments": True}
+    platform.save(update_fields=["features", "updated_at"])
     return Program.objects.create(
         name=f"Program {code}",
         code=code,
