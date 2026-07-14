@@ -7,6 +7,7 @@ import {
     Stack,
     Button,
     TextField,
+    Alert,
     ThemeProvider,
     createTheme,
     CssBaseline,
@@ -15,6 +16,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import PublicNavbar from "../../components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
+import useInquirySubmission from "@/features/inquiries/hooks/useInquirySubmission";
 
 // ─── Unsplash hero image ──────────────────────────────────────────
 const HERO_IMAGE =
@@ -37,6 +39,13 @@ const lightTheme = createTheme({
     },
 });
 
+const EMPTY_FORM = {
+    name: "",
+    email: "",
+    message: "",
+    website: "",
+};
+
 export default function Contact() {
     const { platform, auth } = usePage().props;
 
@@ -47,19 +56,34 @@ export default function Contact() {
     const contactPhone = platform?.phone || "";
     const contactAddress = platform?.address || "";
 
-    const [form, setForm] = useState({ name: "", email: "", message: "" });
-    const [submitted, setSubmitted] = useState(false);
+    const [form, setForm] = useState(EMPTY_FORM);
+    const {
+        status,
+        message: submissionMessage,
+        errors,
+        isSubmitting,
+        submit,
+        resetFeedback,
+    } = useInquirySubmission();
 
     const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setForm((current) => ({ ...current, [name]: value }));
+        if (status !== "idle") {
+            resetFeedback();
+        }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // TODO: integrate with backend contact endpoint
-        setSubmitted(true);
-        setTimeout(() => setSubmitted(false), 4000);
-        setForm({ name: "", email: "", message: "" });
+        const result = await submit({
+            ...form,
+            kind: "general",
+            source: "contact_page",
+        });
+        if (result.ok) {
+            setForm(EMPTY_FORM);
+        }
     };
 
     return (
@@ -72,7 +96,13 @@ export default function Contact() {
                 />
             </Head>
 
-            <Box sx={{ minHeight: "100vh", bgcolor: "#FAFAFA", overflowX: "hidden" }}>
+            <Box
+                sx={{
+                    minHeight: "100vh",
+                    bgcolor: "#FAFAFA",
+                    overflowX: "hidden",
+                }}
+            >
                 {/* ═══════ NAVBAR ═══════ */}
                 <PublicNavbar activeLink="/contact/" auth={auth} />
 
@@ -87,7 +117,12 @@ export default function Contact() {
                     }}
                 >
                     <Container maxWidth="lg">
-                        <Grid container spacing={6} alignItems="center" justifyContent="space-between">
+                        <Grid
+                            container
+                            spacing={6}
+                            alignItems="center"
+                            justifyContent="space-between"
+                        >
                             {/* Title Side */}
                             <Grid size={{ xs: 12, md: 4 }}>
                                 <motion.div
@@ -119,7 +154,13 @@ export default function Contact() {
                             </Grid>
 
                             {/* Image Side — pushed right */}
-                            <Grid size={{ xs: 12, md: 7 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
+                            <Grid
+                                size={{ xs: 12, md: 7 }}
+                                sx={{
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                }}
+                            >
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
@@ -135,7 +176,8 @@ export default function Contact() {
                                             height: { xs: 250, md: 320 },
                                             objectFit: "cover",
                                             borderRadius: 3,
-                                            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+                                            boxShadow:
+                                                "0 20px 60px rgba(0,0,0,0.3)",
                                         }}
                                     />
                                 </motion.div>
@@ -149,10 +191,18 @@ export default function Contact() {
                     <Container maxWidth="lg">
                         {/* Section Heading — centered */}
                         <motion.div {...fadeInUp}>
-                            <Stack spacing={1.5} textAlign="center" alignItems="center" sx={{ mb: { xs: 6, md: 10 } }}>
+                            <Stack
+                                spacing={1.5}
+                                textAlign="center"
+                                alignItems="center"
+                                sx={{ mb: { xs: 6, md: 10 } }}
+                            >
                                 <Typography
                                     variant="h2"
-                                    sx={{ color: primaryColor, fontWeight: 700 }}
+                                    sx={{
+                                        color: primaryColor,
+                                        fontWeight: 700,
+                                    }}
                                 >
                                     Contact Us
                                 </Typography>
@@ -181,14 +231,20 @@ export default function Contact() {
                                             lineHeight: 1.6,
                                         }}
                                     >
-                                        If you have any questions, feel free to reach out to us. We&apos;d love to hear from you.
+                                        If you have any questions, feel free to
+                                        reach out to us. We&apos;d love to hear
+                                        from you.
                                     </Typography>
 
                                     {/* Address */}
                                     <Box sx={{ mb: 4 }}>
                                         <Typography
                                             variant="subtitle1"
-                                            sx={{ fontWeight: 700, color: primaryColor, mb: 0.5 }}
+                                            sx={{
+                                                fontWeight: 700,
+                                                color: primaryColor,
+                                                mb: 0.5,
+                                            }}
                                         >
                                             Address
                                         </Typography>
@@ -197,7 +253,8 @@ export default function Contact() {
                                             color="text.secondary"
                                             sx={{ whiteSpace: "pre-line" }}
                                         >
-                                            {contactAddress || "Address details coming soon."}
+                                            {contactAddress ||
+                                                "Address details coming soon."}
                                         </Typography>
                                     </Box>
 
@@ -205,11 +262,18 @@ export default function Contact() {
                                     <Box>
                                         <Typography
                                             variant="subtitle1"
-                                            sx={{ fontWeight: 700, color: primaryColor, mb: 0.5 }}
+                                            sx={{
+                                                fontWeight: 700,
+                                                color: primaryColor,
+                                                mb: 0.5,
+                                            }}
                                         >
                                             Email
                                         </Typography>
-                                        <Typography variant="body1" color="text.secondary">
+                                        <Typography
+                                            variant="body1"
+                                            color="text.secondary"
+                                        >
                                             {contactEmail}
                                         </Typography>
                                     </Box>
@@ -242,7 +306,11 @@ export default function Contact() {
                                 <motion.div {...fadeInUp}>
                                     <Typography
                                         variant="h4"
-                                        sx={{ fontWeight: 700, mb: 4, color: "text.primary" }}
+                                        sx={{
+                                            fontWeight: 700,
+                                            mb: 4,
+                                            color: "text.primary",
+                                        }}
                                     >
                                         Leave A Message
                                     </Typography>
@@ -250,8 +318,30 @@ export default function Contact() {
                                     <Box
                                         component="form"
                                         onSubmit={handleSubmit}
-                                        sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: 3,
+                                        }}
                                     >
+                                        <Box
+                                            aria-hidden="true"
+                                            sx={{
+                                                position: "absolute",
+                                                left: -10000,
+                                                width: 1,
+                                                height: 1,
+                                                overflow: "hidden",
+                                            }}
+                                        >
+                                            <input
+                                                name="website"
+                                                value={form.website}
+                                                onChange={handleChange}
+                                                tabIndex={-1}
+                                                autoComplete="off"
+                                            />
+                                        </Box>
                                         <TextField
                                             name="name"
                                             label="Name"
@@ -260,6 +350,8 @@ export default function Contact() {
                                             required
                                             value={form.name}
                                             onChange={handleChange}
+                                            error={Boolean(errors.name?.length)}
+                                            helperText={errors.name?.[0] || ""}
                                             sx={{
                                                 "& .MuiOutlinedInput-root": {
                                                     borderRadius: 1,
@@ -276,6 +368,10 @@ export default function Contact() {
                                             required
                                             value={form.email}
                                             onChange={handleChange}
+                                            error={Boolean(
+                                                errors.email?.length,
+                                            )}
+                                            helperText={errors.email?.[0] || ""}
                                             sx={{
                                                 "& .MuiOutlinedInput-root": {
                                                     borderRadius: 1,
@@ -293,6 +389,12 @@ export default function Contact() {
                                             rows={5}
                                             value={form.message}
                                             onChange={handleChange}
+                                            error={Boolean(
+                                                errors.message?.length,
+                                            )}
+                                            helperText={
+                                                errors.message?.[0] || ""
+                                            }
                                             sx={{
                                                 "& .MuiOutlinedInput-root": {
                                                     borderRadius: 1,
@@ -306,6 +408,8 @@ export default function Contact() {
                                                 type="submit"
                                                 variant="contained"
                                                 size="large"
+                                                loading={isSubmitting}
+                                                disabled={isSubmitting}
                                                 sx={{
                                                     px: 5,
                                                     py: 1.5,
@@ -317,22 +421,34 @@ export default function Contact() {
                                                     textTransform: "uppercase",
                                                     "&:hover": {
                                                         bgcolor: secondaryColor,
-                                                        transform: "translateY(-2px)",
+                                                        transform:
+                                                            "translateY(-2px)",
                                                     },
                                                     transition: "all 0.3s ease",
                                                 }}
                                             >
-                                                Send Message
+                                                {isSubmitting
+                                                    ? "Sending"
+                                                    : "Send Message"}
                                             </Button>
                                         </Box>
 
-                                        {submitted && (
-                                            <Typography
-                                                variant="body2"
-                                                sx={{ color: "success.main", fontWeight: 600 }}
+                                        {(status === "success" ||
+                                            status === "error") && (
+                                            <Alert
+                                                severity={
+                                                    status === "success"
+                                                        ? "success"
+                                                        : "error"
+                                                }
+                                                role={
+                                                    status === "success"
+                                                        ? "status"
+                                                        : "alert"
+                                                }
                                             >
-                                                ✓ Message sent! We&apos;ll get back to you soon.
-                                            </Typography>
+                                                {submissionMessage}
+                                            </Alert>
                                         )}
                                     </Box>
                                 </motion.div>
