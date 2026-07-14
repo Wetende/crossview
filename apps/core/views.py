@@ -3,7 +3,7 @@ Core views - Public pages and authentication.
 Requirements: 1.1-1.4, 2.1-2.6, 3.1-3.6, 4.1-4.5, 5.1-5.6, 6.1-6.6
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 import re
 from urllib.parse import urlencode
@@ -50,6 +50,7 @@ from apps.assessments.official_results import (
     get_official_quiz_attempt,
     refresh_assignment_official_flags,
 )
+from apps.assessments.quiz_results import build_quiz_results_payload
 from apps.certifications.models import Certificate, VerificationLog
 from apps.core.learning_outcomes import (
     extract_learning_outcome_items_from_html,
@@ -4504,7 +4505,9 @@ def _is_quiz_attempt_expired(quiz, attempt, now=None) -> bool:
 
 def _finalize_quiz_attempt(attempt, answers=None, submitted_at=None):
     if answers is not None and isinstance(answers, dict):
-        attempt.answers = answers
+        saved_answers = attempt.answers if isinstance(attempt.answers, dict) else {}
+        if answers or not saved_answers:
+            attempt.answers = answers
     attempt.submitted_at = submitted_at or timezone.now()
     points_earned, points_possible, percentage, passed = attempt.calculate_score()
     attempt.points_earned = points_earned
@@ -4541,12 +4544,10 @@ def _resolve_in_progress_quiz_attempt(quiz, enrollment, create_if_missing=True):
         submitted_attempts = attempts_qs.filter(submitted_at__isnull=False).count()
 
         if not in_progress:
-            allowed, attempts_used, attempts_remaining = can_start_quiz_attempt(
-                quiz,
-                enrollment,
-            )
-            if not allowed:
-                return None, attempts_used, attempts_remaining
+            eligibility = can_start_quiz_attempt(quiz, enrollment)
+            attempts_used = eligibility.attempts_used
+            if not eligibility.allowed:
+                return None, attempts_used, eligibility.attempts_remaining
             if create_if_missing:
                 in_progress = QuizAttempt.objects.create(
                     enrollment=enrollment,
@@ -4580,6 +4581,25 @@ def _normalize_order_from_runtime(order_values, valid_ids: list[int]) -> list[in
         if item_id not in seen:
             normalized.append(item_id)
     return normalized
+
+
+def _normalize_text_order_from_runtime(order_values, expected_values) -> list[str]:
+    expected = [str(value) for value in expected_values]
+    if not isinstance(order_values, list):
+        return expected
+    normalized = [str(value) for value in order_values]
+    return normalized if Counter(normalized) == Counter(expected) else expected
+
+
+def _shuffle_away_from_original(values: list[str]) -> list[str]:
+    import random
+
+    original = list(values)
+    shuffled = list(values)
+    random.shuffle(shuffled)
+    if len(shuffled) > 1 and shuffled == original:
+        shuffled = shuffled[1:] + shuffled[:1]
+    return shuffled
 
 
 def _ensure_quiz_attempt_runtime_state(quiz, attempt) -> dict:
@@ -4632,6 +4652,50 @@ def _ensure_quiz_attempt_runtime_state(quiz, attempt) -> dict:
         runtime_state["option_order"] = normalized_option_order
         changed = True
 
+    existing_ordering_items = (
+        runtime_state.get("ordering_item_order")
+        if isinstance(runtime_state.get("ordering_item_order"), dict)
+        else {}
+    )
+    normalized_ordering_items = {}
+    existing_matching_right = (
+        runtime_state.get("matching_right_order")
+        if isinstance(runtime_state.get("matching_right_order"), dict)
+        else {}
+    )
+    normalized_matching_right = {}
+    for question in quiz_questions:
+        question_key = str(question.id)
+        if question.question_type == "ordering":
+            expected_items = (question.answer_data or {}).get("items", [])
+            ordered_items = _normalize_text_order_from_runtime(
+                existing_ordering_items.get(question_key),
+                expected_items,
+            )
+            if not existing_ordering_items.get(question_key):
+                ordered_items = _shuffle_away_from_original(ordered_items)
+            normalized_ordering_items[question_key] = ordered_items
+
+        if question.question_type == "matching":
+            expected_right = [
+                pair.right_text
+                for pair in question.matching_pairs.all().order_by("position")
+            ]
+            ordered_right = _normalize_text_order_from_runtime(
+                existing_matching_right.get(question_key),
+                expected_right,
+            )
+            if not existing_matching_right.get(question_key):
+                ordered_right = _shuffle_away_from_original(ordered_right)
+            normalized_matching_right[question_key] = ordered_right
+
+    if existing_ordering_items != normalized_ordering_items:
+        runtime_state["ordering_item_order"] = normalized_ordering_items
+        changed = True
+    if existing_matching_right != normalized_matching_right:
+        runtime_state["matching_right_order"] = normalized_matching_right
+        changed = True
+
     max_index = max(0, len(normalized_question_order) - 1)
     current_index = _safe_int(runtime_state.get("current_question_index"))
     normalized_index = (
@@ -4654,6 +4718,16 @@ def _serialize_quiz_questions_for_attempt(quiz, attempt, runtime_state=None) -> 
     state = runtime_state if isinstance(runtime_state, dict) else {}
     option_order = (
         state.get("option_order") if isinstance(state.get("option_order"), dict) else {}
+    )
+    ordering_item_order = (
+        state.get("ordering_item_order")
+        if isinstance(state.get("ordering_item_order"), dict)
+        else {}
+    )
+    matching_right_order = (
+        state.get("matching_right_order")
+        if isinstance(state.get("matching_right_order"), dict)
+        else {}
     )
 
     quiz_questions = list(
@@ -4699,15 +4773,24 @@ def _serialize_quiz_questions_for_attempt(quiz, attempt, runtime_state=None) -> 
             ]
 
         elif q.question_type == "matching":
+            pairs = list(q.matching_pairs.all().order_by("position"))
+            shuffled_right = _normalize_text_order_from_runtime(
+                matching_right_order.get(str(q.id)),
+                [pair.right_text for pair in pairs],
+            )
             q_data["pairs"] = [
-                {"left_text": p.left_text, "right_text": p.right_text}
-                for p in q.matching_pairs.all()
+                {"left_text": pair.left_text, "right_text": shuffled_right[index]}
+                for index, pair in enumerate(pairs)
             ]
 
         elif q.question_type == "ordering":
             raw_items = q.answer_data.get("items", [])
-            q_data["items"] = (
+            expected_items = (
                 list(raw_items) if isinstance(raw_items, (list, tuple)) else []
+            )
+            q_data["items"] = _normalize_text_order_from_runtime(
+                ordering_item_order.get(str(q.id)),
+                expected_items,
             )
 
         elif q.question_type == "image_matching":
@@ -4807,12 +4890,7 @@ def student_quiz_start(request, quiz_id: int):
     )
 
     if not attempt:
-        has_passed_attempt = QuizAttempt.objects.filter(
-            enrollment=enrollment,
-            quiz=quiz,
-            submitted_at__isnull=False,
-            passed=True,
-        ).exists()
+        eligibility = can_start_quiz_attempt(quiz, enrollment)
         redirect_url = (
             f"/student/quiz/{quiz_id}/results/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
             if in_course_player_context
@@ -4821,12 +4899,9 @@ def student_quiz_start(request, quiz_id: int):
         if wants_json:
             return JsonResponse(
                 {
-                    "error": (
-                        "retry_locked_after_pass"
-                        if has_passed_attempt and not quiz.allow_retake_after_pass
-                        else "max_attempts_reached"
-                    ),
-                    "attemptsRemaining": 0,
+                    "error": eligibility.lock_reason,
+                    "attemptsRemaining": eligibility.attempts_remaining,
+                    "retryLockReason": eligibility.lock_reason,
                     "redirectUrl": redirect_url,
                 },
                 status=409,
@@ -4986,13 +5061,6 @@ def student_quiz_submit(request, quiz_id: int):
             requested_enrollment_id == enrollment.id
             and requested_node_id == quiz.node_id
         )
-        has_passed_attempt = QuizAttempt.objects.filter(
-            enrollment=enrollment,
-            quiz=quiz,
-            submitted_at__isnull=False,
-            passed=True,
-        ).exists()
-
         if passed is not None:
             NotificationService.notify_quiz_graded(attempt)
 
@@ -5012,7 +5080,7 @@ def student_quiz_submit(request, quiz_id: int):
         elif not wants_json:
             messages.info(request, "Your quiz has been submitted for review.")
 
-    redirect_url = f"/student/quiz/{quiz_id}/results/"
+    redirect_url = f"/student/quiz/{quiz_id}/results/?attempt_id={attempt.id}"
     next_node = None
     if in_course_player_context:
         lesson_type = str((quiz.node.properties or {}).get("lesson_type") or "").lower()
@@ -5046,7 +5114,11 @@ def student_quiz_submit(request, quiz_id: int):
                 completion_type=completion_type,
             )
 
-        redirect_url = f"/student/quiz/{quiz_id}/results/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
+        redirect_url = (
+            f"/student/quiz/{quiz_id}/results/"
+            f"?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
+            f"&attempt_id={attempt.id}"
+        )
         try:
             from apps.progression.views import _get_sibling_navigation
 
@@ -5054,10 +5126,7 @@ def student_quiz_submit(request, quiz_id: int):
         except Exception:
             next_node = None
 
-    can_retry, _, attempts_remaining = can_start_quiz_attempt(
-        quiz,
-        enrollment,
-    )
+    eligibility = can_start_quiz_attempt(quiz, enrollment)
 
     if wants_json:
         return JsonResponse(
@@ -5070,8 +5139,9 @@ def student_quiz_submit(request, quiz_id: int):
                 "pointsPossible": points_possible,
                 "passed": passed,
                 "expired": expired,
-                "attemptsRemaining": attempts_remaining,
-                "canRetry": can_retry,
+                "attemptsRemaining": eligibility.attempts_remaining,
+                "canRetry": eligibility.allowed,
+                "retryLockReason": eligibility.lock_reason,
                 "passThreshold": quiz.pass_threshold,
                 "nextNode": next_node,
                 "redirectUrl": redirect_url,
@@ -5136,12 +5206,13 @@ def student_quiz_save(request, quiz_id: int):
         now = timezone.now()
         if attempt and _is_quiz_attempt_expired(quiz, attempt, now=now):
             _finalize_quiz_attempt(attempt, submitted_at=now)
-            _, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
+            eligibility = can_start_quiz_attempt(quiz, enrollment)
             return JsonResponse(
                 {
                     "expired": True,
                     "saved": False,
-                    "attemptsRemaining": attempts_remaining,
+                    "attemptsRemaining": eligibility.attempts_remaining,
+                    "retryLockReason": eligibility.lock_reason,
                     "redirectUrl": (
                         f"/student/quiz/{quiz_id}/results/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
                         if in_course_player_context
@@ -5152,26 +5223,14 @@ def student_quiz_save(request, quiz_id: int):
             )
 
         if not attempt:
-            allowed, attempts_used, attempts_remaining = can_start_quiz_attempt(
-                quiz,
-                enrollment,
-            )
-            if not allowed:
-                has_passed_attempt = QuizAttempt.objects.filter(
-                    enrollment=enrollment,
-                    quiz=quiz,
-                    submitted_at__isnull=False,
-                    passed=True,
-                ).exists()
+            eligibility = can_start_quiz_attempt(quiz, enrollment)
+            if not eligibility.allowed:
                 return JsonResponse(
                     {
-                        "error": (
-                            "retry_locked_after_pass"
-                            if has_passed_attempt and not quiz.allow_retake_after_pass
-                            else "max_attempts_reached"
-                        ),
+                        "error": eligibility.lock_reason,
                         "saved": False,
-                        "attemptsRemaining": attempts_remaining,
+                        "attemptsRemaining": eligibility.attempts_remaining,
+                        "retryLockReason": eligibility.lock_reason,
                         "redirectUrl": (
                             f"/student/quiz/{quiz_id}/results/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
                             if in_course_player_context
@@ -5183,7 +5242,7 @@ def student_quiz_save(request, quiz_id: int):
             attempt = QuizAttempt.objects.create(
                 enrollment=enrollment,
                 quiz=quiz,
-                attempt_number=attempts_used + 1,
+                attempt_number=eligibility.attempts_used + 1,
                 started_at=now,
                 runtime_state={},
             )
@@ -5203,14 +5262,14 @@ def student_quiz_save(request, quiz_id: int):
         attempt.answers = incoming_answers
         attempt.runtime_state = runtime_state
         attempt.save(update_fields=["answers", "runtime_state"])
-        _, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
+        eligibility = can_start_quiz_attempt(quiz, enrollment)
 
     return JsonResponse(
         {
             "saved": True,
             "attemptId": attempt.id,
             "attemptNumber": attempt.attempt_number,
-            "attemptsRemaining": attempts_remaining,
+            "attemptsRemaining": eligibility.attempts_remaining,
             "runtimeState": attempt.runtime_state,
             "savedAt": timezone.now().isoformat(),
         }
@@ -5219,10 +5278,8 @@ def student_quiz_save(request, quiz_id: int):
 
 @login_required
 def student_quiz_results(request, quiz_id: int):
-    """
-    View quiz results.
-    """
-    from apps.assessments.models import Quiz, QuizAttempt
+    """View quiz results in standalone or course-player context."""
+    from apps.assessments.models import Quiz
     from apps.progression.models import Enrollment
 
     try:
@@ -5233,296 +5290,44 @@ def student_quiz_results(request, quiz_id: int):
 
     try:
         enrollment = Enrollment.objects.get(
-            user=request.user, program=quiz.node.program
+            user=request.user,
+            program=quiz.node.program,
+            status__in=["active", "completed"],
         )
     except Enrollment.DoesNotExist:
         return redirect("/dashboard/")
 
+    selected_attempt_id = request.GET.get("attempt_id")
     requested_enrollment_id = _safe_int(request.GET.get("enrollment_id"))
     requested_node_id = _safe_int(request.GET.get("node_id"))
     in_course_player_context = (
-        requested_enrollment_id == enrollment.id and requested_node_id == quiz.node_id
+        requested_enrollment_id == enrollment.id
+        and requested_node_id == quiz.node_id
     )
 
-    # When accessed from course player context, redirect to session URL so
-    # results render inside the CoursePlayer layout (with sidebar/curriculum).
     if in_course_player_context:
+        query = {"show_results": 1}
+        if selected_attempt_id:
+            query["attempt_id"] = selected_attempt_id
         session_url = (
-            f"/student/programs/{enrollment.id}/session/{quiz.node_id}/?show_results=1"
+            f"/student/programs/{enrollment.id}/session/{quiz.node_id}/"
+            f"?{urlencode(query)}"
         )
         return redirect(session_url)
 
-    next_node = None
-
-    node_props = quiz.node.properties if isinstance(quiz.node.properties, dict) else {}
-    show_correct_answer = bool(quiz.show_answers_after_submit)
-    if "quiz_attempt_history" in node_props:
-        show_attempt_history = _coerce_bool(
-            node_props.get("quiz_attempt_history"), default=False
-        )
-    else:
-        # Backwards compatibility for nodes saved before this property existed.
-        show_attempt_history = True
-
-    attempts = list(
-        QuizAttempt.objects.filter(
-            enrollment=enrollment, quiz=quiz, submitted_at__isnull=False
-        ).order_by("-attempt_number")
+    payload = build_quiz_results_payload(
+        quiz=quiz,
+        enrollment=enrollment,
+        selected_attempt_id=selected_attempt_id,
+        retry_url=f"/student/quiz/{quiz.id}/",
+        review_url=f"/student/quiz/{quiz.id}/results/",
     )
-    official_attempt = get_official_quiz_attempt(enrollment, quiz)
+    if not payload:
+        messages.info(request, "Complete the quiz to view results.")
+        return redirect("core:student.quiz_start", quiz_id=quiz.id)
 
-    def _normalize_option_label(question, raw_value):
-        token = str(raw_value).strip()
-        options = list(question.options.all())
-        for option in options:
-            if str(option.id) == token or str(option.position) == token:
-                return option.text
-        return token
-
-    def _format_student_answer(question, answer, attempt_id):
-        if answer is None:
-            return "Not answered"
-
-        q_type = question.question_type
-        if q_type in {"mcq", "true_false"}:
-            option_label = _normalize_option_label(question, answer)
-            if option_label != str(answer).strip():
-                return option_label
-            if q_type == "true_false":
-                normalized = normalize_true_false_choice(answer)
-                if normalized is not None:
-                    return "True" if normalized else "False"
-            return option_label
-
-        if q_type == "mcq_multi":
-            if not isinstance(answer, list):
-                return str(answer)
-            labels = [_normalize_option_label(question, value) for value in answer]
-            return ", ".join(labels) if labels else "Not answered"
-
-        if q_type == "short_answer":
-            return str(answer).strip() or "Not answered"
-
-        if q_type == "matching":
-            if not isinstance(answer, dict):
-                return str(answer)
-            entries = [
-                f"{str(left).strip()} -> {str(right).strip()}"
-                for left, right in answer.items()
-            ]
-            return "; ".join(entries) if entries else "Not answered"
-
-        if q_type == "ordering":
-            if not isinstance(answer, list):
-                return str(answer)
-            return " -> ".join(
-                str(item).strip() for item in answer if str(item).strip()
-            )
-
-        if q_type == "fill_blank":
-            if not isinstance(answer, dict):
-                return str(answer)
-            entries = [
-                f"Blank {str(index)}: {str(value).strip()}"
-                for index, value in sorted(
-                    answer.items(), key=lambda item: str(item[0])
-                )
-            ]
-            return "; ".join(entries) if entries else "Not answered"
-
-        if q_type == "image_matching":
-            if not isinstance(answer, dict):
-                return str(answer)
-            pairs = list(question.image_matching_pairs.all().order_by("position"))
-            right_labels = {
-                question.get_image_matching_item_id(
-                    pair.id, attempt_id, "right"
-                ): pair.answer_text
-                for pair in pairs
-            }
-            entries = []
-            for pair in pairs:
-                left_token = question.get_image_matching_item_id(
-                    pair.id, attempt_id, "left"
-                )
-                submitted = answer.get(left_token)
-                submitted_label = (
-                    right_labels.get(str(submitted), "Unmatched")
-                    if submitted is not None
-                    else "Unmatched"
-                )
-                entries.append(f"{pair.question_text} -> {submitted_label}")
-            return "; ".join(entries) if entries else "Not answered"
-
-        return str(answer)
-
-    def _format_correct_answer(question, attempt_id):
-        q_type = question.question_type
-        if q_type == "mcq":
-            option = (
-                question.options.filter(is_correct=True).order_by("position").first()
-            )
-            return option.text if option else "N/A"
-
-        if q_type == "true_false":
-            correct_bool = normalize_true_false_choice(
-                question.answer_data.get("correct")
-            )
-            if correct_bool is None:
-                return "N/A"
-            return "True" if correct_bool else "False"
-
-        if q_type == "mcq_multi":
-            labels = list(
-                question.options.filter(is_correct=True)
-                .order_by("position")
-                .values_list("text", flat=True)
-            )
-            return ", ".join(labels) if labels else "N/A"
-
-        if q_type == "short_answer":
-            keywords = question.answer_data.get("keywords", [])
-            if not keywords:
-                return "Manual review"
-            return ", ".join(
-                str(keyword).strip() for keyword in keywords if str(keyword).strip()
-            )
-
-        if q_type == "matching":
-            entries = [
-                f"{pair.left_text} -> {pair.right_text}"
-                for pair in question.matching_pairs.all().order_by("position")
-            ]
-            return "; ".join(entries) if entries else "N/A"
-
-        if q_type == "ordering":
-            items = question.answer_data.get("items", [])
-            if not isinstance(items, list):
-                return "N/A"
-            return " -> ".join(str(item).strip() for item in items if str(item).strip())
-
-        if q_type == "fill_blank":
-            entries = [
-                f"Blank {gap.gap_index}: {' / '.join(gap.accepted_answers)}"
-                for gap in question.gap_answers.all().order_by("gap_index")
-            ]
-            return "; ".join(entries) if entries else "N/A"
-
-        if q_type == "image_matching":
-            entries = [
-                f"{pair.question_text} -> {pair.answer_text}"
-                for pair in question.image_matching_pairs.all().order_by("position")
-            ]
-            return "; ".join(entries) if entries else "N/A"
-
-        return "N/A"
-
-    question_review = []
-    review_attempt = official_attempt or (attempts[0] if attempts else None)
-    if show_correct_answer and review_attempt:
-        review_questions = quiz.questions.all().prefetch_related(
-            "options",
-            "matching_pairs",
-            "gap_answers",
-            "image_matching_pairs",
-        )
-        for question in review_questions:
-            student_answer = review_attempt.answers.get(str(question.id))
-            if student_answer is None:
-                is_correct, points_earned = False, 0
-            else:
-                is_correct, points_earned = question.check_answer(
-                    student_answer, attempt_id=review_attempt.id
-                )
-
-            question_review.append(
-                {
-                    "questionId": question.id,
-                    "questionType": question.question_type,
-                    "questionText": _normalize_question_text(question.text),
-                    "studentAnswer": _format_student_answer(
-                        question, student_answer, review_attempt.id
-                    ),
-                    "correctAnswer": _format_correct_answer(
-                        question, review_attempt.id
-                    ),
-                    "isCorrect": is_correct,
-                    "pointsEarned": float(points_earned) if points_earned is not None else 0,
-                    "pointsPossible": question.points,
-                }
-            )
-
-    can_retry, _, attempts_remaining = can_start_quiz_attempt(quiz, enrollment)
-
-    return render(
-        request,
-        "Student/Quiz/Results",
-        {
-            "quiz": {
-                "id": quiz.id,
-                "title": quiz.title,
-                "passThreshold": quiz.pass_threshold,
-                "maxAttempts": quiz.max_attempts,
-                "nodeTitle": quiz.node.title,
-                "showCorrectAnswer": show_correct_answer,
-                "showAttemptHistory": show_attempt_history,
-                "retryUrl": (
-                    f"/student/quiz/{quiz.id}/?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
-                    if in_course_player_context
-                    else f"/student/quiz/{quiz.id}/"
-                ),
-            },
-            "attempts": [
-                {
-                    "id": a.id,
-                    "attemptNumber": a.attempt_number,
-                    "score": float(a.score) if a.score is not None else None,
-                    "pointsEarned": float(a.points_earned) if a.points_earned is not None else None,
-                    "pointsPossible": a.points_possible,
-                    "passed": a.passed,
-                    "submittedAt": (
-                        a.submitted_at.isoformat() if a.submitted_at else None
-                    ),
-                }
-                for a in attempts
-            ],
-            "officialAttempt": (
-                {
-                    "id": official_attempt.id,
-                    "attemptNumber": official_attempt.attempt_number,
-                    "score": (
-                        float(official_attempt.score)
-                        if official_attempt.score is not None
-                        else None
-                    ),
-                    "pointsEarned": float(official_attempt.points_earned) if official_attempt.points_earned is not None else None,
-                    "pointsPossible": official_attempt.points_possible,
-                    "passed": official_attempt.passed,
-                    "submittedAt": (
-                        official_attempt.submitted_at.isoformat()
-                        if official_attempt.submitted_at
-                        else None
-                    ),
-                }
-                if official_attempt
-                else None
-            ),
-            "questionReview": question_review,
-            "attemptsRemaining": attempts_remaining,
-            "canRetry": can_retry,
-            "coursePlayer": (
-                {
-                    "sessionUrl": (
-                        f"/student/programs/{enrollment.id}/session/{quiz.node_id}/"
-                    ),
-                    "nextNode": next_node,
-                }
-                if in_course_player_context
-                else None
-            ),
-        },
-    )
-
+    payload["coursePlayer"] = None
+    return render(request, "Student/Quiz/Results", payload)
 
 # =============================================================================
 # Assignment Management Views (Instructor)
@@ -7297,6 +7102,20 @@ def _sync_quiz_questions(node, questions_data: list):
             parsed = maximum
         return parsed
 
+    valid_release_policies = {choice for choice, _ in Quiz.AnswerReleasePolicy.choices}
+    answer_release_policy = str(
+        node_props.get("answer_release_policy") or ""
+    ).strip()
+    if answer_release_policy not in valid_release_policies:
+        if "show_correct_answer" in node_props:
+            answer_release_policy = (
+                Quiz.AnswerReleasePolicy.AFTER_EACH_ATTEMPT
+                if to_bool(node_props.get("show_correct_answer"))
+                else Quiz.AnswerReleasePolicy.NEVER
+            )
+        else:
+            answer_release_policy = Quiz.AnswerReleasePolicy.AFTER_PASS_OR_FINAL
+
     quiz_settings = {
         "description": str(node_props.get("description", "") or "").strip(),
         "pass_threshold": to_int(
@@ -7313,11 +7132,12 @@ def _sync_quiz_questions(node, questions_data: list):
             node_props.get("randomize_questions"), default=False
         ),
         "shuffle_options": to_bool(node_props.get("randomize_answers"), default=False),
-        "show_answers_after_submit": to_bool(
-            node_props.get("show_correct_answer"), default=True
+        "answer_release_policy": answer_release_policy,
+        "show_answers_after_submit": (
+            answer_release_policy != Quiz.AnswerReleasePolicy.NEVER
         ),
         "allow_retake_after_pass": to_bool(
-            node_props.get("retake_after_pass"), default=False
+            node_props.get("retake_after_pass"), default=True
         ),
         # Retake penalties are intentionally disabled so quiz scores reflect
         # the learner's actual correct answers.
@@ -9208,6 +9028,8 @@ def _clone_quiz(source_quiz, new_node):
         max_attempts=source_quiz.max_attempts,
         randomize_questions=source_quiz.randomize_questions,
         show_answers_after_submit=source_quiz.show_answers_after_submit,
+        answer_release_policy=source_quiz.answer_release_policy,
+        allow_retake_after_pass=source_quiz.allow_retake_after_pass,
         retake_penalty_percent=source_quiz.retake_penalty_percent,
         shuffle_options=source_quiz.shuffle_options,
         is_published=False,  # Cloned quizzes start unpublished

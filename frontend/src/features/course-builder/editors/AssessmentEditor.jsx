@@ -63,6 +63,16 @@ const QUIZ_STYLES = [
     { value: "global", label: "Global" },
 ];
 
+const ANSWER_RELEASE_POLICIES = [
+    { value: "after_each_attempt", label: "After every attempt" },
+    {
+        value: "after_pass_or_final",
+        label: "After passing or the final attempt",
+    },
+    { value: "after_final_attempt", label: "After the final attempt" },
+    { value: "never", label: "Never" },
+];
+
 const getPlainTextLength = (value) => {
     return String(value || "").replace(/<[^>]*>/g, "").trim().length;
 };
@@ -226,14 +236,22 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
     const [randomizeAnswers, setRandomizeAnswers] = useState(
         node.properties?.randomize_answers || false,
     );
-    const [showCorrectAnswer, setShowCorrectAnswer] = useState(
-        node.properties?.show_correct_answer || false,
-    );
+    const [answerReleasePolicy, setAnswerReleasePolicy] = useState(() => {
+        if (node.properties?.answer_release_policy) {
+            return node.properties.answer_release_policy;
+        }
+        if (Object.hasOwn(node.properties || {}, "show_correct_answer")) {
+            return node.properties.show_correct_answer
+                ? "after_each_attempt"
+                : "never";
+        }
+        return "after_pass_or_final";
+    });
     const [quizAttemptHistory, setQuizAttemptHistory] = useState(
         node.properties?.quiz_attempt_history || false,
     );
-    const [retakeAfterPass] = useState(
-        node.properties?.retake_after_pass || false,
+    const [retakeAfterPass, setRetakeAfterPass] = useState(
+        node.properties?.retake_after_pass ?? true,
     );
     const [limitedRetakeAttempts] = useState(
         node.properties?.limited_retake_attempts || false,
@@ -337,7 +355,8 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
             max_attempts: maxAttempts,
             randomize_questions: randomizeQuestions,
             randomize_answers: randomizeAnswers,
-            show_correct_answer: showCorrectAnswer,
+            answer_release_policy: answerReleasePolicy,
+            show_correct_answer: answerReleasePolicy !== "never",
             quiz_attempt_history: quizAttemptHistory,
             retake_after_pass: retakeAfterPass,
             limited_retake_attempts: limitedRetakeAttempts,
@@ -380,6 +399,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         return { title, properties };
     }, [
         allowedFileTypes,
+        answerReleasePolicy,
         allowLate,
         assessmentPrompt,
         assignmentAttempts,
@@ -404,7 +424,6 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         randomizeQuestions,
         retakeAfterPass,
         retakePenalty,
-        showCorrectAnswer,
         title,
         weight,
     ]);
@@ -419,6 +438,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
     const autosaveValue = useMemo(
         () => ({
             allowedFileTypes,
+            answerReleasePolicy,
             assessmentPrompt,
             assignmentAttempts,
             assignmentSubmissionType,
@@ -433,12 +453,13 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
             quizStyle,
             randomizeAnswers,
             randomizeQuestions,
-            showCorrectAnswer,
+            retakeAfterPass,
             title,
             weight,
         }),
         [
             allowedFileTypes,
+            answerReleasePolicy,
             assessmentPrompt,
             assignmentAttempts,
             assignmentSubmissionType,
@@ -453,7 +474,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
             quizStyle,
             randomizeAnswers,
             randomizeQuestions,
-            showCorrectAnswer,
+            retakeAfterPass,
             title,
             weight,
         ],
@@ -1302,15 +1323,15 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                 <FormControlLabel
                                     control={
                                         <Switch
-                                            checked={showCorrectAnswer}
-                                            onChange={(e) =>
-                                                setShowCorrectAnswer(
-                                                    e.target.checked,
+                                            checked={retakeAfterPass}
+                                            onChange={(event) =>
+                                                setRetakeAfterPass(
+                                                    event.target.checked,
                                                 )
                                             }
                                         />
                                     }
-                                    label="Show correct answer"
+                                    label="Allow retakes after passing"
                                 />
                                 <FormControlLabel
                                     control={
@@ -1326,6 +1347,28 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                     label="Quiz attempt history"
                                 />
                             </Box>
+
+                            <FormControl fullWidth>
+                                <InputLabel>Release correct answers</InputLabel>
+                                <Select
+                                    value={answerReleasePolicy}
+                                    label="Release correct answers"
+                                    onChange={(event) =>
+                                        setAnswerReleasePolicy(
+                                            event.target.value,
+                                        )
+                                    }
+                                >
+                                    {ANSWER_RELEASE_POLICIES.map((policy) => (
+                                        <MenuItem
+                                            key={policy.value}
+                                            value={policy.value}
+                                        >
+                                            {policy.label}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
 
                         </>
                     )}

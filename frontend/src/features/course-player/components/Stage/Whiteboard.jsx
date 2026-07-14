@@ -158,7 +158,12 @@ const Whiteboard = ({
         if (type === "quiz" || lessonType === "quiz") {
             // Show results inline if quizResults data is present
             if (node.properties?.quizResults) {
-                return <QuizResultsRenderer quizResults={node.properties.quizResults} />;
+                return (
+                    <QuizResultsRenderer
+                        quizResults={node.properties.quizResults}
+                        nextNode={nextNode}
+                    />
+                );
             }
             return (
                 <AssessmentRenderer

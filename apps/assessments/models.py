@@ -150,10 +150,24 @@ class Quiz(TimeStampedModel):
         default=0, help_text="Percentage weight in final grade"
     )
 
+    class AnswerReleasePolicy(models.TextChoices):
+        AFTER_EACH_ATTEMPT = "after_each_attempt", "After every attempt"
+        AFTER_PASS_OR_FINAL = (
+            "after_pass_or_final",
+            "After passing or the final available attempt",
+        )
+        AFTER_FINAL_ATTEMPT = "after_final_attempt", "After the final available attempt"
+        NEVER = "never", "Never"
+
     # Enhanced Quiz Settings
     randomize_questions = models.BooleanField(default=False)
     show_answers_after_submit = models.BooleanField(default=True)
-    allow_retake_after_pass = models.BooleanField(default=False)
+    answer_release_policy = models.CharField(
+        max_length=32,
+        choices=AnswerReleasePolicy.choices,
+        default=AnswerReleasePolicy.AFTER_PASS_OR_FINAL,
+    )
+    allow_retake_after_pass = models.BooleanField(default=True)
     retake_penalty_percent = models.DecimalField(
         max_digits=5, decimal_places=2, default=0
     )
