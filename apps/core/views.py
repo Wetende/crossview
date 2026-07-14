@@ -410,7 +410,7 @@ def landing_page(request):
 
     return render(
         request,
-        "Public/Home",
+        "Public/Landing",
         landing_payload,
     )
 
