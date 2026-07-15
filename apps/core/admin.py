@@ -30,3 +30,23 @@ class ProgramAdmin(admin.ModelAdmin):
     search_fields = ["name", "code", "description"]
     ordering = ["-created_at"]
     date_hierarchy = "created_at"
+
+    def get_readonly_fields(self, request, obj=None):
+        from apps.platform.policy import platform_capability_enabled
+
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if not platform_capability_enabled("manageBlueprints"):
+            readonly_fields.append("blueprint")
+        return readonly_fields
+
+    def save_model(self, request, obj, form, change):
+        from apps.platform.models import PlatformSettings
+        from apps.platform.policy import platform_capability_enabled
+        from apps.platform.services import PlatformSettingsService
+
+        if not platform_capability_enabled("manageBlueprints"):
+            settings = PlatformSettings.get_settings()
+            active = PlatformSettingsService.ensure_active_blueprint_for_mode(settings)
+            if active:
+                obj.blueprint = active
+        super().save_model(request, obj, form, change)

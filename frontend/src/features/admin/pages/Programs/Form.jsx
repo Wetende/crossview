@@ -297,14 +297,19 @@ export default function ProgramForm({
                                                     fullWidth
                                                     error={!!errors.category}
                                                     disabled={
-                                                        categoryOptions.length === 0
+                                                        categoryOptions.length ===
+                                                        0
                                                     }
-                                                    required={hasConfiguredCategories}
+                                                    required={
+                                                        hasConfiguredCategories
+                                                    }
                                                 >
                                                     <Select
                                                         value={data.category}
                                                         displayEmpty
-                                                        required={hasConfiguredCategories}
+                                                        required={
+                                                            hasConfiguredCategories
+                                                        }
                                                         onChange={(e) =>
                                                             setData(
                                                                 "category",
@@ -327,8 +332,12 @@ export default function ProgramForm({
                                                         {categoryOptions.map(
                                                             (category) => (
                                                                 <MenuItem
-                                                                    key={category}
-                                                                    value={category}
+                                                                    key={
+                                                                        category
+                                                                    }
+                                                                    value={
+                                                                        category
+                                                                    }
                                                                 >
                                                                     {category}
                                                                 </MenuItem>
@@ -471,7 +480,9 @@ export default function ProgramForm({
                                             variant="h6"
                                             sx={{ mb: 3, fontWeight: 600 }}
                                         >
-                                            Examining body details
+                                            {isTvetMode
+                                                ? "Examining body details"
+                                                : "Course details"}
                                         </Typography>
                                         <Stack spacing={3}>
                                             {/* Exam Body (shown if TVET) */}

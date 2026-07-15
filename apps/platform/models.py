@@ -5,6 +5,14 @@ Platform settings models - Single-tenant configuration.
 from django.db import models
 from django.core.cache import cache
 from apps.core.models import TimeStampedModel
+from apps.platform.policy import (
+    apply_platform_policy,
+    get_effective_features,
+    get_locked_blueprint_mode,
+    get_platform_capabilities,
+    get_policy_value,
+    is_policy_value_locked,
+)
 
 
 PLATFORM_PAYLOAD_CACHE_KEY = "platform_settings:payload"
@@ -147,8 +155,22 @@ class PlatformSettings(TimeStampedModel):
         verbose_name_plural = "Platform Settings"
 
     def save(self, *args, **kwargs):
-        """Ensure only one instance exists (singleton pattern)."""
+        """Ensure singleton behavior and enforce deployment-level locks."""
         self.pk = 1
+        locked_fields = apply_platform_policy(self)
+        locked_blueprint_mode = get_locked_blueprint_mode()
+        if locked_blueprint_mode:
+            from apps.platform.services import PlatformSettingsService
+
+            locked_blueprint = PlatformSettingsService.get_or_create_blueprint_for_mode(
+                locked_blueprint_mode
+            )
+            if locked_blueprint and self.active_blueprint_id != locked_blueprint.id:
+                self.active_blueprint = locked_blueprint
+                locked_fields.add("active_blueprint")
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and locked_fields:
+            kwargs["update_fields"] = set(update_fields) | locked_fields
         super().save(*args, **kwargs)
         cache.delete_many(
             [PLATFORM_PAYLOAD_CACHE_KEY, PLATFORM_COURSE_LEVELS_CACHE_KEY]
@@ -160,14 +182,20 @@ class PlatformSettings(TimeStampedModel):
 
     def get_logo_url(self) -> str:
         """Return the preferred logo URL for public surfaces."""
+        if is_policy_value_locked("logo_url"):
+            return get_policy_value("logo_url") or ""
         if self.logo:
             return self.logo.url
         return ""
 
     def get_favicon_url(self) -> str:
         """Return the configured favicon, falling back to the platform logo."""
+        if is_policy_value_locked("favicon_url"):
+            return get_policy_value("favicon_url") or ""
         if self.favicon:
             return self.favicon.url
+        if is_policy_value_locked("logo_url"):
+            return get_policy_value("logo_url") or ""
         if self.logo:
             return self.logo.url
         return ""
@@ -179,6 +207,10 @@ class PlatformSettings(TimeStampedModel):
         if settings is None:
             settings = cls(pk=1)
             settings.save()
+        else:
+            changed_fields = apply_platform_policy(settings)
+            if changed_fields:
+                settings.save(update_fields=changed_fields | {"updated_at"})
         return settings
 
     @classmethod
@@ -189,9 +221,7 @@ class PlatformSettings(TimeStampedModel):
             return payload
 
         settings = cls.get_settings()
-        features = settings.get_default_features_for_mode()
-        if settings.features:
-            features.update(settings.features)
+        features = get_effective_features(settings)
         public_content = (
             settings.public_content
             if isinstance(settings.public_content, dict)
@@ -217,6 +247,7 @@ class PlatformSettings(TimeStampedModel):
             "currencySymbol": settings.currency_symbol,
             "programCategories": settings.get_program_categories(),
             "features": features,
+            "capabilities": get_platform_capabilities(),
             "publicContent": public_content,
             "socialLinks": social_links,
         }
@@ -240,8 +271,7 @@ class PlatformSettings(TimeStampedModel):
     # Feature flag helpers
     def is_feature_enabled(self, feature_name: str) -> bool:
         """Check if a specific feature is enabled."""
-        default_features = self.get_default_features_for_mode()
-        return self.features.get(feature_name, default_features.get(feature_name, False))
+        return bool(get_effective_features(self).get(feature_name, False))
 
     def get_default_features_for_mode(self) -> dict:
         """Get default feature flags based on deployment mode."""

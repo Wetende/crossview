@@ -8,6 +8,7 @@ from .models import (
     PresetBlueprint,
     PlatformSettings,
 )
+from .policy import platform_capability_enabled
 from .services import PlatformSettingsService, PresetBlueprintService
 
 
@@ -59,6 +60,31 @@ class PresetBlueprintAdmin(admin.ModelAdmin):
         "create_academic_blueprints",
         "use_as_active_blueprint",
     ]
+
+    def has_module_permission(self, request):
+        return platform_capability_enabled("managePresets") and super().has_module_permission(
+            request
+        )
+
+    def has_view_permission(self, request, obj=None):
+        return platform_capability_enabled("managePresets") and super().has_view_permission(
+            request, obj
+        )
+
+    def has_add_permission(self, request):
+        return platform_capability_enabled("managePresets") and super().has_add_permission(
+            request
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return platform_capability_enabled("managePresets") and super().has_change_permission(
+            request, obj
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return platform_capability_enabled("managePresets") and super().has_delete_permission(
+            request, obj
+        )
 
     @admin.action(description="Create Academic Blueprint(s) from selected preset(s)")
     def create_academic_blueprints(self, request, queryset):
@@ -173,6 +199,80 @@ class PlatformSettingsAdmin(admin.ModelAdmin):
             )
         }
     }
+
+    def get_fieldsets(self, request, obj=None):
+        """Expose only the choices available to this deployment."""
+        fieldsets = []
+
+        institution_fields = ["contact_email", "contact_phone", "address"]
+        if platform_capability_enabled("manageIdentity"):
+            institution_fields = ["institution_name", "tagline", *institution_fields]
+        fieldsets.append(("Institution", {"fields": tuple(institution_fields)}))
+
+        deployment_fields = []
+        if platform_capability_enabled("manageDeployment"):
+            deployment_fields.extend(["deployment_mode", "active_blueprint"])
+        if platform_capability_enabled("runSetup"):
+            deployment_fields.append("is_setup_complete")
+        if deployment_fields:
+            fieldsets.append(
+                (
+                    "Deployment",
+                    {
+                        "fields": tuple(deployment_fields),
+                        "description": "Platform-wide mode and active blueprint selection.",
+                    },
+                )
+            )
+
+        if platform_capability_enabled("manageBranding"):
+            fieldsets.append(
+                (
+                    "Branding",
+                    {
+                        "fields": (
+                            "logo",
+                            "favicon",
+                            "primary_color",
+                            "secondary_color",
+                            "custom_css",
+                        )
+                    },
+                )
+            )
+
+        configuration_fields = []
+        if platform_capability_enabled("manageFeatures"):
+            configuration_fields.append("features")
+        configuration_fields.extend(
+            [
+                "currency_code",
+                "currency_symbol",
+                "course_levels",
+                "program_categories",
+                "public_content",
+                "social_links",
+            ]
+        )
+        fieldsets.append(
+            (
+                "Platform Configuration",
+                {
+                    "fields": tuple(configuration_fields),
+                    "description": "Operational settings and admin-managed course taxonomy.",
+                },
+            )
+        )
+        fieldsets.append(
+            (
+                "Audit",
+                {
+                    "fields": ("created_at", "updated_at"),
+                    "classes": ("collapse",),
+                },
+            )
+        )
+        return tuple(fieldsets)
 
     def _ensure_active_blueprint(self, request, obj: PlatformSettings):
         """Ensure there is a builder-compatible active blueprint for non-custom modes."""

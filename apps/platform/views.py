@@ -9,6 +9,10 @@ from inertia import render
 from apps.core.utils import get_post_data, is_admin
 from apps.core.models import Program
 from apps.platform.models import PlatformSettings
+from apps.platform.policy import (
+    get_platform_capabilities,
+    platform_capability_enabled,
+)
 
 
 def _require_superadmin(user) -> bool:
@@ -41,13 +45,16 @@ def admin_settings(request):
     """Admin settings page - uses PlatformSettings for single-tenant mode."""
     if not is_admin(request.user):
         return redirect("/dashboard/")
+    if not platform_capability_enabled("showAdminSettings"):
+        return redirect("/dashboard/")
     
     from apps.platform.services import PlatformSettingsService
     
     if request.method == "POST":
         data = get_post_data(request)
-        features = {"self_registration": data.get("registrationEnabled", True)}
-        PlatformSettingsService.update_features(features)
+        PlatformSettingsService.update_registration(
+            data.get("registrationEnabled", True)
+        )
         messages.success(request, "Settings updated successfully")
         return redirect("tenants:admin.settings")
     
@@ -60,6 +67,7 @@ def admin_settings(request):
                 "institutionName": settings.get("institutionName", ""),
                 "deploymentMode": settings.get("deploymentMode", "custom"),
                 "host": request.get_host(),
+                "capabilities": get_platform_capabilities(),
             },
             "settings": {
                 "registrationEnabled": settings.get("features", {}).get(
@@ -183,6 +191,8 @@ def superadmin_presets(request):
     """Legacy preset list route - redirect to Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
+    if not platform_capability_enabled("managePresets"):
+        return redirect("/dashboard/")
     return _redirect_superadmin_to_preset_list()
 
 
@@ -191,6 +201,8 @@ def superadmin_preset_create(request):
     """Legacy preset create route - redirect to Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
+    if not platform_capability_enabled("managePresets"):
+        return redirect("/dashboard/")
     return _redirect_superadmin_to_preset_create()
 
 
@@ -198,6 +210,8 @@ def superadmin_preset_create(request):
 def superadmin_preset_edit(request, pk: int):
     """Legacy preset edit route - redirect to Django admin."""
     if not _require_superadmin(request.user):
+        return redirect("/dashboard/")
+    if not platform_capability_enabled("managePresets"):
         return redirect("/dashboard/")
     return _redirect_superadmin_to_preset_edit(pk)
 
@@ -214,6 +228,8 @@ def setup_wizard(request):
     """Legacy setup route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
+    if not platform_capability_enabled("runSetup"):
+        return redirect("/dashboard/")
     return _redirect_superadmin_to_platform_settings()
 
 
@@ -221,6 +237,8 @@ def setup_wizard(request):
 def setup_institution(request):
     """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
+        return redirect("/dashboard/")
+    if not platform_capability_enabled("runSetup"):
         return redirect("/dashboard/")
     return _redirect_superadmin_to_platform_settings()
 
@@ -230,6 +248,8 @@ def setup_mode(request):
     """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
+    if not platform_capability_enabled("runSetup"):
+        return redirect("/dashboard/")
     return _redirect_superadmin_to_platform_settings()
 
 
@@ -238,6 +258,8 @@ def setup_branding(request):
     """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
         return redirect("/dashboard/")
+    if not platform_capability_enabled("runSetup"):
+        return redirect("/dashboard/")
     return _redirect_superadmin_to_platform_settings()
 
 
@@ -245,6 +267,8 @@ def setup_branding(request):
 def setup_features(request):
     """Legacy setup step route - redirect to platform settings in Django admin."""
     if not _require_superadmin(request.user):
+        return redirect("/dashboard/")
+    if not platform_capability_enabled("runSetup"):
         return redirect("/dashboard/")
     return _redirect_superadmin_to_platform_settings()
 

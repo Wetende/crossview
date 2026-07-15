@@ -79,6 +79,33 @@ Important rule:
 
 - If backend, model, service, or view changes are required to support builder, player, or course-creation behavior, they still count as `shared-engine` even if they live outside those frontend folders.
 
+## Fork Product Locks
+
+The shared engine supports an optional `LMS_PLATFORM_POLICY` Django setting for
+forks whose product identity or learning mode must not be changed at runtime.
+The policy mechanism is shared; the configured values remain fork-only.
+
+When the setting is absent, every capability defaults to enabled and the
+platform behaves exactly like a configurable Crossview deployment. A fork may
+lock any of these values:
+
+- `institution_name` and `tagline`
+- `logo_url` and `favicon_url`
+- `primary_color` and `secondary_color`
+- `deployment_mode` and `blueprint_mode`
+- `setup_complete`
+- individual `feature_overrides`
+
+The `capabilities` mapping controls whether identity, branding, deployment,
+presets, academic blueprints, feature flags, setup, registration, the frontend
+general-settings page, and subscription UI can be managed or shown. Locked
+values are enforced by the model and services as well as being removed from
+admin and navigation surfaces.
+
+Operational data remains tenant-managed: contact details, currency, course
+levels, program categories, public content, and social links are not hardcoded
+by the generic policy mechanism.
+
 ## Promotion Workflow
 
 For all shared engine work, use this exact order:

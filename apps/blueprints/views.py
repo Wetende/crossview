@@ -13,11 +13,16 @@ from inertia import render
 
 from apps.blueprints.models import AcademicBlueprint
 from apps.platform.models import PresetBlueprint
+from apps.platform.policy import require_platform_capability
 from apps.core.models import Program
 from apps.core.utils import get_post_data, is_admin, is_superadmin
 
 
 logger = logging.getLogger(__name__)
+
+
+def _require_blueprint_management() -> None:
+    require_platform_capability("manageBlueprints")
 
 
 # =============================================================================
@@ -33,6 +38,7 @@ def admin_blueprints(request):
     """
     if not is_admin(request.user):
         return redirect("/dashboard/")
+    _require_blueprint_management()
 
     # Get filter params
     search = request.GET.get("search", "")
@@ -130,6 +136,7 @@ def admin_blueprint_detail(request, pk: int):
     """
     if not is_admin(request.user):
         return redirect("/dashboard/")
+    _require_blueprint_management()
 
     blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
 
@@ -161,6 +168,7 @@ def admin_blueprint_create(request):
     """
     if not is_superadmin(request.user):
         return redirect("/dashboard/")
+    _require_blueprint_management()
 
     if request.method == "POST":
         data = get_post_data(request)
@@ -236,6 +244,7 @@ def admin_blueprint_edit(request, pk: int):
     """
     if not is_superadmin(request.user):
         return redirect("/dashboard/")
+    _require_blueprint_management()
 
     blueprint = get_object_or_404(AcademicBlueprint, pk=pk)
 
@@ -323,6 +332,7 @@ def admin_blueprint_delete(request, pk: int):
     """Delete a blueprint. Restricted to: Superadmins only."""
     if not is_superadmin(request.user):
         return redirect("/dashboard/")
+    _require_blueprint_management()
 
     if request.method != "POST":
         return redirect("blueprints:admin.blueprints")

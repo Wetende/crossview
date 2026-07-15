@@ -10,6 +10,13 @@ from apps.core.taxonomy import (
     is_valid_builder_hierarchy,
 )
 from apps.platform.models import PlatformSettings, PresetBlueprint
+from apps.platform.policy import (
+    get_effective_features,
+    get_locked_blueprint_mode,
+    get_platform_capabilities,
+    platform_capability_enabled,
+    require_platform_capability,
+)
 
 
 # Default blueprint templates for each deployment mode
@@ -192,6 +199,8 @@ class PresetBlueprintService:
         set_as_active: bool = False,
     ):
         """Create a new AcademicBlueprint from a preset blueprint template."""
+        require_platform_capability("managePresets")
+        require_platform_capability("manageBlueprints")
         from apps.blueprints.models import AcademicBlueprint
 
         hierarchy_structure = PresetBlueprintService._normalize_hierarchy_for_builder(
@@ -225,6 +234,8 @@ class PresetBlueprintService:
         set_as_active: bool = False,
     ):
         """Reuse an equivalent academic blueprint when available; otherwise create one."""
+        require_platform_capability("managePresets")
+        require_platform_capability("manageBlueprints")
         existing = PresetBlueprintService._find_matching_academic_blueprint(preset)
         if existing:
             if set_as_active:
@@ -242,6 +253,7 @@ class PresetBlueprintService:
     @staticmethod
     def list_presets() -> list:
         """List all preset blueprints."""
+        require_platform_capability("managePresets")
         presets = PresetBlueprint.objects.order_by("name")
         return [
             {
@@ -268,6 +280,7 @@ class PresetBlueprintService:
         is_active: bool = True,
     ) -> PresetBlueprint:
         """Create a new preset blueprint."""
+        require_platform_capability("managePresets")
         if PresetBlueprint.objects.filter(code=code).exists():
             raise ValidationError({"code": "Code already exists"})
         if not hierarchy_labels:
@@ -297,6 +310,7 @@ class PresetBlueprintService:
         is_active: Optional[bool] = None,
     ) -> PresetBlueprint:
         """Update a preset blueprint."""
+        require_platform_capability("managePresets")
         preset = PresetBlueprint.objects.get(pk=preset_id)
 
         if PresetBlueprint.objects.filter(code=code).exclude(pk=preset_id).exists():
@@ -326,6 +340,7 @@ class PlatformSettingsService:
     @staticmethod
     def list_builder_compatible_blueprints() -> list:
         """Return blueprints valid for the 2-tier builder taxonomy."""
+        require_platform_capability("manageBlueprints")
         from apps.blueprints.models import AcademicBlueprint
 
         blueprints = []
@@ -340,6 +355,7 @@ class PlatformSettingsService:
         from apps.platform.models import PlatformSettings
 
         settings = PlatformSettings.get_settings()
+        payload = PlatformSettings.get_cached_platform_payload()
         public_content = (
             settings.public_content
             if isinstance(settings.public_content, dict)
@@ -349,22 +365,25 @@ class PlatformSettingsService:
             settings.social_links if isinstance(settings.social_links, dict) else {}
         )
         return {
-            "institutionName": settings.institution_name,
-            "tagline": settings.tagline,
+            "institutionName": payload["institutionName"],
+            "tagline": payload["tagline"],
             "contactEmail": settings.contact_email,
             "contactPhone": settings.contact_phone,
             "address": settings.address,
-            "deploymentMode": settings.deployment_mode,
+            "deploymentMode": payload["deploymentMode"],
             "courseLevels": settings.get_course_levels(),
             "programCategories": settings.get_program_categories(),
             "activeBlueprintId": settings.active_blueprint_id,
-            "logo": settings.get_logo_url(),
-            "favicon": settings.get_favicon_url(),
-            "primaryColor": settings.primary_color,
-            "secondaryColor": settings.secondary_color,
+            "logo": payload["logoUrl"],
+            "favicon": payload["faviconUrl"],
+            "primaryColor": payload["primaryColor"],
+            "secondaryColor": payload["secondaryColor"],
             "customCss": settings.custom_css,
-            "features": settings.features,
-            "isSetupComplete": settings.is_setup_complete,
+            "currencyCode": settings.currency_code,
+            "currencySymbol": settings.currency_symbol,
+            "features": payload["features"],
+            "capabilities": payload["capabilities"],
+            "isSetupComplete": payload["isSetupComplete"],
             "publicContent": public_content,
             "socialLinks": social_links,
         }
@@ -373,7 +392,15 @@ class PlatformSettingsService:
     def get_deployment_modes() -> list:
         """Get available deployment modes."""
         from apps.platform.models import PlatformSettings
-        
+
+        if not platform_capability_enabled("manageDeployment"):
+            current_mode = PlatformSettings.get_settings().deployment_mode
+            return [
+                {"value": value, "label": label}
+                for value, label in PlatformSettings.DeploymentMode.choices
+                if value == current_mode
+            ]
+
         return [
             {"value": choice[0], "label": choice[1]}
             for choice in PlatformSettings.DeploymentMode.choices
@@ -388,6 +415,7 @@ class PlatformSettingsService:
         address: str = "",
     ) -> None:
         """Update institution information (Step 1 of wizard)."""
+        require_platform_capability("manageIdentity")
         from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
@@ -402,7 +430,8 @@ class PlatformSettingsService:
     def get_or_create_blueprint_for_mode(deployment_mode: str):
         """Get existing or create default blueprint for deployment mode."""
         from apps.blueprints.models import AcademicBlueprint
-        
+
+        deployment_mode = get_locked_blueprint_mode() or deployment_mode
         if deployment_mode not in MODE_BLUEPRINTS:
             return None
         
@@ -459,7 +488,19 @@ class PlatformSettingsService:
         Returns the active blueprint after normalization/creation, or None when
         deployment mode is custom and no blueprint is set.
         """
-        deployment_mode = settings.deployment_mode
+        locked_mode = get_locked_blueprint_mode()
+        deployment_mode = locked_mode or settings.deployment_mode
+
+        if locked_mode:
+            locked_blueprint = PlatformSettingsService.get_or_create_blueprint_for_mode(
+                locked_mode
+            )
+            if (
+                locked_blueprint
+                and settings.active_blueprint_id != locked_blueprint.id
+            ):
+                settings.active_blueprint = locked_blueprint
+            return locked_blueprint
 
         if deployment_mode == "custom" and not settings.active_blueprint:
             return None
@@ -487,6 +528,9 @@ class PlatformSettingsService:
         blueprint_id: int = None,
     ) -> None:
         """Update deployment mode and auto-create blueprint (Step 2 of wizard)."""
+        require_platform_capability("manageDeployment")
+        if blueprint_id:
+            require_platform_capability("manageBlueprints")
         from apps.platform.models import PlatformSettings
         from apps.blueprints.models import AcademicBlueprint
         
@@ -535,6 +579,7 @@ class PlatformSettingsService:
         favicon=None,
     ) -> None:
         """Update branding (Step 3 of wizard)."""
+        require_platform_capability("manageBranding")
         from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
@@ -555,6 +600,7 @@ class PlatformSettingsService:
     @staticmethod
     def update_features(features: dict) -> None:
         """Update feature flags (Step 4 of wizard)."""
+        require_platform_capability("manageFeatures")
         from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
@@ -563,6 +609,19 @@ class PlatformSettingsService:
         current_features.update(features)
         settings.features = current_features
         settings.save()
+
+    @staticmethod
+    def update_registration(enabled: bool) -> None:
+        """Update the public-registration flag when the fork permits it."""
+        require_platform_capability("manageRegistration")
+
+        settings = PlatformSettings.get_settings()
+        current_features = (
+            dict(settings.features) if isinstance(settings.features, dict) else {}
+        )
+        current_features["self_registration"] = bool(enabled)
+        settings.features = current_features
+        settings.save(update_fields=["features", "updated_at"])
 
     @staticmethod
     def update_course_levels(course_levels: list) -> None:
@@ -585,6 +644,7 @@ class PlatformSettingsService:
     @staticmethod
     def complete_setup() -> None:
         """Mark setup as complete."""
+        require_platform_capability("runSetup")
         from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
@@ -594,6 +654,8 @@ class PlatformSettingsService:
     @staticmethod
     def is_setup_required() -> bool:
         """Check if setup wizard should be shown."""
+        if not platform_capability_enabled("runSetup"):
+            return False
         from apps.platform.models import PlatformSettings
         
         settings = PlatformSettings.get_settings()
@@ -611,8 +673,9 @@ class PlatformSettingsService:
     def get_branding_context() -> dict:
         """Get branding info for templates and frontend."""
         from apps.platform.models import PlatformSettings
-        
+
         settings = PlatformSettings.get_settings()
+        features = get_effective_features(settings)
         return {
             "institutionName": settings.institution_name,
             "tagline": settings.tagline,
@@ -620,4 +683,6 @@ class PlatformSettingsService:
             "favicon": settings.get_favicon_url(),
             "primaryColor": settings.primary_color,
             "secondaryColor": settings.secondary_color,
+            "features": features,
+            "capabilities": get_platform_capabilities(),
         }
