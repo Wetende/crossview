@@ -1,296 +1,147 @@
-# LMS - Blueprint-Driven Learning Management System
+# LMS
 
-A flexible, **single-tenant deployable** Learning Management System built with Django and React. Designed as a "Chameleon Engine" that adapts to different educational models through configurable blueprints.
+The canonical shared Learning Management System used by the Airads and
+DigikaTech products. It is a Django and React monolith: Django owns routing,
+authentication, domain logic, and Inertia responses, while React provides the
+public pages, dashboards, course builder, and course player.
 
-## Overview
+## Repository role
 
-This LMS solves the fragmentation in the Kenyan education market by abstracting academic structure into a configuration layer called "The Blueprint." The same codebase can power:
+This repository is the authoritative home of the shared LMS engine.
 
-- **Theological Programs** - Session-based, reflective learning
-- **TVET Programs** - CDACC-compliant competency-based training
-- **Vocational Schools** - Practical skills with visual verification
-- **Online Courses** - Self-paced with gamification
-- **Custom Programs** - Build your own blueprint
+- Generic course creation, delivery, assessment, progression, reporting, and
+  commerce behavior is accepted here first.
+- A generic improvement may be prototyped in Airads, but it becomes official
+  only after it is audited, promoted here, and verified.
+- Airads and DigikaTech receive accepted engine changes from this repository.
+- Product branding, public marketing pages, admissions content, and branded
+  assets remain in their owning product repositories.
 
-## Deployment Model
+See [`docs/shared-engine-playbook.md`](docs/shared-engine-playbook.md) and
+[`docs/upstream-sync.md`](docs/upstream-sync.md) before moving changes between
+repositories.
 
-This is a **template-based single-tenant** system designed for agencies:
+## Core capabilities
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ONE MASTER CODEBASE                          │
-└─────────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ Angel Beauty    │  │ Netty Tech      │  │ Future Client   │
-│ angelbeauty.com │  │ netty.com       │  │ theirdomain.com │
-│ TVET Mode       │  │ Online Mode     │  │ Custom Mode     │
-└─────────────────┘  └─────────────────┘  └─────────────────┘
-```
+- Course and program creation, publishing, and management
+- Course builder with sections, lessons, quizzes, assignments, and resources
+- Course player with progress tracking, prerequisites, and drip access
+- Assessments, rubrics, grading, reviews, and certificates
+- Student, instructor, and administrator dashboards
+- Enrollment, payments, orders, and Paystack integration
+- Reports, inquiries, notifications, and public program discovery
+- Configurable platform policies and product extension points
 
-### How It Works
+The LMS is inspired by mature course platforms such as MasterStudy: the shared
+engine centers on authoring courses, delivering them reliably, and giving each
+role a focused dashboard.
 
-1. **Fork** the master codebase for each client
-2. **Deploy** to their server/domain
-3. **Run Setup Wizard** to configure mode, branding, features
-4. **Create courses** via Admin dashboard
-5. **Handover** to client admin
+## Technology
 
-No code changes required per client — only dashboard configuration!
+| Layer           | Technology                                               |
+| --------------- | -------------------------------------------------------- |
+| Backend         | Django 5, Django REST Framework where an API is required |
+| Web application | React 19, Inertia.js, MUI, Tailwind CSS                  |
+| Database        | PostgreSQL in production, SQLite for local development   |
+| Build           | Vite 7                                                   |
+| Testing         | pytest, pytest-django, Vitest, Testing Library           |
+| Documents       | WeasyPrint and PyMuPDF                                   |
 
-## Tech Stack
+Inertia.js is the primary web data path. Django views render React components
+with props directly; a separate REST service is not required for normal web
+navigation.
 
-| Layer | Technology | Notes |
-|-------|------------|-------|
-| Backend | Django 5.0+, Django REST Framework | DRF used for mobile apps & third-party integrations only |
-| Frontend | React 19, MUI 7, Inertia.js | Inertia.js is the primary data layer (not REST API) |
-| Database | PostgreSQL (production), SQLite (development) | |
-| Build | Vite 7, Tailwind CSS | |
-| PDF | WeasyPrint (generation), PyMuPDF (parsing) | |
-| Testing | pytest, pytest-django, Hypothesis | |
+## Ownership boundary
 
-> **Architecture Note**: Frontend uses **Inertia.js** for page rendering and data fetching. Django views return React components with props directly - no separate REST API needed for the web app.
+Shared engine work normally includes:
 
-## Project Structure
+- `apps/curriculum/`, `apps/progression/`, `apps/assessments/`,
+  `apps/certifications/`, `apps/reviews/`, and `apps/commerce/`
+- `frontend/src/features/course-builder/`
+- `frontend/src/features/course-player/`
+- Generic dashboard, program-management, reporting, and platform behavior
 
-```
-lms/
-├── apps/                    # Django apps
-│   ├── core/               # User, Program models
-│   ├── blueprints/         # Academic blueprint configuration
-│   ├── curriculum/         # Curriculum tree (recursive nodes)
-│   ├── assessments/        # Grading and results
-│   ├── progression/        # Enrollment, progress tracking
-│   ├── practicum/          # Media submissions, rubrics
-│   ├── certifications/     # Certificate generation
-│   ├── content/            # PDF parsing, content versions
-│   └── tenants/            # Platform settings & setup wizard
-├── config/                 # Django settings
-├── frontend/               # React frontend
-│   └── src/
-│       ├── components/
-│       ├── Pages/
-│       │   └── SuperAdmin/
-│       │       └── Setup/  # Setup Wizard pages
-│       ├── theme/
-│       └── contexts/
-├── templates/              # Django templates
-├── static/                 # Static files
-├── manage.py
-├── requirements.txt
-└── package.json
-```
+Product-only work normally includes:
 
-## Getting Started
+- `frontend/src/pages/public/`
+- Product navigation, footers, logos, copy, and visual assets
+- Admissions, campus, school, event, and marketing content
+- Host-specific deployment settings and product seed data
+
+Split mixed work into separate commits before promotion.
+
+## Local setup
 
 ### Prerequisites
 
 - Python 3.10+
-- Node.js 18+
-- PostgreSQL 12+ (or SQLite for development)
-
-### Installation
-
-1. **Clone/Fork the repository**
-   ```bash
-   git clone https://github.com/Wetende/lms.git client-lms
-   cd client-lms
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   npm install
-   ```
-
-4. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
-
-5. **Run migrations**
-   ```bash
-   python manage.py migrate
-   ```
-
-6. **Create superuser**
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-### Development
+- Node.js 20+
+- PostgreSQL for production, or SQLite for local development
 
 ```bash
-# Terminal 1: Django backend
-python manage.py runserver
+git clone git@github.com:Wetende/crossview.git lms
+cd lms
 
-# Terminal 2: Vite frontend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+npm install
+
+cp .env.example .env
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+## Development
+
+Run Django and Vite in separate terminals:
+
+```bash
+source .venv/bin/activate
+python manage.py runserver
+```
+
+```bash
 npm run dev
 ```
 
-Access the app at `http://localhost:8000`
+Open `http://localhost:8000`.
 
-### First-Time Setup
+## Verification
 
-1. Login as superuser
-2. Navigate to `/setup/` 
-3. Complete the 4-step wizard:
-   - **Step 1**: Institution info (name, email, etc.)
-   - **Step 2**: Deployment mode (TVET, Theology, Online, Custom)
-   - **Step 3**: Branding (logo, colors)
-   - **Step 4**: Feature toggles (certificates, gamification, etc.)
-
-## Key Features
-
-### Setup Wizard
-Configure your entire platform without touching code:
-- Select deployment mode (auto-configures terminology & grading)
-- Upload institution logo and brand colors
-- Enable/disable features per deployment
-
-### Blueprint System
-Configure academic structure via JSON:
-```json
-{
-  "hierarchy_structure": ["Year", "Unit", "Session"],
-  "grading_logic": {
-    "type": "weighted",
-    "components": [
-      {"name": "CAT", "weight": 0.3},
-      {"name": "Exam", "weight": 0.7}
-    ]
-  }
-}
-```
-
-### Deployment Modes
-
-| Mode | Terminology | Assessment | Features |
-|------|-------------|------------|----------|
-| **TVET** | Qualification → Module → Element | Competency-based | Portfolio, Certificates |
-| **Theology** | Program → Year → Session | CAT + Exam | Practicum uploads |
-| **Online** | Course → Module → Lesson | Progress-based | Gamification, Badges |
-| **Driving** | License Class → Unit → Lesson | Instructor checklist | Hours tracking |
-| **Custom** | You define | You define | You choose |
-
-### Curriculum Tree
-Recursive node structure supporting unlimited depth:
-- Programs → Years → Units → Sessions
-- Or: Qualifications → Modules → Competencies → Elements
-
-### Assessment Modes
-- **Weighted** - CAT + Exam percentages
-- **Competency** - Competent / Not Yet Competent
-- **Rubric** - Multi-dimensional scoring for subjective assessments (essays, projects, presentations)
-- **Visual Review** - Photo/video verification
-
-### Rubric System
-Flexible rubric-based grading with three scopes:
-- **Global rubrics** (superadmin) - System-wide standards
-- **Program rubrics** (admin) - Standardized for accreditation (TVET/CDACC)
-- **Course rubrics** (instructor) - Assignment-specific
-- Blueprint feature flag: `enforce_standard_rubrics` for compliance-critical programs
-- See [docs/rubric-system.md](docs/rubric-system.md) for details
-
-### Practicum Workflow
-1. Student uploads media (audio/video)
-2. Lecturer reviews against rubric
-3. Approve, request revision, or reject
-4. Completion unlocks next content
-
-### Certificate Generation
-- Auto-generated on program completion
-- Unique serial numbers
-- Public verification URL
-- PDF with customizable templates
-
-### Feature Flags
-Per-deployment control over:
-- ✅ Certificates & verification
-- ✅ Practicum/media uploads
-- ✅ Gamification & badges
-- ✅ Self-registration
-- ✅ Payment processing (coming soon)
-
-## Agency Workflow
-
-```
-New Client Request
-      │
-      ▼
-┌─────────────────┐
-│ 1. Fork Repo    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 2. Deploy       │──→ Their server (e.g., angelbeauty.com)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 3. Setup Wizard │──→ Configure mode, branding, features
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 4. Create       │──→ Programs, courses, curriculum
-│    Content      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 5. Create Admin │──→ Client admin account
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ 6. Handover     │──→ Client manages their system
-└─────────────────┘
-```
-
-## Testing
+Use normal automated checks first. Browser automation is reserved for behavior
+that cannot be established through focused Django or React tests.
 
 ```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=apps
-
-# Run specific app tests
-pytest apps/blueprints/
+source .venv/bin/activate
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python -m pytest -q
+npm test
+npm run build
 ```
+
+For cross-repository promotions, run the complete gates and record the accepted
+refs and exclusions under `docs/sync-reports/`.
+
+## Shared-engine workflow
+
+1. Classify the request as `shared-engine`, `product-only`, or `mixed`.
+2. Isolate generic behavior from branded or public-site work.
+3. Promote the reviewed generic commit into this repository.
+4. Verify this repository as the canonical implementation.
+5. Synchronize the accepted change into Airads and DigikaTech sequentially.
+
+Do not maintain three independent implementations of the same LMS behavior.
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| `understand` | Business context and architecture vision |
-| `frontend.md` | Frontend design system and patterns |
-| `docs/dashboard-architecture.md` | Unified dashboard layout system |
-| `docs/services-layer.md` | Services layer pattern and implementation |
-| `docs/inertia-architecture.md` | Inertia.js integration details |
-| `docs/course_management.md` | Course and curriculum management |
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `DJANGO_SECRET_KEY` | Django secret key |
-| `DJANGO_DEBUG` | Debug mode (True/False) |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `ALLOWED_HOSTS` | Comma-separated allowed hosts |
-| `CORS_ALLOWED_ORIGINS` | Frontend origins for CORS |
-
-## License
-
-MIT License - See LICENSE file for details.
+| Document                                                               | Purpose                                       |
+| ---------------------------------------------------------------------- | --------------------------------------------- |
+| [`docs/shared-engine-playbook.md`](docs/shared-engine-playbook.md)     | Change classification and ownership rules     |
+| [`docs/shared-surface-manifest.md`](docs/shared-surface-manifest.md)   | File-level sharing boundary                   |
+| [`docs/upstream-sync.md`](docs/upstream-sync.md)                       | Sequential promotion and verification runbook |
+| [`docs/course-builder-taxonomy.md`](docs/course-builder-taxonomy.md)   | Builder structure and terminology             |
+| [`docs/inertia-architecture.md`](docs/inertia-architecture.md)         | Django and React integration                  |
+| [`docs/dashboard-architecture.md`](docs/dashboard-architecture.md)     | Shared dashboard structure                    |
+| [`docs/paystack-webhook-runbook.md`](docs/paystack-webhook-runbook.md) | Payment webhook operations                    |
