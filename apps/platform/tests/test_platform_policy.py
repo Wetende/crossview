@@ -48,6 +48,7 @@ def clear_platform_cache():
     cache.clear()
 
 
+@override_settings(LMS_PLATFORM_POLICY={})
 def test_missing_policy_preserves_fully_configurable_engine_defaults():
     assert all(get_platform_capabilities().values())
 
