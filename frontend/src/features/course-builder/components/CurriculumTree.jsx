@@ -53,6 +53,7 @@ import {
     Close as CloseIcon,
     Code as CodeLabIcon,
 } from '@mui/icons-material';
+import { COURSE_BUILDER_SIDEBAR_WIDTH } from '../constants/layout';
 
 // Helper to flatten node tree for diffing
 // eslint-disable-next-line react-refresh/only-export-components
@@ -582,7 +583,7 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
             <Paper 
                 variant="outlined" 
                 sx={{ 
-                    width: 320, 
+                    width: COURSE_BUILDER_SIDEBAR_WIDTH,
                     flexShrink: 0, 
                     display: 'flex', 
                     flexDirection: 'column',

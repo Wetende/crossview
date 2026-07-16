@@ -1,0 +1,1 @@
+export const COURSE_BUILDER_SIDEBAR_WIDTH = 360;

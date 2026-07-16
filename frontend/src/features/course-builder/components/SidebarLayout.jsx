@@ -7,6 +7,7 @@ import {
     Paper,
 } from "@mui/material";
 import { PanelSidebar } from "@/components";
+import { COURSE_BUILDER_SIDEBAR_WIDTH } from "../constants/layout";
 
 export default function SidebarLayout({
     sidebarTitle,
@@ -31,7 +32,7 @@ export default function SidebarLayout({
         >
             <PanelSidebar
                 title={sidebarTitle}
-                width={{ xs: "100%", md: 320 }}
+                width={{ xs: "100%", md: COURSE_BUILDER_SIDEBAR_WIDTH }}
                 sx={{
                     height: { xs: "auto", md: "100%" },
                     borderRight: { xs: 0, md: 1 },
