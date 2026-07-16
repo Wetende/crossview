@@ -23,8 +23,7 @@ function CourseDetailRow({ icon, label, value }) {
         <Stack
             data-testid={`course-detail-row-${label.toLowerCase()}`}
             direction="row"
-            alignItems="center"
-            sx={{ minHeight: 56, minWidth: 0, gap: 1.5 }}
+            sx={{ minHeight: 56, minWidth: 0, gap: 1.5, alignItems: "center" }}
         >
             <Box sx={{ display: "flex", color: "text.secondary", flexShrink: 0 }}>
                 {icon}
@@ -34,8 +33,7 @@ function CourseDetailRow({ icon, label, value }) {
             </Typography>
             <Typography
                 variant="body2"
-                fontWeight={700}
-                sx={{ ml: "auto", pl: 2, textAlign: "right", flexShrink: 0 }}
+                sx={{ ml: "auto", pl: 2, textAlign: "right", flexShrink: 0, fontWeight: 700 }}
             >
                 {value}
             </Typography>
@@ -81,7 +79,7 @@ export default function CourseDetailsPanel({ program }) {
                 borderRadius: 1.5,
             }}
         >
-            <Typography component="h2" variant="subtitle1" fontWeight={700} sx={{ py: 1 }}>
+            <Typography component="h2" variant="subtitle1" sx={{ py: 1, fontWeight: 700 }}>
                 Course details
             </Typography>
             <Divider />

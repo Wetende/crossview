@@ -138,7 +138,7 @@ function CurriculumContent({ curriculum }) {
                             expandIcon={<IconChevronDown size={18} />}
                             sx={curriculumSummarySx}
                         >
-                            <Typography component="span" variant="h6" fontWeight={600}>
+                            <Typography component="span" variant="h6" sx={{ fontWeight: 600 }}>
                                 {section.title}
                             </Typography>
                         </AccordionSummary>
@@ -163,17 +163,21 @@ function CurriculumContent({ curriculum }) {
                                                     </ListItemIcon>
                                                     <ListItemText
                                                         primary={lesson.title}
-                                                        primaryTypographyProps={{
-                                                            variant: "body2",
-                                                            fontWeight: 600,
-                                                            sx: { whiteSpace: "normal", overflowWrap: "anywhere" },
+                                                        slotProps={{
+                                                            primary: {
+                                                                variant: "body2",
+                                                                sx: {
+                                                                    fontWeight: 600,
+                                                                    whiteSpace: "normal",
+                                                                    overflowWrap: "anywhere",
+                                                                },
+                                                            },
                                                         }}
                                                     />
                                                     <Stack
                                                         direction="row"
                                                         spacing={1}
-                                                        alignItems="center"
-                                                        sx={{ ml: 1, flexShrink: 0 }}
+                                                        sx={{ ml: 1, flexShrink: 0, alignItems: "center" }}
                                                     >
                                                         {lesson.duration ? (
                                                             <Typography variant="body2" color="text.secondary">
@@ -219,7 +223,7 @@ function GreyAccordionList({ items, expandedItem, onExpandedItemChange, getTitle
                             expandIcon={<IconChevronDown size={18} />}
                             sx={greySummarySx}
                         >
-                            <Typography component="span" variant="subtitle1" fontWeight={700}>
+                            <Typography component="span" variant="subtitle1" sx={{ fontWeight: 700 }}>
                                 {getTitle(item, index)}
                             </Typography>
                         </AccordionSummary>
@@ -278,7 +282,7 @@ export default function CourseContentTabs({
                 <SanitizedHtml html={program.description} sx={richTextSx} />
                 {program.what_you_learn_html ? (
                     <Box sx={{ mt: 4 }}>
-                        <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
+                        <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
                             What you&apos;ll learn
                         </Typography>
                         <SanitizedHtml html={program.what_you_learn_html} sx={learningOutcomesSx} />
@@ -370,9 +374,13 @@ export default function CourseContentTabs({
                             <Card key={review.id} variant="outlined">
                                 <CardContent>
                                     <Stack spacing={1}>
-                                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{ alignItems: "center", flexWrap: "wrap" }}
+                                        >
                                             <Rating value={review.rating || 0} precision={1} size="small" readOnly />
-                                            <Typography variant="body2" fontWeight={600}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                 {review.user?.name || "Anonymous"}
                                             </Typography>
                                             <Typography variant="caption" color="text.secondary">
