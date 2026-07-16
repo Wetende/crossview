@@ -126,6 +126,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         preview_description: program.previewDescription || "",
         is_featured: Boolean(program.isFeatured),
         lock_lessons_in_order: program.lockLessonsInOrder !== false,
+        delivery_mode: program.deliveryMode || "in_person",
         co_instructor_ids: (program.coInstructors || []).map(
             (instructor) => instructor.id,
         ),
@@ -258,6 +259,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     whatYouLearn: currentData.whatYouLearn,
                     preview_description: currentData.preview_description,
                     lock_lessons_in_order: currentData.lock_lessons_in_order,
+                    delivery_mode: currentData.delivery_mode,
                 };
                 if (!hasExamBodies) {
                     payload.level = currentData.level;
@@ -611,6 +613,28 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                         />
                     </Box>
                 )}
+
+                <Box>
+                    {renderFieldLabel("Delivery mode")}
+                    <FormControl fullWidth disabled={Boolean(program.deliveryModeLocked)}>
+                        <Select
+                            value={formData.delivery_mode}
+                            onChange={(event) =>
+                                setData("delivery_mode", event.target.value)
+                            }
+                        >
+                            <MenuItem value="self_paced">Self-paced</MenuItem>
+                            <MenuItem value="live_online">Live online</MenuItem>
+                            <MenuItem value="blended">Blended</MenuItem>
+                            <MenuItem value="in_person">In person</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <Typography variant="caption" color="text.secondary">
+                        {program.deliveryModeLocked
+                            ? "Delivery mode is controlled by platform policy."
+                            : "Used for online learning, engagement, pricing, and integrations."}
+                    </Typography>
+                </Box>
 
                 <Box>
                     {renderFieldLabel("Image")}

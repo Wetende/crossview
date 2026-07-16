@@ -15,6 +15,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db.models import Count, Q
 from django.db import transaction
@@ -1571,6 +1572,10 @@ def _get_student_dashboard_data(user) -> dict:
     )
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import Enrollment, NodeCompletion
+    from apps.learning_operations.selectors import (
+        get_student_operations,
+        serialize_enrollment_operations,
+    )
 
     # Get active enrollments with progress
     enrollments = list(
@@ -1667,6 +1672,7 @@ def _get_student_dashboard_data(user) -> dict:
                 "ratingCount": program.rating_count or 0,
                 "badgeType": program.badge_type,
                 "enrolledAt": enrollment.enrolled_at.isoformat(),
+                **serialize_enrollment_operations(enrollment, total_nodes),
             }
         )
 
@@ -1732,6 +1738,7 @@ def _get_student_dashboard_data(user) -> dict:
                     if submission and submission.submitted_at
                     else None
                 ),
+                "feedback": submission.feedback if submission else "",
             }
         )
 
@@ -1775,12 +1782,13 @@ def _get_student_dashboard_data(user) -> dict:
 
     quizzes_data = list(quiz_map.values())
 
+    operations = get_student_operations(user)
     return {
         "enrollments": enrollment_data,
         "recentActivity": recent_activity,
         "assignments": assignments_data,
         "quizzes": quizzes_data,
-        "upcomingDeadlines": [],
+        "upcomingDeadlines": operations["upcomingDeadlines"],
     }
 
 
@@ -1794,6 +1802,7 @@ def _get_instructor_dashboard_data(user) -> dict:
         EnrollmentRequest,
         InstructorAssignment,
     )
+    from apps.learning_operations.selectors import get_instructor_workload
 
     # Get assigned programs
     assignments = InstructorAssignment.objects.filter(instructor=user)
@@ -1812,6 +1821,7 @@ def _get_instructor_dashboard_data(user) -> dict:
     pending_enrollments = EnrollmentRequest.objects.filter(
         program_id__in=program_ids, status="pending"
     ).count()
+    grading_workload = get_instructor_workload(program_ids)
 
     total_enrollments = Enrollment.objects.filter(program_id__in=program_ids).count()
     completed_enrollments = Enrollment.objects.filter(
@@ -1869,8 +1879,10 @@ def _get_instructor_dashboard_data(user) -> dict:
             "totalStudents": total_students,
             "pendingReviews": pending_reviews,
             "pendingEnrollments": pending_enrollments,
+            "gradingWorkload": grading_workload["total"],
             "completionRate": round(completion_rate, 1),
         },
+        "gradingWorkload": grading_workload,
         "recentSubmissions": submissions_data,
         "pendingEnrollmentRequests": enrollment_requests_data,
     }
@@ -6574,6 +6586,10 @@ def serialize_program_data(program):
     from apps.platform.exam_body_registry import get_registry_for_frontend
     from apps.platform.models import PlatformSettings
     from apps.progression.models import InstructorAssignment
+    from apps.learning_operations.services import (
+        delivery_mode_locked,
+        get_course_delivery_profile,
+    )
 
     platform_settings = PlatformSettings.get_settings()
     platform_features = platform_settings.get_default_features_for_mode()
@@ -6655,6 +6671,7 @@ def serialize_program_data(program):
         .order_by("first_name", "last_name", "email")[:200]
     ]
     certificate_enabled = bool(program.blueprint and program.blueprint.certificate_enabled)
+    delivery_profile = get_course_delivery_profile(program)
 
     return {
         "program": {
@@ -6713,6 +6730,8 @@ def serialize_program_data(program):
             "dripMode": program.drip_mode,
             "ratingAverage": float(program.rating_average or 0),
             "ratingCount": program.rating_count,
+            "deliveryMode": delivery_profile.delivery_mode,
+            "deliveryModeLocked": delivery_mode_locked(),
             "taxonomy": {
                 "level": level,
                 "builderHierarchy": builder_hierarchy,
@@ -7943,6 +7962,7 @@ def instructor_program_update_settings(request, pk: int):
     from apps.platform.models import PlatformSettings
 
     program = Program.objects.get(pk=pk)
+    from apps.learning_operations.services import update_course_delivery_profile
     program_categories = PlatformSettings.get_settings().get_program_categories()
     pricing_context = _get_platform_pricing_context()
     data = get_post_data(request)
@@ -8082,6 +8102,20 @@ def instructor_program_update_settings(request, pk: int):
     if active_tab == "settings" and settings_section == "main" and "level" in data:
         selected_level = str(data.get("level") or "").strip()
         program.level = selected_level
+
+    if (
+        active_tab == "settings"
+        and settings_section == "main"
+        and "delivery_mode" in data
+    ):
+        try:
+            update_course_delivery_profile(
+                program,
+                str(data.get("delivery_mode") or "").strip(),
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return _redirect_to_builder()
 
     if active_tab == "settings" and settings_section == "main" and "thumbnail" in files:
         program.thumbnail = files["thumbnail"]

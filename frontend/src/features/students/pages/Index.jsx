@@ -45,6 +45,10 @@ const fadeInUp = {
 };
 
 const statusColors = {
+  new: 'info',
+  not_started: 'default',
+  stalled: 'warning',
+  inactive: 'error',
   active: 'success',
   completed: 'primary',
   withdrawn: 'error',
@@ -157,6 +161,10 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
                   >
                     <MenuItem value="">All Statuses</MenuItem>
                     <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="new">New</MenuItem>
+                    <MenuItem value="not_started">Not started</MenuItem>
+                    <MenuItem value="stalled">Stalled</MenuItem>
+                    <MenuItem value="inactive">Inactive</MenuItem>
                     <MenuItem value="completed">Completed</MenuItem>
                     <MenuItem value="withdrawn">Withdrawn</MenuItem>
                     <MenuItem value="suspended">Suspended</MenuItem>
@@ -225,9 +233,9 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
                             </TableCell>
                             <TableCell>
                               <Chip 
-                                label={student.status || 'active'} 
+                                label={(student.learnerState || student.status || 'active').replaceAll('_', ' ')}
                                 size="small" 
-                                color={statusColors[student.status] || 'default'}
+                                color={statusColors[student.learnerState || student.status] || 'default'}
                               />
                             </TableCell>
                             <TableCell>

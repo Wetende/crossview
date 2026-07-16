@@ -594,7 +594,17 @@ class QuizAttempt(models.Model):
             if answer is not None:
                 is_correct, pts = question.check_answer(answer, attempt_id=self.id)
                 if is_correct is None:
-                    needs_manual = True
+                    manual_grade = self.manual_grades.filter(question=question).first()
+                    if manual_grade is None:
+                        needs_manual = True
+                    else:
+                        points_earned += max(
+                            Decimal(0),
+                            min(
+                                Decimal(str(question.points)),
+                                Decimal(str(manual_grade.points_awarded)),
+                            ),
+                        )
                 else:
                     points_earned += max(Decimal(0), Decimal(str(pts or 0)))
 

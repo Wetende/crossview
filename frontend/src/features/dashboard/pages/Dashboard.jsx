@@ -82,10 +82,11 @@ function StatCard({ title, value, icon: Icon, color = "primary" }) {
 // Student Dashboard Content
 // =============================================================================
 
-function StudentContent({ enrollments, assignments, quizzes }) {
+function StudentContent({ enrollments, assignments, quizzes, upcomingDeadlines }) {
     const enrollmentList = enrollments || [];
     const assignmentsList = assignments || [];
     const quizzesList = quizzes || [];
+    const deadlineList = upcomingDeadlines || [];
 
     const activeEnrollments = enrollmentList.filter(
         (e) => e.progressPercent < 100,
@@ -136,6 +137,31 @@ function StudentContent({ enrollments, assignments, quizzes }) {
                     overview.
                 </Typography>
             </Box>
+
+            {deadlineList.length > 0 && (
+                <Paper sx={{ p: 3, border: "1px solid", borderColor: "divider" }}>
+                    <Typography variant="h6" gutterBottom>
+                        Upcoming deadlines
+                    </Typography>
+                    <Stack spacing={1}>
+                        {deadlineList.slice(0, 5).map((deadline) => (
+                            <Stack
+                                key={`${deadline.type}-${deadline.id}`}
+                                direction={{ xs: "column", sm: "row" }}
+                                justifyContent="space-between"
+                                spacing={1}
+                            >
+                                <Typography variant="body2">
+                                    {deadline.title} · {deadline.programName}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    {new Date(deadline.dueAt).toLocaleString()}
+                                </Typography>
+                            </Stack>
+                        ))}
+                    </Stack>
+                </Paper>
+            )}
 
             {/* Top Row: 4 Summary Cards */}
             <Grid container spacing={3}>
@@ -1078,6 +1104,7 @@ function StudentContent({ enrollments, assignments, quizzes }) {
 
 function InstructorContent({
     stats,
+    gradingWorkload,
     recentSubmissions,
     pendingEnrollmentRequests,
 }) {
@@ -1112,8 +1139,8 @@ function InstructorContent({
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                     <StatCard
-                        title="Pending Reviews"
-                        value={stats?.pendingReviews || 0}
+                        title="Grading workload"
+                        value={stats?.gradingWorkload || 0}
                         icon={RateReviewIcon}
                         color="warning"
                     />
@@ -1127,6 +1154,17 @@ function InstructorContent({
                     />
                 </Grid>
             </Grid>
+
+            <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    Grading queue
+                </Typography>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
+                    <Chip label={`${gradingWorkload?.assignments || 0} assignments`} />
+                    <Chip label={`${gradingWorkload?.manualQuizzes || 0} manual quizzes`} />
+                    <Chip label={`${gradingWorkload?.practicum || 0} practicum reviews`} />
+                </Stack>
+            </Paper>
 
             {/* Quick Actions & Submissions */}
             <Grid container spacing={4}>
@@ -1705,6 +1743,7 @@ export default function Dashboard(props) {
                 return (
                     <InstructorContent
                         stats={props.stats}
+                        gradingWorkload={props.gradingWorkload}
                         recentSubmissions={props.recentSubmissions}
                         pendingEnrollmentRequests={
                             props.pendingEnrollmentRequests
@@ -1717,6 +1756,7 @@ export default function Dashboard(props) {
                         enrollments={props.enrollments}
                         assignments={props.assignments}
                         quizzes={props.quizzes}
+                        upcomingDeadlines={props.upcomingDeadlines}
                     />
                 );
         }

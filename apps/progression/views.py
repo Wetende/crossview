@@ -297,6 +297,10 @@ def student_dashboard(request):
     Requirements: 1.1, 1.2, 1.3, 1.4
     """
     user = request.user
+    from apps.learning_operations.selectors import (
+        get_student_operations,
+        serialize_enrollment_operations,
+    )
 
     # Get active enrollments with progress
     enrollments = Enrollment.objects.filter(
@@ -319,6 +323,7 @@ def student_dashboard(request):
                 "progressPercent": round(progress, 1),
                 "status": effective_status,
                 "enrolledAt": enrollment.enrolled_at.isoformat(),
+                **serialize_enrollment_operations(enrollment, total_nodes),
             }
         )
 
@@ -340,8 +345,7 @@ def student_dashboard(request):
         for c in recent_completions
     ]
 
-    # Upcoming deadlines (placeholder - would come from assessments)
-    upcoming_deadlines = []
+    upcoming_deadlines = get_student_operations(user)["upcomingDeadlines"]
 
     return render(
         request,
@@ -518,6 +522,9 @@ def program_view(request, pk: int):
         user=request.user,
     )
     program = enrollment.program
+    from apps.learning_operations.services import record_learning_activity
+
+    record_learning_activity(enrollment, "course_overview")
     blocked_response = _redirect_if_course_prerequisites_unmet(request, enrollment)
     if blocked_response:
         return blocked_response
@@ -658,6 +665,9 @@ def _render_course_player(request, enrollment, node, completions, status_map):
     Extracted to share logic between program_view and session_viewer.
     """
     program = enrollment.program
+    from apps.learning_operations.services import record_learning_activity
+
+    record_learning_activity(enrollment, "course_player")
 
     # Check if completed
     is_completed = node.id in completions
@@ -2017,6 +2027,7 @@ def instructor_dashboard(request):
     Requirements: FR-1.1, FR-1.2, FR-1.3
     """
     user = request.user
+    from apps.learning_operations.selectors import get_instructor_workload
 
     # Get assigned programs
     programs = _get_instructor_programs(user)
@@ -2030,6 +2041,7 @@ def instructor_dashboard(request):
     pending_reviews = PracticumSubmission.objects.filter(
         enrollment__program_id__in=program_ids, status="pending"
     ).count()
+    grading_workload = get_instructor_workload(program_ids)
 
     # Calculate completion rate
     total_enrollments = Enrollment.objects.filter(program_id__in=program_ids).count()
@@ -2080,8 +2092,10 @@ def instructor_dashboard(request):
                 "programCount": programs.count(),
                 "totalStudents": total_students,
                 "pendingReviews": pending_reviews,
+                "gradingWorkload": grading_workload["total"],
                 "completionRate": round(completion_rate, 1),
             },
+            "gradingWorkload": grading_workload,
             "recentSubmissions": submissions_data,
             "upcomingDeadlines": upcoming_deadlines,
         },
@@ -2323,6 +2337,7 @@ def instructor_students(request, pk: int):
     Requirements: FR-3.1, FR-3.3, FR-3.4
     """
     user = request.user
+    from apps.learning_operations.selectors import get_program_learners
 
     # Verify instructor/staff has access
     program = _get_instructor_accessible_program(user, pk)
@@ -2336,54 +2351,18 @@ def instructor_students(request, pk: int):
     page = int(request.GET.get("page", 1))
     per_page = 20
 
-    # Query enrollments
-    enrollments = Enrollment.objects.filter(program=program).select_related("user")
-
-    if status_filter:
-        enrollments = enrollments.filter(status=status_filter)
-
-    if search:
-        enrollments = enrollments.filter(
-            Q(user__first_name__icontains=search)
-            | Q(user__last_name__icontains=search)
-            | Q(user__email__icontains=search)
-        )
-
-    enrollments = enrollments.order_by("-enrolled_at")
-
-    # Pagination
-    total_count = enrollments.count()
+    learner_rows = get_program_learners(
+        program,
+        state=status_filter or None,
+        search=search or None,
+    )
+    total_count = len(learner_rows)
     total_pages = (total_count + per_page - 1) // per_page
     offset = (page - 1) * per_page
-    enrollments = enrollments[offset : offset + per_page]
-
-    # Build student data with progress
-    total_nodes = _get_completable_nodes_count(program)
-    students_data = []
-
-    for enrollment in enrollments:
-        completed_nodes = enrollment.completions.count()
-        progress = (completed_nodes / total_nodes * 100) if total_nodes > 0 else 0
-
-        # Get last activity
-        last_completion = enrollment.completions.order_by("-completed_at").first()
-
-        students_data.append(
-            {
-                "id": enrollment.user.id,
-                "enrollmentId": enrollment.id,
-                "name": enrollment.user.get_full_name() or enrollment.user.email,
-                "email": enrollment.user.email,
-                "enrolledAt": enrollment.enrolled_at.isoformat(),
-                "progress": round(progress, 1),
-                "status": enrollment.status,
-                "lastActivity": (
-                    last_completion.completed_at.isoformat()
-                    if last_completion
-                    else None
-                ),
-            }
-        )
+    students_data = learner_rows[offset : offset + per_page]
+    for student in students_data:
+        student["id"] = student["userId"]
+        student["progress"] = student["progressPercent"]
 
     return render(
         request,
@@ -2416,6 +2395,7 @@ def instructor_student_detail(request, pk: int, enrollment_id: int):
     Requirements: FR-3.2
     """
     user = request.user
+    from apps.learning_operations.selectors import serialize_enrollment_operations
 
     # Verify instructor/staff has access
     program = _get_instructor_accessible_program(user, pk)
@@ -2465,6 +2445,7 @@ def instructor_student_detail(request, pk: int, enrollment_id: int):
         }
         for log in activity_log
     ]
+    operations = serialize_enrollment_operations(enrollment)
 
     return render(
         request,
@@ -2477,6 +2458,7 @@ def instructor_student_detail(request, pk: int, enrollment_id: int):
                 "email": enrollment.user.email,
                 "status": enrollment.status,
                 "enrolledAt": enrollment.enrolled_at.isoformat(),
+                **operations,
             },
             "curriculum": curriculum_tree,
             "activity": activity_data,
