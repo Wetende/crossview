@@ -43,7 +43,12 @@ const STEP_OFFLINE_PENDING = "offline_pending";
 
 export default function Checkout({ paystack }) {
     const { checkout } = usePage().props;
-    const { cart, loading: cartLoading, refreshCart } = useCart();
+    const {
+        cart,
+        loading: cartLoading,
+        refreshCart,
+        confirmPrices,
+    } = useCart();
     const { formatMinorCurrency } = useCurrency();
     const [step, setStep] = useState(STEP_REVIEW);
     const [error, setError] = useState("");
@@ -52,6 +57,7 @@ export default function Checkout({ paystack }) {
     const [offlinePayment, setOfflinePayment] = useState(null);
     const [preview, setPreview] = useState({ mode: "cart", items: [], itemCount: 0, totalMinor: 0, currency: "" });
     const [previewLoading, setPreviewLoading] = useState(false);
+    const [confirmingPrices, setConfirmingPrices] = useState(false);
 
     // Payment Selection State
     const [paymentMethod, setPaymentMethod] = useState("mpesa");
@@ -107,6 +113,20 @@ export default function Checkout({ paystack }) {
         ? !previewLoading && items.length === 0
         : !cartLoading && items.length === 0;
     const directProgramUrl = isDirectMode ? items[0]?.program?.publicUrl : "";
+    const requiresPriceConfirmation = Boolean(
+        !isDirectMode && cart?.requiresPriceConfirmation
+    );
+    const pricingError = !isDirectMode ? cart?.pricingError || "" : "";
+
+    const handleConfirmPrices = useCallback(async () => {
+        setConfirmingPrices(true);
+        setError("");
+        const res = await confirmPrices();
+        if (!res.ok) {
+            setError(res.message || "Unable to confirm current prices.");
+        }
+        setConfirmingPrices(false);
+    }, [confirmPrices]);
 
     useEffect(() => {
         if (isEmpty || availablePaymentMethods.length === 0) {
@@ -130,6 +150,13 @@ export default function Checkout({ paystack }) {
 
     const handlePlaceOrder = useCallback(async () => {
         setError("");
+
+        if (requiresPriceConfirmation || pricingError) {
+            setError(
+                pricingError || "Review and confirm the updated course prices before paying."
+            );
+            return;
+        }
 
         if (availablePaymentMethods.length === 0) {
             setError("This course is not configured for LMS payment.");
@@ -161,6 +188,9 @@ export default function Checkout({ paystack }) {
         );
         if (!orderRes.ok) {
             setError(orderRes.message || "Failed to create order.");
+            if (!isDirectMode && orderRes.error === "price_confirmation_required") {
+                refreshCart();
+            }
             setStep(STEP_REVIEW);
             return;
         }
@@ -258,7 +288,20 @@ export default function Checkout({ paystack }) {
                 );
             }
         }
-    }, [availablePaymentMethods.length, getOrderPageUrl, handlePaid, isDirectMode, directProgramId, paystack, refreshCart, paymentMethod, phoneNumber]);
+    }, [
+        admissionApplicationId,
+        availablePaymentMethods.length,
+        getOrderPageUrl,
+        handlePaid,
+        isDirectMode,
+        directProgramId,
+        paystack,
+        refreshCart,
+        paymentMethod,
+        phoneNumber,
+        pricingError,
+        requiresPriceConfirmation,
+    ]);
 
     // Determine primary program ID for "Go to Course" after payment
     const primaryProgramId = order?.items?.[0]?.program?.id || order?.program?.id || null;
@@ -284,6 +327,31 @@ export default function Checkout({ paystack }) {
                 {error && (
                     <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
                         {error}
+                    </Alert>
+                )}
+
+                {step === STEP_REVIEW && pricingError && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {pricingError}
+                    </Alert>
+                )}
+
+                {step === STEP_REVIEW && requiresPriceConfirmation && !pricingError && (
+                    <Alert
+                        severity="warning"
+                        sx={{ mb: 2 }}
+                        action={(
+                            <Button
+                                color="inherit"
+                                size="small"
+                                onClick={handleConfirmPrices}
+                                disabled={confirmingPrices}
+                            >
+                                Confirm prices
+                            </Button>
+                        )}
+                    >
+                        Course pricing changed. Review the updated total before payment.
                     </Alert>
                 )}
 
@@ -489,7 +557,11 @@ export default function Checkout({ paystack }) {
                                 fullWidth
                                 size="large"
                                 onClick={handlePlaceOrder}
-                                disabled={availablePaymentMethods.length === 0}
+                                disabled={
+                                    availablePaymentMethods.length === 0 ||
+                                    requiresPriceConfirmation ||
+                                    Boolean(pricingError)
+                                }
                                 startIcon={<IconLock size={18} />}
                                 sx={{ py: 1.5, fontWeight: 700 }}
                             >

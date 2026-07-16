@@ -1,9 +1,13 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
+from django.core.exceptions import ValidationError
 
 from apps.core.services.pricing import (
     normalize_custom_pricing,
     resolve_pricing_recommendation,
     serialize_price_display,
+    validate_custom_pricing,
 )
 
 
@@ -91,3 +95,95 @@ def test_paid_theology_courses_can_use_online_without_payment_feature_override()
 
     assert pricing["payment_collection"] == "both"
     assert pricing["card_display"] == "price"
+
+
+def test_scheduled_sale_resolves_regular_sale_and_regular_across_window():
+    starts_at = datetime(2026, 7, 10, 0, 0, tzinfo=UTC)
+    ends_at = starts_at + timedelta(days=7)
+    configured = {
+        "price": 80,
+        "original_price": 100,
+        "sale_starts_at": starts_at.isoformat(),
+        "sale_ends_at": ends_at.isoformat(),
+        "price_info": "Includes all course materials",
+        "payment_collection": "online",
+    }
+
+    before = normalize_custom_pricing(
+        configured,
+        deployment_mode="online",
+        course_delivery_mode="self_paced",
+        now=starts_at - timedelta(seconds=1),
+    )
+    during = normalize_custom_pricing(
+        configured,
+        deployment_mode="online",
+        course_delivery_mode="self_paced",
+        now=starts_at,
+    )
+    after = normalize_custom_pricing(
+        configured,
+        deployment_mode="online",
+        course_delivery_mode="self_paced",
+        now=ends_at,
+    )
+
+    assert before["effective_price"] == 100
+    assert before["sale_active"] is False
+    assert during["effective_price"] == 80
+    assert during["sale_active"] is True
+    assert after["effective_price"] == 100
+    display = serialize_price_display(during)
+    assert display["effectivePrice"] == 80
+    assert display["regularPrice"] == 100
+    assert display["saleActive"] is True
+    assert display["saleStartsAt"] == starts_at.isoformat()
+    assert display["saleEndsAt"] == ends_at.isoformat()
+    assert display["priceInfo"] == "Includes all course materials"
+
+
+def test_unscheduled_discount_remains_continuously_active():
+    pricing = normalize_custom_pricing(
+        {"price": 75, "original_price": 100},
+        deployment_mode="online",
+        course_delivery_mode="self_paced",
+    )
+
+    assert pricing["effective_price"] == 75
+    assert pricing["sale_active"] is True
+
+
+@pytest.mark.parametrize(
+    ("pricing", "delivery_mode", "message"),
+    [
+        ({"price": -1}, "self_paced", "cannot be negative"),
+        (
+            {"price": 100, "original_price": 100},
+            "self_paced",
+            "must be greater",
+        ),
+        (
+            {"price": 80, "original_price": 100, "sale_starts_at": "2026-07-10T00:00:00Z"},
+            "self_paced",
+            "both a start and end",
+        ),
+        (
+            {
+                "price": 80,
+                "original_price": 100,
+                "sale_starts_at": "2026-07-10T00:00:00Z",
+                "sale_ends_at": "2026-07-11T00:00:00Z",
+                "payment_collection": "online",
+            },
+            "in_person",
+            "self-paced, live-online, or blended",
+        ),
+    ],
+)
+def test_pricing_validation_rejects_invalid_sales(pricing, delivery_mode, message):
+    with pytest.raises(ValidationError, match=message):
+        validate_custom_pricing(
+            pricing,
+            deployment_mode="online",
+            course_delivery_mode=delivery_mode,
+        )

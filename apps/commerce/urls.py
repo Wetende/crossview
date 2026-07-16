@@ -14,6 +14,11 @@ urlpatterns = [
         name="cart_remove_item",
     ),
     path("commerce/cart/clear/", views.cart_clear, name="cart_clear"),
+    path(
+        "commerce/cart/confirm-prices/",
+        views.cart_confirm_prices,
+        name="cart_confirm_prices",
+    ),
     path("commerce/orders/", views.commerce_orders, name="orders"),
     path("commerce/wishlist/", views.wishlist_list, name="wishlist_list"),
     path("commerce/wishlist/items/", views.wishlist_add_item, name="wishlist_add_item"),

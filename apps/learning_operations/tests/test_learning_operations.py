@@ -7,8 +7,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.assessments.models import Question, Quiz, QuizAttempt
+from apps.commerce.models import Order, ProgramRevenueShare, SettlementParty
+from apps.commerce.services import CheckoutService
 from apps.core.tests.factories import UserFactory
 from apps.curriculum.models import CurriculumNode
+from apps.platform.models import PlatformSettings
 from apps.progression.models import Enrollment, InstructorAssignment, NodeCompletion
 from apps.progression.tests.factories import ProgramFactory
 
@@ -159,3 +162,58 @@ def test_manual_quiz_grade_finalizes_attempt(client, instructor, program, enroll
     assert attempt.passed is True
     assert ManualQuizGrade.objects.get(attempt=attempt).feedback == "Good"
 
+
+@pytest.mark.django_db
+def test_instructor_revenue_drilldown_is_currency_separated_and_share_aware(
+    client, instructor, program
+):
+    platform = PlatformSettings.get_settings()
+    platform.features = {**(platform.features or {}), "payments": True}
+    platform.save(update_fields=["features", "updated_at"])
+    program.is_published = True
+    program.custom_pricing = {
+        "price": 1000,
+        "currency": "KES",
+        "payment_collection": "online",
+        "card_display": "price",
+    }
+    program.save(update_fields=["is_published", "custom_pricing", "updated_at"])
+    settlement_party = SettlementParty.objects.create(
+        party_type=SettlementParty.TYPE_INSTRUCTOR,
+        display_name="Course instructor",
+        user=instructor,
+        payout_method=SettlementParty.PAYOUT_METHOD_KEPSS,
+    )
+    ProgramRevenueShare.objects.create(
+        program=program,
+        settlement_party=settlement_party,
+        share_bps=3000,
+    )
+    student = UserFactory()
+    order = CheckoutService.create_order_from_programs(
+        student, [program], Order.PROVIDER_PAYSTACK
+    )
+    CheckoutService.mark_order_paid(
+        order,
+        actor=student,
+        provider_reference=order.reference,
+    )
+    client.force_login(instructor)
+
+    response = client.get(reverse("learning_operations:instructor-revenue"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["currencies"] == [
+        {
+            "currency": "KES",
+            "grossMinor": 100000,
+            "refundMinor": 0,
+            "netMinor": 100000,
+            "orders": 1,
+        }
+    ]
+    course = payload["courses"][0]
+    assert course["programId"] == program.id
+    assert course["instructorShares"][0]["shareBps"] == 3000
+    assert course["instructorShares"][0]["estimatedByCurrency"][0]["netMinor"] == 30000

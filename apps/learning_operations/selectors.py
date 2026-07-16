@@ -5,7 +5,15 @@ from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from apps.assessments.models import Assignment, AssignmentSubmission, QuizAttempt
-from apps.commerce.models import OrderItem, Refund, RefundItem
+from apps.commerce.models import (
+    OrderItem,
+    ProgramRevenueShare,
+    Refund,
+    RefundItem,
+    SettlementParty,
+)
+from apps.core.models import Program
+from apps.core.utils import get_instructor_program_ids
 from apps.curriculum.models import CurriculumNode
 from apps.practicum.models import PracticumSubmission
 from apps.progression.models import Enrollment, NodeCompletion
@@ -252,6 +260,89 @@ def get_program_revenue(program):
     ]
 
 
+def get_instructor_revenue(user):
+    programs = list(
+        Program.objects.filter(id__in=get_instructor_program_ids(user)).order_by(
+            "name"
+        )
+    )
+    shares = ProgramRevenueShare.objects.filter(
+        program__in=programs,
+        active=True,
+        settlement_party__active=True,
+        settlement_party__party_type=SettlementParty.TYPE_INSTRUCTOR,
+    ).select_related("settlement_party")
+    if not (user.is_staff or user.is_superuser):
+        shares = shares.filter(settlement_party__user=user)
+    shares_by_program = defaultdict(list)
+    for share in shares:
+        shares_by_program[share.program_id].append(share)
+
+    program_ids = [program.id for program in programs]
+    totals = defaultdict(
+        lambda: {"grossMinor": 0, "refundMinor": 0, "netMinor": 0, "orders": 0}
+    )
+    paid_items = OrderItem.objects.filter(
+        program_id__in=program_ids,
+        status__in=[OrderItem.STATUS_PAID, OrderItem.STATUS_REFUNDED],
+    )
+    for row in paid_items.values("currency").annotate(
+        gross=Sum("amount_minor"),
+        orders=Count("order_id", distinct=True),
+    ):
+        bucket = totals[row["currency"]]
+        bucket["grossMinor"] = row["gross"] or 0
+        bucket["orders"] = row["orders"] or 0
+    for row in (
+        RefundItem.objects.filter(
+            order_item__program_id__in=program_ids,
+            refund__status=Refund.STATUS_PROCESSED,
+            status=RefundItem.STATUS_PROCESSED,
+        )
+        .values("order_item__currency")
+        .annotate(refunds=Sum("amount_minor"))
+    ):
+        totals[row["order_item__currency"]]["refundMinor"] = row["refunds"] or 0
+    for values in totals.values():
+        values["netMinor"] = values["grossMinor"] - values["refundMinor"]
+
+    course_rows = []
+    for program in programs:
+        currencies = get_program_revenue(program)
+        course = {
+            "programId": program.id,
+            "programName": program.name,
+            "programCode": program.code or "",
+            "currencies": currencies,
+        }
+        configured_shares = shares_by_program.get(program.id, [])
+        if configured_shares:
+            course["instructorShares"] = [
+                {
+                    "settlementPartyId": share.settlement_party_id,
+                    "displayName": share.settlement_party.display_name,
+                    "shareBps": share.share_bps,
+                    "estimatedByCurrency": [
+                        {
+                            "currency": row["currency"],
+                            "netMinor": row["netMinor"] * share.share_bps // 10000,
+                        }
+                        for row in currencies
+                    ],
+                }
+                for share in configured_shares
+            ]
+        course_rows.append(course)
+
+    return {
+        "currencies": [
+            {"currency": currency, **values}
+            for currency, values in sorted(totals.items())
+        ],
+        "courses": course_rows,
+    }
+
+
 def get_program_operations_summary(program):
     rows = get_program_learners(program)
     states = defaultdict(int)
@@ -264,4 +355,3 @@ def get_program_operations_summary(program):
         "workload": get_instructor_workload([program.id]),
         "revenue": get_program_revenue(program),
     }
-

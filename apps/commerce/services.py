@@ -88,7 +88,9 @@ def program_pricing_policy(program: Program) -> dict:
 
 def program_price_minor(program: Program) -> tuple[int, str]:
     custom_pricing = program_pricing_policy(program)
-    amount = custom_pricing.get("price", 0) or 0
+    amount = custom_pricing.get(
+        "effective_price", custom_pricing.get("price", 0)
+    ) or 0
     currency = str(custom_pricing.get("currency", "KES") or "KES").upper()
 
     try:
@@ -101,6 +103,31 @@ def program_price_minor(program: Program) -> tuple[int, str]:
 
 def program_public_url(program: Program) -> str:
     return f"/programs/{program.slug}/"
+
+
+def order_item_pricing_snapshot(
+    program: Program, *, amount_minor: int, currency: str
+) -> dict:
+    pricing = program_pricing_policy(program)
+    configured_price = pricing.get("price", 0) or 0
+    regular_price = pricing.get("regular_price")
+    effective_price = amount_minor / 100
+    return {
+        "configuredPrice": configured_price,
+        "effectivePrice": effective_price,
+        "regularPrice": regular_price,
+        "saleActive": bool(
+            regular_price is not None
+            and regular_price > configured_price
+            and amount_minor == int(round(float(configured_price) * 100))
+        ),
+        "saleStartsAt": pricing.get("sale_starts_at"),
+        "saleEndsAt": pricing.get("sale_ends_at"),
+        "priceInfo": pricing.get("price_info", ""),
+        "amountMinor": amount_minor,
+        "currency": currency,
+        "capturedAt": timezone.now().isoformat(),
+    }
 
 
 def available_payment_methods_for_pricing(
@@ -186,8 +213,8 @@ def write_order_event(
     )
 
 
-def serialize_cart_item(item: CartItem) -> dict:
-    return {
+def serialize_cart_item(item: CartItem, price_change: dict | None = None) -> dict:
+    payload = {
         "id": item.id,
         "amountMinor": item.amount_minor,
         "currency": item.currency,
@@ -200,6 +227,15 @@ def serialize_cart_item(item: CartItem) -> dict:
         },
         "createdAt": item.created_at.isoformat() if item.created_at else None,
     }
+    if price_change:
+        payload["priceChanged"] = True
+        payload["previousAmountMinor"] = price_change.get("previousAmountMinor")
+        payload["priceChangedAt"] = price_change.get("detectedAt")
+    else:
+        payload["priceChanged"] = False
+        payload["previousAmountMinor"] = None
+        payload["priceChangedAt"] = None
+    return payload
 
 
 def serialize_cart(cart: Cart | None) -> dict:
@@ -211,10 +247,16 @@ def serialize_cart(cart: Cart | None) -> dict:
             "itemCount": 0,
             "totalMinor": 0,
             "availablePaymentMethods": [],
+            "priceChanged": False,
+            "requiresPriceConfirmation": False,
+            "pricingChanges": [],
+            "pricingError": "",
             "items": [],
         }
 
     items = list(cart.items.select_related("program").all())
+    metadata = cart.metadata if isinstance(cart.metadata, dict) else {}
+    changes = metadata.get("pricing_changes") or {}
     total_minor = sum(item.amount_minor for item in items)
     programs = [item.program for item in items if item.program_id]
     return {
@@ -224,7 +266,16 @@ def serialize_cart(cart: Cart | None) -> dict:
         "itemCount": len(items),
         "totalMinor": total_minor,
         "availablePaymentMethods": available_payment_methods_for_programs(programs),
-        "items": [serialize_cart_item(item) for item in items],
+        "priceChanged": bool(changes),
+        "requiresPriceConfirmation": bool(
+            metadata.get("pricing_confirmation_required")
+        ),
+        "pricingChanges": list(changes.values()),
+        "pricingError": str(metadata.get("pricing_error") or ""),
+        "items": [
+            serialize_cart_item(item, changes.get(str(item.program_id)))
+            for item in items
+        ],
         "createdAt": cart.created_at.isoformat() if cart.created_at else None,
         "updatedAt": cart.updated_at.isoformat() if cart.updated_at else None,
     }
@@ -387,6 +438,10 @@ def serialize_payout(payout: BeneficiaryPayout) -> dict:
 
 
 class CartService:
+    PRICING_CHANGES_KEY = "pricing_changes"
+    PRICING_CONFIRMATION_KEY = "pricing_confirmation_required"
+    PRICING_ERROR_KEY = "pricing_error"
+
     @staticmethod
     def get_active_cart(user: User) -> Cart | None:
         return (
@@ -401,6 +456,107 @@ class CartService:
         if cart:
             return cart
         return Cart.objects.create(user=user, status=Cart.STATUS_ACTIVE)
+
+    @staticmethod
+    def reprice_cart(cart: Cart) -> Cart:
+        """Apply current effective prices and retain an acknowledgement boundary."""
+
+        original_metadata = cart.metadata if isinstance(cart.metadata, dict) else {}
+        metadata = dict(original_metadata)
+        changes = dict(metadata.get(CartService.PRICING_CHANGES_KEY) or {})
+        items = list(cart.items.select_related("program").all())
+        active_program_keys = {str(item.program_id) for item in items}
+        changes = {
+            key: value for key, value in changes.items() if key in active_program_keys
+        }
+        currencies = set()
+        pricing_error = ""
+
+        for item in items:
+            amount_minor, currency = program_price_minor(item.program)
+            currency = str(currency or "").upper()
+            currencies.add(currency)
+            if amount_minor <= 0:
+                pricing_error = (
+                    "A course in this cart is no longer available for paid checkout."
+                )
+            if item.amount_minor == amount_minor and item.currency == currency:
+                continue
+
+            key = str(item.program_id)
+            existing_change = changes.get(key) or {}
+            changes[key] = {
+                "programId": item.program_id,
+                "programName": item.program.name,
+                "previousAmountMinor": existing_change.get(
+                    "previousAmountMinor", item.amount_minor
+                ),
+                "amountMinor": amount_minor,
+                "previousCurrency": existing_change.get(
+                    "previousCurrency", item.currency
+                ),
+                "currency": currency,
+                "detectedAt": existing_change.get("detectedAt")
+                or timezone.now().isoformat(),
+            }
+            item.amount_minor = amount_minor
+            item.currency = currency
+            item.save(update_fields=["amount_minor", "currency", "updated_at"])
+
+        if len(currencies) > 1:
+            pricing_error = (
+                "Cart courses now use different currencies. Remove one before checkout."
+            )
+
+        metadata[CartService.PRICING_CHANGES_KEY] = changes
+        metadata[CartService.PRICING_CONFIRMATION_KEY] = bool(changes)
+        if pricing_error:
+            metadata[CartService.PRICING_ERROR_KEY] = pricing_error
+        else:
+            metadata.pop(CartService.PRICING_ERROR_KEY, None)
+        next_currency = next(iter(currencies)) if len(currencies) == 1 else ""
+        if metadata != original_metadata or cart.currency != next_currency:
+            cart.metadata = metadata
+            cart.currency = next_currency
+            cart.save(update_fields=["metadata", "currency", "updated_at"])
+        return cart
+
+    @staticmethod
+    @transaction.atomic
+    def refresh_pricing(user: User) -> Cart:
+        cart = (
+            Cart.objects.select_for_update()
+            .filter(user=user, status=Cart.STATUS_ACTIVE)
+            .first()
+        )
+        if not cart:
+            cart = Cart.objects.create(user=user, status=Cart.STATUS_ACTIVE)
+        return CartService.reprice_cart(cart)
+
+    @staticmethod
+    @transaction.atomic
+    def confirm_current_prices(user: User) -> Cart:
+        cart = (
+            Cart.objects.select_for_update()
+            .filter(user=user, status=Cart.STATUS_ACTIVE)
+            .first()
+        )
+        if not cart:
+            raise CommerceError(
+                "Active cart not found.", code="cart_not_found", status_code=404
+            )
+        CartService.reprice_cart(cart)
+        metadata = dict(cart.metadata) if isinstance(cart.metadata, dict) else {}
+        if metadata.get(CartService.PRICING_ERROR_KEY):
+            raise CommerceError(
+                metadata[CartService.PRICING_ERROR_KEY],
+                code="cart_pricing_unavailable",
+            )
+        metadata[CartService.PRICING_CHANGES_KEY] = {}
+        metadata[CartService.PRICING_CONFIRMATION_KEY] = False
+        cart.metadata = metadata
+        cart.save(update_fields=["metadata", "updated_at"])
+        return cart
 
     @staticmethod
     def _validate_program_can_be_purchased(
@@ -530,7 +686,14 @@ class CartService:
 
             if not cart.items.exists():
                 cart.currency = ""
-                cart.save(update_fields=["currency", "updated_at"])
+            metadata = dict(cart.metadata) if isinstance(cart.metadata, dict) else {}
+            changes = dict(metadata.get(CartService.PRICING_CHANGES_KEY) or {})
+            changes.pop(str(program_id), None)
+            metadata[CartService.PRICING_CHANGES_KEY] = changes
+            metadata[CartService.PRICING_CONFIRMATION_KEY] = bool(changes)
+            metadata.pop(CartService.PRICING_ERROR_KEY, None)
+            cart.metadata = metadata
+            cart.save(update_fields=["currency", "metadata", "updated_at"])
 
         return CartService.get_or_create_active_cart(user)
 
@@ -550,7 +713,8 @@ class CartService:
 
             cart.items.all().delete()
             cart.currency = ""
-            cart.save(update_fields=["currency", "updated_at"])
+            cart.metadata = {}
+            cart.save(update_fields=["currency", "metadata", "updated_at"])
 
         return CartService.get_or_create_active_cart(user)
 
@@ -621,7 +785,9 @@ class WishlistService:
                         "lecture_count": stats["lesson_count"],
                         "duration_hours": duration_hours,
                         "rating": 4.5,
-                        "price": price_data.get("price", 0),
+                        "price": price_data.get(
+                            "effective_price", price_data.get("price", 0)
+                        ),
                         "original_price": price_data.get("original_price"),
                         "priceDisplay": serialize_price_display(price_data),
                     }
@@ -977,7 +1143,7 @@ class CheckoutService:
                 ),
             }
 
-        cart = CartService.get_or_create_active_cart(user)
+        cart = CartService.refresh_pricing(user)
         serialized = serialize_cart(cart)
         return {
             "mode": "cart",
@@ -985,6 +1151,15 @@ class CheckoutService:
             "itemCount": serialized.get("itemCount", 0),
             "totalMinor": serialized.get("totalMinor", 0),
             "currency": serialized.get("currency", ""),
+            "availablePaymentMethods": serialized.get(
+                "availablePaymentMethods", []
+            ),
+            "priceChanged": serialized.get("priceChanged", False),
+            "requiresPriceConfirmation": serialized.get(
+                "requiresPriceConfirmation", False
+            ),
+            "pricingChanges": serialized.get("pricingChanges", []),
+            "pricingError": serialized.get("pricingError", ""),
         }
 
     @staticmethod
@@ -997,12 +1172,25 @@ class CheckoutService:
                     user=user,
                     status=Cart.STATUS_ACTIVE,
                 )
-                .prefetch_related("items__program")
                 .first()
             )
             if not cart:
                 raise CommerceError(
                     "Your cart is empty.", code="cart_not_found", status_code=404
+                )
+
+            CartService.reprice_cart(cart)
+            metadata = dict(cart.metadata) if isinstance(cart.metadata, dict) else {}
+            if metadata.get(CartService.PRICING_ERROR_KEY):
+                raise CommerceError(
+                    metadata[CartService.PRICING_ERROR_KEY],
+                    code="cart_pricing_unavailable",
+                )
+            if metadata.get(CartService.PRICING_CONFIRMATION_KEY):
+                raise CommerceError(
+                    "Course pricing changed while it was in your cart. Confirm the current prices before checkout.",
+                    code="price_confirmation_required",
+                    status_code=409,
                 )
 
             cart_items = list(cart.items.select_related("program").all())
@@ -1013,6 +1201,13 @@ class CheckoutService:
             prepared_items = CheckoutService._validate_programs_for_checkout(
                 user, programs, payment_method
             )
+            CartService.reprice_cart(cart)
+            if (cart.metadata or {}).get(CartService.PRICING_CONFIRMATION_KEY):
+                raise CommerceError(
+                    "Course pricing changed while checkout was being prepared. Confirm the current prices before continuing.",
+                    code="price_confirmation_required",
+                    status_code=409,
+                )
             currency = prepared_items[0][2]
             subtotal_minor = sum(amount_minor for _, amount_minor, _ in prepared_items)
             order = Order.objects.create(
@@ -1041,6 +1236,13 @@ class CheckoutService:
                     amount_minor=amount_minor,
                     currency=item_currency,
                     status=OrderItem.STATUS_PENDING,
+                    metadata={
+                        "pricing": order_item_pricing_snapshot(
+                            program,
+                            amount_minor=amount_minor,
+                            currency=item_currency,
+                        )
+                    },
                 )
 
             if len(prepared_items) == 1:
@@ -1129,6 +1331,13 @@ class CheckoutService:
                     amount_minor=amount_minor,
                     currency=item_currency,
                     status=OrderItem.STATUS_PENDING,
+                    metadata={
+                        "pricing": order_item_pricing_snapshot(
+                            program,
+                            amount_minor=amount_minor,
+                            currency=item_currency,
+                        )
+                    },
                 )
 
             if len(prepared_items) == 1:

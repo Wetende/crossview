@@ -37,6 +37,11 @@ urlpatterns = [
         name="revenue",
     ),
     path(
+        "instructor/revenue/",
+        views.InstructorRevenueView.as_view(),
+        name="instructor-revenue",
+    ),
+    path(
         "quiz-attempts/<int:attempt_id>/manual-grade/",
         views.ManualQuizGradeView.as_view(),
         name="manual-quiz-grade",

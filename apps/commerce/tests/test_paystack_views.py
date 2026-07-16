@@ -10,6 +10,7 @@ from apps.commerce.models import (
     Cart,
     CommerceConfiguration,
     Order,
+    OrderItem,
     PaymentAttempt,
     ProgramAccessGrant,
     Refund,
@@ -226,6 +227,61 @@ def test_checkout_creates_multi_item_order_and_clears_cart():
     assert len(order_payload["items"]) == 2
     assert checked_out_cart.status == "checked_out"
     assert checked_out_cart.items.count() == 0
+
+
+def test_cart_price_change_requires_confirmation_and_order_keeps_snapshot():
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-REPRICE-001", price=1000)
+    add_response = client.post(
+        reverse("commerce:cart_add_item"),
+        data=json.dumps({"programId": program.id}),
+        content_type="application/json",
+    )
+    assert add_response.status_code == 201
+
+    program.custom_pricing = {
+        **program.custom_pricing,
+        "price": 1250,
+        "price_info": "Updated course fee",
+    }
+    program.save(update_fields=["custom_pricing", "updated_at"])
+
+    cart_response = client.get(reverse("commerce:cart_detail"))
+    cart = cart_response.json()["cart"]
+    assert cart["totalMinor"] == 125000
+    assert cart["requiresPriceConfirmation"] is True
+    assert cart["items"][0]["previousAmountMinor"] == 100000
+    assert cart["items"][0]["amountMinor"] == 125000
+
+    blocked = client.post(
+        reverse("commerce:orders"),
+        data=json.dumps({"paymentMethod": "paystack"}),
+        content_type="application/json",
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["error"] == "price_confirmation_required"
+
+    confirmation = client.post(reverse("commerce:cart_confirm_prices"))
+    assert confirmation.status_code == 200
+    assert confirmation.json()["cart"]["requiresPriceConfirmation"] is False
+
+    checkout = client.post(
+        reverse("commerce:orders"),
+        data=json.dumps({"paymentMethod": "paystack"}),
+        content_type="application/json",
+    )
+    assert checkout.status_code == 201
+    order_item = OrderItem.objects.get(order_id=checkout.json()["order"]["id"])
+    assert order_item.amount_minor == 125000
+    assert order_item.metadata["pricing"]["effectivePrice"] == 1250
+    assert order_item.metadata["pricing"]["priceInfo"] == "Updated course fee"
+
+    program.custom_pricing = {**program.custom_pricing, "price": 1500}
+    program.save(update_fields=["custom_pricing", "updated_at"])
+    order_item.refresh_from_db()
+    assert order_item.amount_minor == 125000
+    assert order_item.metadata["pricing"]["effectivePrice"] == 1250
 
 
 def test_checkout_preview_direct_returns_selected_program():

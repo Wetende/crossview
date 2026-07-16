@@ -1323,6 +1323,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             recommendation={program.pricingRecommendation || {}}
                             recommendations={program.pricingRecommendations || {}}
                             platformFeatures={platformFeatures}
+                            platformTimezone={props.platformTimezone || "UTC"}
                             deploymentMode={deploymentMode}
                             examBody={formData.examBody || program.examBody}
                             qualificationFamily={

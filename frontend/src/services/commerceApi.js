@@ -43,6 +43,10 @@ export function clearCart() {
     return request("post", "/commerce/cart/clear/");
 }
 
+export function confirmCartPrices() {
+    return request("post", "/commerce/cart/confirm-prices/");
+}
+
 export function getCheckoutPreview(programIds = null) {
     const params = new URLSearchParams();
     if (Array.isArray(programIds) && programIds.length > 0) {

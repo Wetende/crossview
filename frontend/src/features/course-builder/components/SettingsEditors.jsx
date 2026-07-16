@@ -20,12 +20,30 @@ const hasPositivePrice = (value) => {
     return Number.isFinite(numeric) && numeric > 0;
 };
 
+const toDateTimeLocalValue = (value, timeZone) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value).slice(0, 16);
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timeZone || 'UTC',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+    }).formatToParts(parsed);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
+};
+
 export const PricingEditor = ({
     data = {},
     onChange,
     recommendation = {},
     recommendations = {},
     platformFeatures = {},
+    platformTimezone = 'UTC',
 }) => {
     const currency = data.currency || 'KES';
     const originalPrice = data.original_price ?? data.sale_price ?? '';
@@ -111,16 +129,16 @@ export const PricingEditor = ({
                 <TextField
                     type="number"
                     fullWidth
-                    label={`Learner price (${currency})`}
+                    label={`Sale/current price (${currency})`}
                     placeholder="0"
                     value={data.price || ''}
                     onChange={e => handlePriceChange(e.target.value)}
-                    inputProps={{ min: 0 }}
+                    slotProps={{ htmlInput: { min: 0 } }}
                 />
                 <TextField
                     type="number"
                     fullWidth
-                    label={`Original price (${currency})`}
+                    label={`Regular price (${currency})`}
                     placeholder="0"
                     value={originalPrice}
                     onChange={e => {
@@ -128,10 +146,45 @@ export const PricingEditor = ({
                         delete nextData.sale_price;
                         onChange(nextData);
                     }}
-                    inputProps={{ min: 0 }}
-                    helperText="Optional comparison price for discounts."
+                    slotProps={{ htmlInput: { min: 0 } }}
+                    helperText="Required for a discount and must be greater than the sale price."
                 />
             </Stack>
+
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                <TextField
+                    type="datetime-local"
+                    fullWidth
+                    label="Sale starts"
+                    value={toDateTimeLocalValue(data.sale_starts_at, platformTimezone)}
+                    onChange={e => onChange({
+                        ...data,
+                        sale_starts_at: e.target.value,
+                    })}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                    helperText="Leave both dates empty for a continuously active discount."
+                />
+                <TextField
+                    type="datetime-local"
+                    fullWidth
+                    label="Sale ends"
+                    value={toDateTimeLocalValue(data.sale_ends_at, platformTimezone)}
+                    onChange={e => onChange({
+                        ...data,
+                        sale_ends_at: e.target.value,
+                    })}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                />
+            </Stack>
+
+            <TextField
+                fullWidth
+                label="Price information"
+                value={data.price_info || ''}
+                onChange={e => onChange({ ...data, price_info: e.target.value })}
+                helperText="Optional learner-facing context, such as what the fee includes."
+                slotProps={{ htmlInput: { maxLength: 500 } }}
+            />
 
             <FormControl fullWidth>
                 <InputLabel>Payment</InputLabel>

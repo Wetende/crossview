@@ -260,7 +260,7 @@ def paystack_webhook(request):
 @login_required
 @require_GET
 def cart_detail(request):
-    cart = CartService.get_or_create_active_cart(request.user)
+    cart = CartService.refresh_pricing(request.user)
     return _json_ok({"cart": serialize_cart(cart)})
 
 
@@ -294,6 +294,16 @@ def cart_remove_item(request, program_id: int):
 def cart_clear(request):
     cart = CartService.clear_cart(request.user)
     return _json_ok({"cart": serialize_cart(cart)})
+
+
+@login_required
+@require_POST
+def cart_confirm_prices(request):
+    try:
+        cart = CartService.confirm_current_prices(request.user)
+        return _json_ok({"cart": serialize_cart(cart)})
+    except CommerceError as error:
+        return _json_error(error)
 
 
 @login_required

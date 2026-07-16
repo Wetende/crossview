@@ -29,11 +29,19 @@ import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/hooks/useCurrency";
 
 export default function Cart() {
-    const { cart, loading, removeFromCart, clearCart, refreshCart } = useCart();
+    const {
+        cart,
+        loading,
+        removeFromCart,
+        clearCart,
+        refreshCart,
+        confirmPrices,
+    } = useCart();
     const { formatMinorCurrency } = useCurrency();
     const [removing, setRemoving] = useState(null);
     const [clearing, setClearing] = useState(false);
     const [error, setError] = useState("");
+    const [confirmingPrices, setConfirmingPrices] = useState(false);
 
     // Refresh cart on mount in case it's stale
     useEffect(() => {
@@ -62,6 +70,16 @@ export default function Cart() {
 
     const items = cart?.items || [];
     const isEmpty = !loading && items.length === 0;
+
+    const handleConfirmPrices = async () => {
+        setConfirmingPrices(true);
+        setError("");
+        const res = await confirmPrices();
+        if (!res.ok) {
+            setError(res.message || "Unable to confirm current prices.");
+        }
+        setConfirmingPrices(false);
+    };
 
     return (
         <DashboardLayout role="student" breadcrumbs={[{ label: "Cart" }]}>
@@ -95,6 +113,31 @@ export default function Cart() {
                 {error && (
                     <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
                         {error}
+                    </Alert>
+                )}
+
+                {cart?.pricingError && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {cart.pricingError}
+                    </Alert>
+                )}
+
+                {cart?.requiresPriceConfirmation && !cart?.pricingError && (
+                    <Alert
+                        severity="warning"
+                        sx={{ mb: 2 }}
+                        action={(
+                            <Button
+                                color="inherit"
+                                size="small"
+                                onClick={handleConfirmPrices}
+                                disabled={confirmingPrices}
+                            >
+                                Confirm prices
+                            </Button>
+                        )}
+                    >
+                        One or more course prices changed. Review the updated total before checkout.
                     </Alert>
                 )}
 
@@ -163,9 +206,20 @@ export default function Cart() {
                                             )}
                                         </Box>
                                         <Stack direction="row" spacing={2} alignItems="center">
-                                            <Typography variant="subtitle1" fontWeight={700}>
-                                                {formatMinorCurrency(item.amountMinor)}
-                                            </Typography>
+                                            <Stack spacing={0} alignItems="flex-end">
+                                                {item.priceChanged && item.previousAmountMinor !== null && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                        sx={{ textDecoration: "line-through" }}
+                                                    >
+                                                        {formatMinorCurrency(item.previousAmountMinor)}
+                                                    </Typography>
+                                                )}
+                                                <Typography variant="subtitle1" fontWeight={700}>
+                                                    {formatMinorCurrency(item.amountMinor)}
+                                                </Typography>
+                                            </Stack>
                                             <Tooltip title="Remove from cart">
                                                 <IconButton
                                                     size="small"
@@ -200,6 +254,9 @@ export default function Cart() {
                                     size="large"
                                     endIcon={<IconArrowRight size={18} />}
                                     onClick={() => router.visit("/checkout/")}
+                                    disabled={Boolean(
+                                        cart?.requiresPriceConfirmation || cart?.pricingError
+                                    )}
                                     sx={{ py: 1.5, fontWeight: 700 }}
                                 >
                                     Proceed to Checkout

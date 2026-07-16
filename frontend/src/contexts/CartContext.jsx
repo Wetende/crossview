@@ -58,6 +58,14 @@ export function CartProvider({ children }) {
         return res;
     }, []);
 
+    const confirmPrices = useCallback(async () => {
+        const res = await commerceApi.confirmCartPrices();
+        if (res.ok) {
+            setCart(res.cart);
+        }
+        return res;
+    }, []);
+
     // Reset cart on logout, fetch on login
     useEffect(() => {
         if (isAuthenticated) {
@@ -75,6 +83,7 @@ export function CartProvider({ children }) {
         addToCart,
         removeFromCart,
         clearCart: clearCartAction,
+        confirmPrices,
     };
 
     return (

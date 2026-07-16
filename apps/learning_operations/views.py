@@ -39,6 +39,7 @@ from .selectors import (
     get_program_learners,
     get_program_operations_summary,
     get_program_revenue,
+    get_instructor_revenue,
     get_student_operations,
     serialize_enrollment_operations,
 )
@@ -196,6 +197,13 @@ class ProgramRevenueView(APIView):
     def get(self, request, program_id):
         program = _instructor_program(request, program_id)
         return Response({"programId": program.id, "currencies": get_program_revenue(program)})
+
+
+class InstructorRevenueView(APIView):
+    permission_classes = [IsInstructorOrStaff]
+
+    def get(self, request):
+        return Response(get_instructor_revenue(request.user))
 
 
 class ManualQuizGradeView(APIView):

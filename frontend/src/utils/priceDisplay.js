@@ -7,9 +7,15 @@ const toNumber = (value) => {
 
 export function resolvePriceDisplay(program = {}) {
     const display = program.priceDisplay || {};
-    const price = toNumber(display.price ?? program.price);
+    const price = toNumber(
+        display.effectivePrice ?? display.price ?? program.effectivePrice ?? program.price,
+    );
     const originalPrice = toNumber(
-        display.originalPrice ?? program.originalPrice ?? program.original_price,
+        display.regularPrice ??
+            display.originalPrice ??
+            program.regularPrice ??
+            program.originalPrice ??
+            program.original_price,
     );
     const rawCardDisplay =
         display.cardDisplay || display.card_display || (price > 0 ? "price" : "free");
@@ -36,5 +42,9 @@ export function resolvePriceDisplay(program = {}) {
         showFree: cardDisplay === "free",
         showPrice: cardDisplay === "price" && price > 0,
         hasDiscount: originalPrice > price && price > 0,
+        saleActive: Boolean(display.saleActive),
+        saleStartsAt: display.saleStartsAt || null,
+        saleEndsAt: display.saleEndsAt || null,
+        priceInfo: display.priceInfo || "",
     };
 }

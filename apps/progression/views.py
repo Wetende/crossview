@@ -2186,7 +2186,9 @@ def instructor_programs(request):
                 "isPublished": program.is_published,
                 "lectureCount": stats["lesson_count"],
                 "durationHours": duration_hours,
-                "price": price_data.get("price", 0),
+                "price": price_data.get(
+                    "effective_price", price_data.get("price", 0)
+                ),
                 "originalPrice": price_data.get("original_price"),
                 "rating": 4.5,  # TODO: Calculate from reviews
                 "reviewCount": 0,  # TODO: Count reviews

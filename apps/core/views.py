@@ -63,6 +63,7 @@ from apps.core.services.pricing import (
     normalize_custom_pricing as normalize_custom_pricing_policy,
     resolve_pricing_recommendation,
     serialize_price_display,
+    validate_custom_pricing,
 )
 from apps.core.taxonomy import (
     MAX_BUILDER_DEPTH,
@@ -160,10 +161,17 @@ def _program_pricing_fields(program, pricing_context: dict | None = None) -> dic
         platform_features=context["platform_features"],
         currency_code=context["currency_code"],
     )
+    display = serialize_price_display(pricing)
     return {
-        "price": pricing.get("price", 0),
+        "price": display["effectivePrice"],
         "original_price": pricing.get("original_price"),
-        "priceDisplay": serialize_price_display(pricing),
+        "effectivePrice": display["effectivePrice"],
+        "regularPrice": display["regularPrice"],
+        "saleActive": display["saleActive"],
+        "saleStartsAt": display["saleStartsAt"],
+        "saleEndsAt": display["saleEndsAt"],
+        "priceInfo": display["priceInfo"],
+        "priceDisplay": display,
     }
 
 
@@ -758,7 +766,7 @@ def public_program_detail(
         currency_code=pricing_context["currency_code"],
     )
     price_display = serialize_price_display(pricing)
-    price = pricing.get("price", 0)
+    price = pricing.get("effective_price", pricing.get("price", 0))
 
     # Determine enrollment mode based on pricing
     if price_display["allowsOnlineCheckout"] or price_display["allowsOfflinePayment"]:
@@ -813,6 +821,12 @@ def public_program_detail(
         "isFeatured": program.is_featured,
         "price": price,
         "original_price": pricing.get("original_price"),
+        "effectivePrice": price_display["effectivePrice"],
+        "regularPrice": price_display["regularPrice"],
+        "saleActive": price_display["saleActive"],
+        "saleStartsAt": price_display["saleStartsAt"],
+        "saleEndsAt": price_display["saleEndsAt"],
+        "priceInfo": price_display["priceInfo"],
         "priceDisplay": price_display,
         "faq": program.faq or [],
         "notices": program.notices or [],
@@ -6631,6 +6645,7 @@ def serialize_program_data(program):
         platform_features=platform_features,
         currency_code=platform_settings.currency_code,
     )
+    price_display = serialize_price_display(pricing)
     pricing_recommendation = resolve_pricing_recommendation(
         deployment_mode=platform_settings.deployment_mode,
         exam_body=program.exam_body,
@@ -6750,7 +6765,13 @@ def serialize_program_data(program):
             "faq": program.faq,
             "notices": program.notices,
             "customPricing": pricing,
-            "priceDisplay": serialize_price_display(pricing),
+            "effectivePrice": price_display["effectivePrice"],
+            "regularPrice": price_display["regularPrice"],
+            "saleActive": price_display["saleActive"],
+            "saleStartsAt": price_display["saleStartsAt"],
+            "saleEndsAt": price_display["saleEndsAt"],
+            "priceInfo": price_display["priceInfo"],
+            "priceDisplay": price_display,
             "pricingRecommendation": pricing_recommendation,
             "pricingRecommendations": pricing_recommendations,
             "prerequisitePassingPercent": program.prerequisite_passing_percent,
@@ -6798,6 +6819,7 @@ def serialize_program_data(program):
         "examBodyRegistry": get_registry_for_frontend(),
         "platformFeatures": platform_features,
         "deploymentMode": platform_settings.deployment_mode,
+        "platformTimezone": settings.TIME_ZONE,
     }
 
 
@@ -8033,7 +8055,10 @@ def instructor_program_update_settings(request, pk: int):
     from apps.platform.models import PlatformSettings
 
     program = Program.objects.get(pk=pk)
-    from apps.learning_operations.services import update_course_delivery_profile
+    from apps.learning_operations.services import (
+        get_course_delivery_profile,
+        update_course_delivery_profile,
+    )
     program_categories = PlatformSettings.get_settings().get_program_categories()
     pricing_context = _get_platform_pricing_context()
     data = get_post_data(request)
@@ -8109,13 +8134,14 @@ def instructor_program_update_settings(request, pk: int):
         return None
 
     def _normalize_custom_pricing(pricing_data):
-        return normalize_custom_pricing_policy(
+        return validate_custom_pricing(
             pricing_data,
             deployment_mode=pricing_context["deployment_mode"],
             exam_body=program.exam_body,
             qualification_family=program.qualification_family,
             platform_features=pricing_context["platform_features"],
             currency_code=pricing_context["currency_code"],
+            course_delivery_mode=get_course_delivery_profile(program).delivery_mode,
         )
 
     def _program_depends_on(
@@ -8265,7 +8291,11 @@ def instructor_program_update_settings(request, pk: int):
 
     # --- Pricing ---
     if "custom_pricing" in data:
-        program.custom_pricing = _normalize_custom_pricing(data["custom_pricing"])
+        try:
+            program.custom_pricing = _normalize_custom_pricing(data["custom_pricing"])
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return _redirect_to_builder()
 
     # --- FAQ ---
     if "faq" in data:
