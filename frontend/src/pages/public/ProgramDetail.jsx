@@ -11,39 +11,26 @@ import {
     Button,
     Chip,
     Rating,
-    Tabs,
-    Tab,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
     Avatar,
-    Divider,
     Snackbar,
     Alert as MuiAlert,
     useTheme,
 } from "@mui/material";
 import {
-    IconClock,
     IconBook,
-    IconChartBar,
-    IconClipboardCheck,
     IconHeart,
     IconHeartFilled,
     IconShare,
-    IconChevronDown,
     IconCheck,
-    IconPlayerPlay,
     IconLock,
-    IconFolder,
     IconShoppingCart,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
-import DOMPurify from "dompurify";
 import { CourseDetailsModal } from "@/components/modals";
 import PublicNavbar from "@/components/common/PublicNavbar";
 import Footer from "@/components/common/Footer";
@@ -52,6 +39,8 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { useCurrency } from "@/hooks/useCurrency";
 import { truncatePlainText } from "@/utils/htmlText";
 import { resolvePriceDisplay } from "@/utils/priceDisplay";
+import CourseContentTabs from "@/features/programs/components/CourseContentTabs";
+import CourseDetailsPanel from "@/features/programs/components/CourseDetailsPanel";
 
 // --- Helper Components ---
 
@@ -434,90 +423,7 @@ function CourseDetailsSidebar({
                     </>
                 ))}
 
-                <Divider sx={{ my: 2 }} />
-
-                {/* Course Details */}
-                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                    Course details
-                </Typography>
-
-                <Stack spacing={2}>
-                    <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                    >
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <IconClock
-                                size={18}
-                                color={theme.palette.text.secondary}
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                                Duration
-                            </Typography>
-                        </Stack>
-                        <Typography variant="body2" fontWeight={600}>
-                            {program.duration_hours} hours
-                        </Typography>
-                    </Stack>
-
-                    <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                    >
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <IconBook
-                                size={18}
-                                color={theme.palette.text.secondary}
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                                Lessons
-                            </Typography>
-                        </Stack>
-                        <Typography variant="body2" fontWeight={600}>
-                            {program.lecture_count}
-                        </Typography>
-                    </Stack>
-
-                    <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                    >
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <IconClipboardCheck
-                                size={18}
-                                color={theme.palette.text.secondary}
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                                Assessments
-                            </Typography>
-                        </Stack>
-                        <Typography variant="body2" fontWeight={600}>
-                            {program.assessment_count || 0}
-                        </Typography>
-                    </Stack>
-
-                    <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                    >
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <IconChartBar
-                                size={18}
-                                color={theme.palette.text.secondary}
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                                Level
-                            </Typography>
-                        </Stack>
-                        <Typography variant="body2" fontWeight={600}>
-                            {program.level || "No level"}
-                        </Typography>
-                    </Stack>
-                </Stack>
+                <CourseDetailsPanel program={program} />
             </CardContent>
         </Card>
     );
@@ -581,60 +487,6 @@ function PopularCourses({ courses }) {
     );
 }
 
-// Curriculum Tree Component
-function CurriculumSection({ section, index }) {
-    const [expanded, setExpanded] = useState(index === 0);
-
-    return (
-        <Accordion expanded={expanded} onChange={() => setExpanded(!expanded)}>
-            <AccordionSummary expandIcon={<IconChevronDown />}>
-                <Typography fontWeight={600}>{section.title}</Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ p: 0 }}>
-                <List dense>
-                    {section.children?.map((lesson) => (
-                        <ListItem key={lesson.id} sx={{ py: 1, px: 3 }}>
-                            <ListItemIcon sx={{ minWidth: 32 }}>
-                                {lesson.isPreview ? (
-                                    <IconPlayerPlay size={18} color="#2196F3" />
-                                ) : (
-                                    <IconLock size={18} color="#999" />
-                                )}
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={lesson.title}
-                                secondary={
-                                    lesson.duration
-                                        ? `${lesson.duration} min`
-                                        : null
-                                }
-                                primaryTypographyProps={{ variant: "body2" }}
-                            />
-                            {lesson.isPreview && (
-                                <Chip
-                                    label="Preview"
-                                    size="small"
-                                    color="primary"
-                                    variant="outlined"
-                                />
-                            )}
-                        </ListItem>
-                    ))}
-                </List>
-            </AccordionDetails>
-        </Accordion>
-    );
-}
-
-// Tab Panel Component
-function TabPanel({ children, value, index }) {
-    return (
-        <Box role="tabpanel" hidden={value !== index} sx={{ py: 3 }}>
-            {value === index && children}
-        </Box>
-    );
-}
-
 export default function ProgramDetail({
     program,
     curriculum = [],
@@ -651,7 +503,6 @@ export default function ProgramDetail({
     const { auth, platform } = usePage().props;
     const { addToCart } = useCart();
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
-    const [tabValue, setTabValue] = useState(0);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
     const shortDescription = truncatePlainText(program.description, 200);
@@ -900,278 +751,10 @@ export default function ProgramDetail({
                                     />
                                 )}
 
-                                {/* Tabs */}
-                                <Box
-                                    sx={{
-                                        borderBottom: 1,
-                                        borderColor: "divider",
-                                    }}
-                                >
-                                    <Tabs
-                                        value={tabValue}
-                                        onChange={(e, v) => setTabValue(v)}
-                                    >
-                                        <Tab label="Description" />
-                                        <Tab label="Curriculum" />
-                                        <Tab label="Resources" />
-                                        <Tab label="FAQ" />
-                                        <Tab label="Notice" />
-                                        <Tab label="Reviews" />
-                                    </Tabs>
-                                </Box>
-
-                                {/* Description Tab */}
-                                <TabPanel value={tabValue} index={0}>
-                                    <Box
-                                        sx={{
-                                            mb: 4,
-                                            "& p": { mb: 1 },
-                                            "& ul, & ol": { pl: 3, mb: 1.5 },
-                                            "& li": { mb: 0.5 },
-                                        }}
-                                        dangerouslySetInnerHTML={{
-                                            __html: DOMPurify.sanitize(program.description || ""),
-                                        }}
-                                    />
-
-                                    {program.what_you_learn_html && (
-                                            <Box sx={{ mt: 4 }}>
-                                                <Typography
-                                                    variant="h5"
-                                                    fontWeight={600}
-                                                    sx={{ mb: 3 }}
-                                                >
-                                                    What you&apos;ll learn
-                                                </Typography>
-                                                <Box
-                                                    sx={{
-                                                        "& ul, & ol": { pl: 3, mb: 2 },
-                                                        "& li": { mb: 0.75 },
-                                                        "& h1, & h2, & h3": { mb: 1.5, mt: 2 },
-                                                        "& p": { mb: 1 },
-                                                    }}
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: DOMPurify.sanitize(
-                                                            program.what_you_learn_html,
-                                                        ),
-                                                    }}
-                                                />
-                                            </Box>
-                                        )}
-                                </TabPanel>
-
-                                {/* Curriculum Tab */}
-                                <TabPanel value={tabValue} index={1}>
-                                    {curriculum.length === 0 ? (
-                                        <Typography color="text.secondary">
-                                            Curriculum details coming soon.
-                                        </Typography>
-                                    ) : (
-                                        <Stack spacing={1}>
-                                            {curriculum.map((section, idx) => (
-                                                <CurriculumSection
-                                                    key={section.id}
-                                                    section={section}
-                                                    index={idx}
-                                                />
-                                            ))}
-                                        </Stack>
-                                    )}
-                                </TabPanel>
-
-                                {/* Resources Tab */}
-                                <TabPanel value={tabValue} index={2}>
-                                    {!program.resources ||
-                                    program.resources.length === 0 ? (
-                                        <Typography color="text.secondary">
-                                            No downloadable resources available.
-                                        </Typography>
-                                    ) : (
-                                        <List>
-                                            {program.resources.map((res) => (
-                                                <ListItem key={res.id} divider>
-                                                    <ListItemIcon>
-                                                        <IconFolder size={24} />
-                                                    </ListItemIcon>
-                                                    <ListItemText
-                                                        primary={
-                                                            <a
-                                                                href={res.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                style={{
-                                                                    textDecoration:
-                                                                        "none",
-                                                                    color: "inherit",
-                                                                    fontWeight: 500,
-                                                                }}
-                                                            >
-                                                                {res.title}
-                                                            </a>
-                                                        }
-                                                        secondary={res.type}
-                                                    />
-                                                    <Button
-                                                        component="a"
-                                                        href={res.url}
-                                                        target="_blank"
-                                                        variant="outlined"
-                                                        size="small"
-                                                    >
-                                                        Download
-                                                    </Button>
-                                                </ListItem>
-                                            ))}
-                                        </List>
-                                    )}
-                                </TabPanel>
-
-                                {/* FAQ Tab */}
-                                <TabPanel value={tabValue} index={3}>
-                                    {!program.faq ||
-                                    program.faq.length === 0 ? (
-                                        <Typography color="text.secondary">
-                                            No FAQs available for this course.
-                                        </Typography>
-                                    ) : (
-                                        <Stack spacing={1}>
-                                            {program.faq.map((item, idx) => (
-                                                <Accordion key={idx}>
-                                                    <AccordionSummary
-                                                        expandIcon={
-                                                            <IconChevronDown />
-                                                        }
-                                                    >
-                                                        <Typography
-                                                            fontWeight={600}
-                                                        >
-                                                            {item.question}
-                                                        </Typography>
-                                                    </AccordionSummary>
-                                                    <AccordionDetails>
-                                                        <Typography variant="body2">
-                                                            {item.answer}
-                                                        </Typography>
-                                                    </AccordionDetails>
-                                                </Accordion>
-                                            ))}
-                                        </Stack>
-                                    )}
-                                </TabPanel>
-
-                                {/* Notice Tab */}
-                                <TabPanel value={tabValue} index={4}>
-                                    {!program.notices ||
-                                    program.notices.length === 0 ? (
-                                        <Typography color="text.secondary">
-                                            No notices for this course.
-                                        </Typography>
-                                    ) : (
-                                        <Stack spacing={2}>
-                                            {program.notices.map(
-                                                (notice, idx) => (
-                                                    <Card
-                                                        key={idx}
-                                                        variant="outlined"
-                                                    >
-                                                        <CardContent>
-                                                            <Typography
-                                                                variant="subtitle1"
-                                                                fontWeight={600}
-                                                            >
-                                                                {typeof notice === "string"
-                                                                    ? `Notice ${idx + 1}`
-                                                                    : notice.title}
-                                                            </Typography>
-                                                            <Typography
-                                                                variant="body2"
-                                                                color="text.secondary"
-                                                                component="div"
-                                                                dangerouslySetInnerHTML={{
-                                                                    __html: DOMPurify.sanitize(
-                                                                        (typeof notice === "string"
-                                                                            ? notice
-                                                                            : notice.content) || "",
-                                                                    ),
-                                                                }}
-                                                            />
-                                                        </CardContent>
-                                                    </Card>
-                                                ),
-                                            )}
-                                        </Stack>
-                                    )}
-                                </TabPanel>
-
-                                {/* Reviews Tab */}
-                                <TabPanel value={tabValue} index={5}>
-                                    {!program.reviews ||
-                                    program.reviews.length === 0 ? (
-                                        <Typography color="text.secondary">
-                                            No reviews yet.
-                                        </Typography>
-                                    ) : (
-                                        <Stack spacing={2}>
-                                            {program.reviews.map((review) => (
-                                                <Card
-                                                    key={review.id}
-                                                    variant="outlined"
-                                                >
-                                                    <CardContent>
-                                                        <Stack spacing={1}>
-                                                            <Stack
-                                                                direction="row"
-                                                                spacing={1}
-                                                                alignItems="center"
-                                                            >
-                                                                <Rating
-                                                                    value={
-                                                                        review.rating ||
-                                                                        0
-                                                                    }
-                                                                    precision={
-                                                                        1
-                                                                    }
-                                                                    size="small"
-                                                                    readOnly
-                                                                />
-                                                                <Typography
-                                                                    variant="body2"
-                                                                    fontWeight={
-                                                                        600
-                                                                    }
-                                                                >
-                                                                    {review.user
-                                                                        ?.name ||
-                                                                        "Anonymous"}
-                                                                </Typography>
-                                                                <Typography
-                                                                    variant="caption"
-                                                                    color="text.secondary"
-                                                                >
-                                                                    {review.updatedAt
-                                                                        ? new Date(
-                                                                              review.updatedAt,
-                                                                          ).toLocaleDateString()
-                                                                        : ""}
-                                                                </Typography>
-                                                            </Stack>
-                                                            <Typography
-                                                                variant="body2"
-                                                                component="div"
-                                                                dangerouslySetInnerHTML={{
-                                                                    __html: DOMPurify.sanitize(
-                                                                        review.reviewText || "",
-                                                                    ),
-                                                                }}
-                                                            />
-                                                        </Stack>
-                                                    </CardContent>
-                                                </Card>
-                                            ))}
-                                        </Stack>
-                                    )}
-                                </TabPanel>
+                                <CourseContentTabs
+                                    program={program}
+                                    curriculum={curriculum}
+                                />
                             </motion.div>
                         </Grid>
                     </Grid>
