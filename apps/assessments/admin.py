@@ -1,5 +1,22 @@
 from django.contrib import admin
-from .models import AssessmentResult, Rubric
+from .models import (
+    AssessmentResult,
+    QuestionBank,
+    QuestionBankEntry,
+    QuestionBankEntryRevision,
+    QuestionBankUsage,
+    QuizAttemptQuestionSnapshot,
+    QuizQuestionPool,
+    Rubric,
+)
+
+
+admin.site.register(QuestionBank)
+admin.site.register(QuestionBankEntry)
+admin.site.register(QuestionBankEntryRevision)
+admin.site.register(QuestionBankUsage)
+admin.site.register(QuizQuestionPool)
+admin.site.register(QuizAttemptQuestionSnapshot)
 
 
 @admin.register(Rubric)

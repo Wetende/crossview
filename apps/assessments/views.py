@@ -1,4 +1,5 @@
 from django.http import Http404
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
@@ -6,10 +7,19 @@ from inertia import render
 from rest_framework import decorators, status, viewsets
 from rest_framework.response import Response
 
-from .models import Quiz, Question, QuestionBankEntry, QuestionBank, Rubric
+from .models import (
+    Quiz,
+    Question,
+    QuestionBankEntry,
+    QuestionBankEntryRevision,
+    QuestionBank,
+    QuestionBankUsage,
+    QuizQuestionPool,
+    Rubric,
+)
 from .serializers import (
     QuizSerializer, QuestionSerializer, QuestionBankEntrySerializer,
-    QuestionBankSerializer, RubricSerializer
+    QuestionBankSerializer, QuizQuestionPoolSerializer, RubricSerializer
 )
 from .question_bank_service import QuestionBankService
 from apps.curriculum.models import CurriculumNode
@@ -20,6 +30,11 @@ from apps.core.api_permissions import (
 )
 from apps.core.models import Program
 from apps.assessments.services import RubricService
+from apps.assessments.question_snapshots import (
+    build_question_snapshot,
+    normalize_question_snapshot,
+    validate_quiz_question_pools,
+)
 
 
 def _api_error(
@@ -206,6 +221,61 @@ class QuizViewSet(viewsets.ModelViewSet):
         node = serializer.validated_data.get("node", serializer.instance.node)
         serializer.save(node=self._get_accessible_node(node))
 
+    @decorators.action(detail=True, methods=['get', 'post'], url_path='question-pools')
+    def question_pools(self, request, pk=None):
+        quiz = self.get_object()
+        if request.method == 'GET':
+            pools = quiz.question_pools.select_related('bank').all()
+            return Response(QuizQuestionPoolSerializer(pools, many=True).data)
+
+        bank = get_object_or_404(
+            QuestionBank,
+            pk=request.data.get('bank'),
+            program=quiz.node.program,
+        )
+        serializer = QuizQuestionPoolSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pool = serializer.save(
+            quiz=quiz,
+            bank=bank,
+            created_by=request.user,
+            position=quiz.question_pools.count(),
+        )
+        return Response(QuizQuestionPoolSerializer(pool).data, status=201)
+
+    @decorators.action(
+        detail=True,
+        methods=['patch', 'delete'],
+        url_path=r'question-pools/(?P<pool_id>[^/.]+)',
+    )
+    def question_pool_detail(self, request, pk=None, pool_id=None):
+        quiz = self.get_object()
+        pool = get_object_or_404(
+            QuizQuestionPool.objects.select_related('bank'),
+            pk=pool_id,
+            quiz=quiz,
+        )
+        if request.method == 'DELETE':
+            pool.delete()
+            return Response(status=204)
+        bank = pool.bank
+        if 'bank' in request.data:
+            bank = get_object_or_404(
+                QuestionBank,
+                pk=request.data.get('bank'),
+                program=quiz.node.program,
+            )
+        serializer = QuizQuestionPoolSerializer(pool, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save(bank=bank)
+        return Response(QuizQuestionPoolSerializer(updated).data)
+
+    @decorators.action(detail=True, methods=['get'], url_path='question-pool-validation')
+    def question_pool_validation(self, request, pk=None):
+        quiz = self.get_object()
+        issues = validate_quiz_question_pools(quiz)
+        return Response({'valid': not issues, 'issues': issues})
+
 
 class QuestionViewSet(viewsets.ModelViewSet):
     """
@@ -311,7 +381,7 @@ class QuestionBankViewSet(viewsets.ModelViewSet):
         return scope_queryset_to_instructor_programs(
             queryset,
             self.request.user,
-            "question__quiz__node__program_id",
+            "bank__program_id",
         )
 
     def _get_accessible_question(self, question):
@@ -347,21 +417,59 @@ class QuestionBankViewSet(viewsets.ModelViewSet):
         return bank
 
     def _validated_bank_entry_relations(self, serializer):
-        question = self._get_accessible_question(serializer.validated_data["question"])
+        question = serializer.validated_data.get("question")
+        question = self._get_accessible_question(question) if question else None
         bank = self._get_accessible_bank(serializer.validated_data.get("bank"))
+        if question is None and not serializer.validated_data.get("question_snapshot"):
+            raise Http404("Not found.")
+        if question and bank and question.quiz.node.program_id != bank.program_id:
+            raise Http404("Not found.")
         return question, bank
 
     def perform_create(self, serializer):
         question, bank = self._validated_bank_entry_relations(serializer)
-        serializer.save(owner=self.request.user, question=question, bank=bank)
+        snapshot = serializer.validated_data.get("question_snapshot")
+        if snapshot is None and question:
+            snapshot = build_question_snapshot(question)
+        else:
+            snapshot = normalize_question_snapshot(snapshot)
+        entry = serializer.save(
+            owner=self.request.user,
+            question=question,
+            bank=bank,
+            question_snapshot=snapshot,
+            snapshot_version=1,
+        )
+        QuestionBankEntryRevision.objects.create(
+            entry=entry,
+            version=1,
+            snapshot=snapshot,
+            changed_by=self.request.user,
+        )
 
     def perform_update(self, serializer):
         question = serializer.validated_data.get("question", serializer.instance.question)
         bank = serializer.validated_data.get("bank", serializer.instance.bank)
-        serializer.save(
-            question=self._get_accessible_question(question),
-            bank=self._get_accessible_bank(bank),
+        save_kwargs = {
+            "question": self._get_accessible_question(question) if question else None,
+            "bank": self._get_accessible_bank(bank),
+        }
+        if "question_snapshot" in serializer.validated_data:
+            save_kwargs["question_snapshot"] = normalize_question_snapshot(
+                serializer.validated_data["question_snapshot"]
+            )
+        entry = serializer.save(
+            **save_kwargs,
         )
+        if "question_snapshot" in serializer.validated_data:
+            entry.snapshot_version += 1
+            entry.save(update_fields=["snapshot_version", "updated_at"])
+            QuestionBankEntryRevision.objects.create(
+                entry=entry,
+                version=entry.snapshot_version,
+                snapshot=entry.question_snapshot,
+                changed_by=self.request.user,
+            )
 
     @decorators.action(detail=True, methods=['post'])
     def add_to_quiz(self, request, pk=None):
@@ -446,6 +554,12 @@ class ProgramQuestionLibraryViewSet(viewsets.ViewSet):
         category = request.query_params.get('category', '')
         raw_bank_id = request.query_params.get('bank_id')
         question_type = request.query_params.get('question_type', '')
+        difficulty = request.query_params.get('difficulty', '')
+        tags = [
+            value.strip()
+            for value in request.query_params.get('tags', '').split(',')
+            if value.strip()
+        ]
 
         try:
             bank_id = int(raw_bank_id) if raw_bank_id else None
@@ -462,7 +576,9 @@ class ProgramQuestionLibraryViewSet(viewsets.ViewSet):
             query=query if query else None,
             category=category if category else None,
             bank_id=bank_id,
-            question_type=question_type if question_type else None
+            question_type=question_type if question_type else None,
+            difficulty=difficulty if difficulty else None,
+            tags=tags,
         )
 
         serializer = QuestionBankEntrySerializer(entries, many=True)
@@ -548,22 +664,34 @@ class ProgramQuestionLibraryViewSet(viewsets.ViewSet):
         """
         program = self._get_accessible_program(program_id)
         question_id = request.data.get('question_id')
+        question_snapshot = request.data.get('questionSnapshot')
         bank_id = request.data.get('bank_id')
         category = request.data.get('category', '')
 
-        if not question_id:
+        if not question_id and not isinstance(question_snapshot, dict):
             return _api_error(
                 "Please select a question to save.",
                 status_code=400,
                 code="question_required",
             )
 
-        question = self._get_program_question(program, question_id)
+        question = (
+            self._get_program_question(program, question_id)
+            if question_id
+            else None
+        )
         bank = self._get_program_bank(program, bank_id)
+        if bank is None:
+            return _api_error(
+                "Please select a question bank.",
+                status_code=400,
+                code="bank_required",
+            )
 
         service = QuestionBankService()
         entry = service.add_to_bank(
             question=question,
+            question_snapshot=question_snapshot,
             user=request.user,
             bank=bank,
             category=category,
@@ -572,3 +700,129 @@ class ProgramQuestionLibraryViewSet(viewsets.ViewSet):
         )
 
         return Response(QuestionBankEntrySerializer(entry).data, status=201)
+
+    def entry_detail(self, request, program_id=None, pk=None):
+        program = self._get_accessible_program(program_id)
+        entry = get_object_or_404(
+            QuestionBankEntry.objects.select_related('bank', 'owner', 'question'),
+            pk=pk,
+            bank__program=program,
+        )
+        if request.method == 'GET':
+            data = QuestionBankEntrySerializer(entry).data
+            data['revisions'] = [
+                {
+                    'version': revision.version,
+                    'createdAt': revision.created_at.isoformat(),
+                    'changedBy': revision.changed_by_id,
+                }
+                for revision in entry.revisions.select_related('changed_by').all()
+            ]
+            return Response(data)
+        if request.method == 'DELETE':
+            if not (request.user.is_staff or request.user.is_superuser or entry.owner_id == request.user.id):
+                return _api_error(
+                    "Only the question owner or an administrator can delete it.",
+                    status_code=403,
+                    code="permission_denied",
+                )
+            entry.delete()
+            return Response(status=204)
+
+        bank = entry.bank
+        if 'bank_id' in request.data:
+            bank = self._get_program_bank(program, request.data.get('bank_id'))
+        try:
+            updated = QuestionBankService().update_entry(
+                entry,
+                actor=request.user,
+                question_snapshot=request.data.get('questionSnapshot'),
+                bank=bank,
+                category=request.data.get('category') if 'category' in request.data else None,
+                subject_area=(
+                    request.data.get('subject_area')
+                    if 'subject_area' in request.data
+                    else None
+                ),
+                difficulty=(
+                    request.data.get('difficulty')
+                    if 'difficulty' in request.data
+                    else None
+                ),
+                tags=request.data.get('tags') if 'tags' in request.data else None,
+            )
+        except ValidationError as exc:
+            return _api_error(
+                exc.messages[0], status_code=400, code="invalid_question"
+            )
+        return Response(QuestionBankEntrySerializer(updated).data)
+
+    def bank_detail(self, request, program_id=None, pk=None):
+        program = self._get_accessible_program(program_id)
+        bank = get_object_or_404(QuestionBank, pk=pk, program=program)
+        if request.method == 'GET':
+            return Response(QuestionBankSerializer(bank).data)
+        if request.method == 'DELETE':
+            if not (request.user.is_staff or request.user.is_superuser or bank.owner_id == request.user.id):
+                return _api_error(
+                    "Only the bank owner or an administrator can delete it.",
+                    status_code=403,
+                    code="permission_denied",
+                )
+            if bank.quiz_pools.exists():
+                return _api_error(
+                    "Unlink this bank from active quiz pools before deleting it.",
+                    status_code=409,
+                    code="bank_in_use",
+                )
+            bank.delete()
+            return Response(status=204)
+        for field in ('name', 'description', 'category'):
+            if field in request.data:
+                setattr(bank, field, str(request.data.get(field) or '').strip())
+        if not bank.name:
+            return _api_error("Please enter a question bank name.", code="name_required")
+        bank.save(update_fields=['name', 'description', 'category', 'updated_at'])
+        return Response(QuestionBankSerializer(bank).data)
+
+    def stats(self, request, program_id=None):
+        program = self._get_accessible_program(program_id)
+        entries = QuestionBankEntry.objects.filter(bank__program=program).select_related('bank')
+        pools = QuizQuestionPool.objects.filter(
+            quiz__node__program=program,
+            is_active=True,
+        ).select_related('bank', 'quiz')
+        undersupplied = []
+        quizzes = Quiz.objects.filter(question_pools__in=pools).distinct()
+        for quiz in quizzes:
+            for issue in validate_quiz_question_pools(quiz):
+                undersupplied.append(
+                    {
+                        'poolId': issue['poolId'],
+                        'quizId': quiz.id,
+                        'bankId': issue['bankId'],
+                        'required': issue['required'],
+                        'available': issue['available'],
+                    }
+                )
+        return Response(
+            {
+                'entries': [
+                    {
+                        'entryId': entry.id,
+                        'bankId': entry.bank_id,
+                        'usageCount': entry.usage_count,
+                        'lastUsedAt': (
+                            entry.last_used_at.isoformat() if entry.last_used_at else None
+                        ),
+                        'quizCopies': entry.quiz_copies.count(),
+                        'attemptSelections': entry.usage_events.filter(
+                            usage_type=QuestionBankUsage.ATTEMPT_SELECTION
+                        ).count(),
+                    }
+                    for entry in entries
+                ],
+                'poolLinks': pools.count(),
+                'undersuppliedPools': undersupplied,
+            }
+        )

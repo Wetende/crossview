@@ -164,6 +164,19 @@ def grade_manual_quiz_response(*, attempt, question, points_awarded, feedback, g
             "graded_at": timezone.now(),
         },
     )
+    from apps.assessments.question_snapshots import (
+        ensure_attempt_question_snapshots,
+        grade_attempt_question_snapshot,
+    )
+
+    ensure_attempt_question_snapshots(attempt.quiz, attempt)
+    grade_attempt_question_snapshot(
+        attempt=attempt,
+        question_key=question.id,
+        points_awarded=points,
+        feedback=feedback,
+        grader=grader,
+    )
 
     manual_question_ids = set(
         Question.objects.filter(
@@ -194,4 +207,3 @@ def grade_manual_quiz_response(*, attempt, question, points_awarded, feedback, g
         update_fields=["points_earned", "points_possible", "score", "passed"]
     )
     return grade, attempt
-

@@ -84,6 +84,7 @@ export default function InstructorProgramBuilder({
 
     const questionLibrary = page.props.questionLibrary || [];
     const questionCategories = page.props.questionCategories || [];
+    const questionBanks = page.props.questionBanks || [];
 
     // Update curriculum when page props change (e.g., after creating a new node)
     useEffect(() => {
@@ -258,6 +259,7 @@ export default function InstructorProgramBuilder({
                                         blueprint={program.blueprint}
                                         programId={program.id}
                                         questionLibrary={questionLibrary}
+                                        questionBanks={questionBanks}
                                         categories={questionCategories}
                                     />
                                 ) : (

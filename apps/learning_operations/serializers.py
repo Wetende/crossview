@@ -29,9 +29,18 @@ class EngagementMatrixQuerySerializer(serializers.Serializer):
 
 
 class ManualQuizGradeWriteSerializer(serializers.Serializer):
-    questionId = serializers.IntegerField(min_value=1)
+    questionId = serializers.IntegerField(min_value=1, required=False)
+    questionKey = serializers.IntegerField(required=False)
     pointsAwarded = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
     feedback = serializers.CharField(required=False, allow_blank=True, max_length=5000)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if ("questionId" in attrs) == ("questionKey" in attrs):
+            raise serializers.ValidationError(
+                "Provide exactly one of questionId or questionKey."
+            )
+        return attrs
 
 
 class ManualQuizGradeReadSerializer(serializers.ModelSerializer):

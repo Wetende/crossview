@@ -8,7 +8,7 @@ from rest_framework import serializers
 from apps.assessments.models import (
     AssessmentResult, Quiz, Question, 
     QuestionOption, QuestionMatchingPair, 
-    QuestionGapAnswer, QuestionBankEntry, QuestionBank,
+    QuestionGapAnswer, QuestionBankEntry, QuestionBank, QuizQuestionPool,
     Rubric
 )
 from apps.assessments.text_normalization import (
@@ -345,16 +345,56 @@ class QuestionBankSerializer(serializers.ModelSerializer):
 
 
 class QuestionBankEntrySerializer(serializers.ModelSerializer):
-    question_data = QuestionSerializer(source='question', read_only=True)
+    question_data = serializers.SerializerMethodField()
+    questionSnapshot = serializers.JSONField(source='question_snapshot', required=False)
     bank_name = serializers.CharField(source='bank.name', read_only=True, allow_null=True)
     owner_name = serializers.CharField(source='owner.get_full_name', read_only=True)
-    question_type = serializers.CharField(source='question.question_type', read_only=True)
+    question_type = serializers.SerializerMethodField()
     
     class Meta:
         model = QuestionBankEntry
         fields = [
             'id', 'owner', 'owner_name', 'question', 'question_data',
             'bank', 'bank_name', 'category', 'subject_area', 'difficulty', 
-            'tags', 'usage_count', 'question_type', 'created_at', 'updated_at'
+            'tags', 'usage_count', 'last_used_at', 'snapshot_version',
+            'questionSnapshot', 'question_type', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['owner', 'usage_count', 'owner_name', 'bank_name', 'question_type']
+        read_only_fields = [
+            'owner', 'usage_count', 'last_used_at', 'snapshot_version',
+            'owner_name', 'bank_name', 'question_type'
+        ]
+
+    def get_question_data(self, obj):
+        from apps.assessments.question_snapshots import (
+            build_question_snapshot,
+            snapshot_as_question_data,
+        )
+
+        snapshot = obj.question_snapshot
+        if not snapshot and obj.question_id:
+            snapshot = build_question_snapshot(obj.question)
+        return snapshot_as_question_data(snapshot)
+
+    def get_question_type(self, obj):
+        return (obj.question_snapshot or {}).get('question_type') or (
+            obj.question.question_type if obj.question_id else None
+        )
+
+
+class QuizQuestionPoolSerializer(serializers.ModelSerializer):
+    bankName = serializers.CharField(source='bank.name', read_only=True)
+    availableQuestions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuizQuestionPool
+        fields = [
+            'id', 'quiz', 'bank', 'bankName', 'question_count', 'category',
+            'tags', 'difficulty', 'question_type', 'position', 'is_active',
+            'availableQuestions', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['quiz', 'availableQuestions']
+
+    def get_availableQuestions(self, obj):
+        from apps.assessments.question_snapshots import pool_supply
+
+        return pool_supply(obj)

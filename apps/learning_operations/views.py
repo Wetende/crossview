@@ -201,6 +201,43 @@ class ProgramRevenueView(APIView):
 class ManualQuizGradeView(APIView):
     permission_classes = [IsInstructorOrStaff]
 
+    def get(self, request, attempt_id):
+        attempt = get_object_in_instructor_scope(
+            QuizAttempt.objects.select_related("quiz__node__program"),
+            request.user,
+            "quiz__node__program_id",
+            pk=attempt_id,
+        )
+        from apps.assessments.question_snapshots import ensure_attempt_question_snapshots
+
+        ensure_attempt_question_snapshots(attempt.quiz, attempt)
+        answers = attempt.answers if isinstance(attempt.answers, dict) else {}
+        results = []
+        for row in attempt.question_snapshots.all():
+            snapshot = row.snapshot or {}
+            if snapshot.get("question_type") != "short_answer" or not (
+                snapshot.get("answer_data") or {}
+            ).get("manual_grading", True):
+                continue
+            if str(row.question_key) not in answers:
+                continue
+            results.append(
+                {
+                    "questionKey": row.question_key,
+                    "questionText": snapshot.get("text", ""),
+                    "answer": answers[str(row.question_key)],
+                    "pointsPossible": snapshot.get("points", 0),
+                    "pointsAwarded": (
+                        float(row.manual_points_awarded)
+                        if row.manual_points_awarded is not None
+                        else None
+                    ),
+                    "feedback": row.manual_feedback,
+                    "gradedAt": row.graded_at.isoformat() if row.graded_at else None,
+                }
+            )
+        return Response({"attemptId": attempt.id, "questions": results})
+
     def post(self, request, attempt_id):
         attempt = get_object_in_instructor_scope(
             QuizAttempt.objects.select_related("quiz__node__program"),
@@ -210,6 +247,46 @@ class ManualQuizGradeView(APIView):
         )
         serializer = ManualQuizGradeWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        if "questionKey" in serializer.validated_data:
+            from apps.assessments.question_snapshots import (
+                ensure_attempt_question_snapshots,
+                grade_attempt_question_snapshot,
+            )
+
+            ensure_attempt_question_snapshots(attempt.quiz, attempt)
+            try:
+                snapshot, updated_attempt = grade_attempt_question_snapshot(
+                    attempt=attempt,
+                    question_key=serializer.validated_data["questionKey"],
+                    points_awarded=serializer.validated_data["pointsAwarded"],
+                    feedback=serializer.validated_data.get("feedback", ""),
+                    grader=request.user,
+                )
+            except DjangoValidationError as exc:
+                return Response(
+                    {"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response(
+                {
+                    "grade": {
+                        "questionKey": snapshot.question_key,
+                        "pointsAwarded": float(snapshot.manual_points_awarded),
+                        "feedback": snapshot.manual_feedback,
+                        "gradedAt": snapshot.graded_at.isoformat(),
+                        "gradedBy": {
+                            "id": request.user.id,
+                            "name": request.user.get_full_name() or request.user.email,
+                        },
+                    },
+                    "attempt": {
+                        "id": updated_attempt.id,
+                        "score": float(updated_attempt.score or 0),
+                        "pointsEarned": float(updated_attempt.points_earned or 0),
+                        "pointsPossible": updated_attempt.points_possible,
+                        "passed": updated_attempt.passed,
+                    },
+                }
+            )
         question = get_object_or_404(
             Question,
             pk=serializer.validated_data["questionId"],

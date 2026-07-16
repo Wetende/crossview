@@ -41,6 +41,7 @@ import { router } from "@inertiajs/react";
 
 import QuestionsLibraryDrawer from "../components/QuestionsLibraryDrawer";
 import QuestionBankDialog from "../components/QuestionBankDialog";
+import SaveQuestionToBankDialog from "../components/SaveQuestionToBankDialog";
 import QuestionEditorCard from "../components/QuestionEditorCard";
 import AutosaveStatus from "../components/AutosaveStatus";
 import useAutosave from "../hooks/useAutosave";
@@ -56,6 +57,8 @@ const QUESTION_TYPES = [
     { value: "fill_blank", label: "Fill in the Gap", color: "#5d4037" },
     { value: "ordering", label: "Ordering", color: "#455a64" },
 ];
+
+const EMPTY_LIST = [];
 
 const QUIZ_STYLES = [
     { value: "default", label: "Default" },
@@ -162,8 +165,9 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         onSave,
         type = "quiz",
         programId,
-        questionLibrary = [],
-        categories = [],
+        questionLibrary = EMPTY_LIST,
+        questionBanks: availableQuestionBanks = EMPTY_LIST,
+        categories = EMPTY_LIST,
     },
     ref,
 ) {
@@ -266,8 +270,31 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         (node.properties?.questions || []).map(normalizeQuestion),
     );
     const [questionBanks, setQuestionBanks] = useState(
-        node.properties?.question_banks || [],
+        (node.properties?.question_banks || []).map((pool) => ({
+            ...pool,
+            id: pool.poolId || pool.id,
+        })),
     );
+    const [managedQuestionBanks, setManagedQuestionBanks] = useState(
+        availableQuestionBanks,
+    );
+    const [managedQuestionLibrary, setManagedQuestionLibrary] = useState(
+        questionLibrary,
+    );
+    const [questionToSave, setQuestionToSave] = useState(null);
+
+    useEffect(() => setManagedQuestionBanks(availableQuestionBanks), [availableQuestionBanks]);
+    useEffect(() => setManagedQuestionLibrary(questionLibrary), [questionLibrary]);
+    useEffect(() => {
+        const persistedPools = node.properties?.question_banks;
+        if (!Array.isArray(persistedPools)) return;
+        setQuestionBanks(
+            persistedPools.map((pool) => ({
+                ...pool,
+                id: pool.poolId || pool.id,
+            })),
+        );
+    }, [node.properties?.question_banks]);
     // Q&A state (backed by discussion threads)
     const [qaThreads, setQaThreads] = useState([]);
     const [qaLoading, setQaLoading] = useState(false);
@@ -689,7 +716,10 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
 
     // Handle adding question bank
     const handleAddQuestionBank = (bank) => {
-        setQuestionBanks([...questionBanks, { ...bank, id: Date.now() }]);
+        setQuestionBanks([
+            ...questionBanks,
+            { ...bank, id: `new_pool_${Date.now()}` },
+        ]);
         setQuestionBankDialogOpen(false);
         setSnackbar({
             open: true,
@@ -939,6 +969,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                 setQuestions(newQuestions);
                             }}
                             onDelete={() => handleDeleteQuestion(q.id)}
+                            onSaveToLibrary={isQuiz ? setQuestionToSave : undefined}
                             categories={categories}
                             defaultExpanded={q.isNew || false}
                             isNew={q.isNew || false}
@@ -1637,6 +1668,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                 open={questionBankDialogOpen}
                 onClose={() => setQuestionBankDialogOpen(false)}
                 onSave={handleAddQuestionBank}
+                banks={managedQuestionBanks}
                 categories={categories}
             />
 
@@ -1649,8 +1681,28 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                 existingQuestionIds={questions
                     .map((q) => q.libraryEntryId)
                     .filter(Boolean)}
-                preloadedQuestions={questionLibrary}
+                preloadedQuestions={managedQuestionLibrary}
                 preloadedCategories={categories}
+            />
+
+            <SaveQuestionToBankDialog
+                open={Boolean(questionToSave)}
+                question={questionToSave}
+                programId={programId}
+                banks={managedQuestionBanks}
+                categories={categories}
+                onClose={() => setQuestionToSave(null)}
+                onBankCreated={(bank) => {
+                    setManagedQuestionBanks((current) => [...current, bank]);
+                }}
+                onSaved={(entry) => {
+                    setManagedQuestionLibrary((current) => [entry, ...current]);
+                    setSnackbar({
+                        open: true,
+                        message: "Question saved to the reusable library",
+                        severity: "success",
+                    });
+                }}
             />
 
             {/* Snackbar */}

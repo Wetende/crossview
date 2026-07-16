@@ -4647,7 +4647,7 @@ def _shuffle_away_from_original(values: list[str]) -> list[str]:
     return shuffled
 
 
-def _ensure_quiz_attempt_runtime_state(quiz, attempt) -> dict:
+def _legacy_ensure_quiz_attempt_runtime_state(quiz, attempt) -> dict:
     import random
 
     runtime_state = (
@@ -4757,7 +4757,7 @@ def _ensure_quiz_attempt_runtime_state(quiz, attempt) -> dict:
     return runtime_state
 
 
-def _serialize_quiz_questions_for_attempt(quiz, attempt, runtime_state=None) -> list:
+def _legacy_serialize_quiz_questions_for_attempt(quiz, attempt, runtime_state=None) -> list:
     import random
 
     state = runtime_state if isinstance(runtime_state, dict) else {}
@@ -4865,6 +4865,20 @@ def _serialize_quiz_questions_for_attempt(quiz, attempt, runtime_state=None) -> 
     return questions
 
 
+def _ensure_quiz_attempt_runtime_state(quiz, attempt) -> dict:
+    """Build stable attempt state from immutable static and bank snapshots."""
+    from apps.assessments.question_snapshots import ensure_attempt_runtime_state
+
+    return ensure_attempt_runtime_state(quiz, attempt)
+
+
+def _serialize_quiz_questions_for_attempt(quiz, attempt, runtime_state=None) -> list:
+    """Serialize only learner-safe fields from immutable attempt snapshots."""
+    from apps.assessments.question_snapshots import serialize_attempt_questions
+
+    return serialize_attempt_questions(quiz, attempt, runtime_state)
+
+
 def _is_quiz_json_mode(request, data=None) -> bool:
     if str(request.GET.get("response") or "").strip().lower() == "json":
         return True
@@ -4959,7 +4973,16 @@ def student_quiz_start(request, quiz_id: int):
     if quiz_style not in {"pagination", "single_page"}:
         quiz_style = "pagination"
 
-    runtime_state = _ensure_quiz_attempt_runtime_state(quiz, attempt)
+    try:
+        runtime_state = _ensure_quiz_attempt_runtime_state(quiz, attempt)
+    except ValidationError as exc:
+        if wants_json:
+            return JsonResponse(
+                {"error": "question_pool_unavailable", "detail": exc.messages[0]},
+                status=409,
+            )
+        messages.error(request, exc.messages[0])
+        return redirect("/dashboard/")
     questions = _serialize_quiz_questions_for_attempt(quiz, attempt, runtime_state)
 
     payload = {
@@ -5065,6 +5088,7 @@ def student_quiz_submit(request, quiz_id: int):
             messages.error(request, "No quiz attempt in progress")
             return redirect("core:student.quiz_start", quiz_id=quiz_id)
 
+        _ensure_quiz_attempt_runtime_state(quiz, attempt)
         submitted_answers = data.get("answers", {})
         now = timezone.now()
         expired = _is_quiz_attempt_expired(quiz, attempt, now=now)
@@ -5077,7 +5101,8 @@ def student_quiz_submit(request, quiz_id: int):
                 else {}
             )
             merged_runtime_state.update(incoming_runtime_state)
-            max_index = max(0, quiz.questions.count() - 1)
+            _ensure_quiz_attempt_runtime_state(quiz, attempt)
+            max_index = max(0, attempt.question_snapshots.count() - 1)
             current_index = _safe_int(
                 merged_runtime_state.get("current_question_index")
             )
@@ -5298,7 +5323,7 @@ def student_quiz_save(request, quiz_id: int):
                 runtime_state.copy() if isinstance(runtime_state, dict) else {}
             )
             runtime_state.update(incoming_runtime_state)
-        max_index = max(0, quiz.questions.count() - 1)
+        max_index = max(0, attempt.question_snapshots.count() - 1)
         current_index = _safe_int(runtime_state.get("current_question_index"))
         runtime_state["current_question_index"] = (
             0 if current_index is None else max(0, min(current_index, max_index))
@@ -6886,8 +6911,11 @@ def instructor_program_manage(request, pk: int):
     response_data["curriculum"] = curriculum
 
     # Add question library data as Inertia props (no REST API needed)
-    from apps.assessments.models import QuestionBankEntry
-    from apps.assessments.serializers import QuestionSerializer
+    from apps.assessments.models import QuestionBank, QuestionBankEntry
+    from apps.assessments.serializers import (
+        QuestionBankEntrySerializer,
+        QuestionBankSerializer,
+    )
 
     library_entries = (
         QuestionBankEntry.objects.filter(bank__program=program)
@@ -6900,16 +6928,14 @@ def instructor_program_manage(request, pk: int):
         .order_by("-created_at")[:100]
     )
 
-    response_data["questionLibrary"] = [
-        {
-            "id": entry.id,
-            "question_type": entry.question.question_type,
-            "question_data": QuestionSerializer(entry.question).data,
-            "category": entry.category,
-            "bank_name": entry.bank.name if entry.bank else None,
-        }
-        for entry in library_entries
-    ]
+    response_data["questionLibrary"] = QuestionBankEntrySerializer(
+        library_entries,
+        many=True,
+    ).data
+    response_data["questionBanks"] = QuestionBankSerializer(
+        QuestionBank.objects.filter(program=program).order_by("name"),
+        many=True,
+    ).data
 
     # Get unique categories (must query before slicing)
     all_entries_qs = QuestionBankEntry.objects.filter(bank__program=program)
@@ -7105,6 +7131,8 @@ def _sync_quiz_questions(node, questions_data: list):
     """
     from apps.assessments.models import (
         Question,
+        QuestionBankEntry,
+        QuestionBankUsage,
         QuestionGapAnswer,
         QuestionImageMatchingPair,
         QuestionMatchingPair,
@@ -7112,6 +7140,7 @@ def _sync_quiz_questions(node, questions_data: list):
         Quiz,
     )
     from decimal import Decimal
+    from django.db.models import F
 
     questions_data = questions_data if isinstance(questions_data, list) else []
     node_props = node.properties if isinstance(node.properties, dict) else {}
@@ -7219,6 +7248,17 @@ def _sync_quiz_questions(node, questions_data: list):
 
     for idx, q_data in enumerate(questions_data):
         db_id = q_data.get("db_id")
+        source_entry_id = _safe_int(
+            q_data.get("libraryEntryId", q_data.get("source_bank_entry_id"))
+        )
+        source_entry = (
+            QuestionBankEntry.objects.filter(
+                pk=source_entry_id,
+                bank__program=node.program,
+            ).first()
+            if source_entry_id
+            else None
+        )
         question_type = q_data.get("type", "mcq")
 
         # Map frontend types to backend types
@@ -7375,6 +7415,7 @@ def _sync_quiz_questions(node, questions_data: list):
                 points=q_data.get("points", 1),
                 position=idx,
                 answer_data=answer_data,
+                source_bank_entry=source_entry,
             )
             processed_ids.add(db_id)
 
@@ -7439,6 +7480,7 @@ def _sync_quiz_questions(node, questions_data: list):
                     )
 
             updated_questions.append({**q_data, "db_id": db_id})
+            synced_question = Question.objects.get(pk=db_id)
         else:
             # Create new question
             new_question = Question.objects.create(
@@ -7448,6 +7490,7 @@ def _sync_quiz_questions(node, questions_data: list):
                 points=q_data.get("points", 1),
                 position=idx,
                 answer_data=answer_data,
+                source_bank_entry=source_entry,
             )
             processed_ids.add(new_question.id)
 
@@ -7504,6 +7547,20 @@ def _sync_quiz_questions(node, questions_data: list):
                     )
 
             updated_questions.append({**q_data, "db_id": new_question.id})
+            synced_question = new_question
+
+        if source_entry:
+            _, usage_created = QuestionBankUsage.objects.get_or_create(
+                usage_type=QuestionBankUsage.COPY,
+                entry=source_entry,
+                quiz=quiz,
+                question=synced_question,
+            )
+            if usage_created:
+                QuestionBankEntry.objects.filter(pk=source_entry.pk).update(
+                    usage_count=F("usage_count") + 1,
+                    last_used_at=timezone.now(),
+                )
 
     # Delete removed questions
     removed_ids = existing_ids - processed_ids
@@ -7537,6 +7594,9 @@ def _sync_quiz_questions(node, questions_data: list):
             "text": q.text,  # Already normalized via _normalize_question_text
             "points": q.points,
         }
+        if q.source_bank_entry_id:
+            q_entry["libraryEntryId"] = q.source_bank_entry_id
+            q_entry["fromLibrary"] = True
         q_entry.update(question_metadata_by_id.get(q.id, {}))
 
         if q.question_type in ("mcq", "mcq_multi"):
@@ -7608,6 +7668,12 @@ def _sync_quiz_questions(node, questions_data: list):
         node.properties = {}
     node.properties["questions"] = rebuilt_questions
     node.properties["quiz_id"] = quiz.id
+    from apps.assessments.question_snapshots import sync_quiz_pools_from_properties
+
+    node.properties["question_banks"] = sync_quiz_pools_from_properties(
+        quiz,
+        node_props.get("question_banks", []),
+    )
     node.save(update_fields=["properties"])
 
 

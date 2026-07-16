@@ -248,47 +248,12 @@ def build_quiz_results_payload(
         default="quiz_attempt_history" not in node_properties,
     )
 
-    questions = quiz.questions.all().prefetch_related(
-        "options",
-        "matching_pairs",
-        "gap_answers",
-        "image_matching_pairs",
+    from apps.assessments.question_snapshots import build_snapshot_question_review
+
+    question_review = build_snapshot_question_review(
+        reviewed_attempt,
+        correct_answers_released=correct_answers_released,
     )
-    answers = (
-        reviewed_attempt.answers if isinstance(reviewed_attempt.answers, dict) else {}
-    )
-    question_review = []
-    for question in questions:
-        student_answer = answers.get(str(question.id))
-        if student_answer is None:
-            is_correct, points_earned = False, 0
-        else:
-            is_correct, points_earned = question.check_answer(
-                student_answer,
-                attempt_id=reviewed_attempt.id,
-            )
-        question_review.append(
-            {
-                "questionId": question.id,
-                "questionType": question.question_type,
-                "questionText": normalize_assessment_text(question.text),
-                "studentAnswer": _format_student_answer(
-                    question,
-                    student_answer,
-                    reviewed_attempt.id,
-                ),
-                "correctAnswer": (
-                    _format_correct_answer(question)
-                    if correct_answers_released
-                    else None
-                ),
-                "isCorrect": is_correct,
-                "pointsEarned": (
-                    float(points_earned) if points_earned is not None else None
-                ),
-                "pointsPossible": question.points,
-            }
-        )
 
     serialized_attempts = [_serialize_attempt(attempt) for attempt in attempts]
     return {

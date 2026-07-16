@@ -68,6 +68,9 @@ export default function QuestionsLibraryDrawer({
     // Filters (client-side only)
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
+    const [selectedDifficulty, setSelectedDifficulty] = useState("");
+    const [selectedType, setSelectedType] = useState("");
+    const [tagQuery, setTagQuery] = useState("");
 
     // Selected questions for adding
     const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -87,6 +90,13 @@ export default function QuestionsLibraryDrawer({
             // Filter by category
             if (selectedCategory && entry.category !== selectedCategory)
                 return false;
+            if (selectedDifficulty && entry.difficulty !== selectedDifficulty)
+                return false;
+            if (selectedType && entry.question_type !== selectedType) return false;
+            if (tagQuery) {
+                const tags = (entry.tags || []).map((tag) => String(tag).toLowerCase());
+                if (!tags.includes(tagQuery.toLowerCase().trim())) return false;
+            }
 
             // Filter by search query
             if (searchQuery) {
@@ -96,7 +106,14 @@ export default function QuestionsLibraryDrawer({
 
             return true;
         });
-    }, [preloadedQuestions, searchQuery, selectedCategory]);
+    }, [
+        preloadedQuestions,
+        searchQuery,
+        selectedCategory,
+        selectedDifficulty,
+        selectedType,
+        tagQuery,
+    ]);
 
     const handleToggleQuestion = (questionId) => {
         setSelectedQuestions((prev) =>
@@ -119,6 +136,9 @@ export default function QuestionsLibraryDrawer({
         setSelectedQuestions([]);
         setSearchQuery("");
         setSelectedCategory("");
+        setSelectedDifficulty("");
+        setSelectedType("");
+        setTagQuery("");
         onClose();
     };
 
@@ -200,6 +220,43 @@ export default function QuestionsLibraryDrawer({
                                     </InputAdornment>
                                 ),
                             }}
+                        />
+                        <Stack direction="row" spacing={1}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Difficulty</InputLabel>
+                                <Select
+                                    value={selectedDifficulty}
+                                    label="Difficulty"
+                                    onChange={(e) => setSelectedDifficulty(e.target.value)}
+                                >
+                                    <MenuItem value="">Any</MenuItem>
+                                    <MenuItem value="easy">Easy</MenuItem>
+                                    <MenuItem value="medium">Medium</MenuItem>
+                                    <MenuItem value="hard">Hard</MenuItem>
+                                </Select>
+                            </FormControl>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Type</InputLabel>
+                                <Select
+                                    value={selectedType}
+                                    label="Type"
+                                    onChange={(e) => setSelectedType(e.target.value)}
+                                >
+                                    <MenuItem value="">Any</MenuItem>
+                                    {Object.entries(QUESTION_TYPE_LABELS)
+                                        .filter(([value]) => value !== "question_bank")
+                                        .map(([value, label]) => (
+                                            <MenuItem key={value} value={value}>{label}</MenuItem>
+                                        ))}
+                                </Select>
+                            </FormControl>
+                        </Stack>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            label="Required tag"
+                            value={tagQuery}
+                            onChange={(e) => setTagQuery(e.target.value)}
                         />
                     </Stack>
                 </Box>

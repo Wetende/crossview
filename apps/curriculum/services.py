@@ -294,6 +294,25 @@ class CoursePublishValidationService:
                     'node_id': quiz.id,
                     'node_title': quiz.title
                 })
+            if quiz_record:
+                from apps.assessments.question_snapshots import (
+                    validate_quiz_question_pools,
+                )
+
+                for issue in validate_quiz_question_pools(quiz_record):
+                    errors.append(
+                        {
+                            'type': 'undersupplied_question_pool',
+                            'message': (
+                                f'Question bank "{issue["bankName"]}" requires '
+                                f'{issue["required"]} unique questions but only '
+                                f'{issue["available"]} are available'
+                            ),
+                            'node_id': quiz.id,
+                            'node_title': quiz.title,
+                            'pool_id': issue['poolId'],
+                        }
+                    )
 
         # Weight validation and integrity checks for assignments.
         assignment_weights = []

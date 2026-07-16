@@ -5,7 +5,9 @@ Assessment models - Grading strategies and results.
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Union
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Q
 from django.utils.crypto import salted_hmac
 
 from apps.assessments.text_normalization import normalize_true_false_choice
@@ -217,6 +219,13 @@ class Question(TimeStampedModel):
     # T/F: {"correct": true}
     # Short Answer: {"keywords": ["term1", "term2"], "manual_grading": false}
     answer_data = models.JSONField()
+    source_bank_entry = models.ForeignKey(
+        "assessments.QuestionBankEntry",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quiz_copies",
+    )
 
     class Meta:
         db_table = "questions"
@@ -583,6 +592,11 @@ class QuizAttempt(models.Model):
         Returns (points_earned, points_possible, percentage, passed).
         points_earned is a Decimal with 2 decimal places.
         """
+        if self.question_snapshots.exists():
+            from apps.assessments.question_snapshots import score_attempt_snapshots
+
+            return score_attempt_snapshots(self)
+
         points_earned = Decimal(0)
         points_possible = 0
         needs_manual = False
@@ -973,7 +987,11 @@ class QuestionBankEntry(TimeStampedModel):
         "core.User", on_delete=models.CASCADE, related_name="question_bank"
     )
     question = models.ForeignKey(
-        Question, on_delete=models.CASCADE, related_name="bank_entries"
+        Question,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bank_entries",
     )
     bank = models.ForeignKey(
         QuestionBank,
@@ -992,6 +1010,9 @@ class QuestionBankEntry(TimeStampedModel):
     tags = models.JSONField(default=list, blank=True)
 
     usage_count = models.PositiveIntegerField(default=0)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    snapshot_version = models.PositiveIntegerField(default=1)
+    question_snapshot = models.JSONField(default=dict)
 
     class Meta:
         db_table = "question_bank_entries"
@@ -1002,4 +1023,220 @@ class QuestionBankEntry(TimeStampedModel):
         ]
 
     def __str__(self):
-        return f"Bank Entry: {self.question.text[:30]} ({self.owner})"
+        text = (self.question_snapshot or {}).get("text")
+        if not text and self.question_id:
+            text = self.question.text
+        return f"Bank Entry: {str(text or '')[:30]} ({self.owner})"
+
+
+class QuestionBankEntryRevision(models.Model):
+    """Immutable version history for reusable bank question content."""
+
+    entry = models.ForeignKey(
+        QuestionBankEntry,
+        on_delete=models.CASCADE,
+        related_name="revisions",
+    )
+    version = models.PositiveIntegerField()
+    snapshot = models.JSONField()
+    changed_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="question_bank_revisions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "question_bank_entry_revisions"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["entry", "version"],
+                name="unique_question_bank_entry_revision",
+            )
+        ]
+        ordering = ["-version"]
+
+
+class QuizQuestionPool(TimeStampedModel):
+    """A filtered random selection from a persistent question bank."""
+
+    quiz = models.ForeignKey(
+        Quiz,
+        on_delete=models.CASCADE,
+        related_name="question_pools",
+    )
+    bank = models.ForeignKey(
+        QuestionBank,
+        on_delete=models.PROTECT,
+        related_name="quiz_pools",
+    )
+    question_count = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(500)]
+    )
+    category = models.CharField(max_length=100, blank=True, default="")
+    tags = models.JSONField(default=list, blank=True)
+    difficulty = models.CharField(
+        max_length=20,
+        choices=[("", "Any"), *QuestionBankEntry.DIFFICULTY_CHOICES],
+        blank=True,
+        default="",
+    )
+    question_type = models.CharField(
+        max_length=20,
+        choices=[("", "Any"), *Question.QUESTION_TYPE_CHOICES],
+        blank=True,
+        default="",
+    )
+    position = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_quiz_question_pools",
+    )
+
+    class Meta:
+        db_table = "quiz_question_pools"
+        ordering = ["position", "id"]
+        indexes = [
+            models.Index(fields=["quiz", "is_active"]),
+            models.Index(fields=["bank"]),
+        ]
+
+
+class QuizAttemptQuestionSnapshot(models.Model):
+    """Immutable question and grading rules selected for one quiz attempt."""
+
+    attempt = models.ForeignKey(
+        QuizAttempt,
+        on_delete=models.CASCADE,
+        related_name="question_snapshots",
+    )
+    question_key = models.BigIntegerField()
+    position = models.PositiveIntegerField()
+    snapshot = models.JSONField()
+    source_question = models.ForeignKey(
+        Question,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attempt_snapshots",
+    )
+    source_bank_entry = models.ForeignKey(
+        QuestionBankEntry,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attempt_snapshots",
+    )
+    source_pool = models.ForeignKey(
+        QuizQuestionPool,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attempt_snapshots",
+    )
+    manual_points_awarded = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+    manual_feedback = models.TextField(blank=True, default="")
+    graded_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="graded_quiz_question_snapshots",
+    )
+    graded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "quiz_attempt_question_snapshots"
+        ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attempt", "question_key"],
+                name="unique_attempt_question_snapshot_key",
+            ),
+            models.UniqueConstraint(
+                fields=["attempt", "position"],
+                name="unique_attempt_question_snapshot_position",
+            ),
+        ]
+        indexes = [models.Index(fields=["attempt", "position"])]
+
+
+class QuestionBankUsage(models.Model):
+    """Idempotent usage ledger for copies, pool links, and attempt selections."""
+
+    COPY = "copy"
+    POOL_LINK = "pool_link"
+    ATTEMPT_SELECTION = "attempt_selection"
+    USAGE_TYPE_CHOICES = [
+        (COPY, "Quiz copy"),
+        (POOL_LINK, "Pool link"),
+        (ATTEMPT_SELECTION, "Attempt selection"),
+    ]
+
+    entry = models.ForeignKey(
+        QuestionBankEntry,
+        on_delete=models.CASCADE,
+        related_name="usage_events",
+    )
+    usage_type = models.CharField(max_length=24, choices=USAGE_TYPE_CHOICES)
+    quiz = models.ForeignKey(
+        Quiz,
+        on_delete=models.CASCADE,
+        related_name="question_bank_usage",
+    )
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="question_bank_usage",
+    )
+    pool = models.ForeignKey(
+        QuizQuestionPool,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="usage_events",
+    )
+    attempt = models.ForeignKey(
+        QuizAttempt,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="question_bank_usage",
+    )
+    used_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "question_bank_usage"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["usage_type", "entry", "question"],
+                condition=Q(usage_type="copy"),
+                name="unique_question_bank_copy_usage",
+            ),
+            models.UniqueConstraint(
+                fields=["usage_type", "entry", "pool"],
+                condition=Q(usage_type="pool_link"),
+                name="unique_question_bank_pool_usage",
+            ),
+            models.UniqueConstraint(
+                fields=["usage_type", "entry", "attempt"],
+                condition=Q(usage_type="attempt_selection"),
+                name="unique_question_bank_attempt_usage",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["entry", "-used_at"]),
+            models.Index(fields=["quiz", "usage_type"]),
+        ]

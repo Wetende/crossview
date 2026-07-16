@@ -10,6 +10,7 @@ const EditorContainer = forwardRef(function EditorContainer(
         blueprint,
         programId,
         questionLibrary = [],
+        questionBanks = [],
         categories = [],
         quizEditorComponent: QuizEditorComponent = AssessmentEditor,
     },
@@ -46,6 +47,7 @@ const EditorContainer = forwardRef(function EditorContainer(
                 type="quiz"
                 programId={programId}
                 questionLibrary={questionLibrary}
+                questionBanks={questionBanks}
                 categories={categories}
             />
         );
@@ -60,6 +62,7 @@ const EditorContainer = forwardRef(function EditorContainer(
                 type="assignment"
                 programId={programId}
                 questionLibrary={questionLibrary}
+                questionBanks={questionBanks}
                 categories={categories}
             />
         );

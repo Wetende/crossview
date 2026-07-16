@@ -30,6 +30,7 @@ import {
     ExpandLess as CollapseIcon,
     Add as AddIcon,
     Help as HelpIcon,
+    LibraryAdd as LibraryAddIcon,
 } from "@mui/icons-material";
 import RichTextEditor from "@/components/RichTextEditor";
 
@@ -73,6 +74,7 @@ export default function QuestionEditorCard({
     question,
     onChange,
     onDelete,
+    onSaveToLibrary,
     categories = [],
     isNew = false,
     defaultExpanded = false,
@@ -327,6 +329,22 @@ export default function QuestionEditorCard({
                 >
                     {expanded ? <CollapseIcon /> : <ExpandIcon />}
                 </IconButton>
+
+                {/* Save reusable copy */}
+                {onSaveToLibrary && (
+                    <Tooltip title="Save a reusable copy to the question bank">
+                        <IconButton
+                            size="small"
+                            color="success"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSaveToLibrary({ ...question, ...localData });
+                            }}
+                        >
+                            <LibraryAddIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                )}
 
                 {/* Delete */}
                 <IconButton
