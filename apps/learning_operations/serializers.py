@@ -54,3 +54,51 @@ class ManualQuizGradeReadSerializer(serializers.ModelSerializer):
             "name": obj.graded_by.get_full_name() or obj.graded_by.email,
         }
 
+
+class LearnerInviteSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class RosterRowsSerializer(serializers.Serializer):
+    rows = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=True,
+        max_length=2000,
+    )
+    confirmationToken = serializers.CharField(required=False, allow_blank=True)
+
+
+class InvitationBulkActionSerializer(serializers.Serializer):
+    invitationIds = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        max_length=500,
+    )
+    action = serializers.ChoiceField(choices=["resend", "revoke"])
+
+
+class BulkLearnerActionSerializer(serializers.Serializer):
+    enrollmentIds = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        max_length=500,
+    )
+    action = serializers.ChoiceField(
+        choices=["activate", "suspend", "withdraw", "reactivate", "send_reminder"]
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
+class ProgressAdjustmentSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+
+class AssignmentReturnSerializer(ProgressAdjustmentSerializer):
+    feedback = serializers.CharField(required=False, allow_blank=True, max_length=5000)
+
+
+class InvitationAcceptanceSerializer(serializers.Serializer):
+    firstName = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    lastName = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    password = serializers.CharField(required=False, allow_blank=True, write_only=True)

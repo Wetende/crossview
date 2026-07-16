@@ -27,6 +27,7 @@ import {
   IconButton,
   InputAdornment,
   LinearProgress,
+  Checkbox,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -36,6 +37,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import InstructorLayout from '@/layouts/InstructorLayout';
 import { ReportToolbar } from '@/features/reports';
+import LearnerManagementToolbar from '../components/LearnerManagementToolbar';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -58,6 +60,7 @@ const statusColors = {
 export default function InstructorStudentsIndex({ program, students, filters }) {
   const [search, setSearch] = useState(filters?.search || '');
   const [status, setStatus] = useState(filters?.status || '');
+  const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState([]);
 
   // Determine if we're viewing a specific program or all students
   const isProgramView = !!program;
@@ -108,6 +111,25 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
   const isArrayFormat = Array.isArray(students);
   const studentsList = isArrayFormat ? students : (students?.results || []);
   const pagination = isArrayFormat ? {} : (students?.pagination || {});
+  const visibleEnrollmentIds = studentsList
+    .map((student) => student.enrollmentId)
+    .filter(Boolean);
+  const allVisibleSelected = visibleEnrollmentIds.length > 0
+    && visibleEnrollmentIds.every((id) => selectedEnrollmentIds.includes(id));
+
+  const toggleAllVisible = () => {
+    setSelectedEnrollmentIds((current) => (
+      allVisibleSelected
+        ? current.filter((id) => !visibleEnrollmentIds.includes(id))
+        : [...new Set([...current, ...visibleEnrollmentIds])]
+    ));
+  };
+
+  const toggleEnrollment = (id) => {
+    setSelectedEnrollmentIds((current) => (
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    ));
+  };
 
   return (
     <InstructorLayout breadcrumbs={breadcrumbs}>
@@ -128,6 +150,17 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
             }}
           />
         </Box>
+
+        {isProgramView && (
+          <LearnerManagementToolbar
+            programId={program.id}
+            selectedEnrollmentIds={selectedEnrollmentIds}
+            onComplete={() => {
+              setSelectedEnrollmentIds([]);
+              router.reload({ only: ['students'] });
+            }}
+          />
+        )}
         
         {/* Filters */}
         <motion.div {...fadeInUp}>
@@ -182,6 +215,16 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
               <Table>
                 <TableHead>
                   <TableRow>
+                    {isProgramView && (
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          indeterminate={selectedEnrollmentIds.length > 0 && !allVisibleSelected}
+                          onChange={toggleAllVisible}
+                          inputProps={{ 'aria-label': 'Select visible learners' }}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>Student</TableCell>
                     {isProgramView ? (
                       <>
@@ -200,6 +243,15 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
                   {studentsList.length > 0 ? (
                     studentsList.map((student) => (
                       <TableRow key={student.enrollmentId || student.id} hover>
+                        {isProgramView && (
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={selectedEnrollmentIds.includes(student.enrollmentId)}
+                              onChange={() => toggleEnrollment(student.enrollmentId)}
+                              inputProps={{ 'aria-label': `Select ${student.name}` }}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Box>
                             <Typography variant="body2" fontWeight="medium">
@@ -278,7 +330,7 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={isProgramView ? 6 : 3} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={isProgramView ? 7 : 3} align="center" sx={{ py: 4 }}>
                         <Typography color="text.secondary">
                           No students found
                         </Typography>

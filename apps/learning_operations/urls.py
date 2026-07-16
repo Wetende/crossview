@@ -41,5 +41,54 @@ urlpatterns = [
         views.ManualQuizGradeView.as_view(),
         name="manual-quiz-grade",
     ),
+    path(
+        "programs/<int:program_id>/invitations/",
+        views.CourseLearnerInviteView.as_view(),
+        name="course-invitations",
+    ),
+    path(
+        "programs/<int:program_id>/invitations/bulk/",
+        views.CourseInvitationBulkActionView.as_view(),
+        name="course-invitations-bulk",
+    ),
+    path(
+        "programs/<int:program_id>/roster/preview/",
+        views.CourseRosterPreviewView.as_view(),
+        name="roster-preview",
+    ),
+    path(
+        "programs/<int:program_id>/roster/import/",
+        views.CourseRosterImportView.as_view(),
+        name="roster-import",
+    ),
+    path(
+        "programs/<int:program_id>/roster/export/",
+        views.CourseRosterExportView.as_view(),
+        name="roster-export",
+    ),
+    path(
+        "programs/<int:program_id>/learners/bulk/",
+        views.CourseBulkLearnerActionView.as_view(),
+        name="learner-bulk",
+    ),
+    path(
+        "programs/<int:program_id>/learners/<int:enrollment_id>/nodes/<int:node_id>/reset/",
+        views.LessonCompletionResetView.as_view(),
+        name="lesson-completion-reset",
+    ),
+    path(
+        "programs/<int:program_id>/learners/<int:enrollment_id>/quizzes/<int:quiz_id>/grant-attempt/",
+        views.QuizAttemptGrantView.as_view(),
+        name="quiz-attempt-grant",
+    ),
+    path(
+        "programs/<int:program_id>/assignments/submissions/<int:submission_id>/return/",
+        views.AssignmentReturnView.as_view(),
+        name="assignment-return",
+    ),
+    path(
+        "invitations/<str:token>/",
+        views.InvitationAcceptanceView.as_view(),
+        name="invitation-accept",
+    ),
 ]
-

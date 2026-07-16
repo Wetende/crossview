@@ -53,7 +53,17 @@ def can_start_quiz_attempt(quiz, enrollment) -> QuizAttemptEligibility:
         quiz=quiz,
         submitted_at__isnull=False,
     ).count()
-    attempts_remaining = max(0, quiz.max_attempts - attempts_used)
+    from apps.learning_operations.models import AssessmentAttemptGrant
+
+    granted_attempts = sum(
+        AssessmentAttemptGrant.objects.filter(
+            enrollment=enrollment,
+            assessment_type=AssessmentAttemptGrant.QUIZ,
+            quiz=quiz,
+        ).values_list("extra_attempts", flat=True)
+    )
+    allowed_attempts = quiz.max_attempts + granted_attempts
+    attempts_remaining = max(0, allowed_attempts - attempts_used)
 
     if attempts_remaining == 0:
         return QuizAttemptEligibility(
@@ -63,7 +73,7 @@ def can_start_quiz_attempt(quiz, enrollment) -> QuizAttemptEligibility:
             lock_reason="max_attempts_reached",
         )
 
-    if not quiz.allow_retake_after_pass:
+    if not quiz.allow_retake_after_pass and granted_attempts == 0:
         has_passed = QuizAttempt.objects.filter(
             enrollment=enrollment,
             quiz=quiz,
@@ -138,9 +148,19 @@ def get_assignment_attempts_remaining(enrollment, assignment, node_properties) -
         assignment=assignment,
         submitted_at__isnull=False,
     ).count()
+    from apps.learning_operations.models import AssessmentAttemptGrant
+
+    granted_attempts = sum(
+        AssessmentAttemptGrant.objects.filter(
+            enrollment=enrollment,
+            assessment_type=AssessmentAttemptGrant.ASSIGNMENT,
+            assignment=assignment,
+        ).values_list("extra_attempts", flat=True)
+    )
     if max_attempts is None:
         return None, attempts_used, None
-    return max_attempts, attempts_used, max(0, max_attempts - attempts_used)
+    effective_max = max_attempts + granted_attempts
+    return effective_max, attempts_used, max(0, effective_max - attempts_used)
 
 
 def assignment_attempt_passed(attempt: Optional[AssignmentSubmission], fallback_threshold: float = 50.0) -> bool:

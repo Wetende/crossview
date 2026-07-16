@@ -3502,6 +3502,7 @@ def instructor_enrollment_status(request, enrollment_id: int):
 
     from apps.progression.models import Enrollment
     from apps.notifications.services import NotificationService
+    from apps.learning_operations.learner_management import change_enrollment_status
 
     program_ids = get_instructor_program_ids(request.user)
     enrollment = get_object_or_404(
@@ -3513,8 +3514,12 @@ def instructor_enrollment_status(request, enrollment_id: int):
 
     valid_statuses = ["active", "suspended", "withdrawn", "completed"]
     if new_status in valid_statuses:
-        enrollment.status = new_status
-        enrollment.save(update_fields=["status"])
+        change_enrollment_status(
+            enrollment=enrollment,
+            status=new_status,
+            actor=request.user,
+            reason=str(data.get("reason") or ""),
+        )
         NotificationService.notify_enrollment_status_changed(enrollment, new_status)
         messages.success(request, f"Enrollment status updated to {new_status}")
     else:

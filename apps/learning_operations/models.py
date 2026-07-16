@@ -1,6 +1,7 @@
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 from apps.core.models import TimeStampedModel
 
@@ -118,3 +119,126 @@ class ManualQuizGrade(TimeStampedModel):
         ]
         indexes = [models.Index(fields=["attempt", "graded_at"])]
 
+
+class CourseInvitation(TimeStampedModel):
+    """Single-use course invitation for an email that may not have an account."""
+
+    program = models.ForeignKey(
+        "core.Program",
+        on_delete=models.CASCADE,
+        related_name="course_invitations",
+    )
+    email = models.EmailField()
+    token_digest = models.CharField(max_length=64, unique=True)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="sent_course_invitations",
+    )
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    enrollment = models.ForeignKey(
+        "progression.Enrollment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accepted_invitations",
+    )
+
+    class Meta:
+        db_table = "learning_course_invitations"
+        indexes = [
+            models.Index(fields=["program", "email"]),
+            models.Index(fields=["expires_at"]),
+        ]
+
+
+class LearnerManagementAudit(TimeStampedModel):
+    """Immutable record of instructor/admin learner-management actions."""
+
+    enrollment = models.ForeignKey(
+        "progression.Enrollment",
+        on_delete=models.CASCADE,
+        related_name="management_audits",
+    )
+    action = models.CharField(max_length=64)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="learner_management_actions",
+    )
+    reason = models.TextField(blank=True, default="")
+    previous_state = models.JSONField(default=dict, blank=True)
+    resulting_state = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "learning_learner_management_audits"
+        indexes = [models.Index(fields=["enrollment", "-created_at"])]
+
+
+class AssessmentAttemptGrant(TimeStampedModel):
+    """Audited extra quiz or assignment attempt allowance."""
+
+    QUIZ = "quiz"
+    ASSIGNMENT = "assignment"
+    ASSESSMENT_TYPE_CHOICES = [(QUIZ, "Quiz"), (ASSIGNMENT, "Assignment")]
+
+    enrollment = models.ForeignKey(
+        "progression.Enrollment",
+        on_delete=models.CASCADE,
+        related_name="attempt_grants",
+    )
+    assessment_type = models.CharField(max_length=16, choices=ASSESSMENT_TYPE_CHOICES)
+    quiz = models.ForeignKey(
+        "assessments.Quiz",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="attempt_grants",
+    )
+    assignment = models.ForeignKey(
+        "assessments.Assignment",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="attempt_grants",
+    )
+    extra_attempts = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="granted_assessment_attempts",
+    )
+    reason = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "learning_assessment_attempt_grants"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        assessment_type="quiz",
+                        quiz__isnull=False,
+                        assignment__isnull=True,
+                    )
+                    | Q(
+                        assessment_type="assignment",
+                        assignment__isnull=False,
+                        quiz__isnull=True,
+                    )
+                ),
+                name="learning_attempt_grant_target_matches_type",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["enrollment", "assessment_type"]),
+            models.Index(fields=["quiz"]),
+            models.Index(fields=["assignment"]),
+        ]

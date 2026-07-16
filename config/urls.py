@@ -15,6 +15,7 @@ urlpatterns = [
     path("", include("apps.commerce.urls")),
     path("", include("apps.reports.urls")),
     path("", include("apps.blueprints.urls")),  # Blueprint admin routes
+    path("", include("apps.learning_operations.public_urls")),
 
     path("", include("apps.platform.urls")),  # Platform settings routes
     path("assessments/", include("apps.assessments.urls")),

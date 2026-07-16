@@ -60,6 +60,7 @@ const featureMap = {
     "Instructor/Students/Index": "./features/students/pages/Index.jsx",
     "Instructor/Students/Detail": "./features/students/pages/Detail.jsx",
     "Instructor/Students/Show": "./features/students/pages/Show.jsx",
+    "Instructor/Students/Operations": "./features/students/pages/Operations.jsx",
     "Instructor/Announcements/Index":
         "./features/announcements/pages/Index.jsx",
     "Instructor/Announcements/Create":
@@ -67,6 +68,7 @@ const featureMap = {
     "Instructor/EnrollmentRequests/Index":
         "./features/enrollments/pages/Index.jsx",
     "Payments/Checkout": "./features/enrollments/pages/Checkout.jsx",
+    "Enrollments/InvitationAccept": "./features/enrollments/pages/InvitationAccept.jsx",
     "Student/Orders": "./features/enrollments/pages/Orders.jsx",
     "Instructor/Assignments/Global":
         "./features/assignments/pages/instructor/Global.jsx",
@@ -144,7 +146,6 @@ function resolvePageLoader(name) {
 
     return pages[`./Pages/${name}.jsx`];
 }
-
 // Configure axios for CSRF
 // Django is now configured to use Axios defaults: XSRF-TOKEN cookie, X-XSRF-TOKEN header
 axios.defaults.withCredentials = true;
