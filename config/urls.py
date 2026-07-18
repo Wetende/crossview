@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/discussions/", include("apps.discussions.urls")),
     path("api/inquiries/", include("apps.inquiries.urls")),
     path("api/learning-operations/", include("apps.learning_operations.urls")),
+    path("api/google-classroom/", include("apps.google_classroom.urls")),
     path("events/", include("apps.events.urls")),  # Events app routes
 ]
 if settings.DEBUG:

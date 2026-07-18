@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.inquiries",
     "apps.learning_operations",
+    "apps.google_classroom",
 ]
 
 if DEBUG and importlib.util.find_spec("debug_toolbar"):
@@ -307,6 +308,16 @@ CURRICULUM_NODE_REQUIRED_PROPERTIES = {
 # Optional per-deployment override. When blank, inquiry notifications use the
 # contact email stored in PlatformSettings.
 INQUIRY_NOTIFICATION_EMAIL = os.getenv("INQUIRY_NOTIFICATION_EMAIL", "").strip()
+
+# Google Classroom authorization is separate from Google One Tap sign-in.
+GOOGLE_CLASSROOM_ENABLED = os.getenv("GOOGLE_CLASSROOM_ENABLED", "False").lower() == "true"
+GOOGLE_CLASSROOM_CLIENT_ID = os.getenv("GOOGLE_CLASSROOM_CLIENT_ID", "").strip()
+GOOGLE_CLASSROOM_CLIENT_SECRET = os.getenv("GOOGLE_CLASSROOM_CLIENT_SECRET", "").strip()
+GOOGLE_CLASSROOM_REDIRECT_URI = os.getenv("GOOGLE_CLASSROOM_REDIRECT_URI", "").strip()
+GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY = os.getenv(
+    "GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY", ""
+).strip()
+PLATFORM_PUBLIC_BASE_URL = os.getenv("PLATFORM_PUBLIC_BASE_URL", "").strip().rstrip("/")
 
 # =============================================================================
 # Logging (Environment-controlled verbosity)

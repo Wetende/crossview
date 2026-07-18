@@ -54,6 +54,25 @@ describe("builderTabs", () => {
         expect(normalizeBuilderTab(practicumProgram, "practicum")).toBe("practicum");
     });
 
+    it("includes Classroom only when configured or already linked", () => {
+        const configuredProgram = {
+            ...baseProgram,
+            googleClassroom: { available: true, link: { connected: false } },
+        };
+        const linkedProgram = {
+            ...baseProgram,
+            googleClassroom: { available: false, link: { connected: true } },
+        };
+
+        expect(getAvailableBuilderTabs(baseProgram).map((tab) => tab.value)).not.toContain(
+            "classroom",
+        );
+        expect(getAvailableBuilderTabs(configuredProgram).map((tab) => tab.value)).toContain(
+            "classroom",
+        );
+        expect(normalizeBuilderTab(linkedProgram, "classroom")).toBe("classroom");
+    });
+
     it("uses the base manage URL for curriculum and query params for other tabs", () => {
         expect(getBuilderTabUrl(42, "curriculum")).toBe(
             "/instructor/programs/42/manage/",

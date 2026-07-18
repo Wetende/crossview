@@ -41,6 +41,7 @@ from apps.progression.services import ProgressionEngine
 from apps.progression.gamification import serialize_gamification
 from apps.core.utils import serialize_user, should_render_inertia_prop
 from apps.notifications.services import NotificationService
+from apps.google_classroom.services import serialize_student_companion
 
 
 def _redirect_if_course_prerequisites_unmet(request, enrollment: Enrollment):
@@ -327,6 +328,9 @@ def student_dashboard(request):
                 **serialize_enrollment_operations(
                     enrollment, total_nodes, include_gamification=True
                 ),
+                "googleClassroom": serialize_student_companion(
+                    enrollment.program, enrollment
+                ),
             }
         )
 
@@ -564,6 +568,7 @@ def program_view(request, pk: int):
                 "id": enrollment.id,
                 "progressPercent": round(progress, 1),
                 "gamification": serialize_gamification(enrollment),
+                "googleClassroom": serialize_student_companion(program, enrollment),
             },
             "curriculum": curriculum_tree,
             "resumeUrl": f"/student/programs/{program.id}/resume/",
@@ -729,6 +734,7 @@ def _render_course_player(request, enrollment, node, completions, status_map):
                 "id": enrollment.id,
                 "progressPercent": round(progress, 1),
                 "gamification": serialize_gamification(enrollment),
+                "googleClassroom": serialize_student_companion(program, enrollment),
             },
             "curriculum": curriculum_tree,
             "prevNode": siblings.get("prev"),
@@ -1019,6 +1025,9 @@ def session_viewer(request, pk: int, node_id: int):
                 "id": enrollment.id,
                 "progressPercent": round(progress, 1),
                 "gamification": serialize_gamification(enrollment),
+                "googleClassroom": serialize_student_companion(
+                    enrollment.program, enrollment
+                ),
             },
             "curriculum": curriculum_tree,
             "prevNode": siblings.get("prev"),

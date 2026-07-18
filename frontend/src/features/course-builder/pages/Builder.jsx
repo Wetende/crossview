@@ -27,6 +27,7 @@ import CurriculumTree, { flattenNodes } from "../components/CurriculumTree";
 import EditorContainer from "../editors/EditorContainer";
 import SettingsPanel from "../components/SettingsPanel";
 import CoursePublicationControls from "../components/CoursePublicationControls";
+import GoogleClassroomEditor from "@/features/google-classroom/components/GoogleClassroomEditor";
 import {
     getBuilderTabUrl,
     getRequestedSettingsSection,
@@ -346,6 +347,15 @@ export default function InstructorProgramBuilder({
                                         platformFeatures={platformFeatures}
                                         deploymentMode={deploymentMode}
                                     />
+                                </CardContent>
+                            </Card>
+                        </Box>
+                    )}
+                    {activeTab === "classroom" && (
+                        <Box sx={{ maxWidth: 900, mx: "auto", pt: 2, pb: 4 }}>
+                            <Card>
+                                <CardContent>
+                                    <GoogleClassroomEditor program={program} />
                                 </CardContent>
                             </Card>
                         </Box>

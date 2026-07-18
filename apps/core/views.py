@@ -6638,6 +6638,12 @@ def serialize_program_data(program):
         get_course_engagement_policy,
         serialize_engagement_policy,
     )
+    from apps.google_classroom.configuration import classroom_configuration
+    from apps.google_classroom.services import (
+        course_link_for,
+        serialize_course_link,
+        serialize_publishable_resources,
+    )
 
     platform_settings = PlatformSettings.get_settings()
     platform_features = platform_settings.get_default_features_for_mode()
@@ -6791,6 +6797,11 @@ def serialize_program_data(program):
             "engagementPolicy": serialize_engagement_policy(
                 get_course_engagement_policy(program)
             ),
+            "googleClassroom": {
+                "available": classroom_configuration()["available"],
+                "link": serialize_course_link(course_link_for(program)),
+                "publishableResources": serialize_publishable_resources(program),
+            },
             "taxonomy": {
                 "level": level,
                 "builderHierarchy": builder_hierarchy,
