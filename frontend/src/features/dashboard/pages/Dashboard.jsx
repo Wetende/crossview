@@ -46,6 +46,7 @@ import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import HowToRegIcon from "@mui/icons-material/HowToReg";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
+import LearningMomentum from "@/components/LearningMomentum";
 
 // =============================================================================
 // Shared Components
@@ -162,6 +163,8 @@ function StudentContent({ enrollments, assignments, quizzes, upcomingDeadlines }
                     </Stack>
                 </Paper>
             )}
+
+            <LearningMomentum enrollments={enrollmentList} />
 
             {/* Top Row: 4 Summary Cards */}
             <Grid container spacing={3}>

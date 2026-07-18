@@ -6634,6 +6634,10 @@ def serialize_program_data(program):
         delivery_mode_locked,
         get_course_delivery_profile,
     )
+    from apps.learning_operations.engagement import (
+        get_course_engagement_policy,
+        serialize_engagement_policy,
+    )
 
     platform_settings = PlatformSettings.get_settings()
     platform_features = platform_settings.get_default_features_for_mode()
@@ -6783,6 +6787,10 @@ def serialize_program_data(program):
             "ratingCount": program.rating_count,
             "deliveryMode": delivery_profile.delivery_mode,
             "deliveryModeLocked": delivery_mode_locked(),
+            "gamificationOptIn": delivery_profile.gamification_opt_in,
+            "engagementPolicy": serialize_engagement_policy(
+                get_course_engagement_policy(program)
+            ),
             "taxonomy": {
                 "level": level,
                 "builderHierarchy": builder_hierarchy,
@@ -8059,6 +8067,7 @@ def instructor_program_update_settings(request, pk: int):
         get_course_delivery_profile,
         update_course_delivery_profile,
     )
+    from apps.learning_operations.engagement import update_course_engagement_policy
     program_categories = PlatformSettings.get_settings().get_program_categories()
     pricing_context = _get_platform_pricing_context()
     data = get_post_data(request)
@@ -8067,7 +8076,9 @@ def instructor_program_update_settings(request, pk: int):
     settings_section = str(
         data.get("section") or request.GET.get("section") or "main"
     ).strip().lower()
-    valid_builder_tabs = {"settings", "pricing", "faq", "notice", "drip", "practicum"}
+    valid_builder_tabs = {
+        "settings", "pricing", "faq", "notice", "drip", "practicum", "engagement"
+    }
     valid_settings_sections = {
         "main",
         "academic",
@@ -8212,6 +8223,23 @@ def instructor_program_update_settings(request, pk: int):
             )
         except ValidationError as exc:
             messages.error(request, exc.messages[0])
+            return _redirect_to_builder()
+
+    if active_tab == "engagement":
+        try:
+            raw_policy = data.get("engagement_policy") or {}
+            if isinstance(raw_policy, str):
+                raw_policy = json.loads(raw_policy)
+            update_course_engagement_policy(program, raw_policy)
+            profile = get_course_delivery_profile(program)
+            update_course_delivery_profile(
+                program,
+                profile.delivery_mode,
+                gamification_opt_in=_to_bool(data.get("gamification_opt_in")),
+            )
+        except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            message = exc.messages[0] if isinstance(exc, ValidationError) else str(exc)
+            messages.error(request, message or "Review the engagement settings.")
             return _redirect_to_builder()
 
     if active_tab == "settings" and settings_section == "main" and "thumbnail" in files:

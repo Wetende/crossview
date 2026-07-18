@@ -32,6 +32,11 @@ from .learner_management import (
     return_assignment_for_resubmission,
     validate_roster_preview_token,
 )
+from .engagement import (
+    get_course_engagement_policy,
+    serialize_engagement_policy,
+    update_course_engagement_policy,
+)
 from .models import CourseInvitation, LearnerManagementAudit
 
 from .selectors import (
@@ -47,6 +52,7 @@ from .serializers import (
     AssignmentReturnSerializer,
     BulkLearnerActionSerializer,
     CourseDeliveryProfileSerializer,
+    CourseEngagementPolicySerializer,
     EngagementMatrixQuerySerializer,
     InvitationAcceptanceSerializer,
     InvitationBulkActionSerializer,
@@ -101,12 +107,39 @@ class CourseDeliveryProfileView(APIView):
                 serializer.validated_data.get(
                     "delivery_mode", get_course_delivery_profile(program).delivery_mode
                 ),
+                gamification_opt_in=serializer.validated_data.get(
+                    "gamification_opt_in"
+                ),
             )
         except DjangoValidationError as exc:
             return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
         data = CourseDeliveryProfileSerializer(profile).data
         data["deliveryModeLocked"] = delivery_mode_locked()
         return Response(data)
+
+
+class CourseEngagementPolicyView(APIView):
+    permission_classes = [IsInstructorOrStaff]
+
+    def get(self, request, program_id):
+        program = _instructor_program(request, program_id)
+        return Response(
+            serialize_engagement_policy(get_course_engagement_policy(program))
+        )
+
+    def patch(self, request, program_id):
+        program = _instructor_program(request, program_id)
+        serializer = CourseEngagementPolicySerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            policy = update_course_engagement_policy(
+                program, serializer.validated_data
+            )
+        except DjangoValidationError as exc:
+            return Response(
+                {"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(serialize_engagement_policy(policy))
 
 
 class ProgramOperationsSummaryView(APIView):

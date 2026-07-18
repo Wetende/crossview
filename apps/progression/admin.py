@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Enrollment, NodeCompletion
+from .models import Badge, Enrollment, LearningStreak, NodeCompletion, StudentBadge, StudentXP
 
 
 @admin.register(Enrollment)
@@ -20,3 +20,9 @@ class NodeCompletionAdmin(admin.ModelAdmin):
     ordering = ["-completed_at"]
     date_hierarchy = "completed_at"
     raw_id_fields = ["enrollment", "node"]
+
+
+admin.site.register(Badge)
+admin.site.register(StudentBadge)
+admin.site.register(StudentXP)
+admin.site.register(LearningStreak)

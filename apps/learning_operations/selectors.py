@@ -69,7 +69,7 @@ def get_upcoming_deadlines_for_enrollments(enrollments, now=None):
     return sorted(deadlines, key=lambda item: item["dueAt"])
 
 
-def serialize_enrollment_operations(enrollment, total_nodes=None):
+def serialize_enrollment_operations(enrollment, total_nodes=None, include_gamification=False):
     total_nodes = total_nodes if total_nodes is not None else CurriculumNode.objects.filter(
         program=enrollment.program,
         is_published=True,
@@ -81,7 +81,7 @@ def serialize_enrollment_operations(enrollment, total_nodes=None):
         activity = enrollment.learning_activity
     except EnrollmentLearningActivity.DoesNotExist:
         activity = None
-    return {
+    result = {
         "learnerState": classify_enrollment(enrollment),
         "startedAt": activity.started_at.isoformat() if activity and activity.started_at else None,
         "lastActivity": (
@@ -95,6 +95,11 @@ def serialize_enrollment_operations(enrollment, total_nodes=None):
         "totalNodes": total_nodes,
         "expiresAt": enrollment.expires_at.isoformat() if enrollment.expires_at else None,
     }
+    if include_gamification:
+        from apps.progression.gamification import serialize_gamification
+
+        result["gamification"] = serialize_gamification(enrollment)
+    return result
 
 
 def get_student_operations(user):
@@ -107,7 +112,9 @@ def get_student_operations(user):
     return {
         "upcomingDeadlines": get_upcoming_deadlines_for_enrollments(enrollments),
         "enrollmentOperations": {
-            str(enrollment.id): serialize_enrollment_operations(enrollment)
+            str(enrollment.id): serialize_enrollment_operations(
+                enrollment, include_gamification=True
+            )
             for enrollment in enrollments
         },
     }

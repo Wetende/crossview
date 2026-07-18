@@ -22,6 +22,10 @@ class Notification(TimeStampedModel):
         ('direct_message', 'Direct Message'),
         ('instructor_approved', 'Instructor Approved'),
         ('instructor_rejected', 'Instructor Rejected'),
+        ('assignment_reminder', 'Assignment Reminder'),
+        ('access_expiry_reminder', 'Access Expiry Reminder'),
+        ('inactivity_reminder', 'Inactivity Reminder'),
+        ('badge_earned', 'Badge Earned'),
         ('system', 'System Notification'),
     ]
 
@@ -50,6 +54,7 @@ class Notification(TimeStampedModel):
     related_program_id = models.IntegerField(null=True, blank=True)
     related_enrollment_id = models.IntegerField(null=True, blank=True)
     related_assessment_id = models.IntegerField(null=True, blank=True)
+    idempotency_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
 
     class Meta:
         db_table = 'notifications'
@@ -99,3 +104,54 @@ class NotificationPreference(TimeStampedModel):
 
     def __str__(self):
         return f"NotificationPreference: {self.user}"
+
+
+class NotificationEmailOutbox(TimeStampedModel):
+    """Durable, idempotent email delivery and digest queue."""
+
+    DIGEST_CHOICES = NotificationPreference.EMAIL_DIGEST_CHOICES[:3]
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("processing", "Processing"),
+        ("sent", "Sent"),
+        ("failed", "Failed"),
+    ]
+
+    recipient = models.ForeignKey(
+        'core.User',
+        on_delete=models.CASCADE,
+        related_name='notification_email_outbox',
+    )
+    notification = models.ForeignKey(
+        Notification,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='email_outbox_rows',
+    )
+    notification_type = models.CharField(max_length=50)
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    html_message = models.TextField(blank=True, default='')
+    from_email = models.EmailField(blank=True, default='')
+    digest_mode = models.CharField(max_length=20, choices=DIGEST_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    available_at = models.DateTimeField()
+    locked_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(default=8)
+    last_error = models.TextField(blank=True, default='')
+    idempotency_key = models.CharField(max_length=255, unique=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = 'notification_email_outbox'
+        ordering = ['available_at', 'id']
+        indexes = [
+            models.Index(fields=['status', 'available_at']),
+            models.Index(fields=['recipient', 'digest_mode', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.recipient}: {self.subject} ({self.status})"

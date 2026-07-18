@@ -96,13 +96,15 @@ def test_instructor_can_update_delivery_mode(client, instructor, program):
     client.force_login(instructor)
     response = client.patch(
         reverse("learning_operations:delivery", kwargs={"program_id": program.id}),
-        data={"deliveryMode": "self_paced"},
+        data={"deliveryMode": "self_paced", "gamificationOptIn": True},
         content_type="application/json",
     )
 
     assert response.status_code == 200
     assert response.json()["deliveryMode"] == "self_paced"
     assert CourseDeliveryProfile.objects.get(program=program).delivery_mode == "self_paced"
+    assert response.json()["gamificationOptIn"] is True
+    assert CourseDeliveryProfile.objects.get(program=program).gamification_opt_in is True
 
 
 @pytest.mark.django_db

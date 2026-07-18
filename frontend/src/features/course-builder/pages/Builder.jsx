@@ -321,6 +321,7 @@ export default function InstructorProgramBuilder({
                     {(activeTab === "pricing" ||
                         activeTab === "faq" ||
                         activeTab === "notice" ||
+                        activeTab === "engagement" ||
                         activeTab === "drip" ||
                         activeTab === "practicum") && (
                         <Box

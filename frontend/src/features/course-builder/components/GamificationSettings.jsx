@@ -43,7 +43,7 @@ export default function GamificationSettings({ properties, onChange }) {
                     onChange={(e) => handleChange('xp_reward', parseInt(e.target.value) || 0)}
                     size="small"
                     sx={{ width: 120 }}
-                    inputProps={{ min: 0, max: 1000 }}
+                    slotProps={{ htmlInput: { min: 0, max: 1000 } }}
                     helperText="Points for completion"
                 />
                 
@@ -87,13 +87,13 @@ export default function GamificationSettings({ properties, onChange }) {
                         onChange={(e) => handleChange('bonus_xp_amount', parseInt(e.target.value) || 0)}
                         size="small"
                         sx={{ width: 100 }}
-                        inputProps={{ min: 0, max: 500 }}
+                        slotProps={{ htmlInput: { min: 0, max: 500 } }}
                     />
                 )}
             </Box>
             
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
-                These settings only apply when the course is in Online/Self-paced mode with gamification enabled.
+                These lesson values apply when gamification is eligible for the course and enabled by the platform.
             </Typography>
         </Paper>
     );

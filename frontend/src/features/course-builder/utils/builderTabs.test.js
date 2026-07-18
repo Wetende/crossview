@@ -23,9 +23,18 @@ describe("builderTabs", () => {
 
     it("shows drip as an available builder tab", () => {
         expect(getAvailableBuilderTabs(baseProgram).map((tab) => tab.value)).toEqual(
-            ["curriculum", "drip", "settings", "pricing", "faq", "notice"],
+            [
+                "curriculum",
+                "drip",
+                "settings",
+                "pricing",
+                "faq",
+                "notice",
+                "engagement",
+            ],
         );
         expect(normalizeBuilderTab(baseProgram, "drip")).toBe("drip");
+        expect(normalizeBuilderTab(baseProgram, "engagement")).toBe("engagement");
     });
 
     it("includes practicum only when the program blueprint enables it", () => {

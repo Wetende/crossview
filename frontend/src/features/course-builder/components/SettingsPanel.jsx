@@ -49,6 +49,7 @@ import SidebarLayout from "./SidebarLayout";
 import AutosaveStatus from "./AutosaveStatus";
 import useAutosave from "../hooks/useAutosave";
 import { SETTINGS_SECTIONS } from "../utils/builderTabs";
+import EngagementEditor from "./EngagementEditor";
 
 const SETTINGS_SECTION_ICONS = {
     main: MainIcon,
@@ -144,6 +145,15 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         notices: program.notices || [],
         drip_enabled: program.dripEnabled || false,
         drip_mode: program.dripMode || "none",
+        engagement_policy: program.engagementPolicy || {
+            assignmentRemindersEnabled: true,
+            assignmentOffsets: [7, 1, -1],
+            expiryRemindersEnabled: true,
+            expiryOffsets: [7, 1],
+            inactivityRemindersEnabled: true,
+            inactivityOffsets: [7, 30],
+        },
+        gamification_opt_in: Boolean(program.gamificationOptIn),
     });
 
     const categoryOptions = useMemo(() => {
@@ -346,6 +356,14 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                 return {
                     tab: activeTab,
                     notices: JSON.stringify(currentData.notices || []),
+                };
+            case "engagement":
+                return {
+                    tab: activeTab,
+                    engagement_policy: JSON.stringify(
+                        currentData.engagement_policy || {},
+                    ),
+                    gamification_opt_in: currentData.gamification_opt_in,
                 };
             default:
                 return { tab: activeTab };
@@ -1183,6 +1201,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         activeTab === "pricing" ||
         activeTab === "faq" ||
         activeTab === "notice" ||
+        activeTab === "engagement" ||
         (activeTab === "settings" &&
             ["main", "academic", "access", "prerequisites", "reviews"].includes(
                 settingsSection,
@@ -1345,6 +1364,23 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     <NoticeEditor
                         data={formData.notices}
                         onChange={(value) => setData("notices", value)}
+                    />
+                );
+            case "engagement":
+                return (
+                    <EngagementEditor
+                        policy={formData.engagement_policy}
+                        onPolicyChange={(value) =>
+                            setData("engagement_policy", value)
+                        }
+                        gamificationOptIn={formData.gamification_opt_in}
+                        onGamificationOptInChange={(value) =>
+                            setData("gamification_opt_in", value)
+                        }
+                        platformGamificationEnabled={Boolean(
+                            platformFeatures.gamification,
+                        )}
+                        deliveryMode={formData.delivery_mode}
                     />
                 );
             case "drip":

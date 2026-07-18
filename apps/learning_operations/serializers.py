@@ -8,10 +8,35 @@ class CourseDeliveryProfileSerializer(serializers.ModelSerializer):
         source="delivery_mode",
         choices=CourseDeliveryProfile.DELIVERY_MODE_CHOICES,
     )
+    gamificationOptIn = serializers.BooleanField(
+        source="gamification_opt_in", required=False
+    )
+    gamification_opt_in = serializers.BooleanField(read_only=True)
+
+    def to_internal_value(self, data):
+        values = data.copy()
+        if "gamification_opt_in" in values and "gamificationOptIn" not in values:
+            values["gamificationOptIn"] = values["gamification_opt_in"]
+        return super().to_internal_value(values)
 
     class Meta:
         model = CourseDeliveryProfile
-        fields = ["deliveryMode", "gamification_opt_in"]
+        fields = ["deliveryMode", "gamificationOptIn", "gamification_opt_in"]
+
+
+class CourseEngagementPolicySerializer(serializers.Serializer):
+    assignmentRemindersEnabled = serializers.BooleanField(required=False)
+    assignmentOffsets = serializers.ListField(
+        child=serializers.IntegerField(), required=False, min_length=1, max_length=20
+    )
+    expiryRemindersEnabled = serializers.BooleanField(required=False)
+    expiryOffsets = serializers.ListField(
+        child=serializers.IntegerField(), required=False, min_length=1, max_length=20
+    )
+    inactivityRemindersEnabled = serializers.BooleanField(required=False)
+    inactivityOffsets = serializers.ListField(
+        child=serializers.IntegerField(), required=False, min_length=1, max_length=20
+    )
 
 
 class LearnerListQuerySerializer(serializers.Serializer):

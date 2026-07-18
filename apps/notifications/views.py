@@ -193,7 +193,14 @@ def api_preferences(request):
         if "email_enabled" in data:
             preferences.email_enabled = bool(data.get("email_enabled"))
         if data.get("email_digest"):
-            preferences.email_digest = data.get("email_digest")
+            requested_digest = data.get("email_digest")
+            valid_digests = {choice[0] for choice in NotificationPreference.EMAIL_DIGEST_CHOICES}
+            if requested_digest not in valid_digests:
+                return Response(
+                    {"email_digest": "Select a valid email delivery preference."},
+                    status=drf_status.HTTP_400_BAD_REQUEST,
+                )
+            preferences.email_digest = requested_digest
         if "type_preferences" in data and isinstance(data.get("type_preferences"), dict):
             preferences.type_preferences = data.get("type_preferences")
         preferences.save()

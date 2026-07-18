@@ -291,6 +291,7 @@ class StudentXP(models.Model):
         ('first_try', 'First Try Bonus'),
         ('streak_bonus', 'Streak Bonus'),
         ('badge_earned', 'Badge Earned'),
+        ('course_complete', 'Course Complete'),
         ('manual', 'Manual Award'),
     ]
 
@@ -309,6 +310,8 @@ class StudentXP(models.Model):
     xp_amount = models.PositiveIntegerField()
     reason = models.CharField(max_length=50, choices=XP_REASONS)
     earned_at = models.DateTimeField(auto_now_add=True)
+    idempotency_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = 'student_xp'
@@ -319,6 +322,26 @@ class StudentXP(models.Model):
 
     def __str__(self):
         return f"{self.enrollment.user}: +{self.xp_amount} XP ({self.reason})"
+
+
+class LearningStreak(models.Model):
+    """Current and longest consecutive learning-day streak per enrollment."""
+
+    enrollment = models.OneToOneField(
+        'Enrollment',
+        on_delete=models.CASCADE,
+        related_name='learning_streak',
+    )
+    current_days = models.PositiveIntegerField(default=0)
+    longest_days = models.PositiveIntegerField(default=0)
+    last_activity_date = models.DateField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'learning_streaks'
+
+    def __str__(self):
+        return f"{self.enrollment}: {self.current_days} day streak"
 
 
 class StudentNote(TimeStampedModel):
@@ -354,4 +377,3 @@ class StudentNote(TimeStampedModel):
 
     def __str__(self):
         return f"Note by {self.enrollment.user} on {self.node.title}"
-

@@ -6,6 +6,18 @@ from django.db.models import Q
 from apps.core.models import TimeStampedModel
 
 
+def default_assignment_reminder_offsets():
+    return [7, 1, -1]
+
+
+def default_expiry_reminder_offsets():
+    return [7, 1]
+
+
+def default_inactivity_reminder_offsets():
+    return [7, 30]
+
+
 class CourseDeliveryProfile(TimeStampedModel):
     """Portable course-level delivery policy without changing Program."""
 
@@ -35,6 +47,25 @@ class CourseDeliveryProfile(TimeStampedModel):
 
     class Meta:
         db_table = "learning_course_delivery_profiles"
+
+
+class CourseEngagementPolicy(TimeStampedModel):
+    """Portable course reminder policy expressed as whole-day offsets."""
+
+    program = models.OneToOneField(
+        "core.Program",
+        on_delete=models.CASCADE,
+        related_name="engagement_policy",
+    )
+    assignment_reminders_enabled = models.BooleanField(default=True)
+    assignment_offsets = models.JSONField(default=default_assignment_reminder_offsets)
+    expiry_reminders_enabled = models.BooleanField(default=True)
+    expiry_offsets = models.JSONField(default=default_expiry_reminder_offsets)
+    inactivity_reminders_enabled = models.BooleanField(default=True)
+    inactivity_offsets = models.JSONField(default=default_inactivity_reminder_offsets)
+
+    class Meta:
+        db_table = "learning_course_engagement_policies"
 
 
 class EnrollmentLearningActivity(TimeStampedModel):

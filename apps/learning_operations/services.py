@@ -50,7 +50,9 @@ def get_course_delivery_profile(program) -> CourseDeliveryProfile:
     return profile
 
 
-def update_course_delivery_profile(program, delivery_mode: str) -> CourseDeliveryProfile:
+def update_course_delivery_profile(
+    program, delivery_mode: str, *, gamification_opt_in=None
+) -> CourseDeliveryProfile:
     profile = get_course_delivery_profile(program)
     if delivery_mode_locked() and delivery_mode != profile.delivery_mode:
         raise ValidationError("Course delivery mode is controlled by platform policy.")
@@ -59,9 +61,17 @@ def update_course_delivery_profile(program, delivery_mode: str) -> CourseDeliver
     if delivery_mode not in valid_modes:
         raise ValidationError("Select a valid course delivery mode.")
 
+    changed = []
     if profile.delivery_mode != delivery_mode:
         profile.delivery_mode = delivery_mode
-        profile.save(update_fields=["delivery_mode", "updated_at"])
+        changed.append("delivery_mode")
+    if gamification_opt_in is not None and profile.gamification_opt_in != bool(
+        gamification_opt_in
+    ):
+        profile.gamification_opt_in = bool(gamification_opt_in)
+        changed.append("gamification_opt_in")
+    if changed:
+        profile.save(update_fields=[*changed, "updated_at"])
     return profile
 
 
@@ -95,6 +105,9 @@ def record_learning_activity(enrollment, source: str, occurred_at=None):
         },
     )
     if created:
+        from apps.progression.gamification import update_learning_streak
+
+        update_learning_streak(enrollment, activity_date)
         return activity
 
     sources = list(day.sources or [])
@@ -107,6 +120,9 @@ def record_learning_activity(enrollment, source: str, occurred_at=None):
         sources=sources,
         updated_at=timezone.now(),
     )
+    from apps.progression.gamification import update_learning_streak
+
+    update_learning_streak(enrollment, activity_date)
     return activity
 
 

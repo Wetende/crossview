@@ -6,6 +6,7 @@ import StudyPanel from '../components/Tools/StudyPanel';
 import Whiteboard from '../components/Stage/Whiteboard';
 import CourseOverview from '../components/Stage/CourseOverview';
 import { Box, Button, Typography } from '@mui/material';
+import LearningMomentum from '@/components/LearningMomentum';
 
 const LectureView = ({ 
     program, 
@@ -81,6 +82,12 @@ const LectureView = ({
                     >
                         Message Instructor
                     </Button>
+                </Box>
+            )}
+
+            {enrollment?.gamification?.enabled && (
+                <Box sx={{ mb: 2 }}>
+                    <LearningMomentum gamification={enrollment.gamification} />
                 </Box>
             )}
             

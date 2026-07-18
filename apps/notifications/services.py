@@ -2,10 +2,9 @@
 Notification service - Helper methods for creating notifications.
 """
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.utils import timezone
 from .models import Notification, NotificationPreference
+from .outbox import enqueue_email, process_notification_outbox
 
 
 class NotificationService:
@@ -22,6 +21,7 @@ class NotificationService:
         related_program_id=None,
         related_enrollment_id=None,
         related_assessment_id=None,
+        idempotency_key=None,
     ):
         """
         Create a single notification for a user.
@@ -43,17 +43,24 @@ class NotificationService:
         if not NotificationService._should_send_in_app(recipient, notification_type):
             return None
 
-        return Notification.objects.create(
-            recipient=recipient,
-            notification_type=notification_type,
-            title=title,
-            message=message,
-            priority=priority,
-            action_url=action_url,
-            related_program_id=related_program_id,
-            related_enrollment_id=related_enrollment_id,
-            related_assessment_id=related_assessment_id,
-        )
+        values = {
+            "recipient": recipient,
+            "notification_type": notification_type,
+            "title": title,
+            "message": message,
+            "priority": priority,
+            "action_url": action_url,
+            "related_program_id": related_program_id,
+            "related_enrollment_id": related_enrollment_id,
+            "related_assessment_id": related_assessment_id,
+        }
+        if idempotency_key:
+            notification, _ = Notification.objects.get_or_create(
+                idempotency_key=idempotency_key,
+                defaults=values,
+            )
+            return notification
+        return Notification.objects.create(**values)
 
     @staticmethod
     def bulk_create(
@@ -194,25 +201,67 @@ class NotificationService:
         return True
 
     @staticmethod
-    def send_email_notification(recipient, notification_type, subject, message):
+    def send_email_notification(
+        recipient,
+        notification_type,
+        subject,
+        message,
+        html_message=None,
+        from_email=None,
+        notification=None,
+        idempotency_key=None,
+        metadata=None,
+    ):
         """
         Send an email notification when recipient preferences allow it.
         Returns True if email was sent, False otherwise.
         """
-        if not recipient.email:
-            return False
-
-        if not NotificationService._should_send_email(recipient, notification_type):
-            return False
-
-        sent = send_mail(
+        row = enqueue_email(
+            recipient=recipient,
+            notification_type=notification_type,
             subject=subject,
             message=message,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[recipient.email],
-            fail_silently=True,
+            html_message=html_message,
+            from_email=from_email,
+            notification=notification,
+            idempotency_key=idempotency_key,
+            metadata=metadata,
         )
-        return sent > 0
+        if row is None:
+            return False
+        if row.digest_mode != "instant" or row.status == "sent":
+            return True
+        process_notification_outbox(limit=1, row_ids=[row.id])
+        row.refresh_from_db(fields=["status"])
+        return row.status == "sent"
+
+    @staticmethod
+    def notify_with_email(
+        *, recipient, notification_type, title, message, action_url=None,
+        related_program_id=None, related_enrollment_id=None,
+        related_assessment_id=None, priority="normal", idempotency_key,
+    ):
+        notification = NotificationService.create(
+            recipient=recipient,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            priority=priority,
+            action_url=action_url,
+            related_program_id=related_program_id,
+            related_enrollment_id=related_enrollment_id,
+            related_assessment_id=related_assessment_id,
+            idempotency_key=f"notification:{idempotency_key}",
+        )
+        NotificationService.send_email_notification(
+            recipient=recipient,
+            notification_type=notification_type,
+            subject=title,
+            message=message,
+            notification=notification,
+            idempotency_key=f"email:{idempotency_key}",
+        )
+        return notification
 
     @staticmethod
     def notify_user_registered(user, authentication_method="password"):

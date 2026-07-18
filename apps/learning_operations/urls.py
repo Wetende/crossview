@@ -17,6 +17,11 @@ urlpatterns = [
         name="summary",
     ),
     path(
+        "programs/<int:program_id>/engagement-policy/",
+        views.CourseEngagementPolicyView.as_view(),
+        name="engagement-policy",
+    ),
+    path(
         "programs/<int:program_id>/learners/",
         views.ProgramLearnersView.as_view(),
         name="learners",

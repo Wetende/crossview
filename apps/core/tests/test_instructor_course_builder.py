@@ -34,6 +34,34 @@ def assignment(instructor, program):
 
 @pytest.mark.django_db
 class TestInstructorCourseBuilder:
+    def test_engagement_tab_saves_policy_and_gamification_opt_in(
+        self, client, instructor, program, assignment
+    ):
+        client.force_login(instructor)
+        response = client.post(
+            reverse("core:instructor.program_update_settings", kwargs={"pk": program.id}),
+            {
+                "tab": "engagement",
+                "engagement_policy": json.dumps(
+                    {
+                        "assignmentRemindersEnabled": True,
+                        "assignmentOffsets": [10, 2, -1],
+                        "expiryRemindersEnabled": False,
+                        "expiryOffsets": [7, 1],
+                        "inactivityRemindersEnabled": True,
+                        "inactivityOffsets": [14, 30],
+                    }
+                ),
+                "gamification_opt_in": "true",
+            },
+        )
+
+        assert response.status_code == 302
+        program.refresh_from_db()
+        assert program.engagement_policy.assignment_offsets == [10, 2, -1]
+        assert program.engagement_policy.expiry_reminders_enabled is False
+        assert program.delivery_profile.gamification_opt_in is True
+
     def test_instructor_can_access_manage_page(self, client, instructor, program, assignment):
         client.force_login(instructor)
         url = reverse('core:instructor.program_manage', kwargs={'pk': program.id})

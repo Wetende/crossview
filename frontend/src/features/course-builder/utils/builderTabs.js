@@ -5,6 +5,7 @@ const CORE_BUILDER_TABS = [
     { label: "Pricing", value: "pricing" },
     { label: "FAQ", value: "faq" },
     { label: "Notice", value: "notice" },
+    { label: "Engagement", value: "engagement" },
 ];
 
 const PRACTICUM_BUILDER_TAB = { label: "Practicum", value: "practicum" };
