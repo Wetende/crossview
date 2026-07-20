@@ -3356,29 +3356,10 @@ def instructor_program_detail(request, pk: int):
     from django.shortcuts import get_object_or_404
 
     from apps.curriculum.models import CurriculumNode
-    from apps.progression.models import Enrollment
+    from apps.learning_operations.selectors import get_program_learner_summary
 
     program_ids = get_instructor_program_ids(request.user)
     program = get_object_or_404(Program, pk=pk, id__in=program_ids)
-
-    # Get enrolled students
-    enrollments = (
-        Enrollment.objects.filter(program=program)
-        .select_related("user")
-        .order_by("user__last_name", "user__first_name")
-    )
-
-    students_data = [
-        {
-            "id": e.id,
-            "userId": e.user.id,
-            "name": e.user.get_full_name() or e.user.email,
-            "email": e.user.email,
-            "status": e.status,
-            "enrolledAt": e.enrolled_at.isoformat(),
-        }
-        for e in enrollments
-    ]
 
     # Get curriculum nodes
     nodes = CurriculumNode.objects.filter(
@@ -3408,7 +3389,7 @@ def instructor_program_detail(request, pk: int):
                 "description": program.description or "",
                 "resources": resources,
             },
-            "students": students_data,
+            "learnerSummary": get_program_learner_summary(program),
             "curriculum": [
                 {"id": n.id, "title": n.title, "type": n.node_type} for n in nodes
             ],

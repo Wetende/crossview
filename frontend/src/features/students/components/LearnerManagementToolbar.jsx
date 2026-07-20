@@ -8,6 +8,10 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    Divider,
+    ListItemIcon,
+    ListItemText,
+    Menu,
     MenuItem,
     Stack,
     Table,
@@ -19,32 +23,59 @@ import {
     Typography,
 } from "@mui/material";
 import {
-    FileDownload as ExportIcon,
-    GroupAdd as InviteIcon,
-    UploadFile as ImportIcon,
+    Add as AddIcon,
+    Download as DownloadIcon,
+    ExpandMore as ExpandMoreIcon,
+    FileDownloadOutlined as ExportIcon,
+    GroupAddOutlined as InviteIcon,
+    PrintOutlined as PrintIcon,
+    UploadFileOutlined as ImportIcon,
 } from "@mui/icons-material";
 
+import { buildReportUrl } from "@/features/reports/components/reportUrls";
+
 const baseUrl = (programId) => `/api/learning-operations/programs/${programId}`;
+const templateUrl =
+    "data:text/csv;charset=utf-8,email%2Cfirst_name%2Clast_name%0Alearner%40example.com%2CAmina%2COtieno%0A";
 
 export default function LearnerManagementToolbar({
     programId,
+    filters,
     selectedEnrollmentIds,
+    onClearSelection,
     onComplete,
 }) {
     const fileInputRef = useRef(null);
+    const [addAnchor, setAddAnchor] = useState(null);
+    const [moreAnchor, setMoreAnchor] = useState(null);
+    const [accessAnchor, setAccessAnchor] = useState(null);
     const [inviteOpen, setInviteOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
     const [email, setEmail] = useState("");
-    const [bulkAction, setBulkAction] = useState("");
     const [preview, setPreview] = useState(null);
     const [previewFile, setPreviewFile] = useState(null);
+    const [bulkDialog, setBulkDialog] = useState(null);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState(null);
 
+    const printUrl = buildReportUrl({
+        scope: "instructor",
+        reportId: "instructor.roster",
+        queryParams: {
+            program: programId,
+            search: filters?.search,
+            status: filters?.status,
+        },
+    });
+
     const fail = (error) => {
+        const detail = error?.response?.data?.detail;
+        const reason = error?.response?.data?.reason;
         setMessage({
             severity: "error",
             text:
-                error?.response?.data?.detail ||
+                (Array.isArray(reason) ? reason[0] : reason) ||
+                detail ||
                 "The operation could not be completed.",
         });
     };
@@ -87,6 +118,7 @@ export default function LearnerManagementToolbar({
             );
             setPreview(data);
             setPreviewFile(file);
+            setImportOpen(false);
         } catch (error) {
             fail(error);
         } finally {
@@ -120,17 +152,51 @@ export default function LearnerManagementToolbar({
         }
     };
 
-    const runBulkAction = async () => {
-        if (!bulkAction || selectedEnrollmentIds.length === 0) return;
+    const startBulkAction = (action) => {
+        setAccessAnchor(null);
+        setBulkDialog({ action, reason: "", preview: null });
+        if (action !== "withdraw") previewBulkAction(action, "");
+    };
+
+    const previewBulkAction = async (action, reason) => {
         setBusy(true);
         setMessage(null);
         try {
-            await axios.post(`${baseUrl(programId)}/learners/bulk/`, {
-                enrollmentIds: selectedEnrollmentIds,
-                action: bulkAction,
+            const { data } = await axios.post(
+                `${baseUrl(programId)}/learners/bulk/`,
+                {
+                    enrollmentIds: selectedEnrollmentIds,
+                    action,
+                    reason,
+                    preview: true,
+                },
+            );
+            setBulkDialog((current) => ({ ...current, preview: data }));
+        } catch (error) {
+            fail(error);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const applyBulkAction = async () => {
+        if (!bulkDialog?.action) return;
+        setBusy(true);
+        setMessage(null);
+        try {
+            const { data } = await axios.post(
+                `${baseUrl(programId)}/learners/bulk/`,
+                {
+                    enrollmentIds: selectedEnrollmentIds,
+                    action: bulkDialog.action,
+                    reason: bulkDialog.reason,
+                },
+            );
+            setMessage({
+                severity: data.skipped ? "warning" : "success",
+                text: `${data.processed} learner${data.processed === 1 ? "" : "s"} updated${data.skipped ? `; ${data.skipped} skipped` : ""}.`,
             });
-            setMessage({ severity: "success", text: "Learners updated." });
-            setBulkAction("");
+            setBulkDialog(null);
             onComplete?.();
         } catch (error) {
             fail(error);
@@ -145,72 +211,150 @@ export default function LearnerManagementToolbar({
                 <Alert severity={message.severity}>{message.text}</Alert>
             )}
             <Stack
-                direction={{ xs: "column", md: "row" }}
+                direction="row"
                 spacing={1}
-                alignItems={{ md: "center" }}
+                useFlexGap
+                sx={{ alignItems: "center", flexWrap: "wrap" }}
             >
                 <Button
                     variant="contained"
-                    startIcon={<InviteIcon />}
-                    onClick={() => setInviteOpen(true)}
+                    startIcon={<AddIcon />}
+                    endIcon={<ExpandMoreIcon />}
+                    onClick={(event) => setAddAnchor(event.currentTarget)}
+                    aria-haspopup="menu"
+                    aria-expanded={addAnchor ? "true" : undefined}
                 >
-                    Add or invite
+                    Add learners
                 </Button>
+                <Menu
+                    anchorEl={addAnchor}
+                    open={Boolean(addAnchor)}
+                    onClose={() => setAddAnchor(null)}
+                >
+                    <MenuItem
+                        onClick={() => {
+                            setAddAnchor(null);
+                            setInviteOpen(true);
+                        }}
+                    >
+                        <ListItemIcon>
+                            <InviteIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Add or invite by email</ListItemText>
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => {
+                            setAddAnchor(null);
+                            setImportOpen(true);
+                        }}
+                    >
+                        <ListItemIcon>
+                            <ImportIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Import learners from CSV</ListItemText>
+                    </MenuItem>
+                </Menu>
+
                 <Button
                     variant="outlined"
-                    startIcon={<ImportIcon />}
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={busy}
+                    endIcon={<ExpandMoreIcon />}
+                    onClick={(event) => setMoreAnchor(event.currentTarget)}
+                    aria-haspopup="menu"
+                    aria-expanded={moreAnchor ? "true" : undefined}
                 >
-                    Import CSV
+                    More
                 </Button>
-                <input
-                    ref={fileInputRef}
-                    hidden
-                    type="file"
-                    accept=".csv,text/csv"
-                    onChange={(event) => previewCsv(event.target.files?.[0])}
-                />
-                <Button
-                    component="a"
-                    href={`${baseUrl(programId)}/roster/export/`}
-                    variant="outlined"
-                    startIcon={<ExportIcon />}
+                <Menu
+                    anchorEl={moreAnchor}
+                    open={Boolean(moreAnchor)}
+                    onClose={() => setMoreAnchor(null)}
                 >
-                    Export CSV
-                </Button>
-                <Box sx={{ flex: 1 }} />
-                <TextField
-                    select
-                    size="small"
-                    label="Bulk action"
-                    value={bulkAction}
-                    onChange={(event) => setBulkAction(event.target.value)}
-                    sx={{ minWidth: 180 }}
-                    disabled={selectedEnrollmentIds.length === 0}
-                >
-                    <MenuItem value="activate">Activate</MenuItem>
-                    <MenuItem value="suspend">Suspend</MenuItem>
-                    <MenuItem value="withdraw">Withdraw</MenuItem>
-                    <MenuItem value="reactivate">Reactivate</MenuItem>
-                    <MenuItem value="send_reminder">Send reminder</MenuItem>
-                </TextField>
-                <Button
-                    variant="outlined"
-                    disabled={
-                        !bulkAction ||
-                        selectedEnrollmentIds.length === 0 ||
-                        busy
-                    }
-                    onClick={runBulkAction}
-                >
-                    Apply to {selectedEnrollmentIds.length || 0}
-                </Button>
+                    <MenuItem
+                        component="a"
+                        href={`${baseUrl(programId)}/roster/export/`}
+                        onClick={() => setMoreAnchor(null)}
+                    >
+                        <ListItemIcon>
+                            <ExportIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Download learner data</ListItemText>
+                    </MenuItem>
+                    <MenuItem
+                        component="a"
+                        href={printUrl}
+                        target="_blank"
+                        onClick={() => setMoreAnchor(null)}
+                    >
+                        <ListItemIcon>
+                            <PrintIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Print class list</ListItemText>
+                    </MenuItem>
+                </Menu>
+
+                {selectedEnrollmentIds.length > 0 && (
+                    <Box
+                        role="region"
+                        aria-label="Selected learner actions"
+                        sx={{
+                            ml: { md: "auto" },
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            flexWrap: "wrap",
+                            bgcolor: "action.selected",
+                            borderRadius: 2,
+                            px: 1.5,
+                            py: 0.75,
+                        }}
+                    >
+                        <Typography variant="body2" fontWeight={700}>
+                            {selectedEnrollmentIds.length} learner
+                            {selectedEnrollmentIds.length === 1 ? "" : "s"}{" "}
+                            selected
+                        </Typography>
+                        <Button
+                            size="small"
+                            endIcon={<ExpandMoreIcon />}
+                            onClick={(event) =>
+                                setAccessAnchor(event.currentTarget)
+                            }
+                        >
+                            Manage access
+                        </Button>
+                        <Menu
+                            anchorEl={accessAnchor}
+                            open={Boolean(accessAnchor)}
+                            onClose={() => setAccessAnchor(null)}
+                        >
+                            <MenuItem
+                                onClick={() => startBulkAction("suspend")}
+                            >
+                                Suspend access
+                            </MenuItem>
+                            <MenuItem
+                                onClick={() => startBulkAction("reactivate")}
+                            >
+                                Restore access
+                            </MenuItem>
+                            <Divider />
+                            <MenuItem
+                                onClick={() => startBulkAction("withdraw")}
+                                sx={{ color: "error.main" }}
+                            >
+                                Withdraw
+                            </MenuItem>
+                        </Menu>
+                        <Button size="small" onClick={onClearSelection}>
+                            Clear
+                        </Button>
+                    </Box>
+                )}
             </Stack>
 
             <Dialog
                 open={inviteOpen}
-                onClose={() => setInviteOpen(false)}
+                onClose={() => !busy && setInviteOpen(false)}
                 fullWidth
                 maxWidth="sm"
             >
@@ -246,6 +390,58 @@ export default function LearnerManagementToolbar({
             </Dialog>
 
             <Dialog
+                open={importOpen}
+                onClose={() => !busy && setImportOpen(false)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Import learners from CSV</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2}>
+                        <Typography variant="body2">
+                            Include one learner per row. <strong>email</strong>{" "}
+                            is required; <strong>first_name</strong> and{" "}
+                            <strong>last_name</strong> are optional. Headings
+                            are not case-sensitive.
+                        </Typography>
+                        <Alert severity="info">
+                            You will review duplicates, existing learners,
+                            invitations, and rejected rows before anything
+                            changes.
+                        </Alert>
+                        <Button
+                            component="a"
+                            href={templateUrl}
+                            download="learner-import-template.csv"
+                            startIcon={<DownloadIcon />}
+                        >
+                            Download CSV template
+                        </Button>
+                        <Button
+                            variant="contained"
+                            component="label"
+                            startIcon={<ImportIcon />}
+                            disabled={busy}
+                        >
+                            Choose CSV file
+                            <input
+                                ref={fileInputRef}
+                                hidden
+                                type="file"
+                                accept=".csv,text/csv"
+                                onChange={(event) =>
+                                    previewCsv(event.target.files?.[0])
+                                }
+                            />
+                        </Button>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setImportOpen(false)}>Cancel</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
                 open={Boolean(preview)}
                 onClose={() => !busy && setPreview(null)}
                 fullWidth
@@ -258,8 +454,7 @@ export default function LearnerManagementToolbar({
                         color="text.secondary"
                         sx={{ mb: 2 }}
                     >
-                        Confirm only after reviewing every accepted, duplicate,
-                        existing, and rejected row.
+                        Nothing is imported until you confirm this preview.
                     </Typography>
                     <Table size="small">
                         <TableHead>
@@ -295,6 +490,97 @@ export default function LearnerManagementToolbar({
                     >
                         Confirm import
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(bulkDialog)}
+                onClose={() => !busy && setBulkDialog(null)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>
+                    {bulkDialog?.action === "withdraw"
+                        ? "Withdraw selected learners"
+                        : bulkDialog?.action === "suspend"
+                          ? "Suspend selected learners"
+                          : "Restore learner access"}
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2}>
+                        {bulkDialog?.action === "withdraw" &&
+                            !bulkDialog.preview && (
+                                <TextField
+                                    autoFocus
+                                    required
+                                    multiline
+                                    minRows={2}
+                                    label="Reason for withdrawal"
+                                    value={bulkDialog.reason}
+                                    onChange={(event) =>
+                                        setBulkDialog((current) => ({
+                                            ...current,
+                                            reason: event.target.value,
+                                        }))
+                                    }
+                                />
+                            )}
+                        {!bulkDialog?.preview &&
+                            bulkDialog?.action !== "withdraw" && (
+                                <Typography color="text.secondary">
+                                    Checking which selected learners are
+                                    eligible…
+                                </Typography>
+                            )}
+                        {bulkDialog?.preview && (
+                            <Alert
+                                severity={
+                                    bulkDialog.preview.ineligible
+                                        ? "warning"
+                                        : "info"
+                                }
+                            >
+                                {bulkDialog.preview.eligible} eligible;{" "}
+                                {bulkDialog.preview.ineligible} will be skipped.
+                            </Alert>
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setBulkDialog(null)} disabled={busy}>
+                        Cancel
+                    </Button>
+                    {!bulkDialog?.preview ? (
+                        <Button
+                            variant="contained"
+                            disabled={
+                                busy ||
+                                (bulkDialog?.action === "withdraw" &&
+                                    !bulkDialog?.reason.trim())
+                            }
+                            onClick={() =>
+                                previewBulkAction(
+                                    bulkDialog.action,
+                                    bulkDialog.reason,
+                                )
+                            }
+                        >
+                            Preview changes
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="contained"
+                            color={
+                                bulkDialog.action === "withdraw"
+                                    ? "error"
+                                    : "primary"
+                            }
+                            disabled={busy || !bulkDialog.preview.eligible}
+                            onClick={applyBulkAction}
+                        >
+                            Confirm for {bulkDialog.preview.eligible}
+                        </Button>
+                    )}
                 </DialogActions>
             </Dialog>
         </Stack>

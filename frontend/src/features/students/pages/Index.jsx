@@ -1,359 +1,492 @@
-/**
- * Instructor Student List Page
- * Requirements: US-3.1, US-3.3
- * 
- * This component handles two use cases:
- * 1. General students list (/instructor/students/) - shows all students across all programs
- * 2. Program-specific students list (when program prop is provided)
- */
-
-import { Head, Link, router } from '@inertiajs/react';
+import { useState } from "react";
+import axios from "axios";
+import { Head, Link, router } from "@inertiajs/react";
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Stack,
-  TextField,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Chip,
-  IconButton,
-  InputAdornment,
-  LinearProgress,
-  Checkbox,
-} from '@mui/material';
-import {
-  Search as SearchIcon,
-  Visibility as ViewIcon,
-} from '@mui/icons-material';
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import InstructorLayout from '@/layouts/InstructorLayout';
-import { ReportToolbar } from '@/features/reports';
-import LearnerManagementToolbar from '../components/LearnerManagementToolbar';
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    InputAdornment,
+    MenuItem,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TextField,
+    Typography,
+} from "@mui/material";
+import { Search as SearchIcon } from "@mui/icons-material";
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.5, ease: [0.215, 0.61, 0.355, 1] },
-};
+import InstructorLayout from "@/layouts/InstructorLayout";
+import { ReportToolbar } from "@/features/reports";
+import LearnerDetailPanel from "../components/LearnerDetailPanel";
+import LearnerManagementToolbar from "../components/LearnerManagementToolbar";
+import ProgramLearnerRoster from "../components/ProgramLearnerRoster";
 
 const statusColors = {
-  new: 'info',
-  not_started: 'default',
-  stalled: 'warning',
-  inactive: 'error',
-  active: 'success',
-  completed: 'primary',
-  withdrawn: 'error',
-  suspended: 'warning',
+    active: "success",
+    completed: "primary",
+    withdrawn: "error",
+    suspended: "warning",
 };
 
-export default function InstructorStudentsIndex({ program, students, filters }) {
-  const [search, setSearch] = useState(filters?.search || '');
-  const [status, setStatus] = useState(filters?.status || '');
-  const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState([]);
+const baseUrl = (programId) => `/api/learning-operations/programs/${programId}`;
 
-  // Determine if we're viewing a specific program or all students
-  const isProgramView = !!program;
-  
-  // Handle case where no program is provided (general students list)
-  const breadcrumbs = isProgramView ? [
-    { label: 'Dashboard', href: '/dashboard/' },
-    { label: 'My Programs', href: '/instructor/programs/' },
-    { label: program.name, href: `/instructor/programs/${program.id}/` },
-    { label: 'Students' },
-  ] : [
-    { label: 'Dashboard', href: '/dashboard/' },
-    { label: 'My Students' },
-  ];
-
-  const pageTitle = isProgramView ? `Students - ${program.name}` : 'My Students';
-
-  const handleFilterChange = (newFilters) => {
-    const baseUrl = isProgramView 
-      ? `/instructor/programs/${program.id}/students/`
-      : '/instructor/students/';
-    router.visit(baseUrl, {
-      data: { ...filters, ...newFilters },
-      preserveState: true,
-      preserveScroll: true,
-      only: ['students', 'filters'],
-    });
-  };
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    handleFilterChange({ search, page: 1 });
-  };
-
-  const handleStatusChange = (e) => {
-    const newStatus = e.target.value;
-    setStatus(newStatus);
-    handleFilterChange({ status: newStatus, page: 1 });
-  };
-
-  const handlePageChange = (event, newPage) => {
-    handleFilterChange({ page: newPage + 1 });
-  };
-
-  // Handle both data structures:
-  // - Program view: students = { results: [...], pagination: {...} }
-  // - General view: students = [{ id, name, email, programs: [...] }, ...]
-  const isArrayFormat = Array.isArray(students);
-  const studentsList = isArrayFormat ? students : (students?.results || []);
-  const pagination = isArrayFormat ? {} : (students?.pagination || {});
-  const visibleEnrollmentIds = studentsList
-    .map((student) => student.enrollmentId)
-    .filter(Boolean);
-  const allVisibleSelected = visibleEnrollmentIds.length > 0
-    && visibleEnrollmentIds.every((id) => selectedEnrollmentIds.includes(id));
-
-  const toggleAllVisible = () => {
-    setSelectedEnrollmentIds((current) => (
-      allVisibleSelected
-        ? current.filter((id) => !visibleEnrollmentIds.includes(id))
-        : [...new Set([...current, ...visibleEnrollmentIds])]
-    ));
-  };
-
-  const toggleEnrollment = (id) => {
-    setSelectedEnrollmentIds((current) => (
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
-    ));
-  };
-
-  return (
-    <InstructorLayout breadcrumbs={breadcrumbs}>
-      <Head title={pageTitle} />
-      
-      <Stack spacing={3}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h4" fontWeight="bold">
-            {pageTitle}
-          </Typography>
-          <ReportToolbar
-            scope="instructor"
-            reportId="instructor.roster"
-            queryParams={{
-              program: program?.id,
-              search: filters?.search,
-              status: filters?.status,
-            }}
-          />
-        </Box>
-
-        {isProgramView && (
-          <LearnerManagementToolbar
-            programId={program.id}
-            selectedEnrollmentIds={selectedEnrollmentIds}
-            onComplete={() => {
-              setSelectedEnrollmentIds([]);
-              router.reload({ only: ['students'] });
-            }}
-          />
-        )}
-        
-        {/* Filters */}
-        <motion.div {...fadeInUp}>
-          <Card>
-            <CardContent>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <Box component="form" onSubmit={handleSearchSubmit} sx={{ flex: 1 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Search by name or email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Box>
-                {isProgramView && (
-                  <TextField
-                    select
-                    size="small"
-                    value={status}
-                    onChange={handleStatusChange}
-                    sx={{ minWidth: 150 }}
-                    label="Status"
-                  >
-                    <MenuItem value="">All Statuses</MenuItem>
-                    <MenuItem value="active">Active</MenuItem>
-                    <MenuItem value="new">New</MenuItem>
-                    <MenuItem value="not_started">Not started</MenuItem>
-                    <MenuItem value="stalled">Stalled</MenuItem>
-                    <MenuItem value="inactive">Inactive</MenuItem>
-                    <MenuItem value="completed">Completed</MenuItem>
-                    <MenuItem value="withdrawn">Withdrawn</MenuItem>
-                    <MenuItem value="suspended">Suspended</MenuItem>
-                  </TextField>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-        </motion.div>
-        
-        {/* Students Table */}
-        <motion.div {...fadeInUp} transition={{ delay: 0.1 }}>
-          <Card>
+function StudentDirectory({ students }) {
+    return (
+        <Card>
             <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    {isProgramView && (
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          checked={allVisibleSelected}
-                          indeterminate={selectedEnrollmentIds.length > 0 && !allVisibleSelected}
-                          onChange={toggleAllVisible}
-                          inputProps={{ 'aria-label': 'Select visible learners' }}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>Student</TableCell>
-                    {isProgramView ? (
-                      <>
-                        <TableCell>Enrolled</TableCell>
-                        <TableCell>Progress</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Last Activity</TableCell>
-                      </>
-                    ) : (
-                      <TableCell>Programs</TableCell>
-                    )}
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {studentsList.length > 0 ? (
-                    studentsList.map((student) => (
-                      <TableRow key={student.enrollmentId || student.id} hover>
-                        {isProgramView && (
-                          <TableCell padding="checkbox">
-                            <Checkbox
-                              checked={selectedEnrollmentIds.includes(student.enrollmentId)}
-                              onChange={() => toggleEnrollment(student.enrollmentId)}
-                              inputProps={{ 'aria-label': `Select ${student.name}` }}
-                            />
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2" fontWeight="medium">
-                              {student.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {student.email}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        {isProgramView ? (
-                          <>
-                            <TableCell>
-                              <Typography variant="body2">
-                                {student.enrolledAt ? new Date(student.enrolledAt).toLocaleDateString() : '-'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Stack spacing={0.5} sx={{ minWidth: 120 }}>
-                                <Stack direction="row" justifyContent="space-between">
-                                  <Typography variant="caption">
-                                    {student.progress || 0}%
-                                  </Typography>
-                                </Stack>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={student.progress || 0} 
-                                  sx={{ height: 6, borderRadius: 3 }}
-                                />
-                              </Stack>
-                            </TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={(student.learnerState || student.status || 'active').replaceAll('_', ' ')}
-                                size="small" 
-                                color={statusColors[student.learnerState || student.status] || 'default'}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" color="text.secondary">
-                                {student.lastActivity 
-                                  ? new Date(student.lastActivity).toLocaleDateString()
-                                  : 'No activity'
-                                }
-                              </Typography>
-                            </TableCell>
-                          </>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Student</TableCell>
+                            <TableCell>Programs</TableCell>
+                            <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {students.length ? (
+                            students.map((student) => (
+                                <TableRow key={student.id} hover>
+                                    <TableCell>
+                                        <Typography
+                                            variant="body2"
+                                            fontWeight={700}
+                                        >
+                                            {student.name}
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                        >
+                                            {student.email}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Stack
+                                            direction="row"
+                                            spacing={0.5}
+                                            useFlexGap
+                                            sx={{ flexWrap: "wrap" }}
+                                        >
+                                            {student.programs?.map((course) => (
+                                                <Chip
+                                                    key={course.id}
+                                                    label={course.name}
+                                                    size="small"
+                                                    color={
+                                                        statusColors[
+                                                            course.status
+                                                        ] || "default"
+                                                    }
+                                                    variant="outlined"
+                                                />
+                                            ))}
+                                        </Stack>
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <Button
+                                            component={Link}
+                                            href={`/instructor/students/${student.id}/`}
+                                            size="small"
+                                        >
+                                            View profile
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
                         ) : (
-                          <TableCell>
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
-                              {student.programs?.map((prog, idx) => (
-                                <Chip
-                                  key={idx}
-                                  label={prog.name}
-                                  size="small"
-                                  color={statusColors[prog.status] || 'default'}
-                                  variant="outlined"
-                                />
-                              ))}
-                            </Stack>
-                          </TableCell>
+                            <TableRow>
+                                <TableCell
+                                    colSpan={3}
+                                    align="center"
+                                    sx={{ py: 5 }}
+                                >
+                                    No students found
+                                </TableCell>
+                            </TableRow>
                         )}
-                        <TableCell align="right">
-                          <IconButton
-                            component={Link}
-                            href={isProgramView 
-                              ? `/instructor/programs/${program.id}/students/${student.enrollmentId}/`
-                              : `/instructor/students/${student.id}/`
-                            }
-                            size="small"
-                          >
-                            <ViewIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={isProgramView ? 7 : 3} align="center" sx={{ py: 4 }}>
-                        <Typography color="text.secondary">
-                          No students found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    </TableBody>
+                </Table>
             </TableContainer>
-            
-            {pagination.totalCount > 0 && (
-              <TablePagination
-                component="div"
-                count={pagination.totalCount}
-                page={(pagination.page || 1) - 1}
-                rowsPerPage={pagination.perPage || 20}
-                onPageChange={handlePageChange}
-                rowsPerPageOptions={[20]}
-              />
+        </Card>
+    );
+}
+
+export default function InstructorStudentsIndex({
+    program,
+    students,
+    filters,
+}) {
+    const isProgramView = Boolean(program);
+    const [search, setSearch] = useState(filters?.search || "");
+    const [status, setStatus] = useState(filters?.status || "");
+    const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState([]);
+    const [activeLearner, setActiveLearner] = useState(null);
+    const [pendingAction, setPendingAction] = useState(null);
+    const [reason, setReason] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState(null);
+
+    const studentsList = Array.isArray(students)
+        ? students
+        : students?.results || [];
+    const pagination = Array.isArray(students)
+        ? {}
+        : students?.pagination || {};
+    const visibleEnrollmentIds = studentsList
+        .map((student) => student.enrollmentId)
+        .filter(Boolean);
+    const allVisibleSelected =
+        visibleEnrollmentIds.length > 0 &&
+        visibleEnrollmentIds.every((id) => selectedEnrollmentIds.includes(id));
+
+    const breadcrumbs = isProgramView
+        ? [
+              { label: "Dashboard", href: "/dashboard/" },
+              { label: "My Programs", href: "/instructor/programs/" },
+              {
+                  label: program.name,
+                  href: `/instructor/programs/${program.id}/`,
+              },
+              { label: "Learners" },
+          ]
+        : [
+              { label: "Dashboard", href: "/dashboard/" },
+              { label: "My Students" },
+          ];
+    const pageTitle = isProgramView
+        ? `Learners — ${program.name}`
+        : "My Students";
+
+    const handleFilterChange = (newFilters) => {
+        const target = isProgramView
+            ? `/instructor/programs/${program.id}/students/`
+            : "/instructor/students/";
+        router.visit(target, {
+            data: { ...filters, ...newFilters },
+            preserveState: true,
+            preserveScroll: true,
+            only: ["students", "filters"],
+        });
+    };
+
+    const toggleAllVisible = () => {
+        setSelectedEnrollmentIds((current) =>
+            allVisibleSelected
+                ? current.filter((id) => !visibleEnrollmentIds.includes(id))
+                : [...new Set([...current, ...visibleEnrollmentIds])],
+        );
+    };
+
+    const toggleEnrollment = (id) => {
+        setSelectedEnrollmentIds((current) =>
+            current.includes(id)
+                ? current.filter((item) => item !== id)
+                : [...current, id],
+        );
+    };
+
+    const reloadRoster = ({ clearSelection = false } = {}) => {
+        if (clearSelection) setSelectedEnrollmentIds([]);
+        router.reload({ only: ["students"] });
+    };
+
+    const executeStatusAction = async (action, learner, actionReason = "") => {
+        setBusy(true);
+        setMessage(null);
+        try {
+            const { data } = await axios.post(
+                `${baseUrl(program.id)}/learners/bulk/`,
+                {
+                    enrollmentIds: [learner.enrollmentId],
+                    action: action === "restore" ? "reactivate" : action,
+                    reason: actionReason,
+                },
+            );
+            setMessage({
+                severity: data.skipped ? "warning" : "success",
+                text: data.skipped
+                    ? data.results?.[0]?.detail ||
+                      "This action is not available."
+                    : action === "restore"
+                      ? "Learner access restored."
+                      : action === "suspend"
+                        ? "Learner access suspended."
+                        : "Learner withdrawn.",
+            });
+            setPendingAction(null);
+            setReason("");
+            setActiveLearner(null);
+            reloadRoster();
+        } catch (error) {
+            const detail = error?.response?.data?.detail;
+            const reasonError = error?.response?.data?.reason;
+            setMessage({
+                severity: "error",
+                text:
+                    (Array.isArray(reasonError)
+                        ? reasonError[0]
+                        : reasonError) ||
+                    detail ||
+                    "The learner could not be updated.",
+            });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleLearnerAction = (action, learner) => {
+        if (action === "view") {
+            setActiveLearner(learner);
+            return;
+        }
+        if (action === "message") {
+            router.visit(`/messages/new/?recipient_id=${learner.userId}`);
+            return;
+        }
+        if (action === "restore") {
+            executeStatusAction(action, learner);
+            return;
+        }
+        if (action === "suspend" || action === "withdraw") {
+            setReason("");
+            setPendingAction({ action, learner });
+        }
+    };
+
+    return (
+        <InstructorLayout breadcrumbs={breadcrumbs}>
+            <Head title={pageTitle} />
+            <Stack spacing={3}>
+                <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={2}
+                    sx={{
+                        justifyContent: "space-between",
+                        alignItems: { sm: "center" },
+                    }}
+                >
+                    <Box>
+                        <Typography variant="h4" fontWeight={700}>
+                            {pageTitle}
+                        </Typography>
+                        {isProgramView && (
+                            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                                Review progress, support learners, and manage
+                                course access.
+                            </Typography>
+                        )}
+                    </Box>
+                    {!isProgramView && (
+                        <ReportToolbar
+                            scope="instructor"
+                            reportId="instructor.roster"
+                            queryParams={{
+                                search: filters?.search,
+                                status: filters?.status,
+                            }}
+                        />
+                    )}
+                </Stack>
+
+                {message && (
+                    <Alert severity={message.severity}>{message.text}</Alert>
+                )}
+
+                {isProgramView && (
+                    <LearnerManagementToolbar
+                        programId={program.id}
+                        filters={filters}
+                        selectedEnrollmentIds={selectedEnrollmentIds}
+                        onClearSelection={() => setSelectedEnrollmentIds([])}
+                        onComplete={() =>
+                            reloadRoster({ clearSelection: true })
+                        }
+                    />
+                )}
+
+                <Card>
+                    <CardContent>
+                        <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={2}
+                        >
+                            <Box
+                                component="form"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    handleFilterChange({ search, page: 1 });
+                                }}
+                                sx={{ flex: 1 }}
+                            >
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    placeholder="Search by name or email…"
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Box>
+                            {isProgramView && (
+                                <TextField
+                                    select
+                                    size="small"
+                                    value={status}
+                                    onChange={(event) => {
+                                        setStatus(event.target.value);
+                                        handleFilterChange({
+                                            status: event.target.value,
+                                            page: 1,
+                                        });
+                                    }}
+                                    sx={{ minWidth: 170 }}
+                                    label="Learner state"
+                                >
+                                    <MenuItem value="">
+                                        All learner states
+                                    </MenuItem>
+                                    <MenuItem value="active">Active</MenuItem>
+                                    <MenuItem value="new">New</MenuItem>
+                                    <MenuItem value="not_started">
+                                        Not started
+                                    </MenuItem>
+                                    <MenuItem value="stalled">Stalled</MenuItem>
+                                    <MenuItem value="inactive">
+                                        Inactive
+                                    </MenuItem>
+                                    <MenuItem value="completed">
+                                        Completed
+                                    </MenuItem>
+                                    <MenuItem value="withdrawn">
+                                        Withdrawn
+                                    </MenuItem>
+                                    <MenuItem value="suspended">
+                                        Suspended
+                                    </MenuItem>
+                                </TextField>
+                            )}
+                        </Stack>
+                    </CardContent>
+                </Card>
+
+                {isProgramView ? (
+                    <ProgramLearnerRoster
+                        students={studentsList}
+                        pagination={pagination}
+                        selectedEnrollmentIds={selectedEnrollmentIds}
+                        onToggle={toggleEnrollment}
+                        onToggleAll={toggleAllVisible}
+                        onOpen={setActiveLearner}
+                        onAction={handleLearnerAction}
+                        onPageChange={(_, page) =>
+                            handleFilterChange({ page: page + 1 })
+                        }
+                    />
+                ) : (
+                    <StudentDirectory students={studentsList} />
+                )}
+            </Stack>
+
+            {isProgramView && (
+                <LearnerDetailPanel
+                    open={Boolean(activeLearner)}
+                    learner={activeLearner}
+                    programId={program.id}
+                    onClose={() => setActiveLearner(null)}
+                    onAction={handleLearnerAction}
+                />
             )}
-          </Card>
-        </motion.div>
-      </Stack>
-    </InstructorLayout>
-  );
+
+            <Dialog
+                open={Boolean(pendingAction)}
+                onClose={() => !busy && setPendingAction(null)}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>
+                    {pendingAction?.action === "withdraw"
+                        ? `Withdraw ${pendingAction.learner.name}?`
+                        : `Suspend access for ${pendingAction?.learner.name}?`}
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2}>
+                        <Alert
+                            severity={
+                                pendingAction?.action === "withdraw"
+                                    ? "warning"
+                                    : "info"
+                            }
+                        >
+                            Progress, attempts, submissions, grades, and
+                            certificates are preserved.
+                        </Alert>
+                        {pendingAction?.action === "withdraw" && (
+                            <TextField
+                                autoFocus
+                                required
+                                multiline
+                                minRows={2}
+                                label="Reason for withdrawal"
+                                value={reason}
+                                onChange={(event) =>
+                                    setReason(event.target.value)
+                                }
+                            />
+                        )}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => setPendingAction(null)}
+                        disabled={busy}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color={
+                            pendingAction?.action === "withdraw"
+                                ? "error"
+                                : "primary"
+                        }
+                        disabled={
+                            busy ||
+                            (pendingAction?.action === "withdraw" &&
+                                !reason.trim())
+                        }
+                        onClick={() =>
+                            executeStatusAction(
+                                pendingAction.action,
+                                pendingAction.learner,
+                                reason,
+                            )
+                        }
+                    >
+                        {pendingAction?.action === "withdraw"
+                            ? "Withdraw learner"
+                            : "Suspend access"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </InstructorLayout>
+    );
 }

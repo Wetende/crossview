@@ -21,7 +21,12 @@ describe("Learner management toolbar", () => {
             />,
         );
 
-        fireEvent.click(screen.getByRole("button", { name: /add or invite/i }));
+        fireEvent.click(screen.getByRole("button", { name: /add learners/i }));
+        fireEvent.click(
+            await screen.findByRole("menuitem", {
+                name: /add or invite by email/i,
+            }),
+        );
         fireEvent.change(screen.getByLabelText(/email address/i), {
             target: { value: "learner@example.com" },
         });
@@ -39,27 +44,61 @@ describe("Learner management toolbar", () => {
         expect(onComplete).toHaveBeenCalledOnce();
     });
 
-    test("sends an explicit bulk learner action", async () => {
-        post.mockResolvedValue({ data: { updated: 2 } });
+    test("previews eligibility before applying a bulk access action", async () => {
+        post.mockResolvedValueOnce({
+            data: { eligible: 2, ineligible: 0, results: [] },
+        }).mockResolvedValueOnce({
+            data: { processed: 2, skipped: 0, updated: 2 },
+        });
         render(
             <LearnerManagementToolbar
                 programId={42}
                 selectedEnrollmentIds={[7, 8]}
+                onClearSelection={() => {}}
                 onComplete={() => {}}
             />,
         );
 
-        fireEvent.mouseDown(screen.getByLabelText(/bulk action/i));
+        fireEvent.click(screen.getByRole("button", { name: /manage access/i }));
         fireEvent.click(
-            await screen.findByRole("option", { name: /suspend/i }),
+            await screen.findByRole("menuitem", { name: /suspend access/i }),
         );
-        fireEvent.click(screen.getByRole("button", { name: /apply to 2/i }));
 
         await waitFor(() => {
             expect(post).toHaveBeenCalledWith(
                 "/api/learning-operations/programs/42/learners/bulk/",
-                { enrollmentIds: [7, 8], action: "suspend" },
+                {
+                    enrollmentIds: [7, 8],
+                    action: "suspend",
+                    reason: "",
+                    preview: true,
+                },
             );
         });
+
+        fireEvent.click(
+            await screen.findByRole("button", { name: /confirm for 2/i }),
+        );
+        await waitFor(() => {
+            expect(post).toHaveBeenLastCalledWith(
+                "/api/learning-operations/programs/42/learners/bulk/",
+                { enrollmentIds: [7, 8], action: "suspend", reason: "" },
+            );
+        });
+    });
+
+    test("hides bulk controls until learners are selected", () => {
+        render(
+            <LearnerManagementToolbar
+                programId={42}
+                selectedEnrollmentIds={[]}
+                onClearSelection={() => {}}
+                onComplete={() => {}}
+            />,
+        );
+
+        expect(
+            screen.queryByRole("button", { name: /manage access/i }),
+        ).not.toBeInTheDocument();
     });
 });

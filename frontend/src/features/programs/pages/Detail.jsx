@@ -12,13 +12,6 @@ import {
     Grid,
     Card,
     CardContent,
-    Chip,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     List,
     ListItem,
     ListItemIcon,
@@ -38,15 +31,13 @@ import { motion } from "framer-motion";
 import InstructorLayout from "@/layouts/InstructorLayout";
 import { htmlToPlainText } from "@/utils/htmlText";
 
-const STATUS_COLORS = {
-    active: "success",
-    completed: "info",
-    withdrawn: "error",
-    suspended: "warning",
-};
-
-export default function Detail({ program, students, curriculum }) {
+export default function Detail({ program, learnerSummary, curriculum }) {
     const descriptionText = htmlToPlainText(program.description);
+    const summary = learnerSummary || {
+        total: 0,
+        needsAttention: 0,
+        completed: 0,
+    };
 
     return (
         <InstructorLayout
@@ -114,13 +105,22 @@ export default function Detail({ program, students, curriculum }) {
 
                     <Grid container spacing={3}>
                         {/* Quick Actions */}
-                        <Grid item xs={12} md={4}>
+                        <Grid xs={12} md={4}>
                             <Card>
                                 <CardContent>
                                     <Typography variant="h6" gutterBottom>
                                         Quick Actions
                                     </Typography>
                                     <Stack spacing={1}>
+                                        <Button
+                                            component={Link}
+                                            href={`/instructor/programs/${program.id}/students/`}
+                                            fullWidth
+                                            variant="contained"
+                                            startIcon={<IconUsers size={18} />}
+                                        >
+                                            Manage learners
+                                        </Button>
                                         <Button
                                             component={Link}
                                             href={`/instructor/programs/${program.id}/assignments/`}
@@ -207,7 +207,7 @@ export default function Detail({ program, students, curriculum }) {
                         </Grid>
 
                         {/* Curriculum Preview */}
-                        <Grid item xs={12} md={8}>
+                        <Grid xs={12} md={8}>
                             <Card>
                                 <CardContent>
                                     <Typography variant="h6" gutterBottom>
@@ -254,106 +254,54 @@ export default function Detail({ program, students, curriculum }) {
                             </Card>
                         </Grid>
 
-                        {/* Students */}
-                        <Grid item xs={12}>
+                        {/* Learner health */}
+                        <Grid xs={12}>
                             <Card>
                                 <CardContent>
-                                    <Stack
-                                        direction="row"
-                                        justifyContent="space-between"
-                                        alignItems="center"
-                                        sx={{ mb: 2 }}
-                                    >
-                                        <Typography variant="h6">
-                                            <IconUsers
-                                                size={20}
-                                                style={{
-                                                    marginRight: 8,
-                                                    verticalAlign: "middle",
-                                                }}
-                                            />
-                                            Enrolled Students ({students.length}
-                                            )
-                                        </Typography>
-                                    </Stack>
-
-                                    {students.length === 0 ? (
-                                        <Alert severity="info">
-                                            No students enrolled yet.
-                                        </Alert>
-                                    ) : (
-                                        <TableContainer
-                                            component={Paper}
-                                            variant="outlined"
-                                        >
-                                            <Table size="small">
-                                                <TableHead>
-                                                    <TableRow>
-                                                        <TableCell>
-                                                            Name
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            Email
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            Status
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            Enrolled
-                                                        </TableCell>
-                                                        <TableCell align="right">
-                                                            Actions
-                                                        </TableCell>
-                                                    </TableRow>
-                                                </TableHead>
-                                                <TableBody>
-                                                    {students.map((student) => (
-                                                        <TableRow
-                                                            key={student.id}
-                                                            hover
-                                                        >
-                                                            <TableCell>
-                                                                {student.name}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {student.email}
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Chip
-                                                                    label={
-                                                                        student.status
-                                                                    }
-                                                                    size="small"
-                                                                    color={
-                                                                        STATUS_COLORS[
-                                                                            student
-                                                                                .status
-                                                                        ] ||
-                                                                        "default"
-                                                                    }
-                                                                />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                {new Date(
-                                                                    student.enrolledAt,
-                                                                ).toLocaleDateString()}
-                                                            </TableCell>
-                                                            <TableCell align="right">
-                                                                <Button
-                                                                    component={Link}
-                                                                    href={`/messages/new/?recipient_id=${student.userId || student.id}`}
-                                                                    size="small"
-                                                                    variant="outlined"
-                                                                >
-                                                                    Message
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </TableContainer>
-                                    )}
+                                    <Typography variant="h6" sx={{ mb: 2 }}>
+                                        <IconUsers
+                                            size={20}
+                                            style={{
+                                                marginRight: 8,
+                                                verticalAlign: "middle",
+                                            }}
+                                        />
+                                        Learner health
+                                    </Typography>
+                                    <Grid container spacing={2}>
+                                        {[
+                                            ["Total learners", summary.total],
+                                            [
+                                                "Needs attention",
+                                                summary.needsAttention,
+                                            ],
+                                            ["Completed", summary.completed],
+                                        ].map(([label, value]) => (
+                                            <Grid xs={12} sm={4} key={label}>
+                                                <Paper
+                                                    variant="outlined"
+                                                    sx={{
+                                                        p: 2,
+                                                        height: "100%",
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                    >
+                                                        {label}
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="h4"
+                                                        fontWeight={700}
+                                                        sx={{ mt: 0.5 }}
+                                                    >
+                                                        {value}
+                                                    </Typography>
+                                                </Paper>
+                                            </Grid>
+                                        ))}
+                                    </Grid>
                                 </CardContent>
                             </Card>
                         </Grid>

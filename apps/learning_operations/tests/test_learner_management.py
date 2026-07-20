@@ -181,7 +181,117 @@ def test_csv_requires_preview_token_and_imports_reviewed_rows(
 
 
 @pytest.mark.django_db
+def test_csv_headers_are_case_insensitive_and_roster_export_can_be_reimported(
+    client, instructor, program, learner
+):
+    client.force_login(instructor)
+    preview_url = reverse(
+        "learning_operations:roster-preview", kwargs={"program_id": program.id}
+    )
+    mixed_case = b"Email,First Name,Last Name\nNEW@EXAMPLE.COM,New,Learner\n"
+
+    preview = client.post(
+        preview_url,
+        {"file": SimpleUploadedFile("mixed.csv", mixed_case, content_type="text/csv")},
+    )
+
+    assert preview.status_code == 200
+    assert preview.json()["results"][0]["email"] == "new@example.com"
+    assert preview.json()["results"][0]["status"] == "ready_to_invite"
+
+    exported = client.get(
+        reverse("learning_operations:roster-export", kwargs={"program_id": program.id})
+    )
+    round_trip = client.post(
+        preview_url,
+        {
+            "file": SimpleUploadedFile(
+                "exported.csv", exported.content, content_type="text/csv"
+            )
+        },
+    )
+
+    assert exported.status_code == 200
+    assert round_trip.status_code == 200
+    assert round_trip.json()["results"][0]["status"] == "already_enrolled"
+
+
+@pytest.mark.django_db
 def test_bulk_status_change_is_scoped_and_audited(client, instructor, program, learner):
+    _, enrollment = learner
+    client.force_login(instructor)
+
+    response = client.post(
+        reverse(
+            "learning_operations:learner-bulk", kwargs={"program_id": program.id}
+        ),
+        data={
+            "enrollmentIds": [enrollment.id],
+            "action": "withdraw",
+            "reason": "Learner requested withdrawal",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    enrollment.refresh_from_db()
+    assert enrollment.status == "withdrawn"
+    audit = LearnerManagementAudit.objects.get(enrollment=enrollment)
+    assert audit.action == "status_change"
+    assert audit.previous_state["status"] == "active"
+
+
+@pytest.mark.django_db
+def test_bulk_status_actions_skip_ineligible_learners_and_preserve_completion(
+    client, instructor, program, learner
+):
+    _, active = learner
+    completed = Enrollment.objects.create(
+        user=UserFactory(),
+        program=program,
+        status="completed",
+        completed_at=timezone.now(),
+    )
+    original_completed_at = completed.completed_at
+    client.force_login(instructor)
+
+    preview = client.post(
+        reverse(
+            "learning_operations:learner-bulk", kwargs={"program_id": program.id}
+        ),
+        data={
+            "enrollmentIds": [active.id, completed.id],
+            "action": "suspend",
+            "preview": True,
+        },
+        content_type="application/json",
+    )
+
+    assert preview.status_code == 200
+    assert preview.json()["eligible"] == 1
+    assert preview.json()["ineligible"] == 1
+    active.refresh_from_db()
+    assert active.status == "active"
+
+    response = client.post(
+        reverse(
+            "learning_operations:learner-bulk", kwargs={"program_id": program.id}
+        ),
+        data={"enrollmentIds": [active.id, completed.id], "action": "suspend"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["requested"] == 2
+    assert response.json()["processed"] == 1
+    assert response.json()["skipped"] == 1
+    completed.refresh_from_db()
+    assert completed.status == "completed"
+    assert completed.completed_at == original_completed_at
+
+
+@pytest.mark.django_db
+def test_withdraw_requires_a_reason(client, instructor, program, learner):
     _, enrollment = learner
     client.force_login(instructor)
 
@@ -193,12 +303,7 @@ def test_bulk_status_change_is_scoped_and_audited(client, instructor, program, l
         content_type="application/json",
     )
 
-    assert response.status_code == 200
-    enrollment.refresh_from_db()
-    assert enrollment.status == "withdrawn"
-    audit = LearnerManagementAudit.objects.get(enrollment=enrollment)
-    assert audit.action == "status_change"
-    assert audit.previous_state["status"] == "active"
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db

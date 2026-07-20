@@ -46,6 +46,13 @@ class LearnerListQuerySerializer(serializers.Serializer):
     limit = serializers.IntegerField(required=False, default=25, min_value=1, max_value=100)
 
 
+class LearnerDetailQuerySerializer(serializers.Serializer):
+    curriculumOffset = serializers.IntegerField(required=False, default=0, min_value=0)
+    curriculumLimit = serializers.IntegerField(
+        required=False, default=25, min_value=1, max_value=100
+    )
+
+
 class EngagementMatrixQuerySerializer(serializers.Serializer):
     enrollmentOffset = serializers.IntegerField(required=False, default=0, min_value=0)
     enrollmentLimit = serializers.IntegerField(required=False, default=25, min_value=1, max_value=50)
@@ -122,6 +129,17 @@ class BulkLearnerActionSerializer(serializers.Serializer):
         choices=["activate", "suspend", "withdraw", "reactivate", "send_reminder"]
     )
     reason = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    preview = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("action") == "withdraw" and not str(
+            attrs.get("reason") or ""
+        ).strip():
+            raise serializers.ValidationError(
+                {"reason": "Give a reason for withdrawing a learner."}
+            )
+        return attrs
 
 
 class ProgressAdjustmentSerializer(serializers.Serializer):

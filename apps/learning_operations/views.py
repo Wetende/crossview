@@ -18,6 +18,7 @@ from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment
 
 from .learner_management import (
+    ALLOWED_ENROLLMENT_STATUS_TRANSITIONS,
     accept_course_invitation,
     add_or_invite_learner,
     change_enrollment_status,
@@ -41,12 +42,12 @@ from .models import CourseInvitation, LearnerManagementAudit
 
 from .selectors import (
     get_engagement_matrix,
+    get_program_learner_detail,
     get_program_learners,
     get_program_operations_summary,
     get_program_revenue,
     get_instructor_revenue,
     get_student_operations,
-    serialize_enrollment_operations,
 )
 from .serializers import (
     AssignmentReturnSerializer,
@@ -56,6 +57,7 @@ from .serializers import (
     EngagementMatrixQuerySerializer,
     InvitationAcceptanceSerializer,
     InvitationBulkActionSerializer,
+    LearnerDetailQuerySerializer,
     LearnerListQuerySerializer,
     LearnerInviteSerializer,
     ManualQuizGradeReadSerializer,
@@ -183,6 +185,8 @@ class ProgramLearnerDetailView(APIView):
 
     def get(self, request, program_id, enrollment_id):
         program = _instructor_program(request, program_id)
+        query = LearnerDetailQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
         enrollment = get_object_or_404(
             Enrollment.objects.select_related(
                 "user", "program", "learning_activity"
@@ -190,19 +194,14 @@ class ProgramLearnerDetailView(APIView):
             pk=enrollment_id,
             program=program,
         )
-        data = serialize_enrollment_operations(enrollment)
-        data.update(
-            {
-                "enrollmentId": enrollment.id,
-                "userId": enrollment.user_id,
-                "name": enrollment.user.get_full_name() or enrollment.user.email,
-                "email": enrollment.user.email,
-                "status": enrollment.status,
-                "enrolledAt": enrollment.enrolled_at.isoformat(),
-                "grades": enrollment.grades or {},
-            }
+        data = query.validated_data
+        return Response(
+            get_program_learner_detail(
+                enrollment,
+                curriculum_offset=data["curriculumOffset"],
+                curriculum_limit=data["curriculumLimit"],
+            )
         )
-        return Response(data)
 
 
 class ProgramEngagementMatrixView(APIView):
@@ -607,14 +606,86 @@ class CourseBulkLearnerActionView(APIView):
                     resulting_state={"notificationCreated": True},
                 )
         else:
-            for enrollment in enrollments:
-                change_enrollment_status(
-                    enrollment=enrollment,
-                    status=status_map[data["action"]],
-                    actor=request.user,
-                    reason=data.get("reason", ""),
+            target_status = status_map[data["action"]]
+            if data.get("preview"):
+                results = [
+                    {
+                        "enrollmentId": enrollment.id,
+                        "status": (
+                            "eligible"
+                            if target_status
+                            in ALLOWED_ENROLLMENT_STATUS_TRANSITIONS.get(
+                                enrollment.status, set()
+                            )
+                            else "ineligible"
+                        ),
+                        "currentStatus": enrollment.status,
+                        "resultingStatus": target_status,
+                    }
+                    for enrollment in enrollments
+                ]
+                eligible = sum(item["status"] == "eligible" for item in results)
+                return Response(
+                    {
+                        "preview": True,
+                        "requested": len(enrollments),
+                        "eligible": eligible,
+                        "ineligible": len(enrollments) - eligible,
+                        "processed": 0,
+                        "skipped": len(enrollments) - eligible,
+                        "results": results,
+                        "updated": 0,
+                        "action": data["action"],
+                    }
                 )
-        return Response({"updated": len(enrollments), "action": data["action"]})
+            results = []
+            for enrollment in enrollments:
+                try:
+                    change_enrollment_status(
+                        enrollment=enrollment,
+                        status=status_map[data["action"]],
+                        actor=request.user,
+                        reason=data.get("reason", ""),
+                    )
+                    results.append(
+                        {
+                            "enrollmentId": enrollment.id,
+                            "status": "processed",
+                            "resultingStatus": status_map[data["action"]],
+                        }
+                    )
+                except DjangoValidationError as exc:
+                    results.append(
+                        {
+                            "enrollmentId": enrollment.id,
+                            "status": "skipped",
+                            "detail": exc.messages[0],
+                        }
+                    )
+            processed = sum(item["status"] == "processed" for item in results)
+            return Response(
+                {
+                    "requested": len(enrollments),
+                    "processed": processed,
+                    "skipped": len(enrollments) - processed,
+                    "results": results,
+                    "updated": processed,
+                    "action": data["action"],
+                }
+            )
+        return Response(
+            {
+                "requested": len(enrollments),
+                "processed": len(enrollments),
+                "skipped": 0,
+                "results": [
+                    {"enrollmentId": enrollment.id, "status": "processed"}
+                    for enrollment in enrollments
+                ],
+                "updated": len(enrollments),
+                "action": data["action"],
+            }
+        )
 
 
 class LessonCompletionResetView(APIView):
@@ -753,3 +824,4 @@ class InvitationAcceptanceView(APIView):
                 "programId": enrollment.program_id,
             }
         )
+    get_program_learner_detail,

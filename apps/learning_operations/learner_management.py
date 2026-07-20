@@ -30,6 +30,12 @@ INVITATION_LIFETIME = timedelta(days=7)
 ROSTER_PREVIEW_MAX_AGE_SECONDS = 30 * 60
 ROSTER_PREVIEW_SALT = "learning_operations.roster_preview"
 VALID_ENROLLMENT_STATUSES = {"active", "completed", "withdrawn", "suspended"}
+ALLOWED_ENROLLMENT_STATUS_TRANSITIONS = {
+    "active": {"suspended", "withdrawn"},
+    "suspended": {"active", "withdrawn"},
+    "withdrawn": {"active"},
+    "completed": set(),
+}
 
 
 def normalize_email(value: str) -> str:
@@ -277,14 +283,20 @@ def parse_csv_rows(upload) -> list[dict]:
     headers = {normalize_email(name).replace(" ", "_") for name in (reader.fieldnames or [])}
     if "email" not in headers:
         raise ValidationError("CSV must include an email column.")
-    rows = [
-        {
-            "email": normalize_email(row.get("email")),
-            "first_name": str(row.get("first_name") or row.get("first name") or "").strip(),
-            "last_name": str(row.get("last_name") or row.get("last name") or "").strip(),
+    rows = []
+    for row in reader:
+        normalized_row = {
+            normalize_email(key).replace(" ", "_"): value
+            for key, value in row.items()
+            if key is not None
         }
-        for row in reader
-    ]
+        rows.append(
+            {
+                "email": normalize_email(normalized_row.get("email")),
+                "first_name": str(normalized_row.get("first_name") or "").strip(),
+                "last_name": str(normalized_row.get("last_name") or "").strip(),
+            }
+        )
     if len(rows) > 2000:
         raise ValidationError("CSV imports are limited to 2,000 rows.")
     return rows
@@ -334,16 +346,18 @@ def preview_learner_rows(program, rows: list[dict]) -> list[dict]:
 def change_enrollment_status(*, enrollment, status: str, actor, reason=""):
     if status not in VALID_ENROLLMENT_STATUSES:
         raise ValidationError("Select a valid enrollment status.")
+    allowed = ALLOWED_ENROLLMENT_STATUS_TRANSITIONS.get(enrollment.status, set())
+    if status not in allowed:
+        raise ValidationError(
+            f"A {enrollment.get_status_display().lower()} enrollment cannot be changed "
+            f"to {dict(Enrollment._meta.get_field('status').choices).get(status, status).lower()}."
+        )
     previous = {
         "status": enrollment.status,
         "completedAt": enrollment.completed_at.isoformat() if enrollment.completed_at else None,
     }
     enrollment.status = status
-    if status != "completed":
-        enrollment.completed_at = None
-    elif enrollment.completed_at is None:
-        enrollment.completed_at = timezone.now()
-    enrollment.save(update_fields=["status", "completed_at", "updated_at"])
+    enrollment.save(update_fields=["status", "updated_at"])
     LearnerManagementAudit.objects.create(
         enrollment=enrollment,
         action="status_change",

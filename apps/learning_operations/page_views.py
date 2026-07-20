@@ -10,7 +10,7 @@ from apps.core.models import Program
 from apps.progression.models import Enrollment
 
 from .learner_management import get_invitation_by_token
-from .selectors import get_program_learners, serialize_enrollment_operations
+from .selectors import get_program_learner_detail, get_program_learners
 
 
 @login_required
@@ -59,21 +59,12 @@ def instructor_course_learner(request, program_id, enrollment_id):
         ).get(pk=enrollment_id, program=program)
     except Enrollment.DoesNotExist as exc:
         raise Http404("Learner not found.") from exc
-    operations = serialize_enrollment_operations(enrollment)
     return render(
         request,
         "Instructor/Students/Operations",
         {
             "program": {"id": program.id, "name": program.name},
-            "learner": {
-                "enrollmentId": enrollment.id,
-                "name": enrollment.user.get_full_name() or enrollment.user.email,
-                "email": enrollment.user.email,
-                "status": enrollment.status,
-                "enrolledAt": enrollment.enrolled_at.isoformat(),
-                "grades": enrollment.grades or {},
-                **operations,
-            },
+            "learner": get_program_learner_detail(enrollment),
         },
     )
 

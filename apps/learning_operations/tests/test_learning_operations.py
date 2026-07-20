@@ -6,7 +6,7 @@ from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.assessments.models import Question, Quiz, QuizAttempt
+from apps.assessments.models import AssessmentResult, Assignment, Question, Quiz, QuizAttempt
 from apps.commerce.models import Order, ProgramRevenueShare, SettlementParty
 from apps.commerce.services import CheckoutService
 from apps.core.tests.factories import UserFactory
@@ -22,6 +22,7 @@ from apps.learning_operations.models import (
     ManualQuizGrade,
 )
 from apps.learning_operations.services import classify_enrollment
+from apps.learning_operations.selectors import get_program_learner_summary
 
 
 @pytest.fixture
@@ -117,6 +118,100 @@ def test_unassigned_instructor_cannot_read_program_operations(client, instructor
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_program_learner_summary_counts_attention_without_loading_a_roster(
+    program,
+):
+    now = timezone.now()
+    completed = Enrollment.objects.create(
+        user=UserFactory(),
+        program=program,
+        status="completed",
+        completed_at=now,
+    )
+    not_started = Enrollment.objects.create(user=UserFactory(), program=program)
+    Enrollment.objects.filter(pk=not_started.pk).update(
+        enrolled_at=now - timedelta(days=4)
+    )
+    active = Enrollment.objects.create(user=UserFactory(), program=program)
+    EnrollmentLearningActivity.objects.create(
+        enrollment=active,
+        started_at=now - timedelta(days=2),
+        last_activity_at=now,
+    )
+
+    assert get_program_learner_summary(program) == {
+        "total": 3,
+        "needsAttention": 1,
+        "completed": 1,
+    }
+
+
+@pytest.mark.django_db
+def test_learner_detail_returns_operational_context_and_paginated_curriculum(
+    client, instructor, program, enrollment
+):
+    nodes = [
+        CurriculumNode.objects.create(
+            program=program,
+            node_type="Session",
+            title=f"Lesson {index}",
+            position=index,
+            is_published=True,
+        )
+        for index in range(1, 28)
+    ]
+    completed_at = timezone.now() - timedelta(hours=2)
+    NodeCompletion.objects.create(
+        enrollment=enrollment,
+        node=nodes[0],
+        completed_at=completed_at,
+        completion_type="view",
+    )
+    Assignment.objects.create(
+        program=program,
+        title="Project",
+        description="Project description",
+        instructions="Submit your work",
+        weight=25,
+        due_date=timezone.now() + timedelta(days=2),
+        is_published=True,
+    )
+    AssessmentResult.objects.create(
+        enrollment=enrollment,
+        node=nodes[0],
+        result_data={"total": 82, "status": "Pass"},
+        lecturer_comments="Strong work.",
+        is_published=True,
+        published_at=timezone.now(),
+        graded_by=instructor,
+    )
+    client.force_login(instructor)
+
+    response = client.get(
+        reverse(
+            "learning_operations:learner-detail",
+            kwargs={"program_id": program.id, "enrollment_id": enrollment.id},
+        )
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["currentPosition"]["title"] == "Lesson 2"
+    assert payload["attention"] is None
+    assert payload["upcomingDeadlines"][0]["title"] == "Project"
+    assert payload["recentActivity"][0]["title"] == "Lesson 1"
+    assert payload["publishedGrades"][0]["title"] == "Lesson 1"
+    assert payload["feedback"][0]["message"] == "Strong work."
+    assert len(payload["curriculumProgress"]["results"]) == 25
+    assert payload["curriculumProgress"]["pagination"] == {
+        "offset": 0,
+        "limit": 25,
+        "total": 27,
+        "hasMore": True,
+    }
 
 
 @pytest.mark.django_db

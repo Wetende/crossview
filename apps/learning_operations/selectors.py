@@ -4,7 +4,12 @@ from decimal import Decimal
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
-from apps.assessments.models import Assignment, AssignmentSubmission, QuizAttempt
+from apps.assessments.models import (
+    AssessmentResult,
+    Assignment,
+    AssignmentSubmission,
+    QuizAttempt,
+)
 from apps.commerce.models import (
     OrderItem,
     ProgramRevenueShare,
@@ -67,6 +72,67 @@ def get_upcoming_deadlines_for_enrollments(enrollments, now=None):
                 }
             )
     return sorted(deadlines, key=lambda item: item["dueAt"])
+
+
+def get_enrollment_attention(enrollment, *, now=None):
+    """Return the learner's most urgent actionable course condition."""
+    now = now or timezone.now()
+    resolved_assignment_ids = AssignmentSubmission.objects.filter(
+        enrollment=enrollment,
+        status__in=["submitted", "graded"],
+    ).values_list("assignment_id", flat=True)
+    overdue = (
+        Assignment.objects.filter(
+            program=enrollment.program,
+            is_published=True,
+            due_date__lt=now,
+        )
+        .exclude(id__in=resolved_assignment_ids)
+        .order_by("due_date", "id")
+        .first()
+    )
+    if overdue:
+        return {
+            "type": "overdue_assignment",
+            "title": f"{overdue.title} is overdue",
+            "message": "The learner has not submitted this assignment.",
+            "dueAt": overdue.due_date.isoformat(),
+            "severity": "error",
+        }
+
+    learner_state = classify_enrollment(enrollment, now=now)
+    state_copy = {
+        "new": (
+            "Getting started",
+            "The learner has access but has not started yet.",
+            "info",
+        ),
+        "not_started": (
+            "Course not started",
+            "The learner has had access for at least three days without activity.",
+            "warning",
+        ),
+        "stalled": (
+            "Learning has stalled",
+            "No meaningful activity has been recorded for at least seven days.",
+            "warning",
+        ),
+        "inactive": (
+            "Learner is inactive",
+            "No meaningful activity has been recorded for at least thirty days.",
+            "error",
+        ),
+    }
+    if learner_state in state_copy:
+        title, message, severity = state_copy[learner_state]
+        return {
+            "type": learner_state,
+            "title": title,
+            "message": message,
+            "dueAt": None,
+            "severity": severity,
+        }
+    return None
 
 
 def serialize_enrollment_operations(enrollment, total_nodes=None, include_gamification=False):
@@ -176,6 +242,182 @@ def get_program_learners(program, state=None, search=None):
             }
         )
     return rows
+
+
+def get_program_learner_summary(program):
+    rows = get_program_learners(program)
+    return {
+        "total": len(rows),
+        "needsAttention": sum(
+            row["learnerState"] in {"not_started", "stalled", "inactive"}
+            for row in rows
+        ),
+        "completed": sum(row["learnerState"] == "completed" for row in rows),
+    }
+
+
+def get_program_learner_detail(
+    enrollment,
+    *,
+    curriculum_offset=0,
+    curriculum_limit=25,
+):
+    nodes = CurriculumNode.objects.filter(
+        program=enrollment.program,
+        is_published=True,
+        children__isnull=True,
+    ).order_by("position", "id")
+    total_nodes = nodes.count()
+    completed_by_node = {
+        completion.node_id: completion
+        for completion in NodeCompletion.objects.filter(
+            enrollment=enrollment,
+            node__in=nodes,
+        ).select_related("node")
+    }
+    operations = serialize_enrollment_operations(enrollment, total_nodes)
+    current_node = nodes.exclude(id__in=completed_by_node).first()
+
+    recent_activity = [
+        {
+            "type": "lesson_completion",
+            "title": completion.node.title,
+            "occurredAt": completion.completed_at.isoformat(),
+            "detail": completion.get_completion_type_display(),
+        }
+        for completion in sorted(
+            completed_by_node.values(),
+            key=lambda item: item.completed_at,
+            reverse=True,
+        )[:10]
+    ]
+
+    published_results = list(
+        AssessmentResult.objects.filter(
+            enrollment=enrollment,
+            is_published=True,
+        )
+        .select_related("node")
+        .order_by("node__position", "node_id")
+    )
+    published_grades = [
+        {
+            "id": result.id,
+            "type": "assessment",
+            "title": result.node.title,
+            "score": result.get_total(),
+            "status": result.get_status(),
+            "letterGrade": result.get_letter_grade(),
+            "publishedAt": (
+                result.published_at.isoformat() if result.published_at else None
+            ),
+        }
+        for result in published_results
+    ]
+    feedback = [
+        {
+            "id": f"assessment-{result.id}",
+            "type": "assessment",
+            "title": result.node.title,
+            "message": result.lecturer_comments,
+            "publishedAt": (
+                result.published_at.isoformat() if result.published_at else None
+            ),
+        }
+        for result in published_results
+        if result.lecturer_comments
+    ]
+    assignment_submissions = (
+        AssignmentSubmission.objects.filter(
+            enrollment=enrollment,
+            status__in=["graded", "returned"],
+        )
+        .select_related("assignment")
+        .order_by("assignment_id", "-attempt_number")
+    )
+    seen_assignments = set()
+    for submission in assignment_submissions:
+        if submission.assignment_id in seen_assignments:
+            continue
+        seen_assignments.add(submission.assignment_id)
+        published_grades.append(
+            {
+                "id": submission.id,
+                "type": "assignment",
+                "title": submission.assignment.title,
+                "score": float(submission.score) if submission.score is not None else None,
+                "status": "Pass" if submission.passed else "Fail" if submission.passed is False else None,
+                "letterGrade": None,
+                "publishedAt": (
+                    submission.graded_at.isoformat() if submission.graded_at else None
+                ),
+            }
+        )
+        if submission.feedback:
+            feedback.append(
+                {
+                    "id": f"assignment-{submission.id}",
+                    "type": "assignment",
+                    "title": submission.assignment.title,
+                    "message": submission.feedback,
+                    "publishedAt": (
+                        submission.graded_at.isoformat()
+                        if submission.graded_at
+                        else None
+                    ),
+                }
+            )
+
+    page_nodes = list(
+        nodes[curriculum_offset : curriculum_offset + curriculum_limit]
+    )
+    curriculum_results = [
+        {
+            "nodeId": node.id,
+            "title": node.title,
+            "type": node.node_type,
+            "completed": node.id in completed_by_node,
+            "completedAt": (
+                completed_by_node[node.id].completed_at.isoformat()
+                if node.id in completed_by_node
+                else None
+            ),
+        }
+        for node in page_nodes
+    ]
+    return {
+        "enrollmentId": enrollment.id,
+        "userId": enrollment.user_id,
+        "name": enrollment.user.get_full_name() or enrollment.user.email,
+        "email": enrollment.user.email,
+        "status": enrollment.status,
+        "enrolledAt": enrollment.enrolled_at.isoformat(),
+        "grades": enrollment.grades or {},
+        **operations,
+        "attention": get_enrollment_attention(enrollment),
+        "upcomingDeadlines": get_upcoming_deadlines_for_enrollments([enrollment]),
+        "recentActivity": recent_activity,
+        "publishedGrades": published_grades,
+        "feedback": feedback,
+        "currentPosition": (
+            {
+                "nodeId": current_node.id,
+                "title": current_node.title,
+                "type": current_node.node_type,
+            }
+            if current_node
+            else None
+        ),
+        "curriculumProgress": {
+            "results": curriculum_results,
+            "pagination": {
+                "offset": curriculum_offset,
+                "limit": curriculum_limit,
+                "total": total_nodes,
+                "hasMore": curriculum_offset + curriculum_limit < total_nodes,
+            },
+        },
+    }
 
 
 def get_engagement_matrix(program, enrollment_offset=0, enrollment_limit=25, node_offset=0, node_limit=25):

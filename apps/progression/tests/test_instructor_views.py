@@ -3,8 +3,11 @@ Instructor View Tests
 Requirements: All instructor dashboard functionality
 """
 
+from datetime import timedelta
+
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 
 from apps.core.models import Program, User
@@ -108,6 +111,28 @@ class TestInstructorPrograms:
         )
 
         assert response.status_code == 404
+
+    def test_program_detail_contains_compact_learner_health_summary(
+        self, client, instructor
+    ):
+        program = ProgramFactory()
+        InstructorAssignmentFactory(instructor=instructor, program=program)
+        EnrollmentFactory(program=program, status="completed")
+        waiting = EnrollmentFactory(program=program, status="active")
+        Enrollment.objects.filter(pk=waiting.pk).update(
+            enrolled_at=timezone.now() - timedelta(days=4)
+        )
+        client.force_login(instructor)
+
+        response = client.get(
+            reverse("core:instructor.program", kwargs={"pk": program.id})
+        )
+
+        assert response.status_code == 200
+        assert b"&quot;learnerSummary&quot;" in response.content
+        assert b"&quot;total&quot;: 2" in response.content
+        assert b"&quot;needsAttention&quot;: 1" in response.content
+        assert b"&quot;completed&quot;: 1" in response.content
 
 
 @pytest.mark.django_db
