@@ -1,21 +1,20 @@
-import { useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
-import ClassroomLayout from '../layouts/ClassroomLayout';
-import CourseSidebar from '../components/Navigation/CourseSidebar';
-import StudyPanel from '../components/Tools/StudyPanel';
-import Whiteboard from '../components/Stage/Whiteboard';
-import CourseOverview from '../components/Stage/CourseOverview';
-import { Box, Button, Typography } from '@mui/material';
-import LearningMomentum from '@/components/LearningMomentum';
-import ClassroomCompanionCard from '@/features/google-classroom/components/ClassroomCompanionCard';
+import { useState } from "react";
+import { Head, Link } from "@inertiajs/react";
+import ClassroomLayout from "../layouts/ClassroomLayout";
+import CourseSidebar from "../components/Navigation/CourseSidebar";
+import StudyPanel from "../components/Tools/StudyPanel";
+import Whiteboard from "../components/Stage/Whiteboard";
+import CourseOverview from "../components/Stage/CourseOverview";
+import { Box, Button, Typography } from "@mui/material";
+import PlayerSupportStrip from "../components/PlayerSupportStrip";
 
-const LectureView = ({ 
-    program, 
-    enrollment, 
-    node, 
+const LectureView = ({
+    program,
+    enrollment,
+    node,
     curriculum,
-    prevNode, 
-    nextNode, 
+    prevNode,
+    nextNode,
     isCompleted,
     instructor = null,
     discussions = [],
@@ -36,7 +35,7 @@ const LectureView = ({
 
     // Left Panel - Curriculum Sidebar
     const LeftPanel = (
-        <CourseSidebar 
+        <CourseSidebar
             program={program}
             progress={enrollment?.progressPercent || 0}
             curriculum={curriculum || []}
@@ -48,7 +47,7 @@ const LectureView = ({
 
     // Right Panel - Discussions/Notes
     const RightPanel = (
-        <StudyPanel 
+        <StudyPanel
             nodeId={node?.id}
             enrollmentId={enrollment?.id}
             discussions={discussions}
@@ -58,11 +57,11 @@ const LectureView = ({
         />
     );
 
-    const isOverview = activeView === 'overview';
+    const isOverview = activeView === "overview";
 
     return (
-        <ClassroomLayout 
-            programTitle={program?.name || 'Loading Course...'}
+        <ClassroomLayout
+            programTitle={program?.name || "Loading Course..."}
             backLink="/dashboard/"
             LeftPanel={LeftPanel}
             RightPanel={isOverview ? null : RightPanel}
@@ -71,10 +70,22 @@ const LectureView = ({
             isDiscussionsOpen={isDiscussionsOpen}
             onToggleDiscussions={() => setIsDiscussionsOpen(!isDiscussionsOpen)}
         >
-            <Head title={isOverview ? `${program?.name || 'Course'} - Overview` : node?.title || program?.name || 'Course Player'} />
+            <Head
+                title={
+                    isOverview
+                        ? `${program?.name || "Course"} - Overview`
+                        : node?.title || program?.name || "Course Player"
+                }
+            />
 
             {!isOverview && instructor?.id && (
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        mb: 1.5,
+                    }}
+                >
                     <Button
                         component={Link}
                         href={`/messages/new/?recipient_id=${instructor.id}`}
@@ -86,17 +97,11 @@ const LectureView = ({
                 </Box>
             )}
 
-            {enrollment?.gamification?.enabled && (
-                <Box sx={{ mb: 2 }}>
-                    <LearningMomentum gamification={enrollment.gamification} />
-                </Box>
-            )}
-            {enrollment?.googleClassroom?.connected && (
-                <Box sx={{ mb: 2 }}>
-                    <ClassroomCompanionCard classroom={enrollment.googleClassroom} />
-                </Box>
-            )}
-            
+            <PlayerSupportStrip
+                gamification={enrollment?.gamification}
+                classroom={enrollment?.googleClassroom}
+            />
+
             {/* Main Stage */}
             {isOverview ? (
                 <CourseOverview
@@ -105,8 +110,8 @@ const LectureView = ({
                     resumeUrl={resumeUrl}
                 />
             ) : node ? (
-                <Whiteboard 
-                    node={node} 
+                <Whiteboard
+                    node={node}
                     prevNode={prevNode}
                     nextNode={nextNode}
                     courseId={enrollment?.id}
@@ -115,7 +120,7 @@ const LectureView = ({
                     onVideoProgress={handleVideoProgress}
                 />
             ) : (
-                <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Box sx={{ p: 4, textAlign: "center" }}>
                     <Typography color="text.secondary">
                         Select a lesson from the curriculum to start learning.
                     </Typography>

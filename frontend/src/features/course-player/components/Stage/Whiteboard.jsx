@@ -263,12 +263,18 @@ const Whiteboard = ({
     // Determine if completion is allowed
     const canComplete =
         isCompleted ||
-        ((!hasVideoRequirement || videoRequirementMet) &&
+        (node.completionPolicy?.learnerCanComplete !== false &&
+            (!hasVideoRequirement || videoRequirementMet) &&
             (!documentRequirement.enabled || documentRequirementMet) &&
             (activityType !== ACTIVITY_TYPES.CODE ||
                 node.activityProgress?.isCompleted));
     const completionTooltip = (() => {
         if (isCompleted) return "";
+        if (node.completionPolicy?.learnerCanComplete === false) {
+            return activityType === ACTIVITY_TYPES.LIVE_STREAM
+                ? "Completion is recorded from verified viewing or instructor confirmation"
+                : "Completion is recorded from verified attendance or an audited instructor override";
+        }
         if (
             hasVideoRequirement &&
             !videoRequirementMet &&
@@ -312,6 +318,11 @@ const Whiteboard = ({
                 onNavigate={handleNavigate}
                 canComplete={canComplete}
                 completionTooltip={completionTooltip}
+                completionLabel={
+                    node.completionPolicy?.learnerCanComplete === false
+                        ? "Attendance pending"
+                        : "Mark Complete"
+                }
             />
         </Box>
     );

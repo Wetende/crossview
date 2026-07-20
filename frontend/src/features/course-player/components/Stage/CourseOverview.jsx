@@ -1,4 +1,3 @@
-import { Link } from '@inertiajs/react';
 import {
     Box,
     Typography,
@@ -11,58 +10,60 @@ import {
     ListItemIcon,
     ListItemText,
     Alert,
-} from '@mui/material';
+} from "@mui/material";
 import {
-    PlayArrow as StartIcon,
     Description as DocIcon,
     CheckCircle as CheckIcon,
     Download as DownloadIcon,
     Notifications as NoticeIcon,
-} from '@mui/icons-material';
-import DOMPurify from 'dompurify';
+    Schedule as ScheduleIcon,
+} from "@mui/icons-material";
+import DOMPurify from "dompurify";
+import DeliveryOverviewCard from "./DeliveryOverviewCard";
 
-export default function CourseOverview({
-    program,
-    enrollment,
-    resumeUrl,
-}) {
+export default function CourseOverview({ program, enrollment, resumeUrl }) {
     const hasStarted = (enrollment?.progressPercent || 0) > 0;
     const hasNotices = program?.notices?.length > 0;
-    const hasWhatYouLearn = program?.whatYouLearnHtml || program?.whatYouLearnItems?.length > 0;
+    const hasWhatYouLearn =
+        program?.whatYouLearnHtml || program?.whatYouLearnItems?.length > 0;
     const hasResources = program?.resources?.length > 0;
     const getNoticeTitle = (notice, index) => {
-        if (typeof notice === 'string') return null;
+        if (typeof notice === "string") return null;
         return notice?.title || `Notice ${index + 1}`;
     };
     const getNoticeContent = (notice) => {
-        if (typeof notice === 'string') return notice;
-        return notice?.content || notice?.text || notice?.message || '';
+        if (typeof notice === "string") return notice;
+        return notice?.content || notice?.text || notice?.message || "";
     };
 
     return (
-        <Box sx={{ maxWidth: 840, mx: 'auto' }}>
+        <Box sx={{ maxWidth: 840, mx: "auto" }}>
             {/* Overview header */}
             <Box
                 sx={{
                     mb: { xs: 2.5, md: 3 },
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { xs: 'stretch', sm: 'flex-start' },
-                    justifyContent: 'space-between',
+                    display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    alignItems: { xs: "stretch", sm: "flex-start" },
+                    justifyContent: "space-between",
                     gap: 2,
                 }}
             >
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography variant="h5" fontWeight={800} sx={{ mb: program?.description ? 1 : 0 }}>
-                        {program?.name || 'Course'}
+                    <Typography
+                        variant="h5"
+                        fontWeight={800}
+                        sx={{ mb: program?.description ? 1 : 0 }}
+                    >
+                        {program?.name || "Course"}
                     </Typography>
                     {program?.description && (
                         <Box
                             sx={{
                                 maxWidth: 620,
-                                color: 'text.secondary',
-                                '& p': { mb: 0.75 },
-                                '& p:last-of-type': { mb: 0 },
+                                color: "text.secondary",
+                                "& p": { mb: 0.75 },
+                                "& p:last-of-type": { mb: 0 },
                             }}
                             dangerouslySetInnerHTML={{
                                 __html: DOMPurify.sanitize(program.description),
@@ -70,38 +71,49 @@ export default function CourseOverview({
                         />
                     )}
                 </Box>
-
-                <Stack
-                    spacing={0.75}
-                    sx={{
-                        alignItems: { xs: 'stretch', sm: 'flex-end' },
-                        flexShrink: 0,
-                    }}
-                >
-                    <Button
-                        component={Link}
-                        href={resumeUrl || '#'}
-                        variant="contained"
-                        size="medium"
-                        startIcon={<StartIcon />}
-                        sx={{
-                            px: 3,
-                            py: 1,
-                            fontWeight: 700,
-                            borderRadius: 1,
-                            whiteSpace: 'nowrap',
-                        }}
-                    >
-                        {hasStarted ? 'Resume Learning' : 'Start Learning'}
-                    </Button>
-
-                    <Typography variant="caption" color="text.secondary">
-                        {hasStarted
-                            ? `${Math.round(enrollment?.progressPercent || 0)}% complete`
-                            : 'Begin your learning journey'}
-                    </Typography>
-                </Stack>
             </Box>
+
+            <DeliveryOverviewCard
+                program={program}
+                resumeUrl={resumeUrl}
+                hasStarted={hasStarted}
+                progressPercent={enrollment?.progressPercent || 0}
+            />
+
+            {(enrollment?.upcomingDeadlines || []).length > 0 && (
+                <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
+                    <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{ mb: 1 }}
+                        >
+                            <ScheduleIcon color="warning" fontSize="small" />
+                            <Typography variant="h6" fontWeight={700}>
+                                Upcoming deadlines
+                            </Typography>
+                        </Stack>
+                        <List dense disablePadding>
+                            {enrollment.upcomingDeadlines
+                                .slice(0, 3)
+                                .map((deadline) => (
+                                    <ListItem
+                                        key={`${deadline.type}-${deadline.id}`}
+                                        disableGutters
+                                    >
+                                        <ListItemText
+                                            primary={deadline.title}
+                                            secondary={new Date(
+                                                deadline.dueAt,
+                                            ).toLocaleString()}
+                                        />
+                                    </ListItem>
+                                ))}
+                        </List>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Notices */}
             {hasNotices && (
@@ -109,18 +121,26 @@ export default function CourseOverview({
                     {program.notices.map((notice, idx) => (
                         <Alert
                             key={idx}
-                            severity={notice.type === 'warning' ? 'warning' : 'info'}
+                            severity={
+                                notice.type === "warning" ? "warning" : "info"
+                            }
                             icon={<NoticeIcon />}
                             sx={{ mb: 1, borderRadius: 2 }}
                         >
                             {getNoticeTitle(notice, idx) && (
-                                <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+                                <Typography
+                                    variant="subtitle2"
+                                    fontWeight={700}
+                                    sx={{ mb: 0.5 }}
+                                >
                                     {getNoticeTitle(notice, idx)}
                                 </Typography>
                             )}
                             <Box
                                 dangerouslySetInnerHTML={{
-                                    __html: DOMPurify.sanitize(getNoticeContent(notice)),
+                                    __html: DOMPurify.sanitize(
+                                        getNoticeContent(notice),
+                                    ),
                                 }}
                             />
                         </Alert>
@@ -131,8 +151,18 @@ export default function CourseOverview({
             {/* What You'll Learn */}
             {hasWhatYouLearn && (
                 <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
-                    <CardContent sx={{ p: { xs: 2, md: 2.5 }, '&:last-child': { pb: { xs: 2, md: 2.5 } } }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    <CardContent
+                        sx={{
+                            p: { xs: 2, md: 2.5 },
+                            "&:last-child": { pb: { xs: 2, md: 2.5 } },
+                        }}
+                    >
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{ mb: 2 }}
+                        >
                             <CheckIcon color="success" fontSize="small" />
                             <Typography variant="h6" fontWeight={700}>
                                 What You&rsquo;ll Learn
@@ -141,21 +171,38 @@ export default function CourseOverview({
                         {program.whatYouLearnHtml ? (
                             <Box
                                 sx={{
-                                    '& ul, & ol': { pl: 3, mb: 1 },
-                                    '& li': { mb: 0.5, color: 'text.secondary' },
+                                    "& ul, & ol": { pl: 3, mb: 1 },
+                                    "& li": {
+                                        mb: 0.5,
+                                        color: "text.secondary",
+                                    },
                                 }}
                                 dangerouslySetInnerHTML={{
-                                    __html: DOMPurify.sanitize(program.whatYouLearnHtml),
+                                    __html: DOMPurify.sanitize(
+                                        program.whatYouLearnHtml,
+                                    ),
                                 }}
                             />
                         ) : (
                             <List dense disablePadding>
                                 {program.whatYouLearnItems.map((item, idx) => (
-                                    <ListItem key={idx} disableGutters sx={{ py: 0.25 }}>
+                                    <ListItem
+                                        key={idx}
+                                        disableGutters
+                                        sx={{ py: 0.25 }}
+                                    >
                                         <ListItemIcon sx={{ minWidth: 28 }}>
-                                            <CheckIcon color="success" fontSize="small" />
+                                            <CheckIcon
+                                                color="success"
+                                                fontSize="small"
+                                            />
                                         </ListItemIcon>
-                                        <ListItemText primary={item} primaryTypographyProps={{ variant: 'body2' }} />
+                                        <ListItemText
+                                            primary={item}
+                                            primaryTypographyProps={{
+                                                variant: "body2",
+                                            }}
+                                        />
                                     </ListItem>
                                 ))}
                             </List>
@@ -167,8 +214,18 @@ export default function CourseOverview({
             {/* Course Resources */}
             {hasResources && (
                 <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
-                    <CardContent sx={{ p: { xs: 2, md: 2.5 }, '&:last-child': { pb: { xs: 2, md: 2.5 } } }}>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                    <CardContent
+                        sx={{
+                            p: { xs: 2, md: 2.5 },
+                            "&:last-child": { pb: { xs: 2, md: 2.5 } },
+                        }}
+                    >
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{ mb: 2 }}
+                        >
                             <DownloadIcon color="info" fontSize="small" />
                             <Typography variant="h6" fontWeight={700}>
                                 Course Resources
@@ -182,11 +239,18 @@ export default function CourseOverview({
                                     sx={{ py: 0.5 }}
                                 >
                                     <ListItemIcon sx={{ minWidth: 28 }}>
-                                        <DocIcon fontSize="small" color="action" />
+                                        <DocIcon
+                                            fontSize="small"
+                                            color="action"
+                                        />
                                     </ListItemIcon>
                                     <ListItemText
-                                        primary={res.title || `Resource ${res.id}`}
-                                        primaryTypographyProps={{ variant: 'body2' }}
+                                        primary={
+                                            res.title || `Resource ${res.id}`
+                                        }
+                                        primaryTypographyProps={{
+                                            variant: "body2",
+                                        }}
                                     />
                                     <Button
                                         component="a"
@@ -195,7 +259,10 @@ export default function CourseOverview({
                                         rel="noopener noreferrer"
                                         size="small"
                                         variant="outlined"
-                                        sx={{ minWidth: 'auto', textTransform: 'none' }}
+                                        sx={{
+                                            minWidth: "auto",
+                                            textTransform: "none",
+                                        }}
                                     >
                                         Download
                                     </Button>

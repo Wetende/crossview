@@ -9,7 +9,16 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.content.models import ContentBlock
-from apps.curriculum.activity_types import AUDIO, CODE, DOCUMENT, VIDEO, normalize_activity_type
+from apps.curriculum.activity_types import (
+    AUDIO,
+    CODE,
+    DOCUMENT,
+    IN_PERSON_SESSION,
+    LIVE_MEETING,
+    LIVE_STREAM,
+    VIDEO,
+    normalize_activity_type,
+)
 from apps.progression.models import NodeCompletion
 from apps.progression.services import ProgressionEngine
 
@@ -19,6 +28,8 @@ from .services import record_learning_activity
 
 TRACKED_PLAYBACK_TYPES = {VIDEO, AUDIO}
 TRACKED_ACTIVITY_TYPES = {*TRACKED_PLAYBACK_TYPES, DOCUMENT, CODE}
+SCHEDULED_ATTENDANCE_TYPES = {LIVE_MEETING, LIVE_STREAM, IN_PERSON_SESSION}
+SERVER_EVIDENCE_ACTIVITY_TYPES = TRACKED_ACTIVITY_TYPES | SCHEDULED_ATTENDANCE_TYPES
 BROWSER_CODE_LANGUAGES = {"html_css_js", "javascript"}
 LEGACY_BLOCK_ACTIVITY_TYPES = {
     "VIDEO": VIDEO,
@@ -80,6 +91,25 @@ def get_completion_policy(node):
         }
     if activity_type == CODE:
         return {"kind": "code_submission", "automatic": True}
+    if activity_type == LIVE_MEETING:
+        return {
+            "kind": "verified_attendance",
+            "requiredPercent": 50,
+            "automatic": True,
+            "learnerCanComplete": False,
+        }
+    if activity_type == LIVE_STREAM:
+        return {
+            "kind": "verified_watch_or_instructor",
+            "automatic": False,
+            "learnerCanComplete": False,
+        }
+    if activity_type == IN_PERSON_SESSION:
+        return {
+            "kind": "verified_attendance",
+            "automatic": False,
+            "learnerCanComplete": False,
+        }
     return {"kind": "manual", "automatic": False}
 
 
@@ -218,6 +248,11 @@ def record_activity_event(
 
 def completion_evidence_satisfied(enrollment, node):
     activity_type, _ = resolve_activity_definition(node)
+    if activity_type in SCHEDULED_ATTENDANCE_TYPES:
+        return NodeCompletion.objects.filter(
+            enrollment=enrollment,
+            node=node,
+        ).exists()
     if activity_type not in TRACKED_ACTIVITY_TYPES:
         return True
     progress = LearnerNodeProgress.objects.filter(enrollment=enrollment, node=node).first()

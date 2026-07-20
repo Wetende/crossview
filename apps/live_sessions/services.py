@@ -322,6 +322,7 @@ def serialize_session_for_student(session, *, enrollment=None, now=None):
         "timezone": session.source_timezone,
         "status": session.status,
         "isJoinable": is_joinable,
+        "hasJoinDetails": bool(session.join_url),
         "hasEnded": has_ended,
         "joinUrl": session.join_url if is_joinable else None,
         "passcode": decrypt_session_secret(session.passcode_ciphertext) if is_joinable else None,
@@ -339,6 +340,96 @@ def serialize_session_for_student(session, *, enrollment=None, now=None):
         }
         if attendance
         else {"status": "pending", "source": None, "attendancePercent": 0},
+        "lessonUrl": (
+            f"/student/programs/{enrollment.id}/session/{session.node_id}/"
+            if enrollment
+            else None
+        ),
+        "providerState": (
+            "authorization_required"
+            if (session.provider_metadata or {}).get("syncPaused")
+            else "sync_failed"
+            if session.last_sync_error
+            else "ready"
+        ),
+    }
+
+
+def build_player_delivery_context(program, enrollment):
+    from apps.curriculum.activity_types import normalize_activity_type
+    from apps.learning_operations.services import get_course_delivery_profile
+
+    now = timezone.now()
+    profile = get_course_delivery_profile(program)
+    sessions = list(
+        ScheduledLearningSession.objects.filter(
+            node__program=program,
+            node__is_published=True,
+        )
+        .exclude(status=ScheduledLearningSession.Status.CANCELLED)
+        .select_related("node")
+        .order_by("starts_at", "id")
+    )
+    upcoming = [session for session in sessions if session.ends_at >= now]
+    next_session = upcoming[0] if upcoming else None
+    recent_recording = next(
+        (
+            session
+            for session in reversed(sessions)
+            if session.ends_at < now and session.recording_url
+        ),
+        None,
+    )
+    online_kinds = {
+        ScheduledLearningSession.Kind.LIVE_MEETING,
+        ScheduledLearningSession.Kind.LIVE_STREAM,
+    }
+    has_online_session = any(session.kind in online_kinds for session in upcoming)
+    has_physical_session = any(
+        session.kind == ScheduledLearningSession.Kind.IN_PERSON
+        for session in upcoming
+    )
+    leaf_nodes = program.curriculum_nodes.filter(
+        is_published=True,
+        children__isnull=True,
+    ).values_list("node_type", "properties")
+    has_independent_content = any(
+        normalize_activity_type(node_type, properties)
+        not in {
+            "live_meeting",
+            "live_stream",
+            "in_person_session",
+        }
+        for node_type, properties in leaf_nodes
+    )
+    warnings = []
+    if profile.delivery_mode == "live_online" and not has_online_session:
+        warnings.append("No upcoming live meeting or stream is scheduled yet.")
+    elif profile.delivery_mode == "blended":
+        if not has_independent_content:
+            warnings.append("Independent online learning content is not available yet.")
+        if not (has_online_session or has_physical_session):
+            warnings.append("No upcoming live or in-person session is scheduled yet.")
+    elif profile.delivery_mode == "in_person" and not has_physical_session:
+        warnings.append("No upcoming in-person session is scheduled yet.")
+    elif profile.delivery_mode == "self_paced" and upcoming:
+        warnings.append("This self-paced course includes scheduled attendance.")
+    return {
+        "deliveryMode": profile.delivery_mode,
+        "deliveryReadiness": {
+            "ready": not warnings,
+            "warnings": warnings,
+            "hasIndependentContent": has_independent_content,
+            "hasOnlineSession": has_online_session,
+            "hasPhysicalSession": has_physical_session,
+        },
+        "nextScheduledSession": serialize_session_for_student(
+            next_session, enrollment=enrollment, now=now
+        ),
+        "upcomingSessionCount": len(upcoming),
+        "recentSessionRecording": serialize_session_for_student(
+            recent_recording, enrollment=enrollment, now=now
+        ),
     }
 
 

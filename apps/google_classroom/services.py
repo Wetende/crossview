@@ -7,6 +7,7 @@ from .configuration import classroom_configuration, granted_capabilities
 from .models import (
     ClassroomCourseLink,
     ClassroomOAuthCredential,
+    ClassroomResourceMapping,
     ClassroomSyncAudit,
 )
 
@@ -153,6 +154,30 @@ def serialize_student_companion(program, enrollment):
         "classCode": link.enrollment_code,
         "alternateLink": link.alternate_link,
         "courseName": link.classroom_name,
+    }
+
+
+def serialize_student_classroom_publication(program, node):
+    link = course_link_for(program)
+    if not link or not link.enabled:
+        return {"published": False, "status": "not_linked"}
+    mapping = link.resource_mappings.filter(
+        local_type="lesson",
+        local_id=str(node.id),
+    ).first()
+    if not mapping or not mapping.google_resource_id:
+        return {"published": False, "status": "not_published"}
+    return {
+        "published": mapping.status
+        in {
+            ClassroomResourceMapping.Status.ACTIVE,
+            ClassroomResourceMapping.Status.DRIFT,
+        },
+        "status": mapping.status,
+        "resourceType": mapping.google_resource_type,
+        "lastSyncedAt": (
+            mapping.last_synced_at.isoformat() if mapping.last_synced_at else None
+        ),
     }
 
 

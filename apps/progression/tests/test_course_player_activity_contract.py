@@ -64,6 +64,10 @@ class CoursePlayerActivityContractTests(TestCase):
         payload = response.json()["props"]["node"]
         self.assertEqual(payload["activityType"], "code")
         self.assertEqual(payload["primaryActivity"]["type"], "code")
+        self.assertEqual(
+            payload["classroomPublication"],
+            {"published": False, "status": "not_linked"},
+        )
         self.assertNotIn("solution_code", payload["properties"])
         self.assertNotIn("meeting_password", payload["properties"])
         self.assertNotIn(

@@ -45,7 +45,10 @@ from apps.progression.services import ProgressionEngine
 from apps.progression.gamification import serialize_gamification
 from apps.core.utils import serialize_user, should_render_inertia_prop
 from apps.notifications.services import NotificationService
-from apps.google_classroom.services import serialize_student_companion
+from apps.google_classroom.services import (
+    serialize_student_classroom_publication,
+    serialize_student_companion,
+)
 
 
 def _redirect_if_course_prerequisites_unmet(request, enrollment: Enrollment):
@@ -558,7 +561,7 @@ def program_view(request, pk: int):
     total_nodes = _get_completable_nodes_count(program)
     progress = (len(completions) / total_nodes * 100) if total_nodes > 0 else 0
     primary_instructor = _get_primary_instructor_payload(program)
-    program_payload = _build_program_player_payload(program)
+    program_payload = _build_program_player_payload(program, enrollment)
 
     return render(
         request,
@@ -568,12 +571,7 @@ def program_view(request, pk: int):
             "activeView": "overview",
             "program": program_payload,
             "instructor": primary_instructor,
-            "enrollment": {
-                "id": enrollment.id,
-                "progressPercent": round(progress, 1),
-                "gamification": serialize_gamification(enrollment),
-                "googleClassroom": serialize_student_companion(program, enrollment),
-            },
+            "enrollment": _build_enrollment_player_payload(enrollment, progress),
             "curriculum": curriculum_tree,
             "resumeUrl": f"/student/programs/{program.id}/resume/",
             "prevNode": None,
@@ -745,15 +743,13 @@ def _render_course_player(request, enrollment, node, completions, status_map):
                     "properties": node_properties,
                 },
                 "supplements": blocks_data,
+                "classroomPublication": serialize_student_classroom_publication(
+                    program, node
+                ),
             },
-            "program": _build_program_player_payload(program),
+            "program": _build_program_player_payload(program, enrollment),
             "instructor": primary_instructor,
-            "enrollment": {
-                "id": enrollment.id,
-                "progressPercent": round(progress, 1),
-                "gamification": serialize_gamification(enrollment),
-                "googleClassroom": serialize_student_companion(program, enrollment),
-            },
+            "enrollment": _build_enrollment_player_payload(enrollment, progress),
             "curriculum": curriculum_tree,
             "prevNode": siblings.get("prev"),
             "nextNode": siblings.get("next"),
@@ -824,7 +820,7 @@ def session_viewer(request, pk: int, node_id: int):
         data = _get_post_data(request)
         if data.get("mark_complete"):
             from apps.learning_operations.activity_progress import (
-                TRACKED_ACTIVITY_TYPES,
+                SERVER_EVIDENCE_ACTIVITY_TYPES,
                 completion_evidence_satisfied,
                 resolve_activity_definition,
             )
@@ -926,7 +922,7 @@ def session_viewer(request, pk: int, node_id: int):
                 completion_type = "quiz_pass"
             else:
                 activity_type, _ = resolve_activity_definition(node)
-                if activity_type in TRACKED_ACTIVITY_TYPES:
+                if activity_type in SERVER_EVIDENCE_ACTIVITY_TYPES:
                     should_mark_complete = completion_evidence_satisfied(
                         enrollment, node
                     )
@@ -1102,17 +1098,13 @@ def session_viewer(request, pk: int, node_id: int):
                 "completionPolicy": completion_policy,
                 "activityProgress": activity_progress,
                 "scheduledSession": scheduled_session_payload,
-            },
-            "program": _build_program_player_payload(enrollment.program),
-            "instructor": primary_instructor,
-            "enrollment": {
-                "id": enrollment.id,
-                "progressPercent": round(progress, 1),
-                "gamification": serialize_gamification(enrollment),
-                "googleClassroom": serialize_student_companion(
-                    enrollment.program, enrollment
+                "classroomPublication": serialize_student_classroom_publication(
+                    enrollment.program, node
                 ),
             },
+            "program": _build_program_player_payload(enrollment.program, enrollment),
+            "instructor": primary_instructor,
+            "enrollment": _build_enrollment_player_payload(enrollment, progress),
             "curriculum": curriculum_tree,
             "prevNode": siblings.get("prev"),
             "nextNode": siblings.get("next"),
@@ -1392,8 +1384,29 @@ def _reconcile_enrollment_status(enrollment: Enrollment, progress: float) -> str
     return target_status
 
 
-def _build_program_player_payload(program: Program):
+def _build_enrollment_player_payload(enrollment, progress):
+    from apps.learning_operations.selectors import (
+        get_upcoming_deadlines_for_enrollments,
+        serialize_enrollment_operations,
+    )
+
+    operations = serialize_enrollment_operations(enrollment)
+    return {
+        "id": enrollment.id,
+        "progressPercent": round(progress, 1),
+        "gamification": serialize_gamification(enrollment),
+        "googleClassroom": serialize_student_companion(
+            enrollment.program, enrollment
+        ),
+        "upcomingDeadlines": get_upcoming_deadlines_for_enrollments([enrollment]),
+        **operations,
+    }
+
+
+def _build_program_player_payload(program: Program, enrollment=None):
     """Build the player-side program payload with description, outcomes, notices, and resources."""
+    from apps.live_sessions.services import build_player_delivery_context
+
     resources = []
     for r in program.resources.all():
         resources.append({
@@ -1404,7 +1417,7 @@ def _build_program_player_payload(program: Program):
             "ext": r.file.name.split(".")[-1] if r.file and "." in r.file.name else "",
         })
 
-    return {
+    payload = {
         "id": program.id,
         "name": program.name,
         "description": program.description or "",
@@ -1414,6 +1427,9 @@ def _build_program_player_payload(program: Program):
         "resources": resources,
         "faq": program.faq or [],
     }
+    if enrollment:
+        payload.update(build_player_delivery_context(program, enrollment))
+    return payload
 
 
 def _build_curriculum_tree(

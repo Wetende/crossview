@@ -103,6 +103,40 @@ class ScheduledLearningSessionTests(TestCase):
         self.assertIsNone(payload["scheduledSession"]["joinUrl"])
         self.assertIsNone(payload["scheduledSession"]["passcode"])
 
+    def test_learner_cannot_self_complete_a_scheduled_session(self):
+        node = self._meeting_node(start_delta=timedelta(hours=2))
+        sync_scheduled_session_from_node(node, actor=self.instructor)
+        self.client.force_login(self.student)
+
+        response = self.client.post(
+            reverse(
+                "progression:student.session",
+                args=[self.enrollment.id, node.id],
+            ),
+            {"mark_complete": True},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            NodeCompletion.objects.filter(
+                enrollment=self.enrollment,
+                node=node,
+            ).exists()
+        )
+        player_response = self.client.get(
+            reverse(
+                "progression:student.session",
+                args=[self.enrollment.id, node.id],
+            ),
+            HTTP_X_INERTIA="true",
+        )
+        payload = player_response.json()["props"]["node"]
+        self.assertEqual(
+            payload["completionPolicy"]["kind"],
+            "verified_attendance",
+        )
+        self.assertFalse(payload["completionPolicy"]["learnerCanComplete"])
+
     def test_provider_specific_unsafe_url_is_rejected(self):
         with self.assertRaises(ValidationError):
             validate_session_properties(

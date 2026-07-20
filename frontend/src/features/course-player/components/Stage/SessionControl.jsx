@@ -9,6 +9,7 @@ const SessionControl = ({
     isCompleted,
     canComplete = true, // New prop to control if completion is allowed
     completionTooltip = "", // Tooltip explaining why completion is disabled
+    completionLabel = "Mark Complete",
 }) => {
     const completeButton = (
         <Button
@@ -27,7 +28,7 @@ const SessionControl = ({
                 "&:hover": { bgcolor: "transparent" },
             }}
         >
-            {isCompleted ? "Completed" : "Mark Complete"}
+            {isCompleted ? "Completed" : completionLabel}
         </Button>
     );
 

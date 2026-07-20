@@ -6,6 +6,7 @@ import {
     Chip,
     Divider,
     Paper,
+    Skeleton,
     Stack,
     Typography,
 } from "@mui/material";
@@ -76,6 +77,14 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
     const safeSummary = DOMPurify.sanitize(session?.summary || "");
     const safeContent = DOMPurify.sanitize(content || "");
 
+    if (session === undefined) {
+        return (
+            <Stack spacing={1} aria-label="Loading scheduled session">
+                <Skeleton variant="rounded" height={120} />
+                <Skeleton variant="text" width="45%" />
+            </Stack>
+        );
+    }
     if (!session) {
         return (
             <Alert severity="warning">
@@ -108,6 +117,24 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
 
     return (
         <Stack spacing={2.5}>
+            {session.providerState === "authorization_required" && (
+                <Alert severity="warning">
+                    The instructor needs to reconnect this meeting provider.
+                    Your course access and other lessons are unaffected.
+                </Alert>
+            )}
+            {session.providerState === "sync_failed" && (
+                <Alert severity="info">
+                    The latest attendance or recording update is delayed.
+                    Available meeting details remain usable.
+                </Alert>
+            )}
+            {!isInPerson && !session.hasJoinDetails && !ended && (
+                <Alert severity="warning">
+                    The meeting provider has not supplied join details yet.
+                    Check again later or contact your instructor.
+                </Alert>
+            )}
             <Paper
                 variant="outlined"
                 sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}
