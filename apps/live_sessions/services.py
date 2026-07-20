@@ -142,7 +142,12 @@ def validate_session_properties(properties):
         }
         if provider not in allowed:
             raise ValidationError("Select a meeting provider.")
-        raw_url = _validate_secure_url(raw_url, field_name="Meeting URL", provider=provider)
+        if raw_url:
+            raw_url = _validate_secure_url(
+                raw_url, field_name="Meeting URL", provider=provider
+            )
+        elif provider != ScheduledLearningSession.Provider.GOOGLE_MEET:
+            raise ValidationError("Meeting URL must be a secure HTTPS URL.")
     elif kind == ScheduledLearningSession.Kind.LIVE_STREAM:
         allowed = {
             ScheduledLearningSession.Provider.YOUTUBE,
@@ -199,6 +204,13 @@ def sync_scheduled_session_from_node(node, *, actor=None):
         node=node,
         defaults={**defaults, **({"created_by": actor} if actor and not hasattr(node, "scheduled_session") else {})},
     )
+    provider_metadata = dict(session.provider_metadata or {})
+    provider_metadata["calendarVisibility"] = str(
+        properties.get("session_visibility") or "private"
+    )
+    if provider_metadata != session.provider_metadata:
+        session.provider_metadata = provider_metadata
+        session.save(update_fields=["provider_metadata", "updated_at"])
     passcode = str(properties.get("meeting_password") or "")
     if passcode:
         session.passcode_ciphertext = encrypt_session_secret(passcode)
@@ -267,6 +279,15 @@ def serialize_session_for_author(session):
         "attendanceThresholdPercent": session.attendance_threshold_percent,
         "status": session.status,
         "providerEventId": session.provider_event_id,
+        "calendarVisibility": (session.provider_metadata or {}).get(
+            "calendarVisibility", "private"
+        ),
+        "calendarHtmlLink": (session.provider_metadata or {}).get(
+            "calendarHtmlLink", ""
+        ),
+        "unmatchedAttendanceCount": len(
+            (session.provider_metadata or {}).get("unmatchedParticipants", [])
+        ),
         "lastSyncAt": session.last_sync_at.isoformat() if session.last_sync_at else None,
         "lastSyncError": session.last_sync_error,
     }

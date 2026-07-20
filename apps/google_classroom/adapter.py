@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import json
 
-from django.conf import settings
-
-from .configuration import decrypt_refresh_token
+from .configuration import decrypt_refresh_token, require_workspace_configuration
 
 
 class ClassroomAPIError(RuntimeError):
@@ -50,14 +48,15 @@ class GoogleClassroomAdapter:
             from google.oauth2.credentials import Credentials
             from googleapiclient.discovery import build
 
+            configuration = require_workspace_configuration()
             credentials = Credentials(
                 token=None,
                 refresh_token=decrypt_refresh_token(
                     self.credential.refresh_token_ciphertext
                 ),
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=settings.GOOGLE_CLASSROOM_CLIENT_ID,
-                client_secret=settings.GOOGLE_CLASSROOM_CLIENT_SECRET,
+                client_id=configuration["client_id"],
+                client_secret=configuration["client_secret"],
                 scopes=self.credential.granted_scopes,
             )
             self._service = build(
@@ -75,6 +74,13 @@ class GoogleClassroomAdapter:
                 self.credential.last_error = "Google Classroom authorization is no longer valid."
                 self.credential.save(update_fields=["status", "last_error", "updated_at"])
                 self.credential.course_links.update(sync_paused=True)
+                from .meet import set_google_meet_sync_paused
+
+                set_google_meet_sync_paused(
+                    self.credential.user,
+                    True,
+                    reason="authorization_invalid",
+                )
             raise ClassroomAPIError(
                 "Google Classroom rejected the request.",
                 category=category,

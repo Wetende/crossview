@@ -20,4 +20,19 @@ urlpatterns = [
         views.SessionAttendanceOverrideView.as_view(),
         name="attendance-override",
     ),
+    path(
+        "nodes/<int:node_id>/google-meet/preview/",
+        views.GoogleMeetPreviewView.as_view(),
+        name="google-meet-preview",
+    ),
+    path(
+        "nodes/<int:node_id>/google-meet/",
+        views.GoogleMeetCreateView.as_view(),
+        name="google-meet-create",
+    ),
+    path(
+        "nodes/<int:node_id>/google-meet/sync/",
+        views.GoogleMeetSyncView.as_view(),
+        name="google-meet-sync",
+    ),
 ]

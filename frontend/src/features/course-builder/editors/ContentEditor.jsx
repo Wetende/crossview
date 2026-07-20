@@ -152,6 +152,9 @@ const ContentEditor = forwardRef(function ContentEditor(
     const [attendanceInstructions, setAttendanceInstructions] = useState(
         node.properties?.attendance_instructions || "",
     );
+    const [sessionVisibility, setSessionVisibility] = useState(
+        node.properties?.session_visibility || "private",
+    );
 
     // Gamification settings (only used when featureFlags.gamification is true)
     const [gamificationSettings, setGamificationSettings] = useState(
@@ -267,6 +270,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         if (isScheduledLesson) {
             if (
                 sessionKind !== "in_person_session" &&
+                sessionProvider !== "google_meet" &&
                 (!videoUrl || !/^https:\/\/.+/.test(videoUrl))
             ) {
                 newErrors.videoUrl = "A secure HTTPS session URL is required";
@@ -364,6 +368,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         if (isScheduledLesson) {
             if (
                 sessionKind !== "in_person_session" &&
+                sessionProvider !== "google_meet" &&
                 (!videoUrl || !/^https:\/\/.+/.test(videoUrl))
             )
                 return false;
@@ -433,6 +438,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                     session_kind: sessionKind,
                     provider: sessionProvider,
                     session_provider: sessionProvider,
+                    session_visibility: sessionVisibility,
                     session_url: sessionKind === "in_person_session" ? "" : videoUrl,
                     meeting_password:
                         sessionKind === "live_meeting" ? meetingPassword : "",
@@ -477,6 +483,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         room,
         sessionKind,
         sessionProvider,
+        sessionVisibility,
         startDate,
         startTime,
         strictCompletion,
@@ -513,6 +520,7 @@ const ContentEditor = forwardRef(function ContentEditor(
             room,
             sessionKind,
             sessionProvider,
+            sessionVisibility,
             startDate,
             startTime,
             strictCompletion,
@@ -540,6 +548,7 @@ const ContentEditor = forwardRef(function ContentEditor(
             room,
             sessionKind,
             sessionProvider,
+            sessionVisibility,
             startDate,
             startTime,
             strictCompletion,
@@ -806,6 +815,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                             values={{
                                 sessionKind,
                                 sessionProvider,
+                                sessionVisibility,
                                 videoUrl,
                                 meetingPassword,
                                 recordingUrl,
@@ -834,10 +844,13 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 venue: getFieldError("venue"),
                                 address: getFieldError("address"),
                             }}
+                            nodeId={node.id}
+                            persisted={hasPersistedNodeId}
                             onBlur={handleBlur}
                             onChange={(changes) => {
                                 if (Object.hasOwn(changes, "sessionKind")) setSessionKind(changes.sessionKind);
                                 if (Object.hasOwn(changes, "sessionProvider")) setSessionProvider(changes.sessionProvider);
+                                if (Object.hasOwn(changes, "sessionVisibility")) setSessionVisibility(changes.sessionVisibility);
                                 if (Object.hasOwn(changes, "videoUrl")) setVideoUrl(changes.videoUrl);
                                 if (Object.hasOwn(changes, "meetingPassword")) setMeetingPassword(changes.meetingPassword);
                                 if (Object.hasOwn(changes, "recordingUrl")) setRecordingUrl(changes.recordingUrl);

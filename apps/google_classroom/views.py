@@ -108,7 +108,7 @@ class ClassroomConnectionView(APIView):
 @login_required
 def oauth_callback(request):
     if request.GET.get("error"):
-        messages.error(request, "Google Classroom authorization was cancelled.")
+        messages.error(request, "Google Workspace authorization was cancelled.")
         return redirect("/instructor/programs/")
     try:
         _, return_to = complete_authorization(
@@ -117,9 +117,9 @@ def oauth_callback(request):
             code=request.GET.get("code", ""),
         )
     except Exception:
-        messages.error(request, "Google Classroom authorization could not be completed.")
+        messages.error(request, "Google Workspace authorization could not be completed.")
         return redirect("/instructor/programs/")
-    messages.success(request, "Google Classroom connected.")
+    messages.success(request, "Google Workspace connected.")
     return redirect(return_to)
 
 

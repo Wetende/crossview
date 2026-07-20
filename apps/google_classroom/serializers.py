@@ -8,7 +8,7 @@ class OAuthConnectSerializer(serializers.Serializer):
         child=serializers.ChoiceField(choices=sorted(SCOPES_BY_CAPABILITY)),
         required=False,
         default=list,
-        max_length=6,
+        max_length=len(SCOPES_BY_CAPABILITY),
     )
     returnTo = serializers.CharField(required=False, allow_blank=True, max_length=500)
 

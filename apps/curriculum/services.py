@@ -680,6 +680,19 @@ class CoursePublishValidationService:
                         "node_title": session_node.title,
                     }
                 )
+            if (
+                session
+                and session.provider == ScheduledLearningSession.Provider.GOOGLE_MEET
+                and not session.join_url
+            ):
+                errors.append(
+                    {
+                        "type": "missing_google_meet",
+                        "message": "Create the Google Meet link before publishing this lesson",
+                        "node_id": session_node.id,
+                        "node_title": session_node.title,
+                    }
+                )
 
         future_sessions = [
             session

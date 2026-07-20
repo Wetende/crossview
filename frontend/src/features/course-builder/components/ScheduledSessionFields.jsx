@@ -9,6 +9,7 @@ import {
     Stack,
     TextField,
 } from "@mui/material";
+import GoogleMeetControls from "@/features/google-classroom/components/GoogleMeetControls";
 
 const SESSION_KIND_OPTIONS = [
     { value: "live_meeting", label: "Live meeting" },
@@ -58,11 +59,16 @@ function LabeledField({ label, error, required = false, children }) {
 export default function ScheduledSessionFields({
     values,
     errors,
+    nodeId,
+    persisted,
     onBlur,
     onChange,
 }) {
     const providers = PROVIDERS[values.sessionKind] || PROVIDERS.live_meeting;
     const isInPerson = values.sessionKind === "in_person_session";
+    const isNativeGoogleMeet =
+        values.sessionKind === "live_meeting" &&
+        values.sessionProvider === "google_meet";
 
     const changeKind = (sessionKind) => {
         const nextProvider = PROVIDERS[sessionKind][0].value;
@@ -98,9 +104,15 @@ export default function ScheduledSessionFields({
                     <Select
                         label="Provider"
                         value={values.sessionProvider}
-                        onChange={(event) =>
-                            onChange({ sessionProvider: event.target.value })
-                        }
+                        onChange={(event) => {
+                            const sessionProvider = event.target.value;
+                            onChange({
+                                sessionProvider,
+                                ...(sessionProvider === "google_meet"
+                                    ? { videoUrl: "", meetingPassword: "" }
+                                    : {}),
+                            });
+                        }}
                         disabled={isInPerson}
                     >
                         {providers.map((option) => (
@@ -112,7 +124,7 @@ export default function ScheduledSessionFields({
                 </FormControl>
             </Box>
 
-            {!isInPerson && (
+            {!isInPerson && !isNativeGoogleMeet && (
                 <>
                     <LabeledField
                         label={
@@ -176,6 +188,29 @@ export default function ScheduledSessionFields({
                             inputProps={{ inputMode: "url" }}
                         />
                     </LabeledField>
+                </>
+            )}
+
+            {isNativeGoogleMeet && (
+                <>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Calendar visibility</InputLabel>
+                        <Select
+                            label="Calendar visibility"
+                            value={values.sessionVisibility}
+                            onChange={(event) =>
+                                onChange({
+                                    sessionVisibility: event.target.value,
+                                })
+                            }
+                        >
+                            <MenuItem value="private">Private</MenuItem>
+                            <MenuItem value="default">
+                                Calendar default
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
+                    <GoogleMeetControls nodeId={nodeId} persisted={persisted} />
                 </>
             )}
 

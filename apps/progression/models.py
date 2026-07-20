@@ -46,6 +46,7 @@ class NodeCompletion(models.Model):
         ("quiz_pass", "Quiz Pass"),
         ("upload", "Upload"),
         ("manual", "Manual"),
+        ("attendance", "Verified attendance"),
     ]
 
     enrollment = models.ForeignKey(

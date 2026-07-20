@@ -12,7 +12,7 @@ const request = async (url, options = {}) => {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(data.detail || "Google Classroom request failed.");
+        throw new Error(data.detail || "Google integration request failed.");
     }
     return data;
 };
@@ -72,4 +72,27 @@ export const classroomApi = {
         }),
     history: (programId) =>
         request(`/api/google-classroom/programs/${programId}/history/`),
+};
+
+export const workspaceApi = {
+    connection: () => request("/api/google-workspace/connection/"),
+    connect: (payload) =>
+        request("/api/google-workspace/connection/", {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }),
+    meetPreview: (nodeId) =>
+        request(`/api/live-sessions/nodes/${nodeId}/google-meet/preview/`),
+    createMeet: (nodeId, payload) =>
+        request(`/api/live-sessions/nodes/${nodeId}/google-meet/`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }),
+    meetStatus: (nodeId) =>
+        request(`/api/live-sessions/nodes/${nodeId}/google-meet/sync/`),
+    syncMeet: (nodeId) =>
+        request(`/api/live-sessions/nodes/${nodeId}/google-meet/sync/`, {
+            method: "POST",
+            body: JSON.stringify({}),
+        }),
 };

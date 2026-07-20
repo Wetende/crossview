@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/inquiries/", include("apps.inquiries.urls")),
     path("api/learning-operations/", include("apps.learning_operations.urls")),
     path("api/live-sessions/", include("apps.live_sessions.urls")),
+    path("api/google-workspace/", include("apps.google_classroom.workspace_urls")),
     path("api/google-classroom/", include("apps.google_classroom.urls")),
     path("events/", include("apps.events.urls")),  # Events app routes
 ]

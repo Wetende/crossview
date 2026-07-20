@@ -28,40 +28,76 @@ SCOPES_BY_CAPABILITY = {
         "https://www.googleapis.com/auth/classroom.coursework.students",
         "https://www.googleapis.com/auth/classroom.profile.emails",
     },
+    "calendar_events": {
+        "https://www.googleapis.com/auth/calendar.events",
+    },
+    "meet_attendance": {
+        "https://www.googleapis.com/auth/meetings.space.created",
+    },
+}
+CLASSROOM_CAPABILITIES = {
+    "course_read",
+    "course_manage",
+    "roster_read",
+    "roster_manage",
+    "content",
+    "grades",
+}
+WORKSPACE_IDENTITY_SCOPES = {
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
 }
 
 
-def classroom_configuration():
+def workspace_configuration():
     values = {
-        "client_id": settings.GOOGLE_CLASSROOM_CLIENT_ID,
-        "client_secret": settings.GOOGLE_CLASSROOM_CLIENT_SECRET,
-        "redirect_uri": settings.GOOGLE_CLASSROOM_REDIRECT_URI,
-        "encryption_key": settings.GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY,
+        "client_id": settings.GOOGLE_WORKSPACE_CLIENT_ID
+        or settings.GOOGLE_CLASSROOM_CLIENT_ID,
+        "client_secret": settings.GOOGLE_WORKSPACE_CLIENT_SECRET
+        or settings.GOOGLE_CLASSROOM_CLIENT_SECRET,
+        "redirect_uri": settings.GOOGLE_WORKSPACE_REDIRECT_URI
+        or settings.GOOGLE_CLASSROOM_REDIRECT_URI,
+        "encryption_key": settings.GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY
+        or settings.GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY,
     }
     values["available"] = bool(
-        settings.GOOGLE_CLASSROOM_ENABLED and all(values.values())
+        (settings.GOOGLE_WORKSPACE_ENABLED or settings.GOOGLE_CLASSROOM_ENABLED)
+        and all(values.values())
     )
     return values
 
 
-def require_classroom_configuration():
-    configuration = classroom_configuration()
+def classroom_configuration():
+    """Backward-compatible name for the shared Google Workspace setup."""
+    return workspace_configuration()
+
+
+def require_workspace_configuration():
+    configuration = workspace_configuration()
     if not configuration["available"]:
         raise ImproperlyConfigured(
-            "Google Classroom requires its enabled flag, OAuth client, redirect URI, and token encryption key."
+            "Google Workspace requires its enabled flag, OAuth client, redirect URI, and token encryption key."
         )
     return configuration
 
 
+def require_classroom_configuration():
+    """Backward-compatible alias retained for Classroom callers."""
+    return require_workspace_configuration()
+
+
 def scopes_for_capabilities(capabilities, existing_scopes=None):
-    requested = {"course_read"}
-    requested.update(capabilities or [])
+    requested = set(capabilities or [])
+    if not requested or requested & CLASSROOM_CAPABILITIES:
+        requested.add("course_read")
     unknown = requested - set(SCOPES_BY_CAPABILITY)
     if unknown:
-        raise ValueError(f"Unsupported Classroom capabilities: {', '.join(sorted(unknown))}")
+        raise ValueError(f"Unsupported Google Workspace capabilities: {', '.join(sorted(unknown))}")
     scopes = set(existing_scopes or [])
     for capability in requested:
         scopes.update(SCOPES_BY_CAPABILITY[capability])
+    if requested and not requested & CLASSROOM_CAPABILITIES:
+        scopes.update(WORKSPACE_IDENTITY_SCOPES)
     return sorted(scopes)
 
 
@@ -79,7 +115,7 @@ def require_capabilities(credential, capabilities):
     if missing:
         labels = ", ".join(sorted(name.replace("_", " ") for name in missing))
         raise ValidationError(
-            f"Authorize the following Google Classroom capabilities first: {labels}."
+            f"Authorize the following Google Workspace capabilities first: {labels}."
         )
 
 
@@ -89,7 +125,7 @@ def _fernet():
         return Fernet(configuration["encryption_key"].encode())
     except (TypeError, ValueError) as exc:
         raise ImproperlyConfigured(
-            "GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY must be a valid Fernet key."
+            "GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY must be a valid Fernet key."
         ) from exc
 
 
@@ -103,7 +139,7 @@ def decrypt_refresh_token(ciphertext):
     try:
         return _fernet().decrypt(ciphertext.encode()).decode()
     except InvalidToken as exc:
-        raise ValueError("The stored Google Classroom authorization cannot be decrypted.") from exc
+        raise ValueError("The stored Google Workspace authorization cannot be decrypted.") from exc
 
 
 def classroom_public_base_url():

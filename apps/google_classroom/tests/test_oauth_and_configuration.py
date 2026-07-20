@@ -42,6 +42,61 @@ def test_refresh_token_is_encrypted_and_capabilities_are_incremental(
         "https://www.googleapis.com/auth/classroom.profile.emails",
         "https://www.googleapis.com/auth/classroom.rosters.readonly",
     ]
+    meet_scopes = scopes_for_capabilities(["calendar_events", "meet_attendance"])
+    assert "https://www.googleapis.com/auth/calendar.events" in meet_scopes
+    assert "https://www.googleapis.com/auth/meetings.space.created" in meet_scopes
+    assert "https://www.googleapis.com/auth/classroom.courses.readonly" not in meet_scopes
+
+
+@pytest.mark.django_db
+def test_meet_only_callback_uses_google_identity_without_classroom_api(
+    classroom_settings, instructor
+):
+    request = session_request(instructor)
+    authorization_flow = Mock()
+    authorization_flow.authorization_url.return_value = (
+        "https://accounts.google.test",
+        "x",
+    )
+    with patch(
+        "google_auth_oauthlib.flow.Flow.from_client_config",
+        return_value=authorization_flow,
+    ):
+        build_authorization_url(
+            request,
+            ["calendar_events", "meet_attendance"],
+            return_to="/instructor/programs/1/manage/",
+        )
+    state = request.session["google_classroom_oauth"]["state"]
+    callback_flow = Mock()
+    callback_flow.credentials = SimpleNamespace(
+        refresh_token="meet-refresh-token",
+        scopes=scopes_for_capabilities(["calendar_events", "meet_attendance"]),
+    )
+    identity_request = Mock()
+    identity_request.execute.return_value = {
+        "id": "workspace-teacher",
+        "email": "teacher@example.test",
+    }
+    service = Mock()
+    service.userinfo.return_value.get.return_value = identity_request
+
+    with (
+        patch(
+            "google_auth_oauthlib.flow.Flow.from_client_config",
+            return_value=callback_flow,
+        ),
+        patch("googleapiclient.discovery.build", return_value=service) as build,
+    ):
+        credential, _ = complete_authorization(
+            request, state=state, code="meet-code"
+        )
+
+    assert credential.google_user_id == "workspace-teacher"
+    assert credential.google_email == "teacher@example.test"
+    build.assert_called_once_with(
+        "oauth2", "v2", credentials=callback_flow.credentials, cache_discovery=False
+    )
 
 
 @pytest.mark.django_db

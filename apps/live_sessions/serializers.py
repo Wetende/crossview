@@ -17,6 +17,9 @@ class ScheduledLearningSessionWriteSerializer(serializers.Serializer):
         required=False, allow_blank=True, max_length=255, write_only=True
     )
     clearMeetingPassword = serializers.BooleanField(required=False, default=False)
+    calendarVisibility = serializers.ChoiceField(
+        choices=["private", "default"], required=False, default="private"
+    )
     venue = serializers.CharField(required=False, allow_blank=True, max_length=255)
     room = serializers.CharField(required=False, allow_blank=True, max_length=255)
     address = serializers.CharField(required=False, allow_blank=True, max_length=2000)
@@ -43,3 +46,8 @@ class AttendanceOverrideSerializer(serializers.Serializer):
         ]
     )
     reason = serializers.CharField(max_length=2000)
+
+
+class GoogleMeetCreateSerializer(serializers.Serializer):
+    inviteLearners = serializers.BooleanField(required=False, default=False)
+    operationId = serializers.UUIDField(required=False)

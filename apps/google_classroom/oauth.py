@@ -105,10 +105,24 @@ def complete_authorization(request, *, state, code):
         from .configuration import decrypt_refresh_token
 
         refresh_token = decrypt_refresh_token(existing.refresh_token_ciphertext)
-    service = build(
-        "classroom", "v1", credentials=flow.credentials, cache_discovery=False
+    requested_capabilities = set(state_data.get("capabilities") or [])
+    workspace_only = requested_capabilities and requested_capabilities.issubset(
+        {"calendar_events", "meet_attendance"}
     )
-    profile = service.userProfiles().get(userId="me").execute()
+    if workspace_only:
+        service = build(
+            "oauth2", "v2", credentials=flow.credentials, cache_discovery=False
+        )
+        identity = service.userinfo().get().execute()
+        profile = {
+            "id": identity.get("id", ""),
+            "emailAddress": identity.get("email", ""),
+        }
+    else:
+        service = build(
+            "classroom", "v1", credentials=flow.credentials, cache_discovery=False
+        )
+        profile = service.userProfiles().get(userId="me").execute()
     credential, _ = ClassroomOAuthCredential.objects.update_or_create(
         user=request.user,
         defaults={
@@ -121,6 +135,9 @@ def complete_authorization(request, *, state, code):
             "revoked_at": None,
         },
     )
+    from .meet import set_google_meet_sync_paused
+
+    set_google_meet_sync_paused(request.user, False)
     return credential, session_state.get("returnTo") or "/instructor/programs/"
 
 
@@ -146,3 +163,6 @@ def disconnect_classroom(credential):
         ]
     )
     credential.course_links.update(sync_paused=True)
+    from .meet import set_google_meet_sync_paused
+
+    set_google_meet_sync_paused(credential.user, True, reason="authorization_revoked")
