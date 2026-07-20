@@ -51,7 +51,14 @@ describe("learner reminder preview", () => {
         expect(
             screen.getByText("Your course is ready. Open your first lesson."),
         ).toBeInTheDocument();
-        fireEvent.click(screen.getByRole("button", { name: /send to 1/i }));
+        expect(
+            screen.queryByText(/learner will receive a reminder/i),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText("In-app")).not.toBeInTheDocument();
+        expect(screen.queryByText("Email")).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole("button", { name: /^send reminder$/i }),
+        );
 
         await waitFor(() => {
             expect(post).toHaveBeenLastCalledWith(

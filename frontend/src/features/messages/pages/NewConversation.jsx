@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
 import {
     Alert,
@@ -19,10 +20,22 @@ export default function NewConversation({
     submittedContent = "",
     formErrors = {},
 }) {
+    const selectedRecipient = preselectedRecipientId
+        ? String(preselectedRecipientId)
+        : "";
     const { data, setData, post, processing } = useForm({
-        recipient_id: preselectedRecipientId || "",
+        recipient_id: selectedRecipient,
         content: submittedContent || "",
     });
+
+    useEffect(() => {
+        if (selectedRecipient) {
+            setData("recipient_id", selectedRecipient);
+        }
+        // Inertia's form setter is intentionally excluded: the selected
+        // recipient prop is the only input that should resync this field.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedRecipient]);
 
     const handleSubmit = (event) => {
         event.preventDefault();
@@ -88,7 +101,10 @@ export default function NewConversation({
                                 helperText={formErrors.recipient_id || ""}
                             >
                                 {recipients.map((recipient) => (
-                                    <MenuItem key={recipient.id} value={recipient.id}>
+                                    <MenuItem
+                                        key={recipient.id}
+                                        value={String(recipient.id)}
+                                    >
                                         {recipient.name} ({recipient.email})
                                     </MenuItem>
                                 ))}

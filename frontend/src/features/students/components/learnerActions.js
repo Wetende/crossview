@@ -24,6 +24,18 @@ export function getLearnerActions(learner, { remindersEnabled = false } = {}) {
     return actions;
 }
 
+export function getLearnerMessageUrl(learner) {
+    const params = new URLSearchParams();
+    if (learner?.userId) {
+        params.set("recipient_id", String(learner.userId));
+    }
+    if (learner?.email) {
+        params.set("recipient_email", learner.email);
+    }
+    const query = params.toString();
+    return `/messages/new/${query ? `?${query}` : ""}`;
+}
+
 export const ACTION_LABELS = {
     view: "View details",
     message: "Message learner",

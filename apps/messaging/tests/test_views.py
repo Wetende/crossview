@@ -78,6 +78,27 @@ class MessagingViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Conversation.objects.count(), 0)
 
+    def test_new_message_prefills_allowed_recipient_from_email(self):
+        self.client.force_login(self.instructor)
+
+        response = self.client.get(
+            '/messages/new/',
+            {'recipient_email': self.student.email.upper()},
+            HTTP_X_INERTIA='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        props = response.json()['props']
+        self.assertEqual(props['preselectedRecipientId'], self.student.id)
+        self.assertIn(
+            {
+                'id': self.student.id,
+                'name': self.student.email,
+                'email': self.student.email,
+            },
+            props['recipients'],
+        )
+
     def test_send_reply_in_existing_conversation(self):
         conversation = Conversation.objects.create(
             participant_one=self.student,

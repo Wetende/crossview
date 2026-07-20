@@ -32,6 +32,7 @@ import LearnerDetailPanel from "../components/LearnerDetailPanel";
 import LearnerManagementToolbar from "../components/LearnerManagementToolbar";
 import LearnerReminderDialog from "../components/LearnerReminderDialog";
 import ProgramLearnerRoster from "../components/ProgramLearnerRoster";
+import { getLearnerMessageUrl } from "../components/learnerActions";
 
 const statusColors = {
     active: "success",
@@ -269,7 +270,7 @@ export default function InstructorStudentsIndex({
             return;
         }
         if (action === "message") {
-            router.visit(`/messages/new/?recipient_id=${learner.userId}`);
+            router.visit(getLearnerMessageUrl(learner));
             return;
         }
         if (action === "reminder") {

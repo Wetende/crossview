@@ -132,14 +132,28 @@ def conversation_detail(request, conversation_id: int):
 def new_conversation(request):
     query = request.GET.get('q', '')
     recipient_id = request.GET.get('recipient_id')
+    recipient_email = (request.GET.get('recipient_email') or '').strip()
     form_errors = {}
     submitted_content = ''
 
     preselected_recipient_id = None
+    recipient = None
     if recipient_id:
         try:
-            preselected_recipient_id = int(recipient_id)
-            recipient = User.objects.get(id=preselected_recipient_id)
+            recipient = User.objects.get(id=int(recipient_id), is_active=True)
+        except (TypeError, ValueError, User.DoesNotExist):
+            recipient = None
+    if recipient is None and recipient_email:
+        recipient = User.objects.filter(
+            email__iexact=recipient_email,
+            is_active=True,
+        ).first()
+    if recipient and MessagingService.can_initiate_conversation(
+        request.user,
+        recipient,
+    ):
+        preselected_recipient_id = recipient.id
+        try:
             participant_one, participant_two = MessagingService.normalize_participants(
                 request.user,
                 recipient,

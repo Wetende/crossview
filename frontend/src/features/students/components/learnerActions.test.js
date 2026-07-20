@@ -1,8 +1,19 @@
 import { describe, expect, test } from "vitest";
 
-import { getLearnerActions } from "./learnerActions";
+import { getLearnerActions, getLearnerMessageUrl } from "./learnerActions";
 
 describe("contextual learner actions", () => {
+    test("carries both learner identity fields into the message composer", () => {
+        expect(
+            getLearnerMessageUrl({
+                userId: 17,
+                email: "learner+one@example.com",
+            }),
+        ).toBe(
+            "/messages/new/?recipient_id=17&recipient_email=learner%2Bone%40example.com",
+        );
+    });
+
     test.each([
         [
             "active learner needing attention",

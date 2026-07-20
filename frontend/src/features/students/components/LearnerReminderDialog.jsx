@@ -4,13 +4,11 @@ import {
     Alert,
     Box,
     Button,
-    Chip,
     CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
-    Divider,
     Stack,
     Typography,
 } from "@mui/material";
@@ -90,7 +88,7 @@ export default function LearnerReminderDialog({
             aria-labelledby="reminder-preview-title"
         >
             <DialogTitle id="reminder-preview-title">
-                Review learner reminders
+                Send learner reminder
             </DialogTitle>
             <DialogContent>
                 {loading ? (
@@ -110,15 +108,9 @@ export default function LearnerReminderDialog({
                 ) : preview ? (
                     <Stack spacing={2}>
                         {error && <Alert severity="error">{error}</Alert>}
-                        <Alert severity={preview.skipped ? "warning" : "info"}>
-                            {preview.eligible} learner
-                            {preview.eligible === 1 ? "" : "s"} will receive a
-                            reminder; {preview.skipped} will be skipped because
-                            no contextual reminder is currently needed.
-                        </Alert>
                         {preview.reminders
                             .slice(0, 25)
-                            .map((reminder, index) => (
+                            .map((reminder) => (
                                 <Box
                                     key={reminder.enrollmentId}
                                     sx={{
@@ -129,37 +121,12 @@ export default function LearnerReminderDialog({
                                     }}
                                 >
                                     <Stack spacing={1}>
-                                        <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            useFlexGap
-                                            sx={{ flexWrap: "wrap" }}
+                                        <Typography
+                                            variant="subtitle2"
+                                            fontWeight={700}
                                         >
-                                            <Typography
-                                                variant="subtitle2"
-                                                sx={{
-                                                    flex: 1,
-                                                    fontWeight: 700,
-                                                }}
-                                            >
-                                                {reminder.learnerName}
-                                            </Typography>
-                                            {reminder.availableChannels
-                                                .inApp && (
-                                                <Chip
-                                                    size="small"
-                                                    label="In-app"
-                                                />
-                                            )}
-                                            {reminder.availableChannels
-                                                .email && (
-                                                <Chip
-                                                    size="small"
-                                                    label="Email"
-                                                />
-                                            )}
-                                        </Stack>
-                                        <Divider />
+                                            {reminder.learnerName}
+                                        </Typography>
                                         <Typography
                                             variant="body2"
                                             fontWeight={700}
@@ -172,20 +139,18 @@ export default function LearnerReminderDialog({
                                         >
                                             {reminder.message}
                                         </Typography>
-                                        {index === 24 &&
-                                            preview.reminders.length > 25 && (
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                >
-                                                    Additional learners use the
-                                                    same contextual selection
-                                                    rules.
-                                                </Typography>
-                                            )}
                                     </Stack>
                                 </Box>
                             ))}
+                        {preview.reminders.length > 25 && (
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                            >
+                                Additional learners use the same contextual
+                                selection rules.
+                            </Typography>
+                        )}
                         {!preview.eligible && (
                             <Typography color="text.secondary">
                                 No messages will be sent from this selection.
@@ -203,7 +168,11 @@ export default function LearnerReminderDialog({
                     onClick={send}
                     disabled={!preview?.eligible || loading || sending}
                 >
-                    {sending ? "Sending…" : `Send to ${preview?.eligible || 0}`}
+                    {sending
+                        ? "Sending…"
+                        : preview?.eligible > 1
+                          ? `Send ${preview.eligible} reminders`
+                          : "Send reminder"}
                 </Button>
             </DialogActions>
         </Dialog>
