@@ -55,7 +55,7 @@ def build_resource_payload(program, local_type, local_id, google_resource_type=N
             "materials": [
                 _link_material(
                     _secure_url(
-                        f"/student/programs/{program.id}/session/{node.id}/"
+                        f"/student/courses/{program.id}/lessons/{node.id}/launch/"
                     ),
                     node.title,
                 )

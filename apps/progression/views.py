@@ -16,6 +16,10 @@ from apps.core.models import Program, User
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment, NodeCompletion, InstructorAssignment
 from apps.content.models import ContentBlock
+from apps.curriculum.activity_types import (
+    normalize_activity_type,
+    sanitize_student_block_data,
+)
 from apps.assessments.models import AssessmentResult
 from apps.assessments.models import Rubric
 from apps.assessments.grading_rules import (
@@ -704,7 +708,15 @@ def _render_course_player(request, enrollment, node, completions, status_map):
 
     # Get content blocks
     blocks = ContentBlock.objects.filter(node=node).order_by("position")
-    blocks_data = [{"id": b.id, "type": b.block_type, "data": b.data} for b in blocks]
+    activity_type = normalize_activity_type(node.node_type, node_properties)
+    blocks_data = [
+        {
+            "id": block.id,
+            "type": block.block_type,
+            "data": sanitize_student_block_data(block.block_type, block.data),
+        }
+        for block in blocks
+    ]
 
     # Get siblings for navigation
     siblings = _get_sibling_navigation(node, enrollment.id)
@@ -727,6 +739,12 @@ def _render_course_player(request, enrollment, node, completions, status_map):
                 "contentHtml": content_html,
                 "description": node.description or "",
                 "blocks": blocks_data,
+                "activityType": activity_type,
+                "primaryActivity": {
+                    "type": activity_type,
+                    "properties": node_properties,
+                },
+                "supplements": blocks_data,
             },
             "program": _build_program_player_payload(program),
             "instructor": primary_instructor,
@@ -755,6 +773,28 @@ def _render_course_player(request, enrollment, node, completions, status_map):
 # =============================================================================
 # Session Viewer
 # =============================================================================
+
+
+@login_required
+def course_lesson_launch(request, program_id: int, node_id: int):
+    """Resolve a stable course link to the current learner's enrollment."""
+    enrollment = get_object_or_404(
+        Enrollment,
+        user=request.user,
+        program_id=program_id,
+        status__in=["active", "completed"],
+    )
+    node = get_object_or_404(
+        CurriculumNode,
+        pk=node_id,
+        program_id=program_id,
+        is_published=True,
+    )
+    return redirect(
+        "progression:student.session",
+        pk=enrollment.id,
+        node_id=node.id,
+    )
 
 
 @login_required
@@ -950,7 +990,15 @@ def session_viewer(request, pk: int, node_id: int):
 
     # Get content blocks
     blocks = ContentBlock.objects.filter(node=node).order_by("position")
-    blocks_data = [{"id": b.id, "type": b.block_type, "data": b.data} for b in blocks]
+    activity_type = normalize_activity_type(node.node_type, node_properties)
+    blocks_data = [
+        {
+            "id": block.id,
+            "type": block.block_type,
+            "data": sanitize_student_block_data(block.block_type, block.data),
+        }
+        for block in blocks
+    ]
 
     # Get discussions for this node
     from apps.discussions.models import DiscussionThread
@@ -1018,6 +1066,12 @@ def session_viewer(request, pk: int, node_id: int):
                 "contentHtml": content_html,
                 "description": node.description or "",
                 "blocks": blocks_data,
+                "activityType": activity_type,
+                "primaryActivity": {
+                    "type": activity_type,
+                    "properties": node_properties,
+                },
+                "supplements": blocks_data,
             },
             "program": _build_program_player_payload(enrollment.program),
             "instructor": primary_instructor,

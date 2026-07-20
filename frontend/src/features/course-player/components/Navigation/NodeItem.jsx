@@ -15,12 +15,22 @@ import {
     Quiz as QuizIcon,
     Assignment as AssignmentIcon,
     PictureAsPdf as DocumentIcon,
+    Audiotrack as AudioIcon,
+    Code as CodeIcon,
+    LiveTv as StreamIcon,
+    LocationOn as LocationIcon,
+    VideoCameraFront as MeetingIcon,
     KeyboardArrowUp,
     KeyboardArrowDown,
     CheckCircle as CheckIcon,
     Lock as LockIcon,
 } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
+import {
+    ACTIVITY_TYPES,
+    formatActivityDuration,
+    normalizeActivityType,
+} from "@/lib/activityTypes";
 
 const NodeItem = ({
     node,
@@ -50,26 +60,34 @@ const NodeItem = ({
         if (node.isLocked)
             return <LockIcon sx={{ color: "text.disabled", fontSize: 20 }} />;
 
-        const lessonType =
-            node.properties?.lesson_type || node.lessonType || node.nodeType;
-        switch (lessonType) {
-            case "video":
-            case "video_lesson":
+        const activityType = normalizeActivityType(node);
+        switch (activityType) {
+            case ACTIVITY_TYPES.VIDEO:
                 return (
                     <VideoIcon sx={{ color: "warning.main", fontSize: 20 }} />
                 );
-            case "quiz":
+            case ACTIVITY_TYPES.QUIZ:
                 return (
                     <QuizIcon sx={{ color: "secondary.main", fontSize: 20 }} />
                 );
-            case "assignment":
+            case ACTIVITY_TYPES.ASSIGNMENT:
                 return (
                     <AssignmentIcon sx={{ color: "info.main", fontSize: 20 }} />
                 );
-            case "document":
+            case ACTIVITY_TYPES.DOCUMENT:
                 return (
                     <DocumentIcon sx={{ color: "error.main", fontSize: 20 }} />
                 );
+            case ACTIVITY_TYPES.AUDIO:
+                return <AudioIcon sx={{ color: "info.main", fontSize: 20 }} />;
+            case ACTIVITY_TYPES.CODE:
+                return <CodeIcon sx={{ color: "success.main", fontSize: 20 }} />;
+            case ACTIVITY_TYPES.LIVE_MEETING:
+                return <MeetingIcon sx={{ color: "primary.main", fontSize: 20 }} />;
+            case ACTIVITY_TYPES.LIVE_STREAM:
+                return <StreamIcon sx={{ color: "error.main", fontSize: 20 }} />;
+            case ACTIVITY_TYPES.IN_PERSON_SESSION:
+                return <LocationIcon sx={{ color: "warning.main", fontSize: 20 }} />;
             default:
                 return (
                     <TextIcon sx={{ color: "success.main", fontSize: 20 }} />
@@ -80,8 +98,7 @@ const NodeItem = ({
     // Get duration label
     const getDuration = () => {
         const duration = node.properties?.duration || node.duration;
-        if (!duration) return null;
-        return `${duration} min`;
+        return formatActivityDuration(duration) || null;
     };
 
     // Get last attempt info for quizzes

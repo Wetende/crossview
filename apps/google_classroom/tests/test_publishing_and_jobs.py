@@ -106,6 +106,20 @@ def test_quiz_publication_uses_secure_lms_link_without_answers(
 
 
 @pytest.mark.django_db
+def test_lesson_publication_uses_enrollment_resolving_launch_link(
+    classroom_settings, program
+):
+    node = CurriculumNodeFactory(program=program, title="Portable lesson")
+
+    resource_type, body = build_resource_payload(program, "lesson", node.id)
+
+    assert resource_type == "material"
+    assert body["materials"][0]["link"]["url"].endswith(
+        f"/student/courses/{program.id}/lessons/{node.id}/launch/"
+    )
+
+
+@pytest.mark.django_db
 def test_assignment_due_date_is_sent_to_google_in_utc(classroom_settings, program):
     due_at = datetime(2026, 7, 18, 9, 30, tzinfo=datetime_timezone.utc)
     assignment = Assignment.objects.create(

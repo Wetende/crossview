@@ -22,6 +22,11 @@ urlpatterns = [
         views.session_viewer,
         name="student.session",
     ),
+    path(
+        "student/courses/<int:program_id>/lessons/<int:node_id>/launch/",
+        views.course_lesson_launch,
+        name="student.lesson.launch",
+    ),
     # Discussion endpoint within session
     path(
         "student/programs/<int:pk>/session/<int:node_id>/discussion/",

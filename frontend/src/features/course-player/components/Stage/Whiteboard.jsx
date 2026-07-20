@@ -11,6 +11,8 @@ import DocumentLessonRenderer from "../Renderers/DocumentLessonRenderer";
 import LiveClassRenderer from "../Renderers/LiveClassRenderer";
 import CodeLabRenderer from "../Renderers/CodeLabRenderer";
 import QuizResultsRenderer from "../Renderers/QuizResultsRenderer";
+import { ACTIVITY_TYPES } from "@/lib/activityTypes";
+import { resolvePlayerComposition } from "../../playerComposition";
 
 const Whiteboard = ({
     node,
@@ -68,21 +70,15 @@ const Whiteboard = ({
 
     if (!node) return null;
 
-    // Check if node has content blocks (new multi-block model) - memoized for performance
-    const blocks = node?.blocks || [];
-    const hasBlocks = blocks.length > 0;
+    const { activityType, legacyPrimaryBlock, supplements } =
+        resolvePlayerComposition(node);
+    const blocks = node?.supplements || node?.blocks || [];
 
     // Check if there's a video block with required progress
     const hasVideoRequirement = (() => {
         if (!node) return false;
-        if (!hasBlocks) {
-            const lessonType = (
-                node.properties?.lesson_type ||
-                node.lessonType ||
-                ""
-            ).toLowerCase();
+        if (activityType === ACTIVITY_TYPES.VIDEO && !legacyPrimaryBlock) {
             return (
-                (lessonType === "video" || lessonType === "video_lesson") &&
                 node.properties?.required_progress > 0
             );
         }
@@ -95,7 +91,9 @@ const Whiteboard = ({
 
     const requiredProgress = (() => {
         if (!node) return 0;
-        if (!hasBlocks) return node.properties?.required_progress || 0;
+        if (activityType === ACTIVITY_TYPES.VIDEO && !legacyPrimaryBlock) {
+            return node.properties?.required_progress || 0;
+        }
         const videoBlock = blocks.find(
             (b) =>
                 b.type?.toUpperCase() === "VIDEO" &&
@@ -105,16 +103,10 @@ const Whiteboard = ({
     })();
 
     const documentRequirement = (() => {
-        if (!node || hasBlocks) {
+        if (!node) {
             return { enabled: false, pageCount: 0 };
         }
-
-        const lessonType = (
-            node.properties?.lesson_type ||
-            node.lessonType ||
-            ""
-        ).toLowerCase();
-        if (lessonType !== "document") {
+        if (activityType !== ACTIVITY_TYPES.DOCUMENT || legacyPrimaryBlock) {
             return { enabled: false, pageCount: 0 };
         }
 
@@ -131,8 +123,8 @@ const Whiteboard = ({
         };
     })();
 
-    const renderBlocks = () => {
-        return blocks.map((block) => (
+    const renderBlocks = (contentBlocks) => {
+        return contentBlocks.map((block) => (
             <BlockRenderer
                 key={block.id}
                 block={block}
@@ -145,17 +137,13 @@ const Whiteboard = ({
         ));
     };
 
-    const renderLegacyContent = () => {
-        // Fallback: Normalize type from various property sources
-        const type = (node.type || node.nodeType || "lesson").toLowerCase();
-        const lessonType = (
-            node.properties?.lesson_type ||
-            node.lessonType ||
-            ""
-        ).toLowerCase();
+    const renderPrimaryContent = () => {
+        if (legacyPrimaryBlock) {
+            return renderBlocks([legacyPrimaryBlock]);
+        }
 
         // 1. Quiz
-        if (type === "quiz" || lessonType === "quiz") {
+        if (activityType === ACTIVITY_TYPES.QUIZ) {
             // Show results inline if quizResults data is present
             if (node.properties?.quizResults) {
                 return (
@@ -176,7 +164,7 @@ const Whiteboard = ({
         }
 
         // 2. Assignment
-        if (type === "assignment" || lessonType === "assignment") {
+        if (activityType === ACTIVITY_TYPES.ASSIGNMENT) {
             return (
                 <AssessmentRenderer
                     node={node}
@@ -188,11 +176,7 @@ const Whiteboard = ({
         }
 
         // 3. Video
-        if (
-            type === "video_lesson" ||
-            lessonType === "video" ||
-            lessonType === "video_lesson"
-        ) {
+        if (activityType === ACTIVITY_TYPES.VIDEO) {
             return (
                 <VideoRenderer
                     url={node.properties?.video_url}
@@ -204,7 +188,7 @@ const Whiteboard = ({
         }
 
         // 4. Document lesson
-        if (lessonType === "document") {
+        if (activityType === ACTIVITY_TYPES.DOCUMENT) {
             return (
                 <DocumentLessonRenderer
                     node={node}
@@ -214,7 +198,10 @@ const Whiteboard = ({
         }
 
         // 5. Live class / stream lesson
-        if (lessonType === "live_class") {
+        if (
+            activityType === ACTIVITY_TYPES.LIVE_MEETING ||
+            activityType === ACTIVITY_TYPES.LIVE_STREAM
+        ) {
             return (
                 <LiveClassRenderer
                     title={node.title}
@@ -233,7 +220,7 @@ const Whiteboard = ({
         }
 
         // 6. Code Lab
-        if (lessonType === 'code') {
+        if (activityType === ACTIVITY_TYPES.CODE) {
             return (
                 <CodeLabRenderer
                     node={node}
@@ -287,7 +274,10 @@ const Whiteboard = ({
 
             {/* Content Area */}
             <Box sx={{ flexGrow: 1 }}>
-                {hasBlocks ? renderBlocks() : renderLegacyContent()}
+                {renderPrimaryContent()}
+                {supplements.length > 0 && (
+                    <Box sx={{ mt: 3 }}>{renderBlocks(supplements)}</Box>
+                )}
             </Box>
 
             {/* Footer Navigation */}
