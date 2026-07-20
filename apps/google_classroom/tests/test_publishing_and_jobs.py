@@ -96,8 +96,8 @@ def test_quiz_publication_uses_secure_lms_link_without_answers(
 
     assert resource_type == "coursework"
     assert body["maxPoints"] == 7
-    assert body["materials"][0]["link"]["url"].startswith(
-        "https://courses.example.test/student/programs/"
+    assert body["materials"][0]["link"]["url"].endswith(
+        f"/student/courses/{program.id}/lessons/{node.id}/launch/"
     )
     serialized = str(body).lower()
     assert "private question" not in serialized
