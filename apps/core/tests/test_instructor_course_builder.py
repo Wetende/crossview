@@ -12,6 +12,7 @@ from apps.core.tests.factories import UserFactory
 from apps.platform.models import PlatformSettings
 from apps.progression.tests.factories import ProgramFactory
 from apps.curriculum.models import CurriculumNode
+from apps.learning_operations.models import CourseDeliveryProfile
 from apps.progression.models import InstructorAssignment
 from apps.core.views import serialize_program_data
 from apps.assessments.models import QuestionOption, Quiz
@@ -34,6 +35,39 @@ def assignment(instructor, program):
 
 @pytest.mark.django_db
 class TestInstructorCourseBuilder:
+    def test_legacy_course_without_category_can_save_delivery_mode(
+        self, client, instructor, program, assignment
+    ):
+        settings = PlatformSettings.get_settings()
+        settings.program_categories = ["Engineering & ICT"]
+        settings.save(update_fields=["program_categories", "updated_at"])
+        program.category = None
+        program.save(update_fields=["category", "updated_at"])
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse("core:instructor.program_update_settings", kwargs={"pk": program.id}),
+            {
+                "tab": "settings",
+                "section": "main",
+                "name": program.name,
+                "category": "",
+                "duration_hours": program.duration_hours,
+                "video_hours": program.video_hours,
+                "description": program.description,
+                "whatYouLearn": program.what_you_learn_html,
+                "preview_description": program.preview_description,
+                "lock_lessons_in_order": "true",
+                "delivery_mode": "self_paced",
+            },
+        )
+
+        assert response.status_code == 302
+        assert (
+            CourseDeliveryProfile.objects.get(program=program).delivery_mode
+            == "self_paced"
+        )
+
     def test_engagement_tab_saves_policy_and_gamification_opt_in(
         self, client, instructor, program, assignment
     ):

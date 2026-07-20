@@ -8207,11 +8207,12 @@ def instructor_program_update_settings(request, pk: int):
     if active_tab == "settings" and settings_section == "main" and "category" in data:
         category_val = str(data.get("category", "")).strip()
         if program_categories:
-            if not category_val:
+            if not category_val and program.category:
                 messages.error(request, "Category is required.")
                 return _redirect_to_builder()
             if (
                 category_val not in program_categories
+                and category_val
                 and category_val != (program.category or "")
             ):
                 messages.error(request, "Select a valid category.")
