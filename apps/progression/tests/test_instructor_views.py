@@ -158,7 +158,7 @@ class TestInstructorStudents:
     def test_student_detail_shows_progress(
         self, client, instructor, assignment, enrollment
     ):
-        """Should show student progress and assessment results."""
+        """Should render the course-scoped learning operations page."""
         client.force_login(instructor)
 
         response = client.get(
@@ -172,6 +172,29 @@ class TestInstructorStudents:
         )
 
         assert response.status_code == 200
+        assert b"Instructor/Students/Operations" in response.content
+        assert b"&quot;learner&quot;" in response.content
+        assert enrollment.user.email.encode() in response.content
+
+    def test_student_detail_rejects_enrollment_from_another_program(
+        self, client, instructor, assignment
+    ):
+        """A valid instructor must not read an enrollment outside the course URL."""
+        other_program = ProgramFactory()
+        other_enrollment = EnrollmentFactory(program=other_program)
+        client.force_login(instructor)
+
+        response = client.get(
+            reverse(
+                "progression:instructor.student",
+                kwargs={
+                    "pk": assignment.program.id,
+                    "enrollment_id": other_enrollment.id,
+                },
+            )
+        )
+
+        assert response.status_code == 404
 
 
 @pytest.mark.django_db

@@ -11,14 +11,4 @@ urlpatterns = [
         page_views.course_invitation_page,
         name="invitation-accept",
     ),
-    path(
-        "instructor/programs/<int:program_id>/students/",
-        page_views.instructor_course_students,
-        name="course-students",
-    ),
-    path(
-        "instructor/programs/<int:program_id>/students/<int:enrollment_id>/",
-        page_views.instructor_course_learner,
-        name="course-learner",
-    ),
 ]
