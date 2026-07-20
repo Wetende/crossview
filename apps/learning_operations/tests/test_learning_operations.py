@@ -200,7 +200,7 @@ def test_learner_detail_returns_operational_context_and_paginated_curriculum(
     assert response.status_code == 200
     payload = response.json()
     assert payload["currentPosition"]["title"] == "Lesson 2"
-    assert payload["attention"] is None
+    assert payload["attention"]["type"] == "upcoming_assignment"
     assert payload["upcomingDeadlines"][0]["title"] == "Project"
     assert payload["recentActivity"][0]["title"] == "Lesson 1"
     assert payload["publishedGrades"][0]["title"] == "Lesson 1"

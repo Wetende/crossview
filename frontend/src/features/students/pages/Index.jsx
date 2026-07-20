@@ -30,6 +30,7 @@ import InstructorLayout from "@/layouts/InstructorLayout";
 import { ReportToolbar } from "@/features/reports";
 import LearnerDetailPanel from "../components/LearnerDetailPanel";
 import LearnerManagementToolbar from "../components/LearnerManagementToolbar";
+import LearnerReminderDialog from "../components/LearnerReminderDialog";
 import ProgramLearnerRoster from "../components/ProgramLearnerRoster";
 
 const statusColors = {
@@ -40,6 +41,22 @@ const statusColors = {
 };
 
 const baseUrl = (programId) => `/api/learning-operations/programs/${programId}`;
+
+function reminderResultMessage(result) {
+    const parts = [
+        `${result.processed} reminder${result.processed === 1 ? "" : "s"} prepared`,
+    ];
+    if (result.skipped) parts.push(`${result.skipped} skipped`);
+    if (result.unavailableChannels?.inApp) {
+        parts.push(
+            `in-app unavailable for ${result.unavailableChannels.inApp}`,
+        );
+    }
+    if (result.unavailableChannels?.email) {
+        parts.push(`email unavailable for ${result.unavailableChannels.email}`);
+    }
+    return `${parts.join("; ")}.`;
+}
 
 function StudentDirectory({ students }) {
     return (
@@ -136,6 +153,7 @@ export default function InstructorStudentsIndex({
     const [reason, setReason] = useState("");
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState(null);
+    const [reminderEnrollmentIds, setReminderEnrollmentIds] = useState([]);
 
     const studentsList = Array.isArray(students)
         ? students
@@ -254,6 +272,10 @@ export default function InstructorStudentsIndex({
             router.visit(`/messages/new/?recipient_id=${learner.userId}`);
             return;
         }
+        if (action === "reminder") {
+            setReminderEnrollmentIds([learner.enrollmentId]);
+            return;
+        }
         if (action === "restore") {
             executeStatusAction(action, learner);
             return;
@@ -309,6 +331,9 @@ export default function InstructorStudentsIndex({
                         filters={filters}
                         selectedEnrollmentIds={selectedEnrollmentIds}
                         onClearSelection={() => setSelectedEnrollmentIds([])}
+                        onSendReminder={() =>
+                            setReminderEnrollmentIds(selectedEnrollmentIds)
+                        }
                         onComplete={() =>
                             reloadRoster({ clearSelection: true })
                         }
@@ -400,6 +425,7 @@ export default function InstructorStudentsIndex({
                         onPageChange={(_, page) =>
                             handleFilterChange({ page: page + 1 })
                         }
+                        remindersEnabled
                     />
                 ) : (
                     <StudentDirectory students={studentsList} />
@@ -413,6 +439,29 @@ export default function InstructorStudentsIndex({
                     programId={program.id}
                     onClose={() => setActiveLearner(null)}
                     onAction={handleLearnerAction}
+                    remindersEnabled
+                />
+            )}
+
+            {isProgramView && (
+                <LearnerReminderDialog
+                    open={reminderEnrollmentIds.length > 0}
+                    programId={program.id}
+                    enrollmentIds={reminderEnrollmentIds}
+                    onClose={() => setReminderEnrollmentIds([])}
+                    onSent={(result) => {
+                        setReminderEnrollmentIds([]);
+                        setSelectedEnrollmentIds([]);
+                        setMessage({
+                            severity:
+                                result.skipped ||
+                                result.unavailableChannels?.inApp ||
+                                result.unavailableChannels?.email
+                                    ? "warning"
+                                    : "success",
+                            text: reminderResultMessage(result),
+                        });
+                    }}
                 />
             )}
 

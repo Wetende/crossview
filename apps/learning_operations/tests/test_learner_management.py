@@ -307,6 +307,27 @@ def test_withdraw_requires_a_reason(client, instructor, program, learner):
 
 
 @pytest.mark.django_db
+def test_bulk_action_hides_enrollment_from_another_course(
+    client, instructor, program
+):
+    other_enrollment = Enrollment.objects.create(
+        user=UserFactory(),
+        program=ProgramFactory(),
+    )
+    client.force_login(instructor)
+
+    response = client.post(
+        reverse(
+            "learning_operations:learner-bulk", kwargs={"program_id": program.id}
+        ),
+        data={"enrollmentIds": [other_enrollment.id], "action": "suspend"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
 def test_completion_reset_preserves_audit_and_reopens_completed_enrollment(
     client, instructor, program, learner
 ):

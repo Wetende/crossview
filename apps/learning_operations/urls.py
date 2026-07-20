@@ -82,6 +82,11 @@ urlpatterns = [
         name="learner-bulk",
     ),
     path(
+        "programs/<int:program_id>/learners/reminder-preview/",
+        views.CourseLearnerReminderPreviewView.as_view(),
+        name="learner-reminder-preview",
+    ),
+    path(
         "programs/<int:program_id>/learners/<int:enrollment_id>/nodes/<int:node_id>/reset/",
         views.LessonCompletionResetView.as_view(),
         name="lesson-completion-reset",

@@ -119,6 +119,15 @@ class InvitationBulkActionSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=["resend", "revoke"])
 
 
+class LearnerReminderPreviewSerializer(serializers.Serializer):
+    enrollmentIds = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        min_length=1,
+        max_length=500,
+    )
+    operationId = serializers.UUIDField(required=False)
+
+
 class BulkLearnerActionSerializer(serializers.Serializer):
     enrollmentIds = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
@@ -130,6 +139,7 @@ class BulkLearnerActionSerializer(serializers.Serializer):
     )
     reason = serializers.CharField(required=False, allow_blank=True, max_length=2000)
     preview = serializers.BooleanField(required=False, default=False)
+    operationId = serializers.UUIDField(required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

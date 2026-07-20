@@ -210,6 +210,42 @@ class LearnerManagementAudit(TimeStampedModel):
         indexes = [models.Index(fields=["enrollment", "-created_at"])]
 
 
+class LearnerReminderEvent(TimeStampedModel):
+    """Durable reminder event that can feed current and future delivery channels."""
+
+    enrollment = models.ForeignKey(
+        "progression.Enrollment",
+        on_delete=models.CASCADE,
+        related_name="reminder_events",
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="learner_reminder_events",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="sent_learner_reminders",
+    )
+    operation_id = models.UUIDField(db_index=True)
+    notification_type = models.CharField(max_length=50)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    action_url = models.CharField(max_length=500)
+    condition = models.JSONField(default=dict, blank=True)
+    channels = models.JSONField(default=dict, blank=True)
+    idempotency_key = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        db_table = "learning_learner_reminder_events"
+        indexes = [
+            models.Index(fields=["enrollment", "-created_at"]),
+            models.Index(fields=["recipient", "-created_at"]),
+        ]
+
+
 class AssessmentAttemptGrant(TimeStampedModel):
     """Audited extra quiz or assignment attempt allowance."""
 

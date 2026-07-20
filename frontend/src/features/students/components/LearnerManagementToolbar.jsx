@@ -29,6 +29,7 @@ import {
     FileDownloadOutlined as ExportIcon,
     GroupAddOutlined as InviteIcon,
     PrintOutlined as PrintIcon,
+    NotificationsNoneOutlined as ReminderIcon,
     UploadFileOutlined as ImportIcon,
 } from "@mui/icons-material";
 
@@ -43,6 +44,7 @@ export default function LearnerManagementToolbar({
     filters,
     selectedEnrollmentIds,
     onClearSelection,
+    onSendReminder,
     onComplete,
 }) {
     const fileInputRef = useRef(null);
@@ -313,6 +315,13 @@ export default function LearnerManagementToolbar({
                             {selectedEnrollmentIds.length === 1 ? "" : "s"}{" "}
                             selected
                         </Typography>
+                        <Button
+                            size="small"
+                            startIcon={<ReminderIcon />}
+                            onClick={onSendReminder}
+                        >
+                            Send reminder
+                        </Button>
                         <Button
                             size="small"
                             endIcon={<ExpandMoreIcon />}

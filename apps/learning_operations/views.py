@@ -3,7 +3,7 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -39,6 +39,7 @@ from .engagement import (
     update_course_engagement_policy,
 )
 from .models import CourseInvitation, LearnerManagementAudit
+from .reminders import preview_contextual_reminders, send_contextual_reminders
 
 from .selectors import (
     get_engagement_matrix,
@@ -60,6 +61,7 @@ from .serializers import (
     LearnerDetailQuerySerializer,
     LearnerListQuerySerializer,
     LearnerInviteSerializer,
+    LearnerReminderPreviewSerializer,
     ManualQuizGradeReadSerializer,
     ManualQuizGradeWriteSerializer,
     ProgressAdjustmentSerializer,
@@ -560,6 +562,33 @@ class CourseInvitationBulkActionView(APIView):
         return Response({"processed": processed, "emailsSent": sent})
 
 
+class CourseLearnerReminderPreviewView(APIView):
+    permission_classes = [IsInstructorOrStaff]
+
+    def post(self, request, program_id):
+        program = _instructor_program(request, program_id)
+        serializer = LearnerReminderPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        enrollment_ids = list(dict.fromkeys(data["enrollmentIds"]))
+        enrollments = list(
+            Enrollment.objects.filter(
+                program=program,
+                id__in=enrollment_ids,
+            ).select_related("user", "program", "learning_activity")
+        )
+        if len(enrollments) != len(enrollment_ids):
+            raise Http404("One or more learners were not found in this course.")
+        by_id = {enrollment.id: enrollment for enrollment in enrollments}
+        ordered = [by_id[enrollment_id] for enrollment_id in enrollment_ids]
+        return Response(
+            preview_contextual_reminders(
+                ordered,
+                operation_id=data.get("operationId"),
+            )
+        )
+
+
 class CourseBulkLearnerActionView(APIView):
     permission_classes = [IsInstructorOrStaff]
 
@@ -572,13 +601,10 @@ class CourseBulkLearnerActionView(APIView):
             Enrollment.objects.filter(
                 program=program,
                 id__in=data["enrollmentIds"],
-            ).select_related("user")
+            ).select_related("user", "program", "learning_activity")
         )
         if len(enrollments) != len(set(data["enrollmentIds"])):
-            return Response(
-                {"detail": "One or more enrollments were not found."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise Http404("One or more learners were not found in this course.")
         status_map = {
             "activate": "active",
             "reactivate": "active",
@@ -586,25 +612,13 @@ class CourseBulkLearnerActionView(APIView):
             "withdraw": "withdrawn",
         }
         if data["action"] == "send_reminder":
-            from apps.notifications.services import NotificationService
-
-            for enrollment in enrollments:
-                NotificationService.create(
-                    recipient=enrollment.user,
-                    notification_type="system",
-                    title="Course reminder",
-                    message=f"You have learning activities waiting in {program.name}.",
-                    related_program_id=program.id,
-                    related_enrollment_id=enrollment.id,
-                )
-                LearnerManagementAudit.objects.create(
-                    enrollment=enrollment,
-                    action="send_reminder",
+            return Response(
+                send_contextual_reminders(
+                    enrollments,
                     actor=request.user,
-                    reason=data.get("reason", ""),
-                    previous_state={},
-                    resulting_state={"notificationCreated": True},
+                    operation_id=data.get("operationId"),
                 )
+            )
         else:
             target_status = status_map[data["action"]]
             if data.get("preview"):

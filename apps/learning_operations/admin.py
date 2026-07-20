@@ -7,6 +7,7 @@ from .models import (
     CourseInvitation,
     EnrollmentLearningActivity,
     LearnerManagementAudit,
+    LearnerReminderEvent,
     LearningActivityDay,
     ManualQuizGrade,
 )
@@ -19,4 +20,5 @@ admin.site.register(LearningActivityDay)
 admin.site.register(ManualQuizGrade)
 admin.site.register(CourseInvitation)
 admin.site.register(LearnerManagementAudit)
+admin.site.register(LearnerReminderEvent)
 admin.site.register(AssessmentAttemptGrant)

@@ -22,6 +22,7 @@ class Notification(TimeStampedModel):
         ('direct_message', 'Direct Message'),
         ('instructor_approved', 'Instructor Approved'),
         ('instructor_rejected', 'Instructor Rejected'),
+        ('course_start_reminder', 'Course Start Reminder'),
         ('assignment_reminder', 'Assignment Reminder'),
         ('access_expiry_reminder', 'Access Expiry Reminder'),
         ('inactivity_reminder', 'Inactivity Reminder'),

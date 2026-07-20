@@ -8,7 +8,7 @@ import {
     MenuItem,
 } from "@mui/material";
 import {
-    ChatBubbleOutline as MessageIcon,
+    MessageOutlined as MessageIcon,
     MoreVert as MoreIcon,
     NotificationsNone as ReminderIcon,
     PersonOffOutlined as WithdrawIcon,

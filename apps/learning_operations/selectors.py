@@ -76,63 +76,14 @@ def get_upcoming_deadlines_for_enrollments(enrollments, now=None):
 
 def get_enrollment_attention(enrollment, *, now=None):
     """Return the learner's most urgent actionable course condition."""
-    now = now or timezone.now()
-    resolved_assignment_ids = AssignmentSubmission.objects.filter(
-        enrollment=enrollment,
-        status__in=["submitted", "graded"],
-    ).values_list("assignment_id", flat=True)
-    overdue = (
-        Assignment.objects.filter(
-            program=enrollment.program,
-            is_published=True,
-            due_date__lt=now,
-        )
-        .exclude(id__in=resolved_assignment_ids)
-        .order_by("due_date", "id")
-        .first()
-    )
-    if overdue:
-        return {
-            "type": "overdue_assignment",
-            "title": f"{overdue.title} is overdue",
-            "message": "The learner has not submitted this assignment.",
-            "dueAt": overdue.due_date.isoformat(),
-            "severity": "error",
-        }
+    from .reminders import build_contextual_reminder_candidates
 
-    learner_state = classify_enrollment(enrollment, now=now)
-    state_copy = {
-        "new": (
-            "Getting started",
-            "The learner has access but has not started yet.",
-            "info",
-        ),
-        "not_started": (
-            "Course not started",
-            "The learner has had access for at least three days without activity.",
-            "warning",
-        ),
-        "stalled": (
-            "Learning has stalled",
-            "No meaningful activity has been recorded for at least seven days.",
-            "warning",
-        ),
-        "inactive": (
-            "Learner is inactive",
-            "No meaningful activity has been recorded for at least thirty days.",
-            "error",
-        ),
-    }
-    if learner_state in state_copy:
-        title, message, severity = state_copy[learner_state]
-        return {
-            "type": learner_state,
-            "title": title,
-            "message": message,
-            "dueAt": None,
-            "severity": severity,
-        }
-    return None
+    candidate = build_contextual_reminder_candidates([enrollment], now=now).get(
+        enrollment.id
+    )
+    if not candidate:
+        return None
+    return {**candidate["condition"], "message": candidate["message"]}
 
 
 def serialize_enrollment_operations(enrollment, total_nodes=None, include_gamification=False):
@@ -225,8 +176,12 @@ def get_program_learners(program, state=None, search=None):
         is_published=True,
         children__isnull=True,
     ).count()
+    ordered_enrollments = list(enrollments.order_by("-enrolled_at"))
+    from .reminders import build_contextual_reminder_candidates
+
+    reminder_candidates = build_contextual_reminder_candidates(ordered_enrollments)
     rows = []
-    for enrollment in enrollments.order_by("-enrolled_at"):
+    for enrollment in ordered_enrollments:
         operations = serialize_enrollment_operations(enrollment, total_nodes)
         if state and operations["learnerState"] != state:
             continue
@@ -238,6 +193,11 @@ def get_program_learners(program, state=None, search=None):
                 "email": enrollment.user.email,
                 "status": enrollment.status,
                 "enrolledAt": enrollment.enrolled_at.isoformat(),
+                "attention": (
+                    reminder_candidates[enrollment.id]["condition"]
+                    if enrollment.id in reminder_candidates
+                    else None
+                ),
                 **operations,
             }
         )
@@ -245,14 +205,18 @@ def get_program_learners(program, state=None, search=None):
 
 
 def get_program_learner_summary(program):
-    rows = get_program_learners(program)
+    states = [
+        classify_enrollment(enrollment)
+        for enrollment in Enrollment.objects.filter(program=program).select_related(
+            "learning_activity"
+        )
+    ]
     return {
-        "total": len(rows),
+        "total": len(states),
         "needsAttention": sum(
-            row["learnerState"] in {"not_started", "stalled", "inactive"}
-            for row in rows
+            state in {"not_started", "stalled", "inactive"} for state in states
         ),
-        "completed": sum(row["learnerState"] == "completed" for row in rows),
+        "completed": sum(state == "completed" for state in states),
     }
 
 

@@ -201,6 +201,17 @@ class NotificationService:
         return True
 
     @staticmethod
+    def delivery_availability(user, notification_type):
+        """Report preference-aware availability for supported delivery channels."""
+        return {
+            "inApp": NotificationService._should_send_in_app(
+                user, notification_type
+            ),
+            "email": bool(user.email)
+            and NotificationService._should_send_email(user, notification_type),
+        }
+
+    @staticmethod
     def send_email_notification(
         recipient,
         notification_type,
@@ -240,6 +251,7 @@ class NotificationService:
         *, recipient, notification_type, title, message, action_url=None,
         related_program_id=None, related_enrollment_id=None,
         related_assessment_id=None, priority="normal", idempotency_key,
+        email_metadata=None,
     ):
         notification = NotificationService.create(
             recipient=recipient,
@@ -260,6 +272,7 @@ class NotificationService:
             message=message,
             notification=notification,
             idempotency_key=f"email:{idempotency_key}",
+            metadata=email_metadata,
         )
         return notification
 
