@@ -31,6 +31,11 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { java } from "@codemirror/lang-java";
 import { cpp } from "@codemirror/lang-cpp";
+import {
+    getCodeLabWork,
+    saveCodeLabWork,
+    submitCodeLabWork,
+} from "../../api/activityProgressApi";
 
 /**
  * Language → CodeMirror extension mapping.
@@ -183,6 +188,48 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
     const [activePane, setActivePane] = useState("editor"); // for tabbed layout
     const iframeRef = useRef(null);
     const [iframeKey, setIframeKey] = useState(0); // Force iframe re-render
+    const [isHydrated, setIsHydrated] = useState(false);
+    const [saveState, setSaveState] = useState("loading");
+    const [submitError, setSubmitError] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const lastServerDraftRef = useRef(null);
+
+    useEffect(() => {
+        let active = true;
+        setIsHydrated(false);
+        setSaveState("loading");
+        getCodeLabWork(enrollmentId, node?.id)
+            .then((work) => {
+                if (!active) return;
+                setCode(work.draftCode ?? starterCode);
+                lastServerDraftRef.current = work.draftCode ?? starterCode;
+                setSaveState("saved");
+                setIsHydrated(true);
+            })
+            .catch(() => {
+                if (!active) return;
+                setSaveState("offline");
+                setIsHydrated(true);
+            });
+        return () => {
+            active = false;
+        };
+    }, [enrollmentId, node?.id, starterCode]);
+
+    useEffect(() => {
+        if (!isHydrated || !enrollmentId || !node?.id) return undefined;
+        if (code === lastServerDraftRef.current) return undefined;
+        setSaveState("saving");
+        const timeoutId = window.setTimeout(() => {
+            saveCodeLabWork(enrollmentId, node.id, code)
+                .then(() => {
+                    lastServerDraftRef.current = code;
+                    setSaveState("saved");
+                })
+                .catch(() => setSaveState("offline"));
+        }, 800);
+        return () => window.clearTimeout(timeoutId);
+    }, [code, enrollmentId, isHydrated, node?.id]);
 
     // CodeMirror extensions
     const cmExtensions = useMemo(
@@ -194,6 +241,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
     const handleCodeChange = useCallback(
         (value) => {
             setCode(value);
+            setSaveState("saving");
             try {
                 localStorage.setItem(storageKey, value);
             } catch {
@@ -245,9 +293,20 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
     }, [starterCode, storageKey]);
 
     // ── Submit / Mark Complete ──
-    const handleSubmit = useCallback(() => {
-        onComplete?.();
-    }, [onComplete]);
+    const handleSubmit = useCallback(async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        setSubmitError("");
+        try {
+            await submitCodeLabWork(enrollmentId, node?.id, code);
+            setSaveState("submitted");
+            onComplete?.();
+        } catch (error) {
+            setSubmitError(error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [code, enrollmentId, isSubmitting, node?.id, onComplete]);
 
     // ── Copy code ──
     const handleCopy = useCallback(() => {
@@ -308,9 +367,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                 <Stack direction="row" spacing={0.5}>
                     <Tooltip title="Copy code">
                         <IconButton size="small" onClick={handleCopy}>
-                            <CopyIcon
-                                sx={{ fontSize: 16, color: "#888" }}
-                            />
+                            <CopyIcon sx={{ fontSize: 16, color: "#888" }} />
                         </IconButton>
                     </Tooltip>
                     <Tooltip
@@ -424,8 +481,8 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                             soon.
                         </Typography>
                         <Typography variant="caption">
-                            Your code is saved. An instructor will review it upon
-                            submission.
+                            Your code is saved. An instructor will review it
+                            upon submission.
                         </Typography>
                     </Box>
                 ) : (
@@ -486,7 +543,12 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                     {consoleOutput.length === 0 ? (
                         <Typography
                             variant="caption"
-                            sx={{ px: 1.5, pb: 1, color: "#555", display: "block" }}
+                            sx={{
+                                px: 1.5,
+                                pb: 1,
+                                color: "#555",
+                                display: "block",
+                            }}
                         >
                             No console output yet.
                         </Typography>
@@ -661,6 +723,11 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
             </Paper>
 
             {/* Action bar */}
+            {submitError && (
+                <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+                    {submitError}
+                </Typography>
+            )}
             <Stack
                 direction="row"
                 justifyContent="space-between"
@@ -695,14 +762,27 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                         Run ▶
                     </Button>
                 </Stack>
+                <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mx: 1 }}
+                >
+                    {saveState === "loading" && "Loading draft…"}
+                    {saveState === "saving" && "Saving…"}
+                    {saveState === "saved" && "Draft saved"}
+                    {saveState === "submitted" && "Submitted"}
+                    {saveState === "offline" &&
+                        "Draft saved on this device; server unavailable"}
+                </Typography>
                 <Button
                     variant="contained"
                     size="small"
                     startIcon={<SubmitIcon />}
                     onClick={handleSubmit}
+                    disabled={isSubmitting || !isHydrated}
                     sx={{ textTransform: "none" }}
                 >
-                    Submit & Complete
+                    {isSubmitting ? "Submitting…" : "Submit & Complete"}
                 </Button>
             </Stack>
         </Box>

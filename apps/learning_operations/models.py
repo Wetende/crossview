@@ -113,6 +113,97 @@ class LearningActivityDay(TimeStampedModel):
         ]
 
 
+class LearnerNodeProgress(TimeStampedModel):
+    """Server-owned aggregate of a learner's evidence for one activity."""
+
+    enrollment = models.ForeignKey(
+        "progression.Enrollment",
+        on_delete=models.CASCADE,
+        related_name="node_activity_progress",
+    )
+    node = models.ForeignKey(
+        "curriculum.CurriculumNode",
+        on_delete=models.CASCADE,
+        related_name="learner_activity_progress",
+    )
+    activity_type = models.CharField(max_length=32)
+    active_seconds = models.FloatField(default=0)
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    resume_position_seconds = models.FloatField(default=0)
+    pages_viewed = models.JSONField(default=list, blank=True)
+    total_pages = models.PositiveIntegerField(null=True, blank=True)
+    last_evidence_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "learning_learner_node_progress"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["enrollment", "node"],
+                name="learning_unique_enrollment_node_progress",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["enrollment", "-last_evidence_at"]),
+            models.Index(fields=["node", "activity_type"]),
+        ]
+
+
+class LearnerContentSession(TimeStampedModel):
+    """Deduplicates ordered client events and bounds accumulated active time."""
+
+    progress = models.ForeignKey(
+        LearnerNodeProgress,
+        on_delete=models.CASCADE,
+        related_name="content_sessions",
+    )
+    session_key = models.CharField(max_length=64)
+    last_sequence = models.PositiveBigIntegerField(default=0)
+    last_position_seconds = models.FloatField(default=0)
+    active_seconds = models.FloatField(default=0)
+    last_event_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "learning_learner_content_sessions"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["progress", "session_key"],
+                name="learning_unique_progress_content_session",
+            )
+        ]
+        indexes = [models.Index(fields=["progress", "-last_event_at"])]
+
+
+class CodeLabWork(TimeStampedModel):
+    """Cross-device code-lab draft and immutable latest submitted snapshot."""
+
+    enrollment = models.ForeignKey(
+        "progression.Enrollment",
+        on_delete=models.CASCADE,
+        related_name="code_lab_work",
+    )
+    node = models.ForeignKey(
+        "curriculum.CurriculumNode",
+        on_delete=models.CASCADE,
+        related_name="code_lab_work",
+    )
+    language = models.CharField(max_length=32)
+    draft_code = models.TextField(blank=True, default="")
+    submitted_code = models.TextField(blank=True, default="")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        db_table = "learning_code_lab_work"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["enrollment", "node"],
+                name="learning_unique_enrollment_code_work",
+            )
+        ]
+        indexes = [models.Index(fields=["enrollment", "-updated_at"])]
+
+
 class ManualQuizGrade(TimeStampedModel):
     """Instructor grade for a manual-response question in one quiz attempt."""
 

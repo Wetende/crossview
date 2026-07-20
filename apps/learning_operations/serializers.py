@@ -164,3 +164,21 @@ class InvitationAcceptanceSerializer(serializers.Serializer):
     firstName = serializers.CharField(required=False, allow_blank=True, max_length=150)
     lastName = serializers.CharField(required=False, allow_blank=True, max_length=150)
     password = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
+
+class LearnerActivityEventSerializer(serializers.Serializer):
+    eventType = serializers.ChoiceField(
+        choices=["playback", "pause", "ended", "page_view"]
+    )
+    sessionId = serializers.RegexField(
+        regex=r"^[A-Za-z0-9_-]{8,64}$",
+        max_length=64,
+    )
+    sequence = serializers.IntegerField(min_value=1)
+    positionSeconds = serializers.FloatField(required=False, min_value=0)
+    durationSeconds = serializers.IntegerField(required=False, min_value=1)
+    pageNumber = serializers.IntegerField(required=False, min_value=1)
+
+
+class CodeLabWorkSerializer(serializers.Serializer):
+    code = serializers.CharField(allow_blank=True, max_length=250_000, trim_whitespace=False)

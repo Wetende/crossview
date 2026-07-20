@@ -1,6 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Box, Paper, Typography, LinearProgress, Stack } from "@mui/material";
 import LazyReactPlayer from "@/components/LazyReactPlayer";
+import {
+    createActivitySessionId,
+    recordActivityProgress,
+} from "../../api/activityProgressApi";
 
 /**
  * VideoRenderer - Video player with optional progress requirements
@@ -17,6 +21,9 @@ const VideoRenderer = ({
     onProgress,
     requiredProgress = 0, // 0-100, percentage required to complete
     onRequirementMet, // Called when required % is reached
+    enrollmentId,
+    nodeId,
+    activityProgress = {},
 }) => {
     const [highestProgress, setHighestProgress] = useState(0);
     const [currentProgress, setCurrentProgress] = useState(0);
@@ -27,6 +34,11 @@ const VideoRenderer = ({
     const requirementMetRef = useRef(false);
     const lastPlayedSecondsRef = useRef(null);
     const watchedSecondsRef = useRef(0);
+    const sequenceRef = useRef(0);
+    const sessionIdRef = useRef(createActivitySessionId());
+    const lastEvidenceSentAtRef = useRef(0);
+    const [serverProgress, setServerProgress] = useState(activityProgress);
+    const trackingEnabled = Boolean(enrollmentId && nodeId);
 
     useEffect(() => {
         setHighestProgress(0);
@@ -37,15 +49,51 @@ const VideoRenderer = ({
         setRequirementMet(false);
         requirementMetRef.current = false;
         lastPlayedSecondsRef.current = null;
-    }, [url, requiredProgress]);
+        sequenceRef.current = 0;
+        sessionIdRef.current = createActivitySessionId();
+        lastEvidenceSentAtRef.current = 0;
+        setServerProgress({
+            progressPercent: activityProgress?.progressPercent || 0,
+        });
+    }, [url, requiredProgress, nodeId, activityProgress?.progressPercent]);
 
     const watchedPercent = (() => {
+        if (trackingEnabled) return serverProgress?.progressPercent || 0;
         if (!durationSeconds || durationSeconds <= 0) return 0;
         return Math.min(
             100,
             Math.round((watchedSeconds / durationSeconds) * 100),
         );
     })();
+
+    const sendEvidence = useCallback(
+        async (eventType, positionSeconds, reportedDuration) => {
+            if (!trackingEnabled) return;
+            try {
+                const result = await recordActivityProgress(
+                    enrollmentId,
+                    nodeId,
+                    {
+                        eventType,
+                        sessionId: sessionIdRef.current,
+                        sequence: ++sequenceRef.current,
+                        positionSeconds,
+                        durationSeconds:
+                            Math.round(reportedDuration || 0) || undefined,
+                    },
+                );
+                setServerProgress(result);
+                if (result.isCompleted && !requirementMetRef.current) {
+                    requirementMetRef.current = true;
+                    setRequirementMet(true);
+                    onRequirementMet?.();
+                }
+            } catch {
+                // Progress is retried on the next ordered player event.
+            }
+        },
+        [enrollmentId, nodeId, onRequirementMet, trackingEnabled],
+    );
 
     const handleDuration = useCallback((seconds) => {
         // ReactPlayer can re-fire duration; keep latest non-zero.
@@ -106,6 +154,16 @@ const VideoRenderer = ({
 
             // Forward progress event
             onProgress?.(state);
+
+            const now = Date.now();
+            if (
+                trackingEnabled &&
+                playedSeconds !== null &&
+                now - lastEvidenceSentAtRef.current >= 5000
+            ) {
+                lastEvidenceSentAtRef.current = now;
+                void sendEvidence("playback", playedSeconds, durationSeconds);
+            }
         },
         [
             highestProgress,
@@ -113,17 +171,22 @@ const VideoRenderer = ({
             onProgress,
             onRequirementMet,
             durationSeconds,
+            sendEvidence,
+            trackingEnabled,
         ],
     );
 
     const handleEnded = useCallback(() => {
         setHighestProgress(100);
+        const position =
+            playerRef.current?.getCurrentTime?.() || durationSeconds;
+        void sendEvidence("ended", position, durationSeconds);
         // Only auto-complete on end if no requirement, or if the requirement is met.
         if (requiredProgress > 0 && !requirementMetRef.current) return;
         requirementMetRef.current = true;
         setRequirementMet(true);
         onEnded?.();
-    }, [onEnded, requiredProgress]);
+    }, [durationSeconds, onEnded, requiredProgress, sendEvidence]);
 
     const showProgressBar = requiredProgress > 0;
 
@@ -155,6 +218,22 @@ const VideoRenderer = ({
                         height="100%"
                         controls={true}
                         onEnded={handleEnded}
+                        onPause={() => {
+                            const position =
+                                playerRef.current?.getCurrentTime?.() || 0;
+                            void sendEvidence(
+                                "pause",
+                                position,
+                                durationSeconds,
+                            );
+                        }}
+                        onReady={() => {
+                            const resume = Number(
+                                activityProgress?.resumePositionSeconds || 0,
+                            );
+                            if (resume > 0)
+                                playerRef.current?.seekTo?.(resume, "seconds");
+                        }}
                         onDuration={handleDuration}
                         onProgress={handleProgress}
                         progressInterval={1000}

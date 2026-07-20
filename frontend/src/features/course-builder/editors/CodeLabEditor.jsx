@@ -96,6 +96,8 @@ const LANGUAGE_CONFIG = {
     },
 };
 
+const AUTHORABLE_LANGUAGES = new Set(["html_css_js", "javascript"]);
+
 /** Layout options for the student-facing editor */
 const LAYOUT_OPTIONS = [
     { value: "split_horizontal", label: "Side by side" },
@@ -462,7 +464,11 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                 <Stack spacing={3}>
                     {/* ── Language & Layout Row ── */}
                     <Stack direction="row" spacing={2}>
-                        <FormControl size="small" required sx={{ minWidth: 200 }}>
+                        <FormControl
+                            size="small"
+                            required
+                            sx={{ minWidth: 200 }}
+                        >
                             <InputLabel shrink sx={{ fontWeight: 500 }}>
                                 Language
                             </InputLabel>
@@ -473,13 +479,17 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 }
                                 label="Language"
                             >
-                                {Object.entries(LANGUAGE_CONFIG).map(
-                                    ([key, config]) => (
+                                {Object.entries(LANGUAGE_CONFIG)
+                                    .filter(
+                                        ([key]) =>
+                                            AUTHORABLE_LANGUAGES.has(key) ||
+                                            key === language,
+                                    )
+                                    .map(([key, config]) => (
                                         <MenuItem key={key} value={key}>
                                             {config.label}
                                         </MenuItem>
-                                    ),
-                                )}
+                                    ))}
                             </Select>
                         </FormControl>
 
@@ -531,12 +541,13 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                         language === "c_cpp") && (
                         <Alert severity="info" variant="outlined">
                             <Typography variant="body2">
-                                <strong>{LANGUAGE_CONFIG[language].label}</strong>{" "}
-                                requires server-side execution (Judge0). For now,
-                                students will see a code editor with syntax
-                                highlighting but output will not auto-execute in
-                                the browser. HTML/CSS/JS and standalone
-                                JavaScript run fully in-browser.
+                                <strong>
+                                    {LANGUAGE_CONFIG[language].label}
+                                </strong>{" "}
+                                is retained for an existing lesson in
+                                submission-only compatibility mode. New code
+                                labs support HTML/CSS/JavaScript only, and this
+                                language will not execute in the browser.
                             </Typography>
                         </Alert>
                     )}
@@ -661,9 +672,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                     height="250px"
                                     theme={vscodeDark}
                                     extensions={cmExtensions}
-                                    onChange={(value) =>
-                                        setSolutionCode(value)
-                                    }
+                                    onChange={(value) => setSolutionCode(value)}
                                     basicSetup={{
                                         lineNumbers: true,
                                         foldGutter: true,

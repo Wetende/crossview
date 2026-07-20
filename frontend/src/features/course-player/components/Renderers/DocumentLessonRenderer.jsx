@@ -1,18 +1,15 @@
-import { useMemo } from "react";
-import {
-    Alert,
-    Box,
-    Button,
-    Paper,
-    Stack,
-    Typography,
-} from "@mui/material";
+import { useCallback, useMemo, useRef } from "react";
+import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
 import {
     Download as DownloadIcon,
     OpenInNew as OpenInNewIcon,
     PictureAsPdf as PdfIcon,
 } from "@mui/icons-material";
 import PDFRenderer from "./PDFRenderer";
+import {
+    createActivitySessionId,
+    recordActivityProgress,
+} from "../../api/activityProgressApi";
 
 const toAbsoluteUrl = (url) => {
     if (!url) return "";
@@ -34,7 +31,12 @@ const downloadWithFilename = (url, filename) => {
     document.body.removeChild(link);
 };
 
-export default function DocumentLessonRenderer({ node, onRequirementMet }) {
+export default function DocumentLessonRenderer({
+    node,
+    enrollmentId,
+    activityProgress = {},
+    onRequirementMet,
+}) {
     const documentData = node?.properties?.document || {};
     const viewerPdfUrl = documentData.viewer_pdf_url || "";
     const originalUrl = documentData.original_url || "";
@@ -46,6 +48,30 @@ export default function DocumentLessonRenderer({ node, onRequirementMet }) {
             : true;
     const requiredPages = strictCompletion ? pageCount : 0;
     const originalFilename = documentData.original_name || "document";
+    const sessionIdRef = useRef(createActivitySessionId());
+    const sequenceRef = useRef(0);
+
+    const handlePageProgress = useCallback(
+        async (_viewedCount, _totalPages, pageNumber) => {
+            if (!enrollmentId || !node?.id || !pageNumber) return;
+            try {
+                const result = await recordActivityProgress(
+                    enrollmentId,
+                    node.id,
+                    {
+                        eventType: "page_view",
+                        sessionId: sessionIdRef.current,
+                        sequence: ++sequenceRef.current,
+                        pageNumber,
+                    },
+                );
+                if (result.isCompleted) onRequirementMet?.();
+            } catch {
+                // The next page interaction provides another ordered retry point.
+            }
+        },
+        [enrollmentId, node?.id, onRequirementMet],
+    );
 
     const officeViewerUrl = useMemo(() => {
         if (!originalUrl || !["docx", "pptx"].includes(originalExt)) return "";
@@ -83,7 +109,10 @@ export default function DocumentLessonRenderer({ node, onRequirementMet }) {
                                 size="small"
                                 startIcon={<DownloadIcon />}
                                 onClick={() =>
-                                    downloadWithFilename(originalUrl, originalFilename)
+                                    downloadWithFilename(
+                                        originalUrl,
+                                        originalFilename,
+                                    )
                                 }
                             >
                                 Download
@@ -111,7 +140,8 @@ export default function DocumentLessonRenderer({ node, onRequirementMet }) {
             <PDFRenderer
                 url={viewerPdfUrl}
                 requiredPages={requiredPages}
-                onComplete={onRequirementMet}
+                initialPagesViewed={activityProgress?.pagesViewed || []}
+                onProgress={handlePageProgress}
             />
         </Stack>
     );

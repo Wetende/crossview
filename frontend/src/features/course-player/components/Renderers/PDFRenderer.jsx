@@ -44,14 +44,18 @@ export default function PDFRenderer({
     allowDownload = true,
     allowPrint = true,
     requiredPages = 0,
+    initialPagesViewed = [],
     onProgress,
     onComplete,
 }) {
+    const initialPagesKey = initialPagesViewed.join(",");
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [scale, setScale] = useState(1.0);
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [pagesViewed, setPagesViewed] = useState(new Set([1]));
+    const [pagesViewed, setPagesViewed] = useState(
+        new Set(initialPagesViewed.length ? initialPagesViewed : [1]),
+    );
     const completionFiredRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -64,7 +68,7 @@ export default function PDFRenderer({
             setError(null);
 
             if (onProgress) {
-                onProgress(1, numPages);
+                onProgress(1, numPages, 1);
             }
 
             if (
@@ -91,11 +95,14 @@ export default function PDFRenderer({
         setNumPages(null);
         setPageNumber(1);
         setScale(1.0);
-        setPagesViewed(new Set([1]));
+        const restoredPages = initialPagesKey
+            ? initialPagesKey.split(",").map(Number)
+            : [1];
+        setPagesViewed(new Set(restoredPages));
         completionFiredRef.current = false;
         setLoading(true);
         setError(null);
-    }, [url, requiredPages]);
+    }, [url, requiredPages, initialPagesKey]);
 
     // Track page view
     const trackPageView = useCallback(
@@ -106,7 +113,7 @@ export default function PDFRenderer({
 
                 // Notify progress
                 if (onProgress && numPages) {
-                    onProgress(newSet.size, numPages);
+                    onProgress(newSet.size, numPages, page);
                 }
 
                 // Check completion requirement

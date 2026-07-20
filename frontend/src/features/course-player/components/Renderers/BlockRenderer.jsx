@@ -4,11 +4,16 @@ import TextRenderer from "./TextRenderer";
 import AssessmentRenderer from "./AssessmentRenderer";
 import CodeLabRenderer from "./CodeLabRenderer";
 import PDFRenderer from "./PDFRenderer";
+import AudioRenderer from "./AudioRenderer";
+import { useRef } from "react";
+import {
+    createActivitySessionId,
+    recordActivityProgress,
+} from "../../api/activityProgressApi";
 import { Box, Paper, Typography } from "@mui/material";
 import {
     InsertDriveFile as DocumentIcon,
     Image as ImageIcon,
-    Audiotrack as AudioIcon,
     Code as EmbedIcon,
 } from "@mui/icons-material";
 
@@ -61,7 +66,10 @@ const BlockRenderer = ({
     onComplete,
     onVideoProgress,
     onVideoRequirementMet,
+    activityProgress,
 }) => {
+    const documentSessionRef = useRef(createActivitySessionId());
+    const documentSequenceRef = useRef(0);
     if (!block) return null;
 
     const { type, data } = block;
@@ -76,11 +84,10 @@ const BlockRenderer = ({
                         onEnded={onComplete}
                         onProgress={onVideoProgress}
                         requiredProgress={data?.required_progress || 0}
-                        onRequirementMet={
-                            data?.required_progress
-                                ? onVideoRequirementMet
-                                : undefined
-                        }
+                        onRequirementMet={onVideoRequirementMet}
+                        enrollmentId={enrollmentId}
+                        nodeId={nodeId}
+                        activityProgress={activityProgress}
                     />
                 </Box>
             );
@@ -165,7 +172,20 @@ const BlockRenderer = ({
                         allowDownload={data?.allow_download !== false}
                         allowPrint={data?.allow_print !== false}
                         requiredPages={data?.required_pages || 0}
-                        onComplete={onComplete}
+                        initialPagesViewed={activityProgress?.pagesViewed || []}
+                        onProgress={(_count, _total, pageNumber) => {
+                            if (!pageNumber) return;
+                            recordActivityProgress(enrollmentId, nodeId, {
+                                eventType: "page_view",
+                                sessionId: documentSessionRef.current,
+                                sequence: ++documentSequenceRef.current,
+                                pageNumber,
+                            })
+                                .then((result) => {
+                                    if (result.isCompleted) onComplete?.();
+                                })
+                                .catch(() => {});
+                        }}
                     />
                 </Box>
             );
@@ -208,7 +228,8 @@ const BlockRenderer = ({
                 <Box sx={{ mb: 3, textAlign: "center" }}>
                     {data?.url ? (
                         <Box
-                            component="img" loading="lazy"
+                            component="img"
+                            loading="lazy"
                             src={data.url}
                             alt={data?.alt || "Content image"}
                             sx={{
@@ -248,27 +269,15 @@ const BlockRenderer = ({
 
         case "AUDIO":
             return (
-                <Paper sx={{ p: 3, mb: 3 }}>
-                    <Box
-                        sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 2,
-                            mb: 2,
-                        }}
-                    >
-                        <AudioIcon color="primary" />
-                        <Typography variant="subtitle1" fontWeight={600}>
-                            {data?.title || "Audio"}
-                        </Typography>
-                    </Box>
-                    {data?.url && (
-                        <audio controls style={{ width: "100%" }}>
-                            <source src={data.url} />
-                            Your browser does not support the audio element.
-                        </audio>
-                    )}
-                </Paper>
+                <Box sx={{ mb: 3 }}>
+                    <AudioRenderer
+                        url={data?.url || data?.audio_url}
+                        enrollmentId={enrollmentId}
+                        nodeId={nodeId}
+                        activityProgress={activityProgress}
+                        onRequirementMet={onVideoRequirementMet}
+                    />
+                </Box>
             );
 
         case "EMBED":

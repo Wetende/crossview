@@ -7,6 +7,21 @@ app_name = "learning_operations"
 urlpatterns = [
     path("student/", views.StudentOperationsView.as_view(), name="student"),
     path(
+        "enrollments/<int:enrollment_id>/nodes/<int:node_id>/progress/",
+        views.LearnerNodeProgressView.as_view(),
+        name="learner-node-progress",
+    ),
+    path(
+        "enrollments/<int:enrollment_id>/nodes/<int:node_id>/code-work/",
+        views.CodeLabWorkView.as_view(),
+        name="code-lab-work",
+    ),
+    path(
+        "enrollments/<int:enrollment_id>/nodes/<int:node_id>/code-work/submit/",
+        views.CodeLabSubmitView.as_view(),
+        name="code-lab-submit",
+    ),
+    path(
         "programs/<int:program_id>/delivery/",
         views.CourseDeliveryProfileView.as_view(),
         name="delivery",

@@ -823,6 +823,12 @@ def session_viewer(request, pk: int, node_id: int):
     if request.method == "POST":
         data = _get_post_data(request)
         if data.get("mark_complete"):
+            from apps.learning_operations.activity_progress import (
+                TRACKED_ACTIVITY_TYPES,
+                completion_evidence_satisfied,
+                resolve_activity_definition,
+            )
+
             props = node.properties if isinstance(node.properties, dict) else {}
             node_type = str(node.node_type or "").lower()
             lesson_type = str(props.get("lesson_type") or "").lower()
@@ -918,6 +924,12 @@ def session_viewer(request, pk: int, node_id: int):
                 else:
                     should_mark_complete = False
                 completion_type = "quiz_pass"
+            else:
+                activity_type, _ = resolve_activity_definition(node)
+                if activity_type in TRACKED_ACTIVITY_TYPES:
+                    should_mark_complete = completion_evidence_satisfied(
+                        enrollment, node
+                    )
 
             if is_quiz:
                 quiz_id = _safe_int(props.get("quiz_id"))
@@ -967,6 +979,14 @@ def session_viewer(request, pk: int, node_id: int):
         enrollment,
         _hydrate_assessment_node_properties(node),
     )
+    from apps.learning_operations.activity_progress import (
+        get_completion_policy,
+        resolve_activity_definition,
+        serialize_activity_progress,
+    )
+
+    completion_policy = get_completion_policy(node)
+    activity_progress = serialize_activity_progress(enrollment, node)
 
     # Get content from properties
     content_html = node_properties.get("content_html", "")
@@ -990,7 +1010,7 @@ def session_viewer(request, pk: int, node_id: int):
 
     # Get content blocks
     blocks = ContentBlock.objects.filter(node=node).order_by("position")
-    activity_type = normalize_activity_type(node.node_type, node_properties)
+    activity_type, _ = resolve_activity_definition(node)
     blocks_data = [
         {
             "id": block.id,
@@ -1072,6 +1092,8 @@ def session_viewer(request, pk: int, node_id: int):
                     "properties": node_properties,
                 },
                 "supplements": blocks_data,
+                "completionPolicy": completion_policy,
+                "activityProgress": activity_progress,
             },
             "program": _build_program_player_payload(enrollment.program),
             "instructor": primary_instructor,

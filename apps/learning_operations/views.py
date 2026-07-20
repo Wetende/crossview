@@ -7,6 +7,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,6 +17,7 @@ from apps.core.api_permissions import IsInstructorOrStaff, get_object_in_instruc
 from apps.core.models import Program
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment
+from apps.progression.services import ProgressionEngine
 
 from .learner_management import (
     ALLOWED_ENROLLMENT_STATUS_TRANSITIONS,
@@ -38,7 +40,7 @@ from .engagement import (
     serialize_engagement_policy,
     update_course_engagement_policy,
 )
-from .models import CourseInvitation, LearnerManagementAudit
+from .models import CodeLabWork, CourseInvitation, LearnerManagementAudit
 from .reminders import preview_contextual_reminders, send_contextual_reminders
 
 from .selectors import (
@@ -66,12 +68,21 @@ from .serializers import (
     ManualQuizGradeWriteSerializer,
     ProgressAdjustmentSerializer,
     RosterRowsSerializer,
+    LearnerActivityEventSerializer,
+    CodeLabWorkSerializer,
 )
 from .services import (
     delivery_mode_locked,
     get_course_delivery_profile,
     grade_manual_quiz_response,
     update_course_delivery_profile,
+)
+from .activity_progress import (
+    resolve_activity_definition,
+    record_activity_event,
+    save_code_work,
+    serialize_activity_progress,
+    serialize_code_work,
 )
 
 
@@ -82,6 +93,96 @@ def _instructor_program(request, program_id):
         "id",
         pk=program_id,
     )
+
+
+def _learner_enrollment_node(request, enrollment_id, node_id):
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("program"),
+        pk=enrollment_id,
+        user=request.user,
+        status__in=["active", "completed"],
+    )
+    node = get_object_or_404(
+        CurriculumNode,
+        pk=node_id,
+        program=enrollment.program,
+        is_published=True,
+    )
+    if not ProgressionEngine().can_access(enrollment, node).can_access:
+        raise PermissionDenied("This activity is not currently available.")
+    return enrollment, node
+
+
+class LearnerNodeProgressView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, enrollment_id, node_id):
+        enrollment, node = _learner_enrollment_node(request, enrollment_id, node_id)
+        return Response(serialize_activity_progress(enrollment, node))
+
+    def post(self, request, enrollment_id, node_id):
+        enrollment, node = _learner_enrollment_node(request, enrollment_id, node_id)
+        serializer = LearnerActivityEventSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        try:
+            progress, accepted = record_activity_event(
+                enrollment=enrollment,
+                node=node,
+                event_type=data["eventType"],
+                session_key=data["sessionId"],
+                sequence=data["sequence"],
+                position_seconds=data.get("positionSeconds"),
+                duration_seconds=data.get("durationSeconds"),
+                page_number=data.get("pageNumber"),
+            )
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({**progress, "accepted": accepted})
+
+
+class CodeLabWorkView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, enrollment_id, node_id):
+        enrollment, node = _learner_enrollment_node(request, enrollment_id, node_id)
+        activity_type, properties = resolve_activity_definition(node)
+        if activity_type != "code":
+            raise Http404
+        language = str(properties.get("language") or "html_css_js")[:32]
+        starter_code = str(properties.get("starter_code") or "")
+        work = CodeLabWork.objects.filter(enrollment=enrollment, node=node).first()
+        if work is None:
+            work = CodeLabWork(
+                enrollment=enrollment,
+                node=node,
+                language=language,
+                draft_code=starter_code,
+            )
+        return Response(serialize_code_work(work, starter_code=starter_code))
+
+    def put(self, request, enrollment_id, node_id):
+        return self._save(request, enrollment_id, node_id, submit=False)
+
+    def _save(self, request, enrollment_id, node_id, *, submit):
+        enrollment, node = _learner_enrollment_node(request, enrollment_id, node_id)
+        serializer = CodeLabWorkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            work = save_code_work(
+                enrollment=enrollment,
+                node=node,
+                code=serializer.validated_data["code"],
+                submit=submit,
+            )
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serialize_code_work(work))
+
+
+class CodeLabSubmitView(CodeLabWorkView):
+    def post(self, request, enrollment_id, node_id):
+        return self._save(request, enrollment_id, node_id, submit=True)
 
 
 class StudentOperationsView(APIView):

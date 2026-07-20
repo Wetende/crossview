@@ -10,6 +10,7 @@ import AssessmentRenderer from "../Renderers/AssessmentRenderer";
 import DocumentLessonRenderer from "../Renderers/DocumentLessonRenderer";
 import LiveClassRenderer from "../Renderers/LiveClassRenderer";
 import CodeLabRenderer from "../Renderers/CodeLabRenderer";
+import AudioRenderer from "../Renderers/AudioRenderer";
 import QuizResultsRenderer from "../Renderers/QuizResultsRenderer";
 import { ACTIVITY_TYPES } from "@/lib/activityTypes";
 import { resolvePlayerComposition } from "../../playerComposition";
@@ -63,10 +64,10 @@ const Whiteboard = ({
     }, []);
 
     useEffect(() => {
-        setVideoRequirementMet(false);
-        setDocumentRequirementMet(false);
+        setVideoRequirementMet(Boolean(node?.activityProgress?.isCompleted));
+        setDocumentRequirementMet(Boolean(node?.activityProgress?.isCompleted));
         completionInFlightRef.current = false;
-    }, [nodeId]);
+    }, [nodeId, node?.activityProgress?.isCompleted]);
 
     if (!node) return null;
 
@@ -77,45 +78,51 @@ const Whiteboard = ({
     // Check if there's a video block with required progress
     const hasVideoRequirement = (() => {
         if (!node) return false;
-        if (activityType === ACTIVITY_TYPES.VIDEO && !legacyPrimaryBlock) {
-            return (
-                node.properties?.required_progress > 0
-            );
+        if (
+            [ACTIVITY_TYPES.VIDEO, ACTIVITY_TYPES.AUDIO].includes(
+                activityType,
+            ) &&
+            !legacyPrimaryBlock
+        ) {
+            return node.completionPolicy?.automatic === true;
         }
-        return blocks.some(
-            (b) =>
-                b.type?.toUpperCase() === "VIDEO" &&
-                b.data?.required_progress > 0,
-        );
+        return false;
     })();
 
     const requiredProgress = (() => {
         if (!node) return 0;
         if (activityType === ACTIVITY_TYPES.VIDEO && !legacyPrimaryBlock) {
-            return node.properties?.required_progress || 0;
+            return (
+                node.completionPolicy?.requiredPercent ||
+                node.properties?.required_progress ||
+                0
+            );
         }
         const videoBlock = blocks.find(
             (b) =>
                 b.type?.toUpperCase() === "VIDEO" &&
                 b.data?.required_progress > 0,
         );
-        return videoBlock?.data?.required_progress || 0;
+        return (
+            node.completionPolicy?.requiredPercent ||
+            videoBlock?.data?.required_progress ||
+            0
+        );
     })();
 
     const documentRequirement = (() => {
         if (!node) {
             return { enabled: false, pageCount: 0 };
         }
-        if (activityType !== ACTIVITY_TYPES.DOCUMENT || legacyPrimaryBlock) {
+        if (activityType !== ACTIVITY_TYPES.DOCUMENT) {
             return { enabled: false, pageCount: 0 };
         }
 
         const document = node.properties?.document || {};
-        const pageCount = Number(document.page_count || 0);
-        const strictCompletion =
-            typeof document.strict_completion === "boolean"
-                ? document.strict_completion
-                : true;
+        const pageCount = Number(
+            node.completionPolicy?.requiredPages || document.page_count || 0,
+        );
+        const strictCompletion = node.completionPolicy?.automatic === true;
 
         return {
             enabled: strictCompletion && pageCount > 0,
@@ -133,6 +140,7 @@ const Whiteboard = ({
                 onComplete={handleComplete}
                 onVideoProgress={onVideoProgress}
                 onVideoRequirementMet={handleVideoRequirementMet}
+                activityProgress={node.activityProgress}
             />
         ));
     };
@@ -181,7 +189,26 @@ const Whiteboard = ({
                 <VideoRenderer
                     url={node.properties?.video_url}
                     onProgress={onVideoProgress}
-                    requiredProgress={node.properties?.required_progress || 0}
+                    requiredProgress={
+                        node.completionPolicy?.requiredPercent ||
+                        node.properties?.required_progress ||
+                        0
+                    }
+                    onRequirementMet={handleVideoRequirementMet}
+                    enrollmentId={courseId}
+                    nodeId={nodeId}
+                    activityProgress={node.activityProgress}
+                />
+            );
+        }
+
+        if (activityType === ACTIVITY_TYPES.AUDIO) {
+            return (
+                <AudioRenderer
+                    url={node.properties?.audio_url || node.properties?.url}
+                    enrollmentId={courseId}
+                    nodeId={nodeId}
+                    activityProgress={node.activityProgress}
                     onRequirementMet={handleVideoRequirementMet}
                 />
             );
@@ -192,6 +219,8 @@ const Whiteboard = ({
             return (
                 <DocumentLessonRenderer
                     node={node}
+                    enrollmentId={courseId}
+                    activityProgress={node.activityProgress}
                     onRequirementMet={handleDocumentRequirementMet}
                 />
             );
@@ -243,7 +272,9 @@ const Whiteboard = ({
     const canComplete =
         isCompleted ||
         ((!hasVideoRequirement || videoRequirementMet) &&
-            (!documentRequirement.enabled || documentRequirementMet));
+            (!documentRequirement.enabled || documentRequirementMet) &&
+            (activityType !== ACTIVITY_TYPES.CODE ||
+                node.activityProgress?.isCompleted));
     const completionTooltip = (() => {
         if (isCompleted) return "";
         if (
