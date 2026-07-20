@@ -42,6 +42,7 @@ import FileUploader from "@/components/FileUploader";
 import GamificationSettings from "../components/GamificationSettings";
 import DocumentPrimaryUploader from "../components/DocumentPrimaryUploader";
 import AutosaveStatus from "../components/AutosaveStatus";
+import ScheduledSessionFields from "../components/ScheduledSessionFields";
 import useAutosave from "../hooks/useAutosave";
 import {
     Article as ArticleIcon,
@@ -56,6 +57,36 @@ import {
     LockOpen as LockOpenIcon,
     ChatBubbleOutline as ChatIcon,
 } from "@mui/icons-material";
+
+const SCHEDULED_LESSON_TYPES = [
+    "live_class",
+    "live_meeting",
+    "live_stream",
+    "in_person_session",
+];
+
+const inferSessionKind = (properties = {}) => {
+    const configured = (properties.session_kind || properties.lesson_type || "").toLowerCase();
+    if (configured && configured !== "live_class") return configured;
+    const url = (properties.session_url || properties.video_url || "").toLowerCase();
+    return url.includes("youtube") || url.includes("youtu.be") || url.includes("vimeo")
+        ? "live_stream"
+        : "live_meeting";
+};
+
+const inferSessionProvider = (properties = {}, sessionKind) => {
+    if (sessionKind === "in_person_session") return "physical";
+    if (properties.provider || properties.session_provider) {
+        return properties.provider || properties.session_provider;
+    }
+    const url = (properties.session_url || properties.video_url || "").toLowerCase();
+    if (url.includes("meet.google")) return "google_meet";
+    if (url.includes("zoom.")) return "zoom";
+    if (url.includes("teams.microsoft")) return "teams";
+    if (url.includes("youtube") || url.includes("youtu.be")) return "youtube";
+    if (url.includes("vimeo")) return "vimeo";
+    return "custom";
+};
 
 const ContentEditor = forwardRef(function ContentEditor(
     { node, onSave, blueprint },
@@ -99,25 +130,27 @@ const ContentEditor = forwardRef(function ContentEditor(
     );
     const [videoUrl, setVideoUrl] = useState(node.properties?.video_url || "");
 
-    // Live Class (Zoom) specific
+    // Scheduled session specific
+    const initialSessionKind = inferSessionKind(node.properties);
+    const [sessionKind, setSessionKind] = useState(initialSessionKind);
+    const [sessionProvider, setSessionProvider] = useState(
+        inferSessionProvider(node.properties, initialSessionKind),
+    );
     const [meetingPassword, setMeetingPassword] = useState(
         node.properties?.meeting_password || "",
     );
     const [timezone, setTimezone] = useState(node.properties?.timezone || "");
-    const [allowJoinAnytime, setAllowJoinAnytime] = useState(
-        node.properties?.allow_join_anytime || false,
+    const [recordingUrl, setRecordingUrl] = useState(
+        node.properties?.recording_url || "",
     );
-    const [hostVideo, setHostVideo] = useState(
-        node.properties?.host_video || false,
+    const [venue, setVenue] = useState(node.properties?.venue || "");
+    const [room, setRoom] = useState(node.properties?.room || "");
+    const [address, setAddress] = useState(node.properties?.address || "");
+    const [directions, setDirections] = useState(
+        node.properties?.directions || "",
     );
-    const [participantVideo, setParticipantVideo] = useState(
-        node.properties?.participant_video || false,
-    );
-    const [muteUponEntry, setMuteUponEntry] = useState(
-        node.properties?.mute_upon_entry || false,
-    );
-    const [requireAuth, setRequireAuth] = useState(
-        node.properties?.require_auth || false,
+    const [attendanceInstructions, setAttendanceInstructions] = useState(
+        node.properties?.attendance_instructions || "",
     );
 
     // Gamification settings (only used when featureFlags.gamification is true)
@@ -143,6 +176,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         node.title === "Untitled Lesson";
 
     const lessonType = (node.properties?.lesson_type || "text").toLowerCase();
+    const isScheduledLesson = SCHEDULED_LESSON_TYPES.includes(lessonType);
     const hasPersistedNodeId =
         Boolean(node.id) && !String(node.id).startsWith("temp_");
     const inlineImageUploadUrl = hasPersistedNodeId
@@ -165,12 +199,15 @@ const ContentEditor = forwardRef(function ContentEditor(
             videoUrl: true,
             meetingPassword: true,
         };
-        if (lessonType === "live_class") {
+        if (isScheduledLesson) {
             nextTouched.startDate = true;
             nextTouched.startTime = true;
             nextTouched.endDate = true;
             nextTouched.endTime = true;
             nextTouched.timezone = true;
+            nextTouched.recordingUrl = true;
+            nextTouched.venue = true;
+            nextTouched.address = true;
         }
         if (lessonType === "document") {
             nextTouched.document = true;
@@ -205,7 +242,11 @@ const ContentEditor = forwardRef(function ContentEditor(
         }
 
         const contentText = content.replace(/<[^>]*>/g, "");
-        const requiresLessonContent = !["document", "video", "live_class"].includes(lessonType);
+        const requiresLessonContent = ![
+            "document",
+            "video",
+            ...SCHEDULED_LESSON_TYPES,
+        ].includes(lessonType);
         if (requiresLessonContent && (!contentText || contentText.length < 200)) {
             newErrors.content = "Content must be at least 200 characters";
         }
@@ -222,16 +263,26 @@ const ContentEditor = forwardRef(function ContentEditor(
             }
         }
 
-        // Live class-specific validations
-        if (lessonType === "live_class") {
-            if (!videoUrl || videoUrl.trim() === "") {
-                newErrors.videoUrl = "Live class URL is required";
-            } else if (videoUrl && !/^https?:\/\/.+/.test(videoUrl)) {
-                newErrors.videoUrl = "Please enter a valid URL";
+        // Scheduled session validations
+        if (isScheduledLesson) {
+            if (
+                sessionKind !== "in_person_session" &&
+                (!videoUrl || !/^https:\/\/.+/.test(videoUrl))
+            ) {
+                newErrors.videoUrl = "A secure HTTPS session URL is required";
             }
             if (meetingPassword && meetingPassword.length < 6) {
                 newErrors.meetingPassword =
                     "If provided, password must be at least 6 characters";
+            }
+            if (recordingUrl && !/^https:\/\/.+/.test(recordingUrl)) {
+                newErrors.recordingUrl = "Use a secure HTTPS recording URL";
+            }
+            if (sessionKind === "in_person_session" && !venue.trim()) {
+                newErrors.venue = "Venue is required";
+            }
+            if (sessionKind === "in_person_session" && !address.trim()) {
+                newErrors.address = "Address is required";
             }
             if (!startDate) {
                 newErrors.startDate = "Start date is required";
@@ -289,7 +340,11 @@ const ContentEditor = forwardRef(function ContentEditor(
     const isFormValid = () => {
         const descText = description.replace(/<[^>]*>/g, "");
         const contentText = content.replace(/<[^>]*>/g, "");
-        const requiresLessonContent = !["document", "video", "live_class"].includes(lessonType);
+        const requiresLessonContent = ![
+            "document",
+            "video",
+            ...SCHEDULED_LESSON_TYPES,
+        ].includes(lessonType);
 
         if (
             !title ||
@@ -306,9 +361,16 @@ const ContentEditor = forwardRef(function ContentEditor(
             if (!videoUrl || !/^https?:\/\/.+/.test(videoUrl)) return false;
         }
 
-        if (lessonType === "live_class") {
-            if (!videoUrl || !/^https?:\/\/.+/.test(videoUrl)) return false;
+        if (isScheduledLesson) {
+            if (
+                sessionKind !== "in_person_session" &&
+                (!videoUrl || !/^https:\/\/.+/.test(videoUrl))
+            )
+                return false;
             if (meetingPassword && meetingPassword.length < 6) return false;
+            if (recordingUrl && !/^https:\/\/.+/.test(recordingUrl)) return false;
+            if (sessionKind === "in_person_session" && (!venue.trim() || !address.trim()))
+                return false;
             if (!startDate || !startTime || !endDate || !endTime || !timezone)
                 return false;
             const start = new Date(`${startDate}T${startTime}:00`);
@@ -350,6 +412,11 @@ const ContentEditor = forwardRef(function ContentEditor(
         delete baseProperties.start_time;
         delete baseProperties.end_date;
         delete baseProperties.end_time;
+        delete baseProperties.allow_join_anytime;
+        delete baseProperties.host_video;
+        delete baseProperties.participant_video;
+        delete baseProperties.mute_upon_entry;
+        delete baseProperties.require_auth;
 
         return {
             title,
@@ -360,19 +427,27 @@ const ContentEditor = forwardRef(function ContentEditor(
                 duration,
                 is_preview: isPreview,
                 video_source: videoSource,
-                video_url: videoUrl,
-                meeting_password: meetingPassword,
-                timezone,
-                allow_join_anytime: allowJoinAnytime,
-                host_video: hostVideo,
-                participant_video: participantVideo,
-                mute_upon_entry: muteUponEntry,
-                require_auth: requireAuth,
-                ...(lessonType === "live_class" && {
+                video_url: sessionKind === "in_person_session" ? "" : videoUrl,
+                ...(isScheduledLesson && {
+                    lesson_type: sessionKind,
+                    session_kind: sessionKind,
+                    provider: sessionProvider,
+                    session_provider: sessionProvider,
+                    session_url: sessionKind === "in_person_session" ? "" : videoUrl,
+                    meeting_password:
+                        sessionKind === "live_meeting" ? meetingPassword : "",
+                    recording_url: recordingUrl,
+                    timezone,
                     start_date: startDate,
                     start_time: startTime,
                     end_date: endDate,
                     end_time: endTime,
+                    venue: sessionKind === "in_person_session" ? venue : "",
+                    room: sessionKind === "in_person_session" ? room : "",
+                    address: sessionKind === "in_person_session" ? address : "",
+                    directions:
+                        sessionKind === "in_person_session" ? directions : "",
+                    attendance_instructions: attendanceInstructions,
                 }),
                 ...(lessonType === "document" && {
                     document: documentPayload,
@@ -383,7 +458,8 @@ const ContentEditor = forwardRef(function ContentEditor(
             },
         };
     }, [
-        allowJoinAnytime,
+        address,
+        attendanceInstructions,
         content,
         description,
         documentData,
@@ -392,21 +468,24 @@ const ContentEditor = forwardRef(function ContentEditor(
         endTime,
         featureFlags.gamification,
         gamificationSettings,
-        hostVideo,
         isPreview,
+        isScheduledLesson,
         lessonType,
         meetingPassword,
-        muteUponEntry,
         node.properties,
-        participantVideo,
-        requireAuth,
+        recordingUrl,
+        room,
+        sessionKind,
+        sessionProvider,
         startDate,
         startTime,
         strictCompletion,
         timezone,
         title,
+        venue,
         videoSource,
         videoUrl,
+        directions,
     ]);
 
     const savePayload = useCallback(
@@ -418,7 +497,8 @@ const ContentEditor = forwardRef(function ContentEditor(
 
     const autosaveValue = useMemo(
         () => ({
-            allowJoinAnytime,
+            address,
+            attendanceInstructions,
             content,
             description,
             documentData,
@@ -426,23 +506,26 @@ const ContentEditor = forwardRef(function ContentEditor(
             endDate,
             endTime,
             gamificationSettings,
-            hostVideo,
             isPreview,
             lessonType,
             meetingPassword,
-            muteUponEntry,
-            participantVideo,
-            requireAuth,
+            recordingUrl,
+            room,
+            sessionKind,
+            sessionProvider,
             startDate,
             startTime,
             strictCompletion,
             timezone,
             title,
+            venue,
             videoSource,
             videoUrl,
+            directions,
         }),
         [
-            allowJoinAnytime,
+            address,
+            attendanceInstructions,
             content,
             description,
             documentData,
@@ -450,20 +533,22 @@ const ContentEditor = forwardRef(function ContentEditor(
             endDate,
             endTime,
             gamificationSettings,
-            hostVideo,
             isPreview,
             lessonType,
             meetingPassword,
-            muteUponEntry,
-            participantVideo,
-            requireAuth,
+            recordingUrl,
+            room,
+            sessionKind,
+            sessionProvider,
             startDate,
             startTime,
             strictCompletion,
             timezone,
             title,
+            venue,
             videoSource,
             videoUrl,
+            directions,
         ],
     );
 
@@ -526,7 +611,12 @@ const ContentEditor = forwardRef(function ContentEditor(
             case "document":
                 return { icon: <DocumentIcon />, label: "Document lesson" };
             case "live_class":
-                return { icon: <ZoomIcon />, label: "Live class" };
+            case "live_meeting":
+                return { icon: <ZoomIcon />, label: "Live meeting" };
+            case "live_stream":
+                return { icon: <ZoomIcon />, label: "Live stream" };
+            case "in_person_session":
+                return { icon: <ZoomIcon />, label: "In-person session" };
             case "assignment":
                 return { icon: <AssignmentIcon />, label: "Assignment" };
             default:
@@ -535,7 +625,11 @@ const ContentEditor = forwardRef(function ContentEditor(
     };
 
     const { icon, label } = getHeaderInfo();
-    const requiresLessonContent = !["document", "video", "live_class"].includes(lessonType);
+    const requiresLessonContent = ![
+        "document",
+        "video",
+        ...SCHEDULED_LESSON_TYPES,
+    ].includes(lessonType);
     const trimmedTitleLength = title.trim().length;
     const descriptionTextLength = description.replace(/<[^>]*>/g, "").length;
     const contentTextLength = content.replace(/<[^>]*>/g, "").length;
@@ -706,306 +800,65 @@ const ContentEditor = forwardRef(function ContentEditor(
                         </Box>
                     )}
 
-                    {/* --- Live Class (Zoom) Specifics --- */}
-                    {lessonType === "live_class" && (
-                        <Stack spacing={2}>
-                            <Box>
-                                <InputLabel
-                                    htmlFor="live-class-url"
-                                    shrink
-                                    required
-                                    error={!!getFieldError("videoUrl")}
-                                    sx={{ mb: 1, fontWeight: 500 }}
-                                >
-                                    Live class URL
-                                </InputLabel>
-                                <TextField
-                                    id="live-class-url"
-                                    placeholder="Paste Zoom, Google Meet, or stream URL"
-                                    fullWidth
-                                    size="small"
-                                    value={videoUrl}
-                                    onChange={(e) => setVideoUrl(e.target.value)}
-                                    onBlur={() => handleBlur("videoUrl")}
-                                    error={!!getFieldError("videoUrl")}
-                                    helperText={
-                                        getFieldError("videoUrl") ||
-                                        "Use a direct meeting/stream link (https://...)"
-                                    }
-                                    required
-                                />
-                            </Box>
-
-                            <Box>
-                                <InputLabel
-                                    htmlFor="meeting-password"
-                                    shrink
-                                    error={!!getFieldError("meetingPassword")}
-                                    sx={{ mb: 1, fontWeight: 500 }}
-                                >
-                                    Meeting password
-                                </InputLabel>
-                                <TextField
-                                    id="meeting-password"
-                                    placeholder="Optional (for Zoom passcodes)"
-                                    fullWidth
-                                    size="small"
-                                    value={meetingPassword}
-                                    onChange={(e) =>
-                                        setMeetingPassword(e.target.value)
-                                    }
-                                    onBlur={() => handleBlur("meetingPassword")}
-                                    error={!!getFieldError("meetingPassword")}
-                                    helperText={getFieldError("meetingPassword")}
-                                />
-                            </Box>
-
-                            <Box sx={{ display: "flex", gap: 2 }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <InputLabel
-                                        shrink
-                                        error={!!getFieldError("startDate")}
-                                        sx={{ mb: 1, fontWeight: 500 }}
-                                    >
-                                        Select start date *
-                                    </InputLabel>
-                                    <TextField
-                                        type="date"
-                                        fullWidth
-                                        size="small"
-                                        value={startDate}
-                                        onChange={(e) =>
-                                            setStartDate(e.target.value)
-                                        }
-                                        onBlur={() => handleBlur("startDate")}
-                                        error={!!getFieldError("startDate")}
-                                        helperText={getFieldError("startDate")}
-                                        required
-                                    />
-                                </Box>
-                                <Box sx={{ flex: 1 }}>
-                                    <InputLabel
-                                        shrink
-                                        error={!!getFieldError("startTime")}
-                                        sx={{ mb: 1, fontWeight: 500 }}
-                                    >
-                                        Select start time *
-                                    </InputLabel>
-                                    <TextField
-                                        type="time"
-                                        fullWidth
-                                        size="small"
-                                        value={startTime}
-                                        onChange={(e) =>
-                                            setStartTime(e.target.value)
-                                        }
-                                        onBlur={() => handleBlur("startTime")}
-                                        error={!!getFieldError("startTime")}
-                                        helperText={getFieldError("startTime")}
-                                        required
-                                    />
-                                </Box>
-                            </Box>
-
-                            <Box sx={{ display: "flex", gap: 2 }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <InputLabel
-                                        shrink
-                                        error={!!getFieldError("endDate")}
-                                        sx={{ mb: 1, fontWeight: 500 }}
-                                    >
-                                        Select end date *
-                                    </InputLabel>
-                                    <TextField
-                                        type="date"
-                                        fullWidth
-                                        size="small"
-                                        value={endDate}
-                                        onChange={(e) =>
-                                            setEndDate(e.target.value)
-                                        }
-                                        onBlur={() => handleBlur("endDate")}
-                                        error={!!getFieldError("endDate")}
-                                        helperText={getFieldError("endDate")}
-                                        required
-                                    />
-                                </Box>
-                                <Box sx={{ flex: 1 }}>
-                                    <InputLabel
-                                        shrink
-                                        error={!!getFieldError("endTime")}
-                                        sx={{ mb: 1, fontWeight: 500 }}
-                                    >
-                                        Select end time *
-                                    </InputLabel>
-                                    <TextField
-                                        type="time"
-                                        fullWidth
-                                        size="small"
-                                        value={endTime}
-                                        onChange={(e) =>
-                                            setEndTime(e.target.value)
-                                        }
-                                        onBlur={() => handleBlur("endTime")}
-                                        error={!!getFieldError("endTime")}
-                                        helperText={getFieldError("endTime")}
-                                        required
-                                    />
-                                </Box>
-                            </Box>
-
-                            <Box>
-                                <InputLabel
-                                    htmlFor="live-class-duration"
-                                    shrink
-                                    required
-                                    error={!!getFieldError("duration")}
-                                    sx={{ mb: 1, fontWeight: 500 }}
-                                >
-                                    Lesson duration
-                                </InputLabel>
-                                <TextField
-                                    id="live-class-duration"
-                                    placeholder="Example: 2h 45m"
-                                    fullWidth
-                                    size="small"
-                                    value={duration}
-                                    onChange={(e) => setDuration(e.target.value)}
-                                    onBlur={() => handleBlur("duration")}
-                                    error={!!getFieldError("duration")}
-                                    helperText={getFieldError("duration")}
-                                    required
-                                />
-                            </Box>
-
-                            <FormControl
-                                fullWidth
-                                size="small"
-                                required
-                                error={!!getFieldError("timezone")}
-                            >
-                                <InputLabel shrink sx={{ fontWeight: 500 }}>
-                                    Timezone
-                                </InputLabel>
-                                <Select
-                                    value={timezone}
-                                    onChange={(e) =>
-                                        setTimezone(e.target.value)
-                                    }
-                                    onBlur={() => handleBlur("timezone")}
-                                    label="Timezone"
-                                    displayEmpty
-                                >
-                                    <MenuItem value="" disabled>
-                                        Select timezone
-                                    </MenuItem>
-                                    <MenuItem value="UTC">UTC</MenuItem>
-                                    <MenuItem value="PST">PST</MenuItem>
-                                    <MenuItem value="EST">EST</MenuItem>
-                                </Select>
-                                {getFieldError("timezone") && (
-                                    <FormHelperText>
-                                        {getFieldError("timezone")}
-                                    </FormHelperText>
-                                )}
-                            </FormControl>
-
-                            {/* Toggle Grid */}
-                            <Box
-                                sx={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr 1fr",
-                                    gap: 1,
-                                }}
-                            >
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={allowJoinAnytime}
-                                            onChange={(e) =>
-                                                setAllowJoinAnytime(
-                                                    e.target.checked,
-                                                )
-                                            }
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="body2">
-                                            Allow participants to join anytime
-                                        </Typography>
-                                    }
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={hostVideo}
-                                            onChange={(e) =>
-                                                setHostVideo(e.target.checked)
-                                            }
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="body2">
-                                            Host video
-                                        </Typography>
-                                    }
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={participantVideo}
-                                            onChange={(e) =>
-                                                setParticipantVideo(
-                                                    e.target.checked,
-                                                )
-                                            }
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="body2">
-                                            Participants video
-                                        </Typography>
-                                    }
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={muteUponEntry}
-                                            onChange={(e) =>
-                                                setMuteUponEntry(
-                                                    e.target.checked,
-                                                )
-                                            }
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="body2">
-                                            Mute Participants upon entry
-                                        </Typography>
-                                    }
-                                />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={requireAuth}
-                                            onChange={(e) =>
-                                                setRequireAuth(e.target.checked)
-                                            }
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="body2">
-                                            Require authentication to join: Sign
-                                            in to Zoom
-                                        </Typography>
-                                    }
-                                />
-                            </Box>
-                        </Stack>
+                    {/* --- Scheduled learning session specifics --- */}
+                    {isScheduledLesson && (
+                        <ScheduledSessionFields
+                            values={{
+                                sessionKind,
+                                sessionProvider,
+                                videoUrl,
+                                meetingPassword,
+                                recordingUrl,
+                                startDate,
+                                startTime,
+                                endDate,
+                                endTime,
+                                duration,
+                                timezone,
+                                venue,
+                                room,
+                                address,
+                                directions,
+                                attendanceInstructions,
+                            }}
+                            errors={{
+                                videoUrl: getFieldError("videoUrl"),
+                                meetingPassword: getFieldError("meetingPassword"),
+                                recordingUrl: getFieldError("recordingUrl"),
+                                startDate: getFieldError("startDate"),
+                                startTime: getFieldError("startTime"),
+                                endDate: getFieldError("endDate"),
+                                endTime: getFieldError("endTime"),
+                                duration: getFieldError("duration"),
+                                timezone: getFieldError("timezone"),
+                                venue: getFieldError("venue"),
+                                address: getFieldError("address"),
+                            }}
+                            onBlur={handleBlur}
+                            onChange={(changes) => {
+                                if (Object.hasOwn(changes, "sessionKind")) setSessionKind(changes.sessionKind);
+                                if (Object.hasOwn(changes, "sessionProvider")) setSessionProvider(changes.sessionProvider);
+                                if (Object.hasOwn(changes, "videoUrl")) setVideoUrl(changes.videoUrl);
+                                if (Object.hasOwn(changes, "meetingPassword")) setMeetingPassword(changes.meetingPassword);
+                                if (Object.hasOwn(changes, "recordingUrl")) setRecordingUrl(changes.recordingUrl);
+                                if (Object.hasOwn(changes, "startDate")) setStartDate(changes.startDate);
+                                if (Object.hasOwn(changes, "startTime")) setStartTime(changes.startTime);
+                                if (Object.hasOwn(changes, "endDate")) setEndDate(changes.endDate);
+                                if (Object.hasOwn(changes, "endTime")) setEndTime(changes.endTime);
+                                if (Object.hasOwn(changes, "duration")) setDuration(changes.duration);
+                                if (Object.hasOwn(changes, "timezone")) setTimezone(changes.timezone);
+                                if (Object.hasOwn(changes, "venue")) setVenue(changes.venue);
+                                if (Object.hasOwn(changes, "room")) setRoom(changes.room);
+                                if (Object.hasOwn(changes, "address")) setAddress(changes.address);
+                                if (Object.hasOwn(changes, "directions")) setDirections(changes.directions);
+                                if (Object.hasOwn(changes, "attendanceInstructions")) {
+                                    setAttendanceInstructions(changes.attendanceInstructions);
+                                }
+                            }}
+                        />
                     )}
-
-                    {/* --- Common Settings (Duration & Preview) - Only for Non-Zoom types or adjusted --- */}
-                    {lessonType !== "live_class" && (
+                    {/* --- Common Settings (Duration & Preview) --- */}
+                    {!isScheduledLesson && (
                         <Box
                             sx={{
                                 display: "flex",

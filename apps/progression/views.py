@@ -987,6 +987,13 @@ def session_viewer(request, pk: int, node_id: int):
 
     completion_policy = get_completion_policy(node)
     activity_progress = serialize_activity_progress(enrollment, node)
+    from apps.live_sessions.models import ScheduledLearningSession
+    from apps.live_sessions.services import serialize_session_for_student
+
+    scheduled_session = ScheduledLearningSession.objects.filter(node=node).first()
+    scheduled_session_payload = serialize_session_for_student(
+        scheduled_session, enrollment=enrollment
+    )
 
     # Get content from properties
     content_html = node_properties.get("content_html", "")
@@ -1094,6 +1101,7 @@ def session_viewer(request, pk: int, node_id: int):
                 "supplements": blocks_data,
                 "completionPolicy": completion_policy,
                 "activityProgress": activity_progress,
+                "scheduledSession": scheduled_session_payload,
             },
             "program": _build_program_player_payload(enrollment.program),
             "instructor": primary_instructor,

@@ -8,7 +8,7 @@ import VideoRenderer from "../Renderers/VideoRenderer";
 import TextRenderer from "../Renderers/TextRenderer";
 import AssessmentRenderer from "../Renderers/AssessmentRenderer";
 import DocumentLessonRenderer from "../Renderers/DocumentLessonRenderer";
-import LiveClassRenderer from "../Renderers/LiveClassRenderer";
+import ScheduledSessionRenderer from "../Renderers/ScheduledSessionRenderer";
 import CodeLabRenderer from "../Renderers/CodeLabRenderer";
 import AudioRenderer from "../Renderers/AudioRenderer";
 import QuizResultsRenderer from "../Renderers/QuizResultsRenderer";
@@ -229,21 +229,13 @@ const Whiteboard = ({
         // 5. Live class / stream lesson
         if (
             activityType === ACTIVITY_TYPES.LIVE_MEETING ||
-            activityType === ACTIVITY_TYPES.LIVE_STREAM
+            activityType === ACTIVITY_TYPES.LIVE_STREAM ||
+            activityType === ACTIVITY_TYPES.IN_PERSON_SESSION
         ) {
             return (
-                <LiveClassRenderer
-                    title={node.title}
-                    description={node.description || ""}
+                <ScheduledSessionRenderer
+                    session={node.scheduledSession}
                     content={node.properties?.content || ""}
-                    streamUrl={node.properties?.video_url || ""}
-                    startDate={node.properties?.start_date || ""}
-                    startTime={node.properties?.start_time || ""}
-                    endDate={node.properties?.end_date || ""}
-                    endTime={node.properties?.end_time || ""}
-                    timezone={node.properties?.timezone || ""}
-                    duration={node.properties?.duration || ""}
-                    allowJoinAnytime={!!node.properties?.allow_join_anytime}
                 />
             );
         }

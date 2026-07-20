@@ -6854,6 +6854,16 @@ def build_curriculum_tree(program):
         )
     )
 
+    from apps.live_sessions.models import ScheduledLearningSession
+    from apps.live_sessions.services import serialize_session_for_author
+
+    scheduled_sessions = {
+        session.node_id: serialize_session_for_author(session)
+        for session in ScheduledLearningSession.objects.filter(
+            node_id__in=[node["id"] for node in all_nodes]
+        )
+    }
+
     logger.info(
         f"[CURRICULUM_TREE] Fetched {len(all_nodes)} nodes for program {program.id}"
     )
@@ -6884,6 +6894,7 @@ def build_curriculum_tree(program):
             "type": node["node_type"],
             "description": node["description"],
             "properties": node["properties"],
+            "scheduledSession": scheduled_sessions.get(node_id),
             "position": node["position"],
             "unlockDate": node["unlock_date"].isoformat()
             if node["unlock_date"]
@@ -7930,7 +7941,31 @@ def instructor_node_update(request, node_id: int):
                 )
                 return redirect("core:instructor.program_manage", pk=node.program_id)
 
+    if updated_lesson_type in {
+        "live_class",
+        "live_meeting",
+        "live_stream",
+        "in_person_session",
+    }:
+        from apps.live_sessions.services import validate_session_properties
+
+        try:
+            validate_session_properties(node_props)
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return redirect("core:instructor.program_manage", pk=node.program_id)
+
     node.save()
+
+    if updated_lesson_type in {
+        "live_class",
+        "live_meeting",
+        "live_stream",
+        "in_person_session",
+    }:
+        from apps.live_sessions.services import sync_scheduled_session_from_node
+
+        sync_scheduled_session_from_node(node, actor=request.user)
 
     # Sync quiz questions to proper database tables if this is a quiz node
     node_type = (node.node_type or "").lower()

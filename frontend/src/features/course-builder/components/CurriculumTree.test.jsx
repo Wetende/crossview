@@ -139,6 +139,7 @@ vi.mock("@mui/icons-material", () => {
         PictureAsPdf: Icon,
         Close: Icon,
         Code: Icon,
+        LocationOn: Icon,
     };
 });
 
@@ -206,6 +207,10 @@ describe("CurriculumTree", () => {
 
         expect(screen.getByText("Select Lesson Type")).toBeInTheDocument();
         expect(screen.getByText("Text Lesson")).toBeInTheDocument();
+        expect(screen.getByText("Live Meeting")).toBeInTheDocument();
+        expect(screen.getByText("Live Stream")).toBeInTheDocument();
+        expect(screen.getByText("In-person Session")).toBeInTheDocument();
+        expect(screen.queryByText("Live Class")).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByText("Text Lesson"));
 

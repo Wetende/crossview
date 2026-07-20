@@ -44,7 +44,7 @@ const getIconForType = (type, lessonType) => {
     if (t === "assignment" || lt === "assignment")
         return <AssignmentIcon sx={{ color: "error.main" }} />;
     if (lt === "video") return <VideoIcon sx={{ color: "info.main" }} />;
-    if (lt === "live_class")
+    if (["live_class", "live_meeting", "live_stream", "in_person_session"].includes(lt))
         return <ZoomIcon sx={{ color: "secondary.main" }} />;
     return <ArticleIcon sx={{ color: "primary.main" }} />;
 };

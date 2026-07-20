@@ -639,6 +639,122 @@ class CoursePublishValidationService:
 
         details["document_lessons"] = document_lessons
         details["invalid_document_lessons"] = invalid_document_lessons
+
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+
+        from apps.learning_operations.services import get_course_delivery_profile
+        from apps.live_sessions.models import ScheduledLearningSession
+        from apps.live_sessions.services import (
+            SCHEDULED_ACTIVITY_TYPES,
+            validate_session_properties,
+        )
+
+        session_nodes = [node for node in lessons if _lesson_type(node) in SCHEDULED_ACTIVITY_TYPES]
+        sessions = {
+            session.node_id: session
+            for session in ScheduledLearningSession.objects.filter(
+                node_id__in=[node.id for node in session_nodes]
+            )
+        }
+        for session_node in session_nodes:
+            session = sessions.get(session_node.id)
+            if not session:
+                errors.append(
+                    {
+                        "type": "missing_scheduled_session",
+                        "message": "Scheduled lesson is missing its date, time, provider, or location",
+                        "node_id": session_node.id,
+                        "node_title": session_node.title,
+                    }
+                )
+                continue
+            try:
+                validate_session_properties(session_node.properties)
+            except ValidationError as exc:
+                errors.append(
+                    {
+                        "type": "invalid_scheduled_session",
+                        "message": exc.messages[0],
+                        "node_id": session_node.id,
+                        "node_title": session_node.title,
+                    }
+                )
+
+        future_sessions = [
+            session
+            for session in sessions.values()
+            if session.status == ScheduledLearningSession.Status.SCHEDULED
+            and session.ends_at >= timezone.now()
+        ]
+        has_live_online_session = any(
+            session.kind
+            in {
+                ScheduledLearningSession.Kind.LIVE_MEETING,
+                ScheduledLearningSession.Kind.LIVE_STREAM,
+            }
+            for session in future_sessions
+        )
+        has_physical_session = any(
+            session.kind == ScheduledLearningSession.Kind.IN_PERSON
+            for session in future_sessions
+        )
+        has_online_content = any(
+            _lesson_type(node) not in SCHEDULED_ACTIVITY_TYPES for node in lessons
+        ) or bool(quizzes or assignments)
+        delivery_mode = get_course_delivery_profile(program).delivery_mode
+        if delivery_mode == "live_online" and not has_live_online_session:
+            warnings.append(
+                {
+                    "type": "delivery_readiness",
+                    "message": "Live-online course has no upcoming meeting or stream yet",
+                    "node_id": None,
+                    "node_title": None,
+                }
+            )
+        elif delivery_mode == "blended":
+            if not has_online_content:
+                warnings.append(
+                    {
+                        "type": "delivery_readiness",
+                        "message": "Blended course has no independent online content yet",
+                        "node_id": None,
+                        "node_title": None,
+                    }
+                )
+            if not (has_live_online_session or has_physical_session):
+                warnings.append(
+                    {
+                        "type": "delivery_readiness",
+                        "message": "Blended course has no upcoming live or physical session yet",
+                        "node_id": None,
+                        "node_title": None,
+                    }
+                )
+        elif delivery_mode == "in_person" and not has_physical_session:
+            warnings.append(
+                {
+                    "type": "delivery_readiness",
+                    "message": "In-person course has no upcoming physical session yet",
+                    "node_id": None,
+                    "node_title": None,
+                }
+            )
+        elif delivery_mode == "self_paced" and future_sessions:
+            warnings.append(
+                {
+                    "type": "delivery_readiness",
+                    "message": "Self-paced course includes required scheduled attendance",
+                    "node_id": None,
+                    "node_title": None,
+                }
+            )
+        details["delivery_readiness"] = {
+            "mode": delivery_mode,
+            "hasOnlineContent": has_online_content,
+            "hasLiveOnlineSession": has_live_online_session,
+            "hasPhysicalSession": has_physical_session,
+        }
         
         return {
             'is_valid': len(errors) == 0,

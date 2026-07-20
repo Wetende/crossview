@@ -56,6 +56,16 @@ def sanitize_student_activity_properties(properties) -> dict:
     safe_properties = deepcopy(properties) if isinstance(properties, dict) else {}
     for key in AUTHOR_ONLY_PROPERTY_KEYS:
         safe_properties.pop(key, None)
+    lesson_type = str(safe_properties.get("lesson_type") or "").lower()
+    if lesson_type in {"live_class", LIVE_MEETING, LIVE_STREAM, IN_PERSON_SESSION}:
+        for key in (
+            "session_url",
+            "video_url",
+            "recording_url",
+            "provider_event_id",
+            "provider_conference_id",
+        ):
+            safe_properties.pop(key, None)
     return safe_properties
 
 

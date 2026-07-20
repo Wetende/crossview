@@ -52,6 +52,7 @@ import {
     PictureAsPdf as DocumentIcon,
     Close as CloseIcon,
     Code as CodeLabIcon,
+    LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { COURSE_BUILDER_SIDEBAR_WIDTH } from '../constants/layout';
 
@@ -429,12 +430,15 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
         } else if (lessonType === 'document') {
             Icon = DocumentIcon;
             iconColor = '#ef5350'; // Red for document
-        } else if (lessonType === 'live_class') {
+        } else if (lessonType === 'live_class' || lessonType === 'live_meeting') {
             Icon = ZoomIcon;
-            iconColor = '#2196f3'; // Blue for live class
-        } else if (lessonType === 'stream') {
+            iconColor = '#2196f3'; // Blue for meetings
+        } else if (lessonType === 'stream' || lessonType === 'live_stream') {
             Icon = StreamIcon;
             iconColor = '#00bcd4'; // Cyan/teal for streaming
+        } else if (lessonType === 'in_person_session') {
+            Icon = LocationIcon;
+            iconColor = '#795548'; // Brown for physical sessions
         } else if (lessonType === 'quiz' || node.type === 'Quiz') {
             Icon = QuizIcon;
             iconColor = '#ff9800'; // Orange for quiz (current warning.main)
@@ -653,7 +657,9 @@ export default function CurriculumTree({ program, nodes, onNodeSelect, onCurricu
                                         { id: 'text', icon: <ArticleIcon />, label: 'Text Lesson' },
                                         { id: 'document', icon: <DocumentIcon />, label: 'Document Lesson' },
                                         { id: 'video', icon: <VideoIcon />, label: 'Video Lesson' },
-                                        { id: 'live_class', icon: <ZoomIcon />, label: 'Live Class' },
+                                        { id: 'live_meeting', icon: <ZoomIcon />, label: 'Live Meeting' },
+                                        { id: 'live_stream', icon: <StreamIcon />, label: 'Live Stream' },
+                                        { id: 'in_person_session', icon: <LocationIcon />, label: 'In-person Session' },
                                         { id: 'code', icon: <CodeLabIcon />, label: 'Code Lab' },
                                     ].map(type => (
                                         <ListItemButton key={type.id} onClick={() => handleLessonTypeSelect(type.id)}>
