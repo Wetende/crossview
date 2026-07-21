@@ -14,6 +14,9 @@ import {
     IconButton,
     Chip,
     Divider,
+    Alert,
+    Button,
+    TextField,
 } from "@mui/material";
 import {
     IconChevronDown,
@@ -23,8 +26,103 @@ import {
     IconCircleCheck,
     IconCircleX,
     IconClock,
+    IconPencil,
 } from "@tabler/icons-react";
 import { formatPoints } from "@/lib/formatPoints";
+import { saveManualQuizGrade } from "../api/manualGradingApi";
+
+const ManualGradeForm = ({
+    attemptId,
+    questionId,
+    pointsTotal,
+    initialPoints,
+    initialFeedback,
+    onCancel,
+    onSaved,
+}) => {
+    const [pointsAwarded, setPointsAwarded] = useState(
+        initialPoints ?? "",
+    );
+    const [feedback, setFeedback] = useState(initialFeedback || "");
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        const numericPoints = Number(pointsAwarded);
+        if (
+            pointsAwarded === "" ||
+            !Number.isFinite(numericPoints) ||
+            numericPoints < 0 ||
+            numericPoints > pointsTotal
+        ) {
+            setError(`Enter points between 0 and ${formatPoints(pointsTotal)}.`);
+            return;
+        }
+
+        setSaving(true);
+        setError("");
+        try {
+            const result = await saveManualQuizGrade(attemptId, {
+                questionId,
+                pointsAwarded: numericPoints,
+                feedback: feedback.trim(),
+            });
+            onSaved?.(result);
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{ mt: 2, p: 2, bgcolor: "warning.lighter", borderRadius: 1 }}
+        >
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+                Grade this response
+            </Typography>
+            {error && (
+                <Alert severity="error" sx={{ mb: 1.5 }}>
+                    {error}
+                </Alert>
+            )}
+            <Stack spacing={1.5}>
+                <TextField
+                    label={`Points awarded (out of ${formatPoints(pointsTotal)})`}
+                    type="number"
+                    size="small"
+                    value={pointsAwarded}
+                    onChange={(event) => setPointsAwarded(event.target.value)}
+                    required
+                    slotProps={{
+                        htmlInput: { min: 0, max: pointsTotal, step: "0.01" },
+                    }}
+                    sx={{ maxWidth: 280 }}
+                />
+                <TextField
+                    label="Feedback to learner"
+                    value={feedback}
+                    onChange={(event) => setFeedback(event.target.value)}
+                    multiline
+                    minRows={2}
+                    slotProps={{ htmlInput: { maxLength: 5000 } }}
+                />
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button onClick={onCancel} disabled={saving}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" variant="contained" disabled={saving}>
+                        {saving ? "Saving..." : "Save grade"}
+                    </Button>
+                </Stack>
+            </Stack>
+        </Box>
+    );
+};
 
 /**
  * Single question review card
@@ -39,15 +137,24 @@ const QuestionReviewCard = ({
     pointsEarned,
     pointsTotal,
     gradingStatus,
+    gradingFeedback,
+    attemptId,
+    onGradeSaved,
 }) => {
+    const [showGradeForm, setShowGradeForm] = useState(false);
     const isPending = gradingStatus === "awaiting_manual_grade";
+    const isManuallyGraded = gradingStatus === "manually_graded";
     const borderColor = isPending
         ? "warning.main"
+        : isManuallyGraded
+          ? "info.main"
         : isCorrect
           ? "success.main"
           : "error.main";
     const bgColor = isPending
         ? "warning.lighter"
+        : isManuallyGraded
+          ? "info.lighter"
         : isCorrect
           ? "success.lighter"
           : "error.lighter";
@@ -256,6 +363,8 @@ const QuestionReviewCard = ({
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                     {isPending ? (
                         <IconClock size={24} />
+                    ) : isManuallyGraded ? (
+                        <IconPencil size={24} />
                     ) : isCorrect ? (
                         <IconCircleCheck size={24} color="green" />
                     ) : (
@@ -276,7 +385,15 @@ const QuestionReviewCard = ({
                             ? "Awaiting grading"
                             : `${formatPoints(pointsEarned)}/${formatPoints(pointsTotal)} pts`
                     }
-                    color={isPending ? "warning" : isCorrect ? "success" : "error"}
+                    color={
+                        isPending
+                            ? "warning"
+                            : isManuallyGraded
+                              ? "info"
+                              : isCorrect
+                                ? "success"
+                                : "error"
+                    }
                     size="small"
                 />
             </Box>
@@ -326,7 +443,7 @@ const QuestionReviewCard = ({
                         </Box>
 
                         {/* Correct Answer */}
-                        {!isPending && !isCorrect && (
+                        {!isPending && !isManuallyGraded && !isCorrect && (
                             <Box>
                                 <Typography
                                     variant="caption"
@@ -343,6 +460,38 @@ const QuestionReviewCard = ({
                             </Box>
                         )}
                     </Stack>
+                )}
+
+                {isManuallyGraded && gradingFeedback && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                        <Typography variant="caption" fontWeight="bold">
+                            Feedback to learner
+                        </Typography>
+                        <Typography variant="body2">{gradingFeedback}</Typography>
+                    </Alert>
+                )}
+
+                {(isPending || isManuallyGraded) && !showGradeForm && (
+                    <Button
+                        variant={isPending ? "contained" : "outlined"}
+                        startIcon={<IconPencil size={16} />}
+                        onClick={() => setShowGradeForm(true)}
+                        sx={{ mt: 2 }}
+                    >
+                        {isPending ? "Grade response" : "Edit grade"}
+                    </Button>
+                )}
+
+                {(isPending || isManuallyGraded) && showGradeForm && (
+                    <ManualGradeForm
+                        attemptId={attemptId}
+                        questionId={question.id}
+                        pointsTotal={pointsTotal}
+                        initialPoints={isManuallyGraded ? pointsEarned : ""}
+                        initialFeedback={gradingFeedback}
+                        onCancel={() => setShowGradeForm(false)}
+                        onSaved={onGradeSaved}
+                    />
                 )}
 
                 {/* Explanation */}
@@ -379,6 +528,7 @@ export default function QuizAnswerReview({
     attempt,
     questions,
     defaultExpanded = false,
+    onGradeSaved,
 }) {
     const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -492,6 +642,9 @@ export default function QuizAnswerReview({
                                     }
                                     isCorrect={result.isCorrect ?? false}
                                     gradingStatus={result.gradingStatus}
+                                    gradingFeedback={result.gradingFeedback}
+                                    attemptId={attempt.id}
+                                    onGradeSaved={onGradeSaved}
                                     explanation={question.explanation}
                                     pointsEarned={result.pointsEarned ?? 0}
                                     pointsTotal={question.points ?? 1}

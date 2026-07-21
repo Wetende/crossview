@@ -3,7 +3,7 @@
  * Instructor view of individual student's course progress and quiz answers
  */
 
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import {
     Box,
     Typography,
@@ -249,6 +249,12 @@ export default function StudentProgress({
                                                     []
                                                 }
                                                 defaultExpanded={idx === 0}
+                                                onGradeSaved={() =>
+                                                    router.reload({
+                                                        only: ["quizAttempts"],
+                                                        preserveScroll: true,
+                                                    })
+                                                }
                                             />
                                         ))}
                                     </Stack>

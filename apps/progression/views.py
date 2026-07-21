@@ -3402,6 +3402,7 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                 "quiz__questions__matching_pairs",
                 "quiz__questions__gap_answers",
                 "quiz__questions__image_matching_pairs",
+                "manual_grades",
             )
             .order_by("-attempt_number")
         )
@@ -3411,6 +3412,9 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
             # Build per-question results
             question_results = []
             questions_data = []
+            manual_grades = {
+                grade.question_id: grade for grade in attempt.manual_grades.all()
+            }
 
             def _serialize_correct_answer(question):
                 q_type = question.question_type
@@ -3477,17 +3481,24 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                     if student_answer is not None
                     else (False, 0)
                 )
+                manual_grade = manual_grades.get(question.id)
+                grading_status = "graded"
+                grading_feedback = ""
+                if is_correct is None:
+                    if manual_grade is None:
+                        grading_status = "awaiting_manual_grade"
+                    else:
+                        grading_status = "manually_graded"
+                        points = manual_grade.points_awarded
+                        grading_feedback = manual_grade.feedback
                 correct_answer = _serialize_correct_answer(question)
 
                 question_results.append(
                     {
                         "questionId": question.id,
                         "isCorrect": is_correct,
-                        "gradingStatus": (
-                            "awaiting_manual_grade"
-                            if is_correct is None
-                            else "graded"
-                        ),
+                        "gradingStatus": grading_status,
+                        "gradingFeedback": grading_feedback,
                         "correctAnswer": correct_answer,
                         "pointsEarned": float(points) if points is not None else None,
                     }

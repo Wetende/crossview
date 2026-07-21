@@ -4,6 +4,7 @@ Requirements: All instructor dashboard functionality
 """
 
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 from django.urls import reverse
@@ -13,7 +14,8 @@ from rest_framework import status
 from apps.core.models import Program, User
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment, NodeCompletion, InstructorAssignment
-from apps.assessments.models import AssessmentResult
+from apps.assessments.models import AssessmentResult, Question, Quiz, QuizAttempt
+from apps.learning_operations.services import grade_manual_quiz_response
 from apps.practicum.models import PracticumSubmission, SubmissionReview
 from apps.core.tests.factories import UserFactory
 from .factories import (
@@ -262,6 +264,62 @@ class TestInstructorGradebook:
 
         assert response.status_code == 200
         assert response.json()["component"] == "Instructor/Gradebook/StudentProgress"
+
+    def test_student_progress_exposes_saved_manual_grade(
+        self, client, instructor, assignment, enrollment
+    ):
+        node = CurriculumNodeFactory(
+            program=assignment.program,
+            node_type="Session",
+            properties={"lesson_type": "quiz"},
+            is_published=True,
+        )
+        quiz = Quiz.objects.create(node=node, title="Manual quiz", pass_threshold=50)
+        node.properties = {"lesson_type": "quiz", "quiz_id": quiz.id}
+        node.save(update_fields=["properties"])
+        question = Question.objects.create(
+            quiz=quiz,
+            question_type="short_answer",
+            text="Explain the answer",
+            points=10,
+            position=0,
+            answer_data={"manual_grading": True},
+        )
+        attempt = QuizAttempt.objects.create(
+            enrollment=enrollment,
+            quiz=quiz,
+            attempt_number=1,
+            started_at=timezone.now() - timedelta(minutes=5),
+            submitted_at=timezone.now(),
+            answers={str(question.id): "A reasoned response"},
+        )
+        grade_manual_quiz_response(
+            attempt=attempt,
+            question=question,
+            points_awarded=Decimal("8.00"),
+            feedback="Clear explanation.",
+            grader=instructor,
+        )
+        client.force_login(instructor)
+
+        response = client.get(
+            reverse(
+                "progression:instructor.gradebook.student",
+                kwargs={
+                    "pk": assignment.program.id,
+                    "enrollment_id": enrollment.id,
+                },
+            ),
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        result = response.json()["props"]["quizAttempts"][str(node.id)][0][
+            "questionResults"
+        ][0]
+        assert result["gradingStatus"] == "manually_graded"
+        assert result["pointsEarned"] == 8.0
+        assert result["gradingFeedback"] == "Clear explanation."
 
     def test_gradebook_save_creates_results(
         self, client, instructor, assignment, enrollment
