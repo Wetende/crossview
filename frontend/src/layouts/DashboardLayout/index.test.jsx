@@ -141,4 +141,31 @@ describe("DashboardLayout logout", () => {
             screen.queryByRole("menuitem", { name: "Settings" }),
         ).not.toBeInTheDocument();
     });
+
+    test("admin navigation manages instructors through users without a vetting queue", () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                auth: {
+                    user: {
+                        firstName: "Ada",
+                        email: "ada@example.com",
+                        role: "admin",
+                    },
+                },
+                platform: {
+                    institutionName: "Learning Platform",
+                    features: {},
+                },
+            },
+        });
+
+        render(
+            <DashboardLayout role="admin">
+                <div>Dashboard content</div>
+            </DashboardLayout>,
+        );
+
+        expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
+        expect(screen.queryByText("Instructor Vetting")).not.toBeInTheDocument();
+    });
 });

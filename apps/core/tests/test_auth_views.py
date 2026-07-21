@@ -14,6 +14,7 @@ from hypothesis import strategies as st
 from hypothesis.extra.django import TestCase
 from django.test import Client, override_settings
 from django.contrib.auth import get_user_model
+from django.urls import Resolver404, resolve
 
 from apps.core.tests.factories import UserFactory
 from apps.core.views import get_dashboard_url, _validate_password_strength
@@ -363,6 +364,65 @@ class TestStudentRoleAssignment(TestCase):
             assert user is not None
             assert not user.is_staff
             assert not user.is_superuser
+
+    def test_client_cannot_self_register_as_instructor(self):
+        response = self.client.post(
+            "/register/",
+            {
+                "email": "public-learner@example.com",
+                "password": "TestPass123",
+                "password_confirm": "TestPass123",
+                "first_name": "Public",
+                "last_name": "Learner",
+                "role": "instructor",
+            },
+        )
+
+        user = User.objects.get(email="public-learner@example.com")
+        assert response.status_code == 302
+        assert response.url == "/dashboard/"
+        assert user.is_active is True
+        assert not user.groups.filter(name="Instructors").exists()
+        assert str(user.pk) == self.client.session["_auth_user_id"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/instructor/apply/",
+        "/admin/instructor-applications/",
+        "/admin/instructor-applications/1/",
+        "/admin/instructor-applications/1/approve/",
+        "/admin/instructor-applications/1/reject/",
+        "/admin/instructor-applications/1/unlock/",
+    ],
+)
+def test_instructor_application_routes_are_removed(path):
+    with pytest.raises(Resolver404):
+        resolve(path)
+
+
+@pytest.mark.django_db
+def test_admin_can_create_an_active_instructor_through_user_management(client):
+    admin = UserFactory(admin=True)
+    client.force_login(admin)
+
+    response = client.post(
+        "/admin/users/create/",
+        {
+            "email": "managed-instructor@example.com",
+            "password": "TestPass123",
+            "firstName": "Managed",
+            "lastName": "Instructor",
+            "role": "instructor",
+        },
+    )
+
+    user = User.objects.get(email="managed-instructor@example.com")
+    assert response.status_code == 302
+    assert response.url == "/admin/users/"
+    assert user.is_active is True
+    assert user.groups.filter(name="Instructors").exists()
 
 
 # =============================================================================

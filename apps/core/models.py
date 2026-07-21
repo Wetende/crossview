@@ -37,8 +37,10 @@ class User(AbstractUser):
 
 class InstructorProfile(TimeStampedModel):
     """
-    Stores instructor application/vetting data separately from User model.
-    Lifecycle: DRAFT → PENDING_REVIEW → APPROVED/REJECTED
+    Legacy instructor application data retained for historical records.
+
+    Instructor access is now controlled by the Instructors group through
+    administrative user management. New application records are not created.
     """
 
     STATUS_CHOICES = [
@@ -87,8 +89,7 @@ class InstructorProfile(TimeStampedModel):
 
 class InstructorCertification(models.Model):
     """
-    Uploaded certification documents for instructor applications.
-    Auto-deleted when application is rejected.
+    Legacy certification documents retained with historical applications.
     """
 
     profile = models.ForeignKey(

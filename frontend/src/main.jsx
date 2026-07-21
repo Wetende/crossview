@@ -86,7 +86,6 @@ const featureMap = {
         "./features/practicum/pages/instructor/Index.jsx",
     "Instructor/Practicum/Review":
         "./features/practicum/pages/instructor/Review.jsx",
-    "Instructor/Apply": "./features/auth/pages/InstructorApply.jsx",
     "Notifications/Index": "./features/notifications/pages/Index.jsx",
     "Messages/Inbox": "./features/messages/pages/Inbox.jsx",
     "Messages/Conversation": "./features/messages/pages/Conversation.jsx",

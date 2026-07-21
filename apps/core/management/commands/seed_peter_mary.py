@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 # Import models
-from apps.core.models import InstructorProfile, Program
+from apps.core.models import Program
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment, NodeCompletion
 from apps.assessments.models import (
@@ -29,37 +29,34 @@ class Command(BaseCommand):
                 mary = self._get_or_create_mary()
                 peter = self._get_or_create_peter()
 
-                # 2. Ensure Instructor Profile
-                self._ensure_instructor_profile(mary)
-
-                # 3. Create Main Program (where Peter is enrolled)
+                # 2. Create Main Program (where Peter is enrolled)
                 program = self._create_program(mary)
 
-                # 4. Create Curriculum with 5 Lessons
+                # 3. Create Curriculum with 5 Lessons
                 module1, lessons = self._create_curriculum(program)
 
-                # 5. Add Content to Lessons (with Unsplash images)
+                # 4. Add Content to Lessons (with Unsplash images)
                 self._add_lesson_content(lessons)
 
-                # 6. Create 2 Quizzes with Different Question Types
+                # 5. Create 2 Quizzes with Different Question Types
                 quiz1, quiz2 = self._create_quizzes(lessons)
 
-                # 7. Create 3 Assignments
+                # 6. Create 3 Assignments
                 assignments = self._create_assignments(program)
 
-                # 8. Enroll Peter
+                # 7. Enroll Peter
                 enrollment = self._enroll_peter(peter, program)
 
-                # 9. Add Progress Data
+                # 8. Add Progress Data
                 self._add_progress_data(enrollment, lessons)
 
-                # 10. Add Quiz Attempts
+                # 9. Add Quiz Attempts
                 self._add_quiz_attempts(enrollment, [quiz1, quiz2])
 
-                # 11. Add Assignment Submissions with Grading
+                # 10. Add Assignment Submissions with Grading
                 self._add_assignment_submissions(enrollment, assignments, mary)
 
-                # 12. Create 4 Additional Courses for Mary
+                # 11. Create 4 Additional Courses for Mary
                 self._create_additional_courses(mary)
 
         except Exception as e:
@@ -113,21 +110,6 @@ class Command(BaseCommand):
         else:
             self.stdout.write(f"✓ Found Peter: {peter.email}")
         return peter
-
-    def _ensure_instructor_profile(self, mary):
-        profile, created = InstructorProfile.objects.get_or_create(
-            user=mary,
-            defaults={
-                "status": "approved",
-                "bio": "Experienced Systems Architect with 15 years in the industry.",
-                "job_title": "Senior Systems Architect",
-                "teaching_experience": "Guest lecturer at Tech University."
-            }
-        )
-        if not created and profile.status != "approved":
-            profile.status = "approved"
-            profile.save()
-        self.stdout.write("✓ Instructor profile ready")
 
     def _create_program(self, mary):
         blueprint = AcademicBlueprint.objects.first()

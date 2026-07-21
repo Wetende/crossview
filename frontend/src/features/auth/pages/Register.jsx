@@ -12,11 +12,6 @@ import {
     IconButton,
     Stack,
     LinearProgress,
-    FormControl,
-    FormLabel,
-    RadioGroup,
-    FormControlLabel,
-    Radio,
     Divider,
 } from "@mui/material";
 import {
@@ -25,8 +20,6 @@ import {
     IconMail,
     IconLock,
     IconUser,
-    IconSchool,
-    IconChalkboard,
 } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import PlatformLogo from "@/components/common/PlatformLogo";
@@ -62,7 +55,6 @@ export default function Register({
         email: "",
         password: "",
         password_confirm: "",
-        role: "student",
         next: nextUrl,
     });
 
@@ -152,42 +144,6 @@ export default function Register({
                                     Create your account to get started
                                 </Typography>
                             </Box>
-
-                            {/* Role Selection */}
-                            <FormControl component="fieldset" sx={{ mb: 2, width: "100%" }}>
-                                <FormLabel component="legend" sx={{ mb: 1 }}>I am registering as a:</FormLabel>
-                                <RadioGroup
-                                    row
-                                    value={data.role}
-                                    onChange={(e) => setData("role", e.target.value)}
-                                >
-                                    <FormControlLabel
-                                        value="student"
-                                        control={<Radio />}
-                                        label={
-                                            <Stack direction="row" spacing={1} alignItems="center">
-                                                <IconSchool size={18} />
-                                                <span>Student</span>
-                                            </Stack>
-                                        }
-                                    />
-                                    <FormControlLabel
-                                        value="instructor"
-                                        control={<Radio />}
-                                        label={
-                                            <Stack direction="row" spacing={1} alignItems="center">
-                                                <IconChalkboard size={18} />
-                                                <span>Instructor</span>
-                                            </Stack>
-                                        }
-                                    />
-                                </RadioGroup>
-                                {data.role === "instructor" && (
-                                    <Typography variant="caption" color="warning.main" sx={{ mt: 1 }}>
-                                        Instructor accounts require admin approval before you can teach.
-                                    </Typography>
-                                )}
-                            </FormControl>
 
                             {/* Error Alert */}
                             {errors.auth && (

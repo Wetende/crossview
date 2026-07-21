@@ -84,32 +84,6 @@ urlpatterns = [
         views.admin_user_delete,
         name="admin.user.delete",
     ),
-    # Admin Instructor Applications
-    path(
-        "admin/instructor-applications/",
-        views.admin_instructor_applications,
-        name="admin.instructor_applications",
-    ),
-    path(
-        "admin/instructor-applications/<int:pk>/",
-        views.admin_instructor_application_detail,
-        name="admin.instructor_application",
-    ),
-    path(
-        "admin/instructor-applications/<int:pk>/approve/",
-        views.admin_instructor_application_approve,
-        name="admin.instructor_application.approve",
-    ),
-    path(
-        "admin/instructor-applications/<int:pk>/reject/",
-        views.admin_instructor_application_reject,
-        name="admin.instructor_application.reject",
-    ),
-    path(
-        "admin/instructor-applications/<int:pk>/unlock/",
-        views.admin_instructor_application_unlock,
-        name="admin.instructor_application.unlock",
-    ),
     path("admin/reviews/", views.admin_reviews, name="admin.reviews"),
     path("admin/reviews/<int:review_id>/approve/", views.admin_review_approve, name="admin.review.approve"),
     path("admin/reviews/<int:review_id>/reject/", views.admin_review_reject, name="admin.review.reject"),
@@ -119,7 +93,6 @@ urlpatterns = [
     path("admin/announcements/<int:pk>/delete/", views.admin_announcement_delete, name="admin.announcement_delete"),
     # Instructor Views
     path("instructor/", views.instructor_landing, name="instructor.landing"),
-    path("instructor/apply/", views.instructor_apply, name="instructor.apply"),
     path("instructor/programs/", views.instructor_programs, name="instructor.programs"),
     path(
         "instructor/programs/create/",
