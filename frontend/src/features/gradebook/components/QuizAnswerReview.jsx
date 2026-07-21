@@ -22,6 +22,7 @@ import {
     IconX,
     IconCircleCheck,
     IconCircleX,
+    IconClock,
 } from "@tabler/icons-react";
 import { formatPoints } from "@/lib/formatPoints";
 
@@ -37,9 +38,19 @@ const QuestionReviewCard = ({
     explanation,
     pointsEarned,
     pointsTotal,
+    gradingStatus,
 }) => {
-    const borderColor = isCorrect ? "success.main" : "error.main";
-    const bgColor = isCorrect ? "success.lighter" : "error.lighter";
+    const isPending = gradingStatus === "awaiting_manual_grade";
+    const borderColor = isPending
+        ? "warning.main"
+        : isCorrect
+          ? "success.main"
+          : "error.main";
+    const bgColor = isPending
+        ? "warning.lighter"
+        : isCorrect
+          ? "success.lighter"
+          : "error.lighter";
 
     const renderAnswer = (
         answer,
@@ -243,7 +254,9 @@ const QuestionReviewCard = ({
                 }}
             >
                 <Stack direction="row" alignItems="center" spacing={1.5}>
-                    {isCorrect ? (
+                    {isPending ? (
+                        <IconClock size={24} />
+                    ) : isCorrect ? (
                         <IconCircleCheck size={24} color="green" />
                     ) : (
                         <IconCircleX size={24} color="red" />
@@ -258,8 +271,12 @@ const QuestionReviewCard = ({
                     />
                 </Stack>
                 <Chip
-                    label={`${formatPoints(pointsEarned)}/${formatPoints(pointsTotal)} pts`}
-                    color={isCorrect ? "success" : "error"}
+                    label={
+                        isPending
+                            ? "Awaiting grading"
+                            : `${formatPoints(pointsEarned)}/${formatPoints(pointsTotal)} pts`
+                    }
+                    color={isPending ? "warning" : isCorrect ? "success" : "error"}
                     size="small"
                 />
             </Box>
@@ -281,11 +298,18 @@ const QuestionReviewCard = ({
                             color="text.secondary"
                             sx={{ mb: 1, display: "block" }}
                         >
-                            {isCorrect
+                            {isPending
+                                ? "Awaiting instructor grading"
+                                : isCorrect
                                 ? "✓ Student selected correctly"
                                 : "✗ Incorrect selection"}
                         </Typography>
-                        {renderAnswer(studentAnswer, question.type, true, true)}
+                        {renderAnswer(
+                            studentAnswer,
+                            question.type,
+                            true,
+                            !isPending,
+                        )}
                     </Box>
                 ) : (
                     <Stack spacing={2}>
@@ -302,7 +326,7 @@ const QuestionReviewCard = ({
                         </Box>
 
                         {/* Correct Answer */}
-                        {!isCorrect && (
+                        {!isPending && !isCorrect && (
                             <Box>
                                 <Typography
                                     variant="caption"
@@ -362,8 +386,8 @@ export default function QuizAnswerReview({
 
     const {
         answers = {},
-        score = 0,
-        passed = false,
+        score = null,
+        passed = null,
         attemptNumber = 1,
         completedAt,
         questionResults = [],
@@ -371,6 +395,9 @@ export default function QuizAnswerReview({
 
     // Calculate stats
     const correctCount = questionResults.filter((r) => r.isCorrect).length;
+    const pendingCount = questionResults.filter(
+        (r) => r.gradingStatus === "awaiting_manual_grade",
+    ).length;
     const totalQuestions = questions.length;
 
     return (
@@ -395,18 +422,32 @@ export default function QuizAnswerReview({
                     </Typography>
                     <Chip
                         icon={
-                            passed ? (
+                            score === null || score === undefined ? (
+                                <IconClock size={14} />
+                            ) : passed ? (
                                 <IconCheck size={14} />
                             ) : (
                                 <IconX size={14} />
                             )
                         }
-                        label={`${score.toFixed(0)}%`}
-                        color={passed ? "success" : "error"}
+                        label={
+                            score === null || score === undefined
+                                ? "Awaiting grading"
+                                : `${score.toFixed(0)}%`
+                        }
+                        color={
+                            score === null || score === undefined
+                                ? "warning"
+                                : passed
+                                  ? "success"
+                                  : "error"
+                        }
                         size="small"
                     />
                     <Typography variant="caption" color="text.secondary">
-                        {correctCount}/{totalQuestions} correct
+                        {pendingCount > 0
+                            ? `${pendingCount} response${pendingCount === 1 ? "" : "s"} awaiting grading`
+                            : `${correctCount}/${totalQuestions} correct`}
                     </Typography>
                     {completedAt && (
                         <Typography variant="caption" color="text.secondary">
@@ -450,6 +491,7 @@ export default function QuizAnswerReview({
                                         question.correctAnswer
                                     }
                                     isCorrect={result.isCorrect ?? false}
+                                    gradingStatus={result.gradingStatus}
                                     explanation={question.explanation}
                                     pointsEarned={result.pointsEarned ?? 0}
                                     pointsTotal={question.points ?? 1}

@@ -44,3 +44,38 @@ def test_weighted_gradebook_respects_component_title_matching():
     assert result["total"] == 55.0
     assert result["status"] == "Pass"
 
+
+def test_weighted_gradebook_without_components_uses_assessment_weights():
+    result = _calculate_gradebook_totals(
+        {"type": "weighted", "components": [], "pass_mark": 50},
+        [
+            {
+                "id": 1,
+                "title": "Module quiz",
+                "weight": 20,
+                "passThreshold": 50,
+                "maxAttempts": 1,
+                "allowRetakeAfterPass": False,
+            }
+        ],
+        [
+            {
+                "id": 2,
+                "title": "Practical assignment",
+                "weight": 80,
+                "passThreshold": 50,
+            }
+        ],
+        [{"quizId": 1, "score": 100.0, "passed": True, "attemptNumber": 1}],
+        [
+            {
+                "assignmentId": 2,
+                "weight": 80,
+                "score": 50.0,
+                "passed": True,
+            }
+        ],
+    )
+
+    assert result["total"] == 60.0
+    assert result["calculation"]["method"] == "assessment_weights"

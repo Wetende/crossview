@@ -244,6 +244,25 @@ class TestInstructorGradebook:
 
         assert response.status_code == 200
 
+    def test_student_progress_uses_registered_inertia_component(
+        self, client, instructor, assignment, enrollment
+    ):
+        client.force_login(instructor)
+
+        response = client.get(
+            reverse(
+                "progression:instructor.gradebook.student",
+                kwargs={
+                    "pk": assignment.program.id,
+                    "enrollment_id": enrollment.id,
+                },
+            ),
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["component"] == "Instructor/Gradebook/StudentProgress"
+
     def test_gradebook_save_creates_results(
         self, client, instructor, assignment, enrollment
     ):

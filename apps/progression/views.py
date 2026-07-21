@@ -2529,6 +2529,7 @@ def _resolve_gradebook_columns(program: Program) -> tuple[list[dict], list[dict]
         for quiz in Quiz.objects.filter(id__in=quiz_ids).only(
             "id",
             "title",
+            "weight",
             "pass_threshold",
             "max_attempts",
             "allow_retake_after_pass",
@@ -2553,6 +2554,7 @@ def _resolve_gradebook_columns(program: Program) -> tuple[list[dict], list[dict]
             {
                 "id": quiz.id,
                 "title": quiz.title,
+                "weight": quiz.weight,
                 "passThreshold": quiz.pass_threshold,
                 "maxAttempts": quiz.max_attempts,
                 "allowRetakeAfterPass": bool(quiz.allow_retake_after_pass),
@@ -2709,6 +2711,7 @@ def _build_gradebook_entries(
             "normalizedTitle": normalized_title,
             "tokens": tokens,
             "score": float(score),
+            "weight": float(quiz.get("weight") or 0),
             "passThreshold": quiz.get("passThreshold"),
             "passed": score_item.get("passed"),
         }
@@ -2913,10 +2916,16 @@ def _calculate_gradebook_totals(
     )
 
     total = aggregate_average
+    calculation_method = "equal_average"
     if grading_type == "weighted":
+        configured_components = [
+            component
+            for component in grading_config.get("components", [])
+            if isinstance(component, dict)
+        ]
         weighted_total = 0.0
         seen_component = False
-        for component in grading_config.get("components", []):
+        for component in configured_components:
             if not isinstance(component, dict):
                 continue
             component_key = component_config_key(component)
@@ -2939,8 +2948,25 @@ def _calculate_gradebook_totals(
             seen_component = True
         if seen_component:
             total = weighted_total
+            calculation_method = "configured_components"
+        elif not configured_components:
+            weighted_entries = [
+                entry
+                for entry in entries
+                if float(entry.get("weight") or 0) > 0
+            ]
+            included_weight = sum(
+                float(entry.get("weight") or 0) for entry in weighted_entries
+            )
+            if included_weight > 0:
+                total = sum(
+                    float(entry["score"]) * float(entry.get("weight") or 0)
+                    for entry in weighted_entries
+                ) / included_weight
+                calculation_method = "assessment_weights"
     elif grading_type in {"competency", "checklist"}:
         total = _calculate_competency_like_total(component_scores, entries)
+        calculation_method = grading_type
 
     if total is not None:
         total = round(float(total), 2)
@@ -2959,6 +2985,14 @@ def _calculate_gradebook_totals(
         "total": total,
         "status": status,
         "letter_grade": _gradebook_letter_grade(total, grading_config),
+        "calculation": {
+            "method": calculation_method,
+            "gradedAssessments": len(entries),
+            "totalAssessments": len(quizzes) + len(assignments),
+            "includedWeight": round(
+                sum(float(entry.get("weight") or 0) for entry in entries), 2
+            ),
+        },
     }
 
 
@@ -3008,7 +3042,7 @@ def _build_program_gradebook_payload(
                         else None
                     ),
                     "passed": (
-                        bool(official_attempt.passed)
+                        official_attempt.passed
                         if official_attempt is not None
                         else None
                     ),
@@ -3091,6 +3125,7 @@ def _build_program_gradebook_payload(
                 "overallScore": calculated.get("total"),
                 "status": calculated.get("status"),
                 "letterGrade": calculated.get("letter_grade"),
+                "calculation": calculated.get("calculation"),
                 "grades": calculated,
                 "isPublished": existing_result.is_published
                 if existing_result
@@ -3447,9 +3482,14 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                 question_results.append(
                     {
                         "questionId": question.id,
-                        "isCorrect": is_correct if is_correct is not None else False,
+                        "isCorrect": is_correct,
+                        "gradingStatus": (
+                            "awaiting_manual_grade"
+                            if is_correct is None
+                            else "graded"
+                        ),
                         "correctAnswer": correct_answer,
-                        "pointsEarned": float(points) if points is not None else 0,
+                        "pointsEarned": float(points) if points is not None else None,
                     }
                 )
 
@@ -3490,7 +3530,9 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                 {
                     "id": attempt.id,
                     "attemptNumber": attempt.attempt_number,
-                    "score": float(attempt.score) if attempt.score else 0,
+                    "score": (
+                        float(attempt.score) if attempt.score is not None else None
+                    ),
                     "passed": attempt.passed,
                     "completedAt": attempt.submitted_at.isoformat()
                     if attempt.submitted_at
@@ -3599,7 +3641,7 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
 
     return render(
         request,
-        "Gradebook/StudentProgress",
+        "Instructor/Gradebook/StudentProgress",
         {
             "program": {"id": program.id, "name": program.name},
             "student": {

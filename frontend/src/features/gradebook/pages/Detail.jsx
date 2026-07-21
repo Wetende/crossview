@@ -23,7 +23,6 @@ import {
     IconButton,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import SaveIcon from "@mui/icons-material/Save";
 import PublishIcon from "@mui/icons-material/Publish";
 import {
     IconCheck,
@@ -43,34 +42,10 @@ export default function Gradebook({
     assignments = [],
     students,
 }) {
-    const [grades] = useState(() => {
-        const initial = {};
-        students.forEach((student) => {
-            initial[student.enrollmentId] = student.grades || {
-                components: {},
-            };
-        });
-        return initial;
-    });
-    const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
     const gradingMode = gradingConfig?.mode || "summative";
-
-    const handleSave = () => {
-        setSaving(true);
-        router.post(
-            `/instructor/programs/${program.id}/gradebook/save/`,
-            { grades },
-            {
-                preserveScroll: true,
-                onFinish: () => {
-                    setSaving(false);
-                },
-            },
-        );
-    };
 
     const handlePublish = () => {
         setPublishDialogOpen(true);
@@ -121,6 +96,32 @@ export default function Gradebook({
                 {passed === false && <IconX size={14} color="red" />}
             </Stack>
         );
+    };
+
+    const renderQuizScoreCell = (score) => {
+        if (score.score !== null && score.score !== undefined) {
+            return renderScoreCell(score.score, score.passed);
+        }
+        return (
+            <Chip
+                label={score.attemptNumber ? "Awaiting grading" : "Not attempted"}
+                size="small"
+                variant="outlined"
+                color={score.attemptNumber ? "warning" : "default"}
+            />
+        );
+    };
+
+    const calculationDescription = (student) => {
+        const calculation = student.calculation || {};
+        const count = calculation.gradedAssessments || 0;
+        if (calculation.method === "assessment_weights") {
+            return `Current weighted grade from ${count} graded assessment${count === 1 ? "" : "s"}. Pending work is excluded.`;
+        }
+        if (calculation.method === "configured_components") {
+            return `Current grade from the configured grading components. ${count} graded assessment${count === 1 ? "" : "s"} included.`;
+        }
+        return `Current average of ${count} graded assessment${count === 1 ? "" : "s"}. Pending work is excluded.`;
     };
 
     return (
@@ -178,14 +179,6 @@ export default function Gradebook({
                                 queryParams={{ program: program.id }}
                             />
                             <Button
-                                variant="outlined"
-                                startIcon={<SaveIcon />}
-                                onClick={handleSave}
-                                disabled={saving}
-                            >
-                                {saving ? "Regenerating..." : "Regenerate"}
-                            </Button>
-                            <Button
                                 variant="contained"
                                 startIcon={<PublishIcon />}
                                 onClick={handlePublish}
@@ -193,14 +186,15 @@ export default function Gradebook({
                             >
                                 {publishing
                                     ? "Publishing..."
-                                    : "Publish Grades"}
+                                    : "Release results"}
                             </Button>
                         </Stack>
                     </Box>
 
                     <Alert severity="info">
-                        Scores are auto-calculated from official quiz and assignment results.
-                        Use Regenerate to recompute and sync totals.
+                        Grades update automatically from official quiz and assignment
+                        results. Pending work is excluded. Release results when learners
+                        are ready to see them.
                     </Alert>
 
                     {/* Gradebook Table */}
@@ -228,7 +222,9 @@ export default function Gradebook({
                                             align="center"
                                             sx={{ minWidth: 100 }}
                                         >
-                                            <Tooltip title={q.title}>
+                                            <Tooltip
+                                                title={`${q.title}${q.weight > 0 ? ` (${q.weight}%)` : ""}`}
+                                            >
                                                 <Typography
                                                     variant="caption"
                                                     noWrap
@@ -241,8 +237,17 @@ export default function Gradebook({
                                                 </Typography>
                                             </Tooltip>
                                             <Chip
-                                                label="Quiz"
+                                                label={
+                                                    q.weight > 0
+                                                        ? `${q.weight}%`
+                                                        : "Quiz"
+                                                }
                                                 size="small"
+                                                color={
+                                                    q.weight > 0
+                                                        ? "primary"
+                                                        : "default"
+                                                }
                                                 sx={{ fontSize: 10 }}
                                             />
                                         </TableCell>
@@ -282,7 +287,7 @@ export default function Gradebook({
                                             fontWeight: "bold",
                                         }}
                                     >
-                                        Overall
+                                        Current grade
                                     </TableCell>
                                     <TableCell
                                         align="center"
@@ -342,10 +347,7 @@ export default function Gradebook({
                                                         key={`q-${qs.quizId}`}
                                                         align="center"
                                                     >
-                                                        {renderScoreCell(
-                                                            qs.score,
-                                                            qs.passed,
-                                                        )}
+                                                        {renderQuizScoreCell(qs)}
                                                     </TableCell>
                                                 ),
                                             )}
@@ -360,12 +362,19 @@ export default function Gradebook({
                                                         alignItems="center"
                                                         spacing={0.5}
                                                     >
-                                                        {as.status ===
-                                                        "not_submitted" ? (
+                                                        {as.status === "not_submitted" ? (
                                                             <Chip
-                                                                label="No submission"
+                                                                label="Not submitted"
                                                                 size="small"
                                                                 variant="outlined"
+                                                            />
+                                                        ) : as.score === null ||
+                                                          as.score === undefined ? (
+                                                            <Chip
+                                                                label="Awaiting grading"
+                                                                size="small"
+                                                                variant="outlined"
+                                                                color="warning"
                                                             />
                                                         ) : (
                                                             <>
@@ -392,24 +401,25 @@ export default function Gradebook({
                                                 </TableCell>
                                             ))}
                                             <TableCell align="center">
-                                                <Typography
-                                                    variant="body2"
-                                                    fontWeight="bold"
-                                                    color={
-                                                        student.overallScore !==
-                                                        null
-                                                            ? student.overallScore >=
-                                                              70
-                                                                ? "success.main"
-                                                                : "error.main"
-                                                            : "text.secondary"
-                                                    }
+                                                <Tooltip
+                                                    title={calculationDescription(student)}
                                                 >
-                                                    {student.overallScore !==
-                                                    null
-                                                        ? `${student.overallScore}%`
-                                                        : "—"}
-                                                </Typography>
+                                                    <Typography
+                                                        variant="body2"
+                                                        fontWeight="bold"
+                                                        color={
+                                                            student.overallScore !== null
+                                                                ? student.overallScore >= 70
+                                                                    ? "success.main"
+                                                                    : "error.main"
+                                                                : "text.secondary"
+                                                        }
+                                                    >
+                                                        {student.overallScore !== null
+                                                            ? `${student.overallScore}%`
+                                                            : "—"}
+                                                    </Typography>
+                                                </Tooltip>
                                             </TableCell>
                                             <TableCell align="center">
                                                 <Tooltip title="View detailed progress">
@@ -435,9 +445,9 @@ export default function Gradebook({
                 open={publishDialogOpen}
                 onClose={handleClosePublishDialog}
                 onConfirm={handleConfirmPublish}
-                title="Publish Grades"
-                message="Publish all grades? Students will be able to see their results."
-                confirmLabel="Publish"
+                title="Release results"
+                message="Release the currently calculated results? Learners will be notified and can then see them."
+                confirmLabel="Release"
                 loading={publishing}
             />
         </InstructorLayout>
