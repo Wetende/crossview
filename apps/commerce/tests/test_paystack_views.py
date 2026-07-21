@@ -427,6 +427,19 @@ def test_wishlist_add_remove_list_and_sync_are_idempotent():
     assert listing.json()["wishlist"]["items"][0]["program"]["id"] == program_two.id
 
 
+def test_wishlist_page_uses_the_authenticated_wishlist_workspace():
+    user = UserFactory()
+    client = _login_client(user)
+
+    response = client.get(
+        reverse("commerce:wishlist_page"),
+        HTTP_X_INERTIA="true",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["component"] == "Public/Wishlist"
+
+
 def test_paystack_initialize_endpoint_returns_access_code(monkeypatch):
     user = UserFactory()
     client = _login_client(user)

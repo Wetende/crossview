@@ -781,6 +781,7 @@ def admin_commerce_orders_page(request):
     return render(request, "Admin/Commerce/Orders", {})
 
 
+@login_required
 @require_GET
 def wishlist_page(request):
     return render(request, "Public/Wishlist", {})

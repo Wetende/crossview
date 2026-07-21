@@ -112,6 +112,7 @@ const featureMap = {
     "Commerce/Cart": "./features/commerce/pages/Cart.jsx",
     "Commerce/Checkout": "./features/commerce/pages/Checkout.jsx",
     "Commerce/OrderDetail": "./features/commerce/pages/OrderDetail.jsx",
+    "Public/Wishlist": "./features/commerce/pages/Wishlist.jsx",
 
     // Reports
     "Reports/Index": "./features/reports/pages/ReportsIndex.jsx",
