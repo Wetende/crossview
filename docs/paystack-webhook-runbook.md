@@ -101,6 +101,6 @@ Each webhook attempt should log:
 
 - Frontend build: `npm run build`
 - Frontend tests: `npm test`
-- Backend checks: `/home/wetende/Projects/crossview/venv/bin/python manage.py check`
+- Backend checks: `/home/wetende/Projects/lms/venv/bin/python manage.py check`
 
 Note: if backend check fails with missing `django_filters`, install project dependencies before concluding webhook/runtime health.
