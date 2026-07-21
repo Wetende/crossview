@@ -30,6 +30,9 @@ activity-progress and learner-operation behavior. Canonical follow-up fixes:
 - `cb75feb6` exposes the learner detail Drawer as an accessible modal dialog.
 - `a029c2ac` removes a duplicate public course price formatter introduced while
   combining the LMS and Airads pricing implementations.
+- `15209aad` removes a stray Airads admissions dependency from the generic
+  checkout and adds a render regression test. Airads retains its legitimate
+  product-owned admissions checkout behavior.
 
 ## Exclusions
 
@@ -57,6 +60,8 @@ Environment: `DEBUG=True`, `DJANGO_SECRET_KEY=sync-audit-only`.
   129 tests passed**, 58.33s.
 - Production frontend build after the pricing correction: passed; 19,747
   modules transformed in 38.41s.
+- Generic checkout render regression test after the downstream portability
+  scan: passed, 1 test.
 - Google Classroom, Calendar/Meet and live-session tests used mocked adapters.
   A real Google sandbox journey remains a separate credential-dependent gate.
 
