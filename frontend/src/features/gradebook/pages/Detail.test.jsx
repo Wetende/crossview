@@ -41,6 +41,7 @@ describe("Gradebook instructor actions and grade states", () => {
         );
 
         expect(html).toContain("Release results");
+        expect(html).toContain('aria-label="Close"');
         expect(html).not.toContain("Regenerate");
         expect(html).not.toContain("recompute");
     });

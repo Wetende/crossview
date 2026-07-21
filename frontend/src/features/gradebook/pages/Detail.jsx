@@ -35,6 +35,8 @@ import InstructorLayout from "@/layouts/InstructorLayout";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ReportToolbar } from "@/features/reports";
 
+const GRADEBOOK_GUIDE_DISMISSED_KEY = "lms.gradebook.guide.dismissed";
+
 export default function Gradebook({
     program,
     gradingConfig,
@@ -44,11 +46,20 @@ export default function Gradebook({
 }) {
     const [publishing, setPublishing] = useState(false);
     const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+    const [showGradebookGuide, setShowGradebookGuide] = useState(() => {
+        if (typeof window === "undefined") return true;
+        return window.localStorage.getItem(GRADEBOOK_GUIDE_DISMISSED_KEY) !== "true";
+    });
 
     const gradingMode = gradingConfig?.mode || "summative";
 
     const handlePublish = () => {
         setPublishDialogOpen(true);
+    };
+
+    const handleDismissGradebookGuide = () => {
+        setShowGradebookGuide(false);
+        window.localStorage.setItem(GRADEBOOK_GUIDE_DISMISSED_KEY, "true");
     };
 
     const handleClosePublishDialog = () => {
@@ -191,11 +202,16 @@ export default function Gradebook({
                         </Stack>
                     </Box>
 
-                    <Alert severity="info">
-                        Grades update automatically from official quiz and assignment
-                        results. Pending work is excluded. Release results when learners
-                        are ready to see them.
-                    </Alert>
+                    {showGradebookGuide && (
+                        <Alert
+                            severity="info"
+                            onClose={handleDismissGradebookGuide}
+                        >
+                            Grades update automatically from official quiz and assignment
+                            results. Pending work is excluded. Release results when
+                            learners are ready to see them.
+                        </Alert>
+                    )}
 
                     {/* Gradebook Table */}
                     <TableContainer
