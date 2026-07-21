@@ -289,7 +289,6 @@ export default function Checkout({ paystack }) {
             }
         }
     }, [
-        admissionApplicationId,
         availablePaymentMethods.length,
         getOrderPageUrl,
         handlePaid,
