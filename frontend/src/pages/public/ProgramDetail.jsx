@@ -65,7 +65,6 @@ function CourseDetailsSidebar({
     const isEnrolled = enrollmentStatus === "enrolled";
     const isCompleted = enrollmentData?.isCompleted;
     const progressPercent = enrollmentData?.progressPercent || 0;
-    const { formatCurrency } = useCurrency();
     const priceDisplay = resolvePriceDisplay(program);
 
     // Determine CTA button text based on enrollment mode
