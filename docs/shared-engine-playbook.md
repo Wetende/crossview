@@ -1,8 +1,9 @@
 # Shared-Engine Hook and Cross-Repo Sharing Playbook
 
-This document defines how shared LMS work moves across `crossview`, `airads`, and `digika`.
+This document defines how shared LMS work moves across `lms`, `airads`, and `digikatech`.
 
-`crossview` is the canonical shared engine.
+`lms` is the canonical shared engine. Its local repository is
+`/home/wetende/Projects/lms`.
 
 The file-level ownership contract lives in
 [`docs/shared-surface-manifest.md`](shared-surface-manifest.md). The executable
@@ -11,9 +12,9 @@ promotion sequence and required gates live in
 
 ## Operating Model
 
-- `crossview` owns the shared LMS engine.
+- `lms` owns the shared LMS engine.
 - `airads` can be the fast working lab for shared LMS improvements.
-- `digika` and `airads` should receive accepted shared engine changes back from `crossview`.
+- `digikatech` and `airads` should receive accepted shared engine changes back from `lms`.
 - Public pages, branding, admissions/marketing content, and tenant-specific seed/demo content stay fork-specific unless intentionally generalized.
 
 ## The Hook
@@ -40,7 +41,7 @@ Use this rule:
 
 ## Fixed Checklist
 
-Use this checklist before coding, before the first commit, and before promoting work into `crossview`.
+Use this checklist before coding, before the first commit, and before promoting work into `lms`.
 
 1. Does this touch course player, course builder, course/program creation, publishing, curriculum structure, assessments, progression, or generic admin course flow?
 2. Would another institution benefit from the same behavior with different branding or content?
@@ -86,7 +87,7 @@ forks whose product identity or learning mode must not be changed at runtime.
 The policy mechanism is shared; the configured values remain fork-only.
 
 When the setting is absent, every capability defaults to enabled and the
-platform behaves exactly like a configurable Crossview deployment. A fork may
+platform behaves exactly like a configurable LMS deployment. A fork may
 lock any of these values:
 
 - `institution_name` and `tagline`
@@ -113,16 +114,16 @@ For all shared engine work, use this exact order:
 1. Start in `airads` when speed matters.
 2. Build only the generic behavior first, or split mixed work before committing.
 3. Create a `shared-engine` commit in `airads` with no branding or public-page payload.
-4. Promote that commit into `crossview`.
-5. Verify in `crossview`.
-6. Treat `crossview` as the official parent version of the feature.
-7. Pull `crossview/main` back into `airads`.
-8. Pull `crossview/main` into `digika`.
+4. Promote that commit into `lms`.
+5. Verify in `lms`.
+6. Treat `lms` as the official parent version of the feature.
+7. Pull `lms/main` back into `airads`.
+8. Pull `lms/main` into `digikatech`.
 
 Important convention:
 
 - Never maintain separate equivalent shared commits in all three repos long-term.
-- Once a shared change is accepted, `crossview` becomes the only authoritative source of that behavior.
+- Once a shared change is accepted, `lms` becomes the only authoritative source of that behavior.
 
 ## Validation
 
@@ -143,6 +144,6 @@ Before promoting shared work:
 This playbook is working when:
 
 - A developer can classify a change as `shared-engine`, `fork-only`, or `mixed` in under 2 minutes.
-- Shared engine commits can move from a fork into `crossview` without carrying tenant branding or public-page content.
-- `crossview` remains the single canonical home for accepted shared behavior.
-- `digika` receives shared work by syncing from `crossview`, not by parallel reimplementation.
+- Shared engine commits can move from a fork into `lms` without carrying tenant branding or public-page content.
+- `lms` remains the single canonical home for accepted shared behavior.
+- `digikatech` receives shared work by syncing from `lms`, not by parallel reimplementation.

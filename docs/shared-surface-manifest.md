@@ -1,7 +1,7 @@
 # Shared LMS Surface Manifest
 
-This manifest is the tracked ownership contract for `crossview`, `airads`, and
-`digikatech`. `crossview` is authoritative after a change is accepted.
+This manifest is the tracked ownership contract for `lms`, `airads`, and
+`digikatech`. `lms` is authoritative after a change is accepted.
 
 ## Shared by Default
 
@@ -48,7 +48,7 @@ and the staged diff contains no tenant identity or tenant-only route.
 ## Dependency and Design-System Changes
 
 Runtime dependency upgrades, React/MUI major-version changes, and global
-typography changes are shared only when deliberately adopted in `crossview`.
+typography changes are shared only when deliberately adopted in `lms`.
 Their presence in a lab fork does not make them part of an LMS feature sync.
 
 ## Required Promotion Evidence
