@@ -19,9 +19,12 @@ from inertia import render
 from apps.certifications.models import (
     Certificate,
     CertificateEligibility,
-    VerificationLog,
 )
-from apps.certifications.services import CertificateEligibilityService
+from apps.certifications.services import (
+    CertificateEligibilityService,
+    VerificationService,
+    serialize_verification_result,
+)
 from apps.progression.models import Enrollment
 
 
@@ -77,52 +80,20 @@ def verify_certificate(request, serial_number):
 
     GET /certificates/verify/<serial_number>/
     """
-    # Try to find the certificate
-    certificate = Certificate.objects.filter(serial_number=serial_number).first()
-
-    # Determine result
-    if certificate is None:
-        result = "not_found"
-        certificate_data = None
-    elif certificate.is_revoked:
-        result = "revoked"
-        certificate_data = {
-            "serialNumber": certificate.serial_number,
-            "studentName": certificate.student_name,
-            "programTitle": certificate.program_title,
-            "completionDate": certificate.completion_date.isoformat(),
-            "issueDate": certificate.issue_date.isoformat(),
-            "isRevoked": True,
-            "revocationReason": certificate.revocation_reason,
-        }
-    else:
-        result = "valid"
-        certificate_data = {
-            "serialNumber": certificate.serial_number,
-            "studentName": certificate.student_name,
-            "programTitle": certificate.program_title,
-            "completionDate": certificate.completion_date.isoformat(),
-            "issueDate": certificate.issue_date.isoformat(),
-            "isRevoked": False,
-        }
-
-    # Log verification attempt
-    VerificationLog.objects.create(
-        certificate=certificate,
-        serial_number_queried=serial_number,
+    normalized_serial = str(serial_number or "").strip().upper()
+    result = VerificationService().verify(
+        normalized_serial,
         ip_address=_get_client_ip(request),
-        user_agent=request.META.get("HTTP_USER_AGENT", ""),
-        result=result,
-        verified_at=timezone.now(),
+        user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
     )
+    payload = serialize_verification_result(result)
 
     return render(
         request,
-        "Public/CertificateVerify",
+        "Public/CertificateVerification",
         {
-            "serialNumber": serial_number,
-            "result": result,
-            "certificate": certificate_data,
+            "serialNumber": normalized_serial,
+            **payload,
         },
     )
 
@@ -307,4 +278,3 @@ def _get_client_ip(request):
     if x_forwarded_for:
         return x_forwarded_for.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR")
-

@@ -183,8 +183,6 @@ urlpatterns = [
     # Instructor Assignment Management
     path("instructor/assignments/", views.instructor_assignments_global, name="instructor.assignments_global"),
     path("instructor/programs/<int:program_id>/assignments/", views.instructor_assignments, name="instructor.assignments"),
-    path("instructor/programs/<int:program_id>/assignments/create/", views.instructor_assignment_create, name="instructor.assignment_create"),
-    path("instructor/assignments/<int:assignment_id>/edit/", views.instructor_assignment_edit, name="instructor.assignment_edit"),
     path("instructor/assignments/<int:assignment_id>/submissions/", views.instructor_assignment_submissions, name="instructor.assignment_submissions"),
     path("instructor/submissions/<int:submission_id>/grade/", views.instructor_assignment_grade, name="instructor.assignment_grade"),
     # Student Quiz Taking
@@ -193,7 +191,6 @@ urlpatterns = [
     path("student/quiz/<int:quiz_id>/submit/", views.student_quiz_submit, name="student.quiz_submit"),
     path("student/quiz/<int:quiz_id>/results/", views.student_quiz_results, name="student.quiz_results"),
     # Student Assignments
-    path("student/programs/<int:program_id>/assignments/", views.student_assignments, name="student.assignments"),
     path("student/assignment/<int:assignment_id>/", views.student_assignment_view, name="student.assignment"),
     path("student/assignment/<int:assignment_id>/submit/", views.student_assignment_submit, name="student.assignment_submit"),
 ]

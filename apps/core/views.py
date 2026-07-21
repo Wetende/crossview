@@ -52,7 +52,10 @@ from apps.assessments.official_results import (
     refresh_assignment_official_flags,
 )
 from apps.assessments.quiz_results import build_quiz_results_payload
-from apps.certifications.models import Certificate, VerificationLog
+from apps.certifications.services import (
+    VerificationService,
+    serialize_verification_result,
+)
 from apps.core.learning_outcomes import (
     extract_learning_outcome_items_from_html,
     resolve_learning_outcomes_html,
@@ -1056,7 +1059,8 @@ def verify_certificate_page(request):
     """
     Certificate verification page.
     """
-    result = None
+    serial_number = ""
+    verification_payload = {"result": None, "certificate": None}
 
     if request.method == "POST":
         # Get POST data (handles both form-encoded and JSON from Inertia)
@@ -1064,50 +1068,19 @@ def verify_certificate_page(request):
         serial_number = data.get("serial_number", "").strip().upper()
 
         if serial_number:
-            # Look up certificate
-            certificate = (
-                Certificate.objects.filter(serial_number=serial_number)
-                .select_related("enrollment")
-                .first()
-            )
-            # Determine result
-            if certificate:
-                result = {
-                    "found": True,
-                    "certificate": {
-                        "serialNumber": certificate.serial_number,
-                        "studentName": certificate.student_name,
-                        "programTitle": certificate.program_title,
-                        "completionDate": certificate.completion_date.isoformat(),
-                        "issueDate": certificate.issue_date.isoformat(),
-                        "isRevoked": certificate.is_revoked,
-                        "revokedAt": (
-                            certificate.revoked_at.isoformat()
-                            if certificate.revoked_at
-                            else None
-                        ),
-                    },
-                }
-                log_result = "revoked" if certificate.is_revoked else "valid"
-            else:
-                result = {"found": False}
-                log_result = "not_found"
-
-            # Log verification attempt
-            VerificationLog.objects.create(
-                certificate=certificate,
-                serial_number_queried=serial_number,
+            result = VerificationService().verify(
+                serial_number,
                 ip_address=_get_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
-                result=log_result,
-                verified_at=timezone.now(),
             )
+            verification_payload = serialize_verification_result(result)
 
     return render(
         request,
-        "Public/VerifyCertificate",
+        "Public/CertificateVerification",
         {
-            "result": result,
+            "serialNumber": serial_number,
+            **verification_payload,
         },
     )
 
@@ -5500,6 +5473,12 @@ def instructor_assignments(request, program_id: int):
         return redirect("/dashboard/")
 
     assignments = Assignment.objects.filter(program=program).order_by("created_at")
+    node_by_assignment_id = {}
+    for node in CurriculumNode.objects.filter(program=program).only("id", "properties"):
+        properties = node.properties if isinstance(node.properties, dict) else {}
+        assignment_id = _safe_int(properties.get("assignment_id"))
+        if assignment_id:
+            node_by_assignment_id.setdefault(assignment_id, node.id)
 
     return render(
         request,
@@ -5512,6 +5491,7 @@ def instructor_assignments(request, program_id: int):
             "assignments": [
                 {
                     "id": a.id,
+                    "nodeId": node_by_assignment_id.get(a.id),
                     "title": a.title,
                     "weight": a.weight,
                     "dueDate": a.due_date.isoformat() if a.due_date else None,
@@ -5522,152 +5502,6 @@ def instructor_assignments(request, program_id: int):
                 }
                 for a in assignments
             ],
-        },
-    )
-
-
-@login_required
-def instructor_assignment_create(request, program_id: int):
-    """
-    Create a new assignment.
-    """
-    from apps.assessments.models import Assignment
-    from apps.progression.models import InstructorAssignment
-
-    try:
-        program = Program.objects.get(pk=program_id)
-    except Program.DoesNotExist:
-        messages.error(request, "Program not found")
-        return redirect("/dashboard/")
-
-    # Verify instructor access
-    if (
-        not InstructorAssignment.objects.filter(
-            instructor=request.user, program=program
-        ).exists()
-        and not request.user.is_staff
-    ):
-        return redirect("/dashboard/")
-
-    if request.method == "POST":
-        data = get_post_data(request)
-
-        due_date = None
-        if data.get("dueDate"):
-            from django.utils.dateparse import parse_datetime
-
-            due_date = parse_datetime(data.get("dueDate"))
-
-        assignment = Assignment.objects.create(
-            program=program,
-            title=data.get("title", "Untitled Assignment"),
-            description=data.get("description", ""),
-            instructions=data.get("instructions", ""),
-            weight=int(data.get("weight", 20)),
-            due_date=due_date,
-            allow_late_submission=data.get("allowLateSubmission", False),
-            late_penalty_percent=int(data.get("latePenalty", 0)),
-            submission_type=data.get("submissionType", "file"),
-            allowed_file_types=data.get("allowedFileTypes", ["pdf", "docx"]),
-        )
-
-        messages.success(request, "Assignment created!")
-        return redirect("core:instructor.assignment_edit", assignment_id=assignment.id)
-
-    return render(
-        request,
-        "Instructor/Assignments/Create",
-        {
-            "program": {
-                "id": program.id,
-                "name": program.name,
-            },
-        },
-    )
-
-
-@login_required
-def instructor_assignment_edit(request, assignment_id: int):
-    """
-    Edit assignment details.
-    """
-    from apps.assessments.models import Assignment
-    from apps.progression.models import InstructorAssignment
-
-    try:
-        assignment = Assignment.objects.select_related("program").get(pk=assignment_id)
-    except Assignment.DoesNotExist:
-        messages.error(request, "Assignment not found")
-        return redirect("/dashboard/")
-
-    # Verify instructor access
-    if (
-        not InstructorAssignment.objects.filter(
-            instructor=request.user, program=assignment.program
-        ).exists()
-        and not request.user.is_staff
-    ):
-        return redirect("/dashboard/")
-
-    if request.method == "POST":
-        data = get_post_data(request)
-        action = data.get("action", "save")
-
-        if action == "save":
-            assignment.title = data.get("title", assignment.title)
-            assignment.description = data.get("description", assignment.description)
-            assignment.instructions = data.get("instructions", assignment.instructions)
-            assignment.weight = int(data.get("weight", assignment.weight))
-
-            if data.get("dueDate"):
-                from django.utils.dateparse import parse_datetime
-
-                assignment.due_date = parse_datetime(data.get("dueDate"))
-
-            assignment.allow_late_submission = data.get("allowLateSubmission", False)
-            assignment.late_penalty_percent = int(data.get("latePenalty", 0))
-            assignment.submission_type = data.get(
-                "submissionType", assignment.submission_type
-            )
-            assignment.allowed_file_types = data.get(
-                "allowedFileTypes", assignment.allowed_file_types
-            )
-            assignment.save()
-            messages.success(request, "Assignment updated")
-
-        elif action == "publish":
-            assignment.is_published = True
-            assignment.save()
-            messages.success(request, "Assignment published!")
-
-        elif action == "unpublish":
-            assignment.is_published = False
-            assignment.save()
-            messages.info(request, "Assignment unpublished")
-
-        return redirect("core:instructor.assignment_edit", assignment_id=assignment.id)
-
-    return render(
-        request,
-        "Instructor/Assignments/Edit",
-        {
-            "assignment": {
-                "id": assignment.id,
-                "title": assignment.title,
-                "description": assignment.description,
-                "instructions": assignment.instructions,
-                "weight": assignment.weight,
-                "dueDate": (
-                    assignment.due_date.isoformat() if assignment.due_date else None
-                ),
-                "allowLateSubmission": assignment.allow_late_submission,
-                "latePenalty": assignment.late_penalty_percent,
-                "submissionType": assignment.submission_type,
-                "allowedFileTypes": assignment.allowed_file_types,
-                "isPublished": assignment.is_published,
-                "programId": assignment.program.id,
-                "programName": assignment.program.name,
-            },
         },
     )
 
@@ -5951,78 +5785,6 @@ def instructor_assignment_grade(request, submission_id: int):
 # =============================================================================
 # Assignment Views (Student)
 # =============================================================================
-
-
-@login_required
-def student_assignments(request, program_id: int):
-    """
-    List assignments for an enrolled program.
-    """
-    from apps.assessments.models import Assignment, AssignmentSubmission
-    from apps.progression.models import Enrollment
-
-    try:
-        enrollment = Enrollment.objects.select_related("program").get(
-            user=request.user, program_id=program_id, status="active"
-        )
-    except Enrollment.DoesNotExist:
-        messages.error(request, "You are not enrolled in this program")
-        return redirect("/dashboard/")
-
-    assignments = Assignment.objects.filter(
-        program_id=program_id, is_published=True
-    ).order_by("due_date")
-
-    # Get latest attempt per assignment for display.
-    submissions = {}
-    for submission in AssignmentSubmission.objects.filter(
-        enrollment=enrollment,
-        assignment__in=assignments,
-    ).order_by("assignment_id", "-attempt_number"):
-        submissions.setdefault(submission.assignment_id, submission)
-
-    return render(
-        request,
-        "Student/Assignments/Index",
-        {
-            "program": {
-                "id": enrollment.program.id,
-                "name": enrollment.program.name,
-            },
-            "assignments": [
-                {
-                    "id": a.id,
-                    "title": a.title,
-                    "description": a.description,
-                    "dueDate": a.due_date.isoformat() if a.due_date else None,
-                    "weight": a.weight,
-                    "submissionType": a.submission_type,
-                    "submitted": a.id in submissions,
-                    "attemptsUsed": AssignmentSubmission.objects.filter(
-                        enrollment=enrollment,
-                        assignment=a,
-                        submitted_at__isnull=False,
-                    ).count(),
-                    "submission": (
-                        {
-                            "id": submissions[a.id].id,
-                            "attemptNumber": submissions[a.id].attempt_number,
-                            "status": submissions[a.id].status,
-                            "score": (
-                                float(submissions[a.id].score)
-                                if submissions[a.id].score
-                                else None
-                            ),
-                            "submittedAt": submissions[a.id].submitted_at.isoformat(),
-                        }
-                        if a.id in submissions
-                        else None
-                    ),
-                }
-                for a in assignments
-            ],
-        },
-    )
 
 
 @login_required

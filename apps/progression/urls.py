@@ -155,11 +155,6 @@ urlpatterns = [
         name="admin.enrollment.create",
     ),
     path(
-        "admin/enrollments/bulk/",
-        views.admin_enrollment_bulk,
-        name="admin.enrollment.bulk",
-    ),
-    path(
         "admin/enrollments/<int:pk>/withdraw/",
         views.admin_enrollment_withdraw,
         name="admin.enrollment.withdraw",

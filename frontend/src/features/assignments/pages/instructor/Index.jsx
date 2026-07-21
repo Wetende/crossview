@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
   Box,
   Container,
@@ -13,7 +13,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  IconButton,
 } from '@mui/material';
 import {
   IconPlus,
@@ -59,11 +58,11 @@ export default function Index({ program, assignments }) {
             </Box>
             <Button
               component={Link}
-              href={`/instructor/programs/${program.id}/assignments/create/`}
+              href={`/instructor/programs/${program.id}/manage/?tab=curriculum`}
               startIcon={<IconPlus />}
               variant="contained"
             >
-              Create Assignment
+              Open Course Builder
             </Button>
           </Stack>
 
@@ -146,11 +145,15 @@ export default function Index({ program, assignments }) {
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                           <Button
                             component={Link}
-                            href={`/instructor/assignments/${a.id}/edit/`}
+                            href={
+                              a.nodeId
+                                ? `/instructor/programs/${program.id}/manage/?tab=curriculum&node=${a.nodeId}`
+                                : `/instructor/programs/${program.id}/manage/?tab=curriculum`
+                            }
                             size="small"
                             startIcon={<IconEdit size={16} />}
                           >
-                            Edit
+                            Edit in Builder
                           </Button>
                           <Button
                             component={Link}

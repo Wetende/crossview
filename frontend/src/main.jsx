@@ -46,6 +46,8 @@ const featureMap = {
     "Student/Assignments": "./features/dashboard/pages/Assignments.jsx",
     "Student/Quizzes": "./features/dashboard/pages/Quizzes.jsx",
     "Student/Certificates": "./features/course-player/pages/Certificates.jsx",
+    "Public/CertificateVerification":
+        "./features/certifications/pages/CertificateVerification.jsx",
     "Student/Profile": "./features/course-player/pages/Profile.jsx",
     "Student/Quiz/Take": "./features/quizzes/pages/Take.jsx",
     "Student/Quiz/Results": "./features/quizzes/pages/Results.jsx",

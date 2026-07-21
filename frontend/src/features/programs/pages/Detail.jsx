@@ -123,14 +123,14 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                                         </Button>
                                         <Button
                                             component={Link}
-                                            href={`/instructor/programs/${program.id}/assignments/`}
+                                            href={`/instructor/programs/${program.id}/manage/?tab=curriculum`}
                                             fullWidth
                                             variant="outlined"
                                             startIcon={
                                                 <IconClipboardCheck size={18} />
                                             }
                                         >
-                                            Manage Assignments
+                                            Build Assignments
                                         </Button>
                                         <Button
                                             component={Link}

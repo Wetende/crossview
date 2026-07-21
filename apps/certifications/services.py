@@ -249,6 +249,32 @@ class VerificationService:
         )
 
 
+def serialize_verification_result(result: VerificationResult) -> dict:
+    """Return the single public certificate-verification contract."""
+    certificate = result.certificate
+    certificate_data = None
+    if certificate:
+        certificate_data = {
+            "serialNumber": certificate.serial_number,
+            "studentName": certificate.student_name,
+            "programTitle": certificate.program_title,
+            "completionDate": certificate.completion_date.isoformat(),
+            "issueDate": certificate.issue_date.isoformat(),
+            "isRevoked": certificate.is_revoked,
+            "revokedAt": (
+                certificate.revoked_at.isoformat()
+                if certificate.revoked_at
+                else None
+            ),
+            "revocationReason": certificate.revocation_reason,
+        }
+
+    return {
+        "result": result.status,
+        "certificate": certificate_data,
+    }
+
+
 class CertificationEngine:
     """
     Main orchestration service for certificate generation and management.

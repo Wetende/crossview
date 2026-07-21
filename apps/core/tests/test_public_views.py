@@ -41,9 +41,32 @@ class TestCertificateVerificationDisplay:
             {
                 "serial_number": certificate.serial_number,
             },
+            HTTP_X_INERTIA="true",
         )
 
         assert response.status_code == 200
+        payload = response.json()
+        assert payload["component"] == "Public/CertificateVerification"
+        assert payload["props"]["result"] == "valid"
+        assert payload["props"]["certificate"] == {
+            "serialNumber": certificate.serial_number,
+            "studentName": certificate.student_name,
+            "programTitle": certificate.program_title,
+            "completionDate": certificate.completion_date.isoformat(),
+            "issueDate": certificate.issue_date.isoformat(),
+            "isRevoked": False,
+            "revokedAt": None,
+            "revocationReason": None,
+        }
+
+        direct_response = client.get(
+            certificate.get_verification_url(),
+            HTTP_X_INERTIA="true",
+        )
+        assert direct_response.status_code == 200
+        direct_payload = direct_response.json()
+        assert direct_payload["component"] == "Public/CertificateVerification"
+        assert direct_payload["props"]["certificate"] == payload["props"]["certificate"]
 
     @pytest.mark.django_db
     def test_revoked_certificate_shows_revoked_status(
@@ -55,9 +78,12 @@ class TestCertificateVerificationDisplay:
             {
                 "serial_number": revoked_certificate.serial_number,
             },
+            HTTP_X_INERTIA="true",
         )
 
         assert response.status_code == 200
+        assert response.json()["props"]["result"] == "revoked"
+        assert response.json()["props"]["certificate"]["isRevoked"] is True
 
     @pytest.mark.django_db
     @given(
@@ -76,9 +102,12 @@ class TestCertificateVerificationDisplay:
             {
                 "serial_number": serial,
             },
+            HTTP_X_INERTIA="true",
         )
 
         assert response.status_code == 200
+        assert response.json()["props"]["result"] == "not_found"
+        assert response.json()["props"]["certificate"] is None
 
 
 # =============================================================================

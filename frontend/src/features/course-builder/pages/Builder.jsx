@@ -126,10 +126,30 @@ export default function InstructorProgramBuilder({
     // Helper to find node by ID in the tree
     const findNode = (id) => {
         const flat = flattenNodes(curriculum);
-        return flat.find((n) => n.id === id);
+        return flat.find((node) => String(node.id) === String(id));
     };
 
     const selectedNode = selectedNodeId ? findNode(selectedNodeId) : null;
+
+    useEffect(() => {
+        if (activeTab !== "curriculum" || typeof window === "undefined") {
+            return;
+        }
+
+        const requestedNodeId = new URLSearchParams(window.location.search).get(
+            "node",
+        );
+        if (!requestedNodeId) {
+            return;
+        }
+
+        const requestedNode = flattenNodes(curriculum).find(
+            (node) => String(node.id) === requestedNodeId,
+        );
+        if (requestedNode) {
+            setSelectedNodeId(requestedNode.id);
+        }
+    }, [activeTab, curriculum, page.url]);
 
     const handleNodeSave = (nodeId, data, callbacks = {}) => {
         router.post(`/instructor/nodes/${nodeId}/update/`, data, {
