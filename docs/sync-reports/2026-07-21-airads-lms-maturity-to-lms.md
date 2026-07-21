@@ -62,6 +62,8 @@ Environment: `DEBUG=True`, `DJANGO_SECRET_KEY=sync-audit-only`.
   modules transformed in 38.41s.
 - Final full frontend rerun after the downstream checkout portability fix:
   **50 files passed, 130 tests passed**, 47.00s.
+- Final production build at the checkout-fix head: passed; 19,747 modules
+  transformed in 23.93s.
 - Google Classroom, Calendar/Meet and live-session tests used mocked adapters.
   A real Google sandbox journey remains a separate credential-dependent gate.
 
