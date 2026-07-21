@@ -158,7 +158,9 @@ export default function LearnerDetailPanel({
             ModalProps={{ keepMounted: true }}
             slotProps={{
                 paper: {
-                    component: "aside",
+                    component: "div",
+                    role: "dialog",
+                    "aria-modal": true,
                     "aria-labelledby": "learner-detail-title",
                     onKeyDown: (event) => {
                         if (event.key === "Escape") onClose();
