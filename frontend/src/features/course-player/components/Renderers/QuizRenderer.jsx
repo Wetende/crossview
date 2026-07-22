@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { router } from "@inertiajs/react";
 import {
     Alert,
     Box,
     Button,
     Checkbox,
     FormControl,
-    FormControlLabel,
     FormGroup,
     LinearProgress,
     Paper,
@@ -15,129 +14,106 @@ import {
     Stack,
     TextField,
     Typography,
-} from '@mui/material';
-import MatchingQuestion from '@/features/quizzes/components/MatchingQuestion';
-import OrderingQuestion from '@/features/quizzes/components/OrderingQuestion';
-import FillBlankQuestion from '@/features/quizzes/components/FillBlankQuestion';
-import ImageMatchingQuestion from '@/features/quizzes/components/ImageMatchingQuestion';
-import { formatPoints } from '@/lib/formatPoints';
-import { getCsrfHeaders } from '@/utils/csrf';
+} from "@mui/material";
+import MatchingQuestion from "@/features/quizzes/components/MatchingQuestion";
+import OrderingQuestion from "@/features/quizzes/components/OrderingQuestion";
+import FillBlankQuestion from "@/features/quizzes/components/FillBlankQuestion";
+import ImageMatchingQuestion from "@/features/quizzes/components/ImageMatchingQuestion";
+import { formatPoints } from "@/lib/formatPoints";
+import { getCsrfHeaders } from "@/utils/csrf";
+import {
+    AnswerOptionCard,
+    QuestionNavigator,
+} from "@/features/learning-experience/components";
 import {
     evaluateQuizAnswers,
     formatAnswer,
     isQuestionAnswered,
     normalizeQuestions,
-} from './quizRendererUtils';
+} from "./quizRendererUtils";
 
-const renderQuestionInput = ({
-    question,
-    answer,
-    onAnswerChange,
-}) => {
+const renderQuestionInput = ({ question, answer, onAnswerChange }) => {
     const answerKey = String(question.id);
 
-    if (question.type === 'mcq' || question.type === 'true_false') {
+    if (question.type === "mcq" || question.type === "true_false") {
         return (
             <FormControl component="fieldset" fullWidth sx={{ mb: 4 }}>
                 <RadioGroup
                     aria-label="quiz-options"
                     name={`question-${answerKey}`}
-                    value={answer || ''}
-                    onChange={(event) => onAnswerChange(answerKey, event.target.value)}
+                    value={answer || ""}
+                    onChange={(event) =>
+                        onAnswerChange(answerKey, event.target.value)
+                    }
                 >
                     {(question.options || []).map((option, index) => (
-                        <Paper
+                        <AnswerOptionCard
                             key={`${answerKey}-${option.id}-${index}`}
-                            variant="outlined"
-                            sx={{
-                                mb: 2,
-                                borderRadius: 2,
-                                border:
-                                    String(answer || '') === String(option.id)
-                                        ? '2px solid'
-                                        : '1px solid',
-                                borderColor:
-                                    String(answer || '') === String(option.id)
-                                        ? 'primary.main'
-                                        : 'divider',
-                                bgcolor:
-                                    String(answer || '') === String(option.id)
-                                        ? 'primary.lighter'
-                                        : 'transparent',
-                                transition: 'all 0.2s ease',
-                            }}
-                        >
-                            <FormControlLabel
-                                value={String(option.id)}
-                                control={<Radio />}
-                                label={option.text}
-                                sx={{ p: 2, width: '100%', m: 0 }}
-                            />
-                        </Paper>
+                            selected={
+                                String(answer || "") === String(option.id)
+                            }
+                            control={<Radio value={String(option.id)} />}
+                            label={option.text}
+                        />
                     ))}
                 </RadioGroup>
             </FormControl>
         );
     }
 
-    if (question.type === 'mcq_multi') {
-        const selected = Array.isArray(answer) ? answer.map((value) => String(value)) : [];
+    if (question.type === "mcq_multi") {
+        const selected = Array.isArray(answer)
+            ? answer.map((value) => String(value))
+            : [];
 
         return (
             <FormGroup sx={{ mb: 4 }}>
                 {(question.options || []).map((option, index) => {
                     const checked = selected.includes(String(option.id));
                     return (
-                        <Paper
+                        <AnswerOptionCard
                             key={`${answerKey}-${option.id}-${index}`}
-                            variant="outlined"
-                            sx={{
-                                mb: 2,
-                                borderRadius: 2,
-                                border: checked ? '2px solid' : '1px solid',
-                                borderColor: checked ? 'primary.main' : 'divider',
-                                bgcolor: checked ? 'primary.lighter' : 'transparent',
-                            }}
-                        >
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        checked={checked}
-                                        onChange={(event) => {
-                                            const next = event.target.checked
-                                                ? [...selected, String(option.id)]
-                                                : selected.filter(
-                                                      (value) => value !== String(option.id),
-                                                  );
-                                            onAnswerChange(answerKey, next);
-                                        }}
-                                    />
-                                }
-                                label={option.text}
-                                sx={{ p: 2, width: '100%', m: 0 }}
-                            />
-                        </Paper>
+                            selected={checked}
+                            control={
+                                <Checkbox
+                                    checked={checked}
+                                    onChange={(event) => {
+                                        const next = event.target.checked
+                                            ? [...selected, String(option.id)]
+                                            : selected.filter(
+                                                  (value) =>
+                                                      value !==
+                                                      String(option.id),
+                                              );
+                                        onAnswerChange(answerKey, next);
+                                    }}
+                                />
+                            }
+                            label={option.text}
+                        />
                     );
                 })}
             </FormGroup>
         );
     }
 
-    if (question.type === 'short_answer') {
+    if (question.type === "short_answer") {
         return (
             <TextField
                 fullWidth
                 multiline
                 rows={4}
                 placeholder="Type your answer here..."
-                value={answer || ''}
-                onChange={(event) => onAnswerChange(answerKey, event.target.value)}
+                value={answer || ""}
+                onChange={(event) =>
+                    onAnswerChange(answerKey, event.target.value)
+                }
                 sx={{ mb: 4 }}
             />
         );
     }
 
-    if (question.type === 'matching') {
+    if (question.type === "matching") {
         return (
             <Box sx={{ mb: 4 }}>
                 <MatchingQuestion
@@ -149,7 +125,7 @@ const renderQuestionInput = ({
         );
     }
 
-    if (question.type === 'ordering') {
+    if (question.type === "ordering") {
         return (
             <Box sx={{ mb: 4 }}>
                 <OrderingQuestion
@@ -161,7 +137,7 @@ const renderQuestionInput = ({
         );
     }
 
-    if (question.type === 'fill_blank') {
+    if (question.type === "fill_blank") {
         return (
             <Box sx={{ mb: 4 }}>
                 <FillBlankQuestion
@@ -173,7 +149,7 @@ const renderQuestionInput = ({
         );
     }
 
-    if (question.type === 'image_matching') {
+    if (question.type === "image_matching") {
         return (
             <Box sx={{ mb: 4 }}>
                 <ImageMatchingQuestion
@@ -192,21 +168,36 @@ const renderQuestionInput = ({
     );
 };
 
-const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = false }) => {
+const QuizRenderer = ({
+    node,
+    enrollmentId,
+    onComplete,
+    useBackendRuntime = false,
+}) => {
     const quizId = node?.properties?.quiz_id;
-    const nodeType = String(node?.type || node?.nodeType || node?.node_type || '').toLowerCase();
-    const lessonType = String(node?.properties?.lesson_type || '').toLowerCase();
-    const isQuizNode = nodeType === 'quiz' || lessonType === 'quiz';
-    const shouldUseBackendRuntime = Boolean(useBackendRuntime || (quizId && isQuizNode));
+    const nodeType = String(
+        node?.type || node?.nodeType || node?.node_type || "",
+    ).toLowerCase();
+    const lessonType = String(
+        node?.properties?.lesson_type || "",
+    ).toLowerCase();
+    const isQuizNode = nodeType === "quiz" || lessonType === "quiz";
+    const shouldUseBackendRuntime = Boolean(
+        useBackendRuntime || (quizId && isQuizNode),
+    );
 
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState({});
     const [resultSummary, setResultSummary] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isLoadingRuntime, setIsLoadingRuntime] = useState(shouldUseBackendRuntime);
-    const [runtimeError, setRuntimeError] = useState('');
+    const [isLoadingRuntime, setIsLoadingRuntime] = useState(
+        shouldUseBackendRuntime,
+    );
+    const [runtimeError, setRuntimeError] = useState("");
     const [runtimeQuestions, setRuntimeQuestions] = useState([]);
-    const [runtimeAttemptsRemaining, setRuntimeAttemptsRemaining] = useState(null);
+    const [runtimeAttemptsRemaining, setRuntimeAttemptsRemaining] =
+        useState(null);
+    const [validationError, setValidationError] = useState("");
 
     const saveTimeoutRef = useRef(null);
 
@@ -214,15 +205,18 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
         () => normalizeQuestions(node?.properties?.questions || []),
         [node?.properties?.questions],
     );
-    const questions = shouldUseBackendRuntime ? runtimeQuestions : localQuestions;
+    const questions = shouldUseBackendRuntime
+        ? runtimeQuestions
+        : localQuestions;
 
     useEffect(() => {
         setCurrentQuestionIndex(0);
         setAnswers({});
         setResultSummary(null);
-        setRuntimeError('');
+        setRuntimeError("");
         setRuntimeQuestions([]);
         setRuntimeAttemptsRemaining(null);
+        setValidationError("");
         if (shouldUseBackendRuntime) {
             setIsLoadingRuntime(true);
         }
@@ -230,12 +224,12 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
     const buildRuntimeQuery = useCallback(() => {
         const params = new URLSearchParams();
-        params.set('response', 'json');
+        params.set("response", "json");
         if (enrollmentId) {
-            params.set('enrollment_id', String(enrollmentId));
+            params.set("enrollment_id", String(enrollmentId));
         }
         if (node?.id) {
-            params.set('node_id', String(node.id));
+            params.set("node_id", String(node.id));
         }
         return params.toString();
     }, [enrollmentId, node?.id]);
@@ -244,12 +238,12 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
         if (!shouldUseBackendRuntime || !quizId) return;
 
         setIsLoadingRuntime(true);
-        setRuntimeError('');
+        setRuntimeError("");
 
         try {
             const query = buildRuntimeQuery();
             const response = await fetch(`/student/quiz/${quizId}/?${query}`, {
-                credentials: 'same-origin',
+                credentials: "same-origin",
             });
 
             if (response.status === 409) {
@@ -258,22 +252,29 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                     router.visit(payload.redirectUrl);
                     return;
                 }
-                setRuntimeError('No quiz attempt is available for this lesson.');
+                setRuntimeError(
+                    "No quiz attempt is available for this lesson.",
+                );
                 return;
             }
 
             if (!response.ok) {
-                setRuntimeError('Unable to load this quiz right now.');
+                setRuntimeError("Unable to load this quiz right now.");
                 return;
             }
 
             const payload = await response.json();
-            const normalizedQuestions = normalizeQuestions(payload?.questions || []);
+            const normalizedQuestions = normalizeQuestions(
+                payload?.questions || [],
+            );
             const initialAnswers =
-                payload?.attempt?.answers && typeof payload.attempt.answers === 'object'
+                payload?.attempt?.answers &&
+                typeof payload.attempt.answers === "object"
                     ? payload.attempt.answers
                     : {};
-            const rawIndex = Number(payload?.attempt?.runtimeState?.current_question_index ?? 0);
+            const rawIndex = Number(
+                payload?.attempt?.runtimeState?.current_question_index ?? 0,
+            );
             const maxIndex = Math.max(0, normalizedQuestions.length - 1);
             const normalizedIndex = Number.isFinite(rawIndex)
                 ? Math.max(0, Math.min(rawIndex, maxIndex))
@@ -283,13 +284,13 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
             setAnswers(initialAnswers);
             setCurrentQuestionIndex(normalizedIndex);
             setRuntimeAttemptsRemaining(
-                typeof payload?.attemptsRemaining === 'number'
+                typeof payload?.attemptsRemaining === "number"
                     ? payload.attemptsRemaining
                     : null,
             );
             setResultSummary(null);
         } catch {
-            setRuntimeError('Unable to load this quiz right now.');
+            setRuntimeError("Unable to load this quiz right now.");
         } finally {
             setIsLoadingRuntime(false);
         }
@@ -305,7 +306,7 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
             if (!shouldUseBackendRuntime || !quizId) return;
 
             const payload = {
-                response: 'json',
+                response: "json",
                 answers: nextAnswers,
                 runtime_state: {
                     current_question_index: nextQuestionIndex,
@@ -320,10 +321,10 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
             try {
                 const response = await fetch(`/student/quiz/${quizId}/save/`, {
-                    method: 'POST',
-                    credentials: 'same-origin',
+                    method: "POST",
+                    credentials: "same-origin",
                     headers: getCsrfHeaders({
-                        'Content-Type': 'application/json',
+                        "Content-Type": "application/json",
                     }),
                     body: JSON.stringify(payload),
                 });
@@ -338,7 +339,7 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
                 if (response.ok) {
                     const data = await response.json().catch(() => ({}));
-                    if (typeof data?.attemptsRemaining === 'number') {
+                    if (typeof data?.attemptsRemaining === "number") {
                         setRuntimeAttemptsRemaining(data.attemptsRemaining);
                     }
                 }
@@ -372,6 +373,7 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
     );
 
     const handleAnswerChange = (questionId, value) => {
+        setValidationError("");
         setAnswers((previous) => {
             const nextAnswers = {
                 ...previous,
@@ -384,6 +386,18 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
     const handleSubmitQuiz = async () => {
         if (isSubmitting) return;
+
+        const firstUnansweredIndex = questions.findIndex(
+            (question) =>
+                !isQuestionAnswered(question, answers[String(question.id)]),
+        );
+        if (firstUnansweredIndex >= 0) {
+            setCurrentQuestionIndex(firstUnansweredIndex);
+            setValidationError(
+                `Answer question ${firstUnansweredIndex + 1} before submitting the quiz.`,
+            );
+            return;
+        }
 
         if (!shouldUseBackendRuntime || !quizId) {
             setIsSubmitting(true);
@@ -401,7 +415,7 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                     },
                     {
                         preserveScroll: true,
-                        only: ['isCompleted', 'curriculum'],
+                        only: ["isCompleted", "curriculum"],
                         onFinish: () => {
                             setIsSubmitting(false);
                             if (onComplete) onComplete();
@@ -419,10 +433,10 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
             clearTimeout(saveTimeoutRef.current);
         }
         setIsSubmitting(true);
-        setRuntimeError('');
+        setRuntimeError("");
 
         const payload = {
-            response: 'json',
+            response: "json",
             answers,
             runtime_state: {
                 current_question_index: currentQuestionIndex,
@@ -437,10 +451,10 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
         try {
             const response = await fetch(`/student/quiz/${quizId}/submit/`, {
-                method: 'POST',
-                credentials: 'same-origin',
+                method: "POST",
+                credentials: "same-origin",
                 headers: getCsrfHeaders({
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
                 }),
                 body: JSON.stringify(payload),
             });
@@ -451,12 +465,12 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                     router.visit(data.redirectUrl);
                     return;
                 }
-                setRuntimeError('No active attempt was found for submission.');
+                setRuntimeError("No active attempt was found for submission.");
                 return;
             }
 
             if (!response.ok) {
-                setRuntimeError('Failed to submit quiz. Please try again.');
+                setRuntimeError("Failed to submit quiz. Please try again.");
                 return;
             }
 
@@ -477,16 +491,16 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                 canRetry: Boolean(data?.canRetry),
                 nextNode: data?.nextNode || null,
             });
-            if (typeof data?.attemptsRemaining === 'number') {
+            if (typeof data?.attemptsRemaining === "number") {
                 setRuntimeAttemptsRemaining(data.attemptsRemaining);
             }
 
             router.reload({
                 preserveScroll: true,
-                only: ['curriculum', 'isCompleted', 'nextNode', 'progress'],
+                only: ["curriculum", "isCompleted", "nextNode", "progress"],
             });
         } catch {
-            setRuntimeError('Failed to submit quiz. Please try again.');
+            setRuntimeError("Failed to submit quiz. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -502,6 +516,17 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
         }
     };
 
+    const moveToQuestion = (index) => {
+        setCurrentQuestionIndex(index);
+        setValidationError("");
+        queueRuntimePersist(answers, index);
+    };
+
+    const handlePrevious = () => {
+        if (currentQuestionIndex <= 0) return;
+        moveToQuestion(currentQuestionIndex - 1);
+    };
+
     const handleRetake = () => {
         if (shouldUseBackendRuntime) {
             loadRuntime();
@@ -514,7 +539,10 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
     if (isLoadingRuntime) {
         return (
-            <Paper elevation={0} sx={{ p: 4, borderRadius: 2, bgcolor: 'background.paper' }}>
+            <Paper
+                elevation={0}
+                sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper" }}
+            >
                 <Typography color="text.secondary">Loading quiz...</Typography>
             </Paper>
         );
@@ -522,7 +550,10 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
 
     if (runtimeError) {
         return (
-            <Paper elevation={0} sx={{ p: 4, borderRadius: 2, bgcolor: 'background.paper' }}>
+            <Paper
+                elevation={0}
+                sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper" }}
+            >
                 <Alert severity="warning" sx={{ mb: 2 }}>
                     {runtimeError}
                 </Alert>
@@ -535,15 +566,19 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
         );
     }
 
-    if (quizId && (!questions || questions.length === 0) && !shouldUseBackendRuntime) {
+    if (
+        quizId &&
+        (!questions || questions.length === 0) &&
+        !shouldUseBackendRuntime
+    ) {
         const query = new URLSearchParams();
         if (enrollmentId) {
-            query.set('enrollment_id', String(enrollmentId));
+            query.set("enrollment_id", String(enrollmentId));
         }
         if (node?.id) {
-            query.set('node_id', String(node.id));
+            query.set("node_id", String(node.id));
         }
-        const startQuizUrl = `/student/quiz/${quizId}/${query.toString() ? `?${query.toString()}` : ''}`;
+        const startQuizUrl = `/student/quiz/${quizId}/${query.toString() ? `?${query.toString()}` : ""}`;
 
         return (
             <Paper
@@ -551,12 +586,12 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                 sx={{
                     p: { xs: 2, md: 5 },
                     borderRadius: 2,
-                    bgcolor: 'background.paper',
-                    textAlign: 'center',
+                    bgcolor: "background.paper",
+                    textAlign: "center",
                 }}
             >
                 <Typography variant="h5" fontWeight={600} gutterBottom>
-                    {node?.title || 'Quiz'}
+                    {node?.title || "Quiz"}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 3 }}>
                     Open this quiz when you are ready to begin.
@@ -579,9 +614,9 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                 elevation={0}
                 sx={{
                     p: 5,
-                    textAlign: 'center',
+                    textAlign: "center",
                     borderRadius: 2,
-                    bgcolor: 'background.paper',
+                    bgcolor: "background.paper",
                 }}
             >
                 <Typography variant="h5" fontWeight={600} gutterBottom>
@@ -605,16 +640,24 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
             return (
                 <Paper
                     elevation={0}
-                    sx={{ p: { xs: 2, md: 5 }, borderRadius: 2, bgcolor: 'background.paper' }}
+                    sx={{
+                        p: { xs: 2, md: 5 },
+                        borderRadius: 2,
+                        bgcolor: "background.paper",
+                    }}
                 >
-                    <Box sx={{ textAlign: 'center', mb: 4 }}>
+                    <Box sx={{ textAlign: "center", mb: 4 }}>
                         <Typography variant="h4" fontWeight={700} gutterBottom>
                             Quiz Completed
                         </Typography>
 
                         <Typography
                             variant="h2"
-                            color={resultSummary.passed ? 'success.main' : 'warning.main'}
+                            color={
+                                resultSummary.passed
+                                    ? "success.main"
+                                    : "warning.main"
+                            }
                             fontWeight={800}
                             sx={{ mb: 1 }}
                         >
@@ -625,38 +668,53 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                             Attempt #{resultSummary.attemptNumber}
                             {resultSummary.maxAttempts
                                 ? ` of ${resultSummary.maxAttempts}`
-                                : ''}
-                            {typeof resultSummary.pointsEarned === 'number' &&
-                            typeof resultSummary.pointsPossible === 'number'
+                                : ""}
+                            {typeof resultSummary.pointsEarned === "number" &&
+                            typeof resultSummary.pointsPossible === "number"
                                 ? ` • ${formatPoints(resultSummary.pointsEarned)}/${formatPoints(resultSummary.pointsPossible)} points`
-                                : ''}
+                                : ""}
                         </Typography>
                     </Box>
 
-                    <Stack direction="row" spacing={1.5} justifyContent="center" flexWrap="wrap">
-                        {resultSummary.passed && resultSummary.nextNode?.url && (
-                            <Button
-                                variant="contained"
-                                onClick={() => router.visit(resultSummary.nextNode.url)}
-                            >
-                                Continue to Next Lesson
-                            </Button>
-                        )}
+                    <Stack
+                        direction="row"
+                        spacing={1.5}
+                        justifyContent="center"
+                        flexWrap="wrap"
+                    >
+                        {resultSummary.passed &&
+                            resultSummary.nextNode?.url && (
+                                <Button
+                                    variant="contained"
+                                    onClick={() =>
+                                        router.visit(resultSummary.nextNode.url)
+                                    }
+                                >
+                                    Continue to Next Lesson
+                                </Button>
+                            )}
                         {resultSummary.canRetry && (
                             <Button variant="outlined" onClick={handleRetake}>
                                 Try Again
                             </Button>
                         )}
-                        {!resultSummary.canRetry && runtimeAttemptsRemaining === 0 && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                No retakes remaining.
-                                {resultSummary.maxAttempts
-                                    ? ` This quiz allows ${resultSummary.maxAttempts} total attempt${
-                                          resultSummary.maxAttempts > 1 ? 's' : ''
-                                      }.`
-                                    : ''}
-                            </Typography>
-                        )}
+                        {!resultSummary.canRetry &&
+                            runtimeAttemptsRemaining === 0 && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mt: 1 }}
+                                >
+                                    No retakes remaining.
+                                    {resultSummary.maxAttempts
+                                        ? ` This quiz allows ${resultSummary.maxAttempts} total attempt${
+                                              resultSummary.maxAttempts > 1
+                                                  ? "s"
+                                                  : ""
+                                          }.`
+                                        : ""}
+                                </Typography>
+                            )}
                     </Stack>
                 </Paper>
             );
@@ -665,17 +723,31 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
         return (
             <Paper
                 elevation={0}
-                sx={{ p: { xs: 2, md: 5 }, borderRadius: 2, bgcolor: 'background.paper' }}
+                sx={{
+                    p: { xs: 2, md: 5 },
+                    borderRadius: 2,
+                    bgcolor: "background.paper",
+                }}
             >
-                <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Box sx={{ textAlign: "center", mb: 4 }}>
                     <Typography variant="h4" fontWeight={700} gutterBottom>
                         Quiz Completed
                     </Typography>
 
-                    <Box sx={{ position: 'relative', display: 'inline-flex', mb: 2 }}>
+                    <Box
+                        sx={{
+                            position: "relative",
+                            display: "inline-flex",
+                            mb: 2,
+                        }}
+                    >
                         <Typography
                             variant="h2"
-                            color={resultSummary.score >= 70 ? 'success.main' : 'warning.main'}
+                            color={
+                                resultSummary.score >= 70
+                                    ? "success.main"
+                                    : "warning.main"
+                            }
                             fontWeight={800}
                         >
                             {resultSummary.score}%
@@ -685,14 +757,16 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                     <Typography color="text.secondary" paragraph>
                         {resultSummary.score >= 70
                             ? "Great job. You've mastered this topic."
-                            : 'Review the answers below and try again to improve your score.'}
+                            : "Review the answers below and try again to improve your score."}
                     </Typography>
 
                     {resultSummary.ungradedCount > 0 && (
                         <Alert severity="info" sx={{ mt: 2 }}>
                             {resultSummary.ungradedCount} question
-                            {resultSummary.ungradedCount > 1 ? 's are' : ' is'} manual grade only and
-                            excluded from auto-score.
+                            {resultSummary.ungradedCount > 1
+                                ? "s are"
+                                : " is"}{" "}
+                            manual grade only and excluded from auto-score.
                         </Alert>
                     )}
                 </Box>
@@ -705,56 +779,63 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                     {resultSummary.evaluations.map((entry, index) => {
                         const { question, answer, graded, isCorrect } = entry;
                         const statusLabel = !graded
-                            ? 'Needs Review'
+                            ? "Needs Review"
                             : isCorrect
-                              ? 'Correct'
-                              : 'Incorrect';
+                              ? "Correct"
+                              : "Incorrect";
                         const statusColor = !graded
-                            ? 'info'
+                            ? "info"
                             : isCorrect
-                              ? 'success'
-                              : 'error';
+                              ? "success"
+                              : "error";
 
                         let correctAnswerDisplay = null;
-                        if (question.type === 'mcq' || question.type === 'true_false') {
+                        if (
+                            question.type === "mcq" ||
+                            question.type === "true_false"
+                        ) {
                             correctAnswerDisplay = formatAnswer(
                                 question,
                                 question.correctOptionId,
                                 true,
                             );
-                        } else if (question.type === 'mcq_multi') {
+                        } else if (question.type === "mcq_multi") {
                             correctAnswerDisplay = formatAnswer(
                                 question,
                                 question.correctOptionIds,
                                 true,
                             );
-                        } else if (question.type === 'short_answer') {
+                        } else if (question.type === "short_answer") {
                             correctAnswerDisplay = formatAnswer(
                                 question,
                                 question.keywords,
                                 true,
                             );
-                        } else if (question.type === 'matching') {
+                        } else if (question.type === "matching") {
                             correctAnswerDisplay = formatAnswer(
                                 question,
                                 question.correctMatchingMap,
                                 true,
                             );
-                        } else if (question.type === 'fill_blank') {
+                        } else if (question.type === "fill_blank") {
                             const gapMap = Object.fromEntries(
                                 (question.gaps || []).map((gap) => [
                                     gap.gap_index,
-                                    (gap.accepted_answers || []).join(' / '),
+                                    (gap.accepted_answers || []).join(" / "),
                                 ]),
                             );
-                            correctAnswerDisplay = formatAnswer(question, gapMap, true);
-                        } else if (question.type === 'ordering') {
+                            correctAnswerDisplay = formatAnswer(
+                                question,
+                                gapMap,
+                                true,
+                            );
+                        } else if (question.type === "ordering") {
                             correctAnswerDisplay = formatAnswer(
                                 question,
                                 question.correctOrdering,
                                 true,
                             );
-                        } else if (question.type === 'image_matching') {
+                        } else if (question.type === "image_matching") {
                             correctAnswerDisplay = formatAnswer(
                                 question,
                                 question.correctImageMatchingMap,
@@ -771,15 +852,19 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                                     mb: 2,
                                     borderRadius: 2,
                                     borderColor:
-                                        statusColor === 'success'
-                                            ? 'success.main'
-                                            : statusColor === 'error'
-                                              ? 'error.light'
-                                              : 'info.light',
+                                        statusColor === "success"
+                                            ? "success.main"
+                                            : statusColor === "error"
+                                              ? "error.light"
+                                              : "info.light",
                                     borderWidth: 2,
                                 }}
                             >
-                                <Stack direction="row" spacing={1.5} sx={{ mb: 1.5 }}>
+                                <Stack
+                                    direction="row"
+                                    spacing={1.5}
+                                    sx={{ mb: 1.5 }}
+                                >
                                     <Typography
                                         variant="caption"
                                         sx={{
@@ -793,29 +878,51 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                                     >
                                         {statusLabel}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                    >
                                         Question {index + 1}
                                     </Typography>
                                 </Stack>
 
-                                <Typography variant="body1" fontWeight={500} sx={{ mb: 1 }}>
+                                <Typography
+                                    variant="body1"
+                                    fontWeight={500}
+                                    sx={{ mb: 1 }}
+                                >
                                     {question.text}
                                 </Typography>
 
-                                <Box sx={{ pl: 2, borderLeft: '3px solid', borderColor: 'divider' }}>
-                                    <Typography variant="body2" sx={{ mb: 0.5 }}>
-                                        Your answer: {formatAnswer(question, answer)}
+                                <Box
+                                    sx={{
+                                        pl: 2,
+                                        borderLeft: "3px solid",
+                                        borderColor: "divider",
+                                    }}
+                                >
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ mb: 0.5 }}
+                                    >
+                                        Your answer:{" "}
+                                        {formatAnswer(question, answer)}
                                     </Typography>
                                     {correctAnswerDisplay && (
-                                        <Typography variant="body2" color="success.main" sx={{ mb: 0.5 }}>
-                                            Correct answer: {correctAnswerDisplay}
+                                        <Typography
+                                            variant="body2"
+                                            color="success.main"
+                                            sx={{ mb: 0.5 }}
+                                        >
+                                            Correct answer:{" "}
+                                            {correctAnswerDisplay}
                                         </Typography>
                                     )}
                                     {question.explanation && (
                                         <Typography
                                             variant="body2"
                                             color="text.secondary"
-                                            sx={{ mt: 1, fontStyle: 'italic' }}
+                                            sx={{ mt: 1, fontStyle: "italic" }}
                                         >
                                             Note: {question.explanation}
                                         </Typography>
@@ -826,8 +933,12 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                     })}
                 </Box>
 
-                <Box sx={{ textAlign: 'center' }}>
-                    <Button variant="contained" onClick={handleRetake} sx={{ px: 4 }}>
+                <Box sx={{ textAlign: "center" }}>
+                    <Button
+                        variant="contained"
+                        onClick={handleRetake}
+                        sx={{ px: 4 }}
+                    >
                         Retake Quiz
                     </Button>
                 </Box>
@@ -836,6 +947,13 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
     }
 
     const currentAnswer = answers[String(currentQuestion.id)];
+    const answeredIndexes = questions
+        .map((question, index) =>
+            isQuestionAnswered(question, answers[String(question.id)])
+                ? index
+                : null,
+        )
+        .filter((index) => index !== null);
 
     return (
         <Paper
@@ -843,34 +961,45 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
             sx={{
                 p: { xs: 2, md: 5 },
                 borderRadius: 2,
-                bgcolor: 'background.paper',
+                bgcolor: "background.paper",
                 minHeight: 400,
             }}
         >
-            {typeof runtimeAttemptsRemaining === 'number' && shouldUseBackendRuntime && (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                    {runtimeAttemptsRemaining} retake
-                    {runtimeAttemptsRemaining === 1 ? '' : 's'} remaining.
-                </Alert>
-            )}
+            {typeof runtimeAttemptsRemaining === "number" &&
+                shouldUseBackendRuntime && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        {runtimeAttemptsRemaining} retake
+                        {runtimeAttemptsRemaining === 1 ? "" : "s"} remaining.
+                    </Alert>
+                )}
 
             <Box sx={{ mb: 4 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        QUESTION {currentQuestionIndex + 1} OF {questions.length}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        {Math.round(progress)}% COMPLETED
-                    </Typography>
-                </Box>
+                <QuestionNavigator
+                    count={questions.length}
+                    currentIndex={currentQuestionIndex}
+                    answeredIndexes={answeredIndexes}
+                    onSelect={moveToQuestion}
+                />
                 <LinearProgress
                     variant="determinate"
                     value={progress}
-                    sx={{ height: 8, borderRadius: 4 }}
+                    aria-label={`${answeredCount} of ${questions.length} questions answered`}
+                    sx={{ height: 6, borderRadius: 4, mt: 1.5 }}
                 />
             </Box>
 
-            <Typography variant="h5" fontWeight={600} gutterBottom sx={{ mb: 3 }}>
+            {validationError && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    {validationError}
+                </Alert>
+            )}
+
+            <Typography
+                variant="h5"
+                fontWeight={600}
+                gutterBottom
+                sx={{ mb: 3 }}
+            >
                 {currentQuestion.text}
             </Typography>
 
@@ -880,21 +1009,37 @@ const QuizRenderer = ({ node, enrollmentId, onComplete, useBackendRuntime = fals
                 onAnswerChange: handleAnswerChange,
             })}
 
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Stack
+                direction={{ xs: "column-reverse", sm: "row" }}
+                spacing={1}
+                justifyContent="space-between"
+            >
+                <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={handlePrevious}
+                    disabled={currentQuestionIndex === 0 || isSubmitting}
+                    sx={{ px: 3 }}
+                >
+                    Previous
+                </Button>
                 <Button
                     variant="contained"
                     size="large"
                     onClick={handleNext}
-                    disabled={!isQuestionAnswered(currentQuestion, currentAnswer) || isSubmitting}
-                    sx={{ px: 4, borderRadius: 8 }}
+                    disabled={
+                        !isQuestionAnswered(currentQuestion, currentAnswer) ||
+                        isSubmitting
+                    }
+                    sx={{ px: 4 }}
                 >
                     {currentQuestionIndex === questions.length - 1
                         ? isSubmitting
-                            ? 'Submitting...'
-                            : 'Finish Quiz'
-                        : 'Next Question'}
+                            ? "Submitting..."
+                            : "Finish Quiz"
+                        : "Next Question"}
                 </Button>
-            </Box>
+            </Stack>
         </Paper>
     );
 };

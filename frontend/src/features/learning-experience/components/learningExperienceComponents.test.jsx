@@ -4,6 +4,7 @@ import { describe, expect, test, vi } from "vitest";
 import CourseUnitCard from "./CourseUnitCard";
 import CurrentLearningCard from "./CurrentLearningCard";
 import LearningStatusBadge from "./LearningStatusBadge";
+import QuestionNavigator from "./QuestionNavigator";
 
 vi.mock("@inertiajs/react", () => ({
     Link: ({ children, href, ...props }) => (
@@ -65,5 +66,26 @@ describe("learner experience components", () => {
             screen.getByRole("link", { name: "Open Deploy safely" }),
         ).toHaveAttribute("href", "/student/programs/3/session/9/");
         expect(screen.getByText("2/5 items completed")).toBeInTheDocument();
+    });
+
+    test("labels current and answered quiz questions for assistive technology", () => {
+        const onSelect = vi.fn();
+        render(
+            <QuestionNavigator
+                count={3}
+                currentIndex={1}
+                answeredIndexes={[0]}
+                onSelect={onSelect}
+            />,
+        );
+
+        expect(
+            screen.getByRole("button", { name: "Question 1, answered" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", {
+                name: "Question 2, not answered, current",
+            }),
+        ).toHaveAttribute("aria-current", "step");
     });
 });

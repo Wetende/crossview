@@ -4,26 +4,16 @@ import {
     Box,
     Button,
     Chip,
-    Divider,
     Paper,
     Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Typography,
 } from "@mui/material";
-import {
-    IconArrowRight,
-    IconCheck,
-    IconEye,
-    IconRefresh,
-    IconX,
-} from "@tabler/icons-react";
-import { motion } from "framer-motion";
+import { IconArrowRight, IconEye, IconRefresh } from "@tabler/icons-react";
 
+import {
+    AssessmentResultHero,
+    AttemptHistory,
+} from "@/features/learning-experience/components";
 import { formatPoints } from "@/lib/formatPoints";
 
 const formatReviewValue = (value, fallback) => {
@@ -32,25 +22,13 @@ const formatReviewValue = (value, fallback) => {
     return value;
 };
 
-const getAttemptStatus = (attempt) => {
-    if (attempt?.passed === true) {
-        return {
-            label: "Passed",
-            color: "success",
-            icon: <IconCheck size={15} />,
-        };
-    }
-    if (attempt?.passed === false) {
-        return {
-            label: "Not passed",
-            color: "error",
-            icon: <IconX size={15} />,
-        };
-    }
-    return { label: "Pending review", color: "default", icon: null };
+const attemptStatusLabel = (attempt) => {
+    if (attempt?.passed === true) return "Passed";
+    if (attempt?.passed === false) return "Not passed";
+    return "Pending review";
 };
 
-const getReleaseMessage = (policy) => {
+const releaseMessage = (policy) => {
     if (policy === "after_pass_or_final") {
         return "Correct answers will be released after you pass or use your final available attempt.";
     }
@@ -66,7 +44,10 @@ const withAttemptId = (url, attemptId) => {
     return `${url}${separator}attempt_id=${attemptId}`;
 };
 
-export default function QuizResultsRenderer({ quizResults, nextNode = null }) {
+const submittedLabel = (value) =>
+    value ? new Date(value).toLocaleString() : "Not recorded";
+
+const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
     const {
         quiz,
         attempts = [],
@@ -80,7 +61,6 @@ export default function QuizResultsRenderer({ quizResults, nextNode = null }) {
     } = quizResults;
     const correctAnswersReleased =
         releasedAnswers ?? Boolean(quiz.showCorrectAnswer);
-
     const activeAttempt = reviewedAttempt || attempts[0] || null;
     const bestAttempt =
         officialAttempt ||
@@ -90,7 +70,6 @@ export default function QuizResultsRenderer({ quizResults, nextNode = null }) {
             const bestScore = typeof best?.score === "number" ? best.score : -1;
             return !best || score > bestScore ? attempt : best;
         }, null);
-    const status = getAttemptStatus(activeAttempt);
     const hasPassedQuiz = bestAttempt?.passed === true;
 
     const reviewAttempt = (attemptId) => {
@@ -98,159 +77,89 @@ export default function QuizResultsRenderer({ quizResults, nextNode = null }) {
         if (url) router.visit(url);
     };
 
-    return (
-        <Box sx={{ px: { xs: 1.5, sm: 3 }, py: { xs: 2, md: 3 } }}>
-            <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-            >
-                <Box sx={{ mb: 2.5 }}>
-                    <Typography variant="h5" fontWeight={750}>
-                        Quiz results
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        {quiz.title}
-                        {quiz.nodeTitle ? ` · ${quiz.nodeTitle}` : ""}
-                    </Typography>
-                </Box>
+    const historyItems = attempts.map((attempt) => ({
+        id: attempt.id,
+        title: `Attempt #${attempt.attemptNumber}`,
+        score:
+            typeof attempt.score === "number"
+                ? `${attempt.score.toFixed(1)}%`
+                : "Pending",
+        points: `${formatPoints(attempt.pointsEarned)} / ${formatPoints(
+            attempt.pointsPossible,
+        )}`,
+        status: attemptStatusLabel(attempt),
+        submittedAt: submittedLabel(attempt.submittedAt),
+    }));
 
-                {activeAttempt && (
-                    <Paper
-                        variant="outlined"
-                        sx={{
-                            p: { xs: 2, sm: 3 },
-                            mb: 3,
-                            borderTop: "4px solid",
-                            borderTopColor:
-                                activeAttempt.passed === true
-                                    ? "success.main"
-                                    : activeAttempt.passed === false
-                                      ? "warning.main"
-                                      : "info.main",
-                        }}
+    const retryMessage = () => {
+        if (canRetry) {
+            return `${attemptsRemaining} ${
+                attemptsRemaining === 1 ? "attempt" : "attempts"
+            } remaining.`;
+        }
+        if (retryLockReason === "max_attempts_reached") {
+            return `All ${quiz.maxAttempts} available ${
+                quiz.maxAttempts === 1 ? "attempt has" : "attempts have"
+            } been used.`;
+        }
+        if (retryLockReason === "passed_retake_disabled") {
+            return `You passed this quiz. Further attempts are disabled by the instructor, although ${attemptsRemaining} ${
+                attemptsRemaining === 1 ? "remains" : "remain"
+            } in the numeric limit.`;
+        }
+        return null;
+    };
+
+    return (
+        <Box sx={{ px: { xs: 0.5, sm: 2 }, py: { xs: 1, md: 2 } }}>
+            <Box sx={{ mb: 2.5 }}>
+                <Typography component="h1" variant="h5">
+                    Quiz results
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {quiz.title}
+                    {quiz.nodeTitle ? ` · ${quiz.nodeTitle}` : ""}
+                </Typography>
+            </Box>
+
+            {activeAttempt && (
+                <Box sx={{ mb: 3 }}>
+                    <AssessmentResultHero
+                        title={
+                            hasPassedQuiz
+                                ? "Activity completed"
+                                : "Attempt complete"
+                        }
+                        score={activeAttempt.score}
+                        passed={activeAttempt.passed}
+                        attemptLabel={`Attempt #${activeAttempt.attemptNumber} of ${quiz.maxAttempts}`}
+                        metrics={[
+                            {
+                                label: "Points",
+                                value: `${formatPoints(activeAttempt.pointsEarned)} / ${formatPoints(activeAttempt.pointsPossible)}`,
+                            },
+                            {
+                                label: "Required",
+                                value: `${quiz.passThreshold}%`,
+                            },
+                            {
+                                label: "Best score",
+                                value:
+                                    typeof bestAttempt?.score === "number"
+                                        ? `${Math.round(bestAttempt.score)}%`
+                                        : "Pending",
+                            },
+                            {
+                                label: "Attempts remaining",
+                                value: attemptsRemaining,
+                            },
+                        ]}
                     >
                         <Stack
-                            direction={{ xs: "column", md: "row" }}
-                            spacing={{ xs: 2, md: 4 }}
-                            sx={{
-                                alignItems: { xs: "flex-start", md: "center" },
-                            }}
-                        >
-                            <Box sx={{ minWidth: { md: 180 } }}>
-                                <Chip
-                                    size="small"
-                                    icon={status.icon}
-                                    label={status.label}
-                                    color={status.color}
-                                    sx={{ mb: 1 }}
-                                />
-                                <Typography
-                                    variant="h3"
-                                    sx={{ fontWeight: 800, lineHeight: 1 }}
-                                >
-                                    {typeof activeAttempt.score === "number"
-                                        ? `${Math.round(activeAttempt.score)}%`
-                                        : "Pending"}
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mt: 0.75 }}
-                                >
-                                    Attempt #{activeAttempt.attemptNumber} of{" "}
-                                    {quiz.maxAttempts}
-                                </Typography>
-                            </Box>
-
-                            <Box
-                                sx={{
-                                    display: "grid",
-                                    gridTemplateColumns: {
-                                        xs: "repeat(2, minmax(0, 1fr))",
-                                        sm: "repeat(4, minmax(110px, 1fr))",
-                                    },
-                                    gap: { xs: 2, sm: 3 },
-                                    width: "100%",
-                                }}
-                            >
-                                <Box>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                    >
-                                        Points
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        fontWeight={700}
-                                    >
-                                        {formatPoints(
-                                            activeAttempt.pointsEarned,
-                                        )}{" "}
-                                        /{" "}
-                                        {formatPoints(
-                                            activeAttempt.pointsPossible,
-                                        )}
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                    >
-                                        Required
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        fontWeight={700}
-                                    >
-                                        {quiz.passThreshold}%
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                    >
-                                        Best score
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        fontWeight={700}
-                                    >
-                                        {typeof bestAttempt?.score === "number"
-                                            ? `${Math.round(bestAttempt.score)}%`
-                                            : "Pending"}
-                                    </Typography>
-                                </Box>
-                                <Box>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                    >
-                                        Attempts remaining
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        fontWeight={700}
-                                    >
-                                        {attemptsRemaining}
-                                    </Typography>
-                                </Box>
-                            </Box>
-                        </Stack>
-
-                        <Divider sx={{ my: 2.5 }} />
-
-                        <Stack
                             direction={{ xs: "column", sm: "row" }}
-                            spacing={1.25}
+                            spacing={1}
                             useFlexGap
-                            sx={{
-                                alignItems: { xs: "stretch", sm: "center" },
-                                flexWrap: "wrap",
-                            }}
+                            flexWrap="wrap"
                         >
                             {hasPassedQuiz && nextNode?.url && (
                                 <Button
@@ -259,7 +168,7 @@ export default function QuizResultsRenderer({ quizResults, nextNode = null }) {
                                     variant="contained"
                                     endIcon={<IconArrowRight size={18} />}
                                 >
-                                    Continue to next lesson
+                                    Continue learning
                                 </Button>
                             )}
                             {questionReview.length > 0 && (
@@ -279,129 +188,102 @@ export default function QuizResultsRenderer({ quizResults, nextNode = null }) {
                                     variant="outlined"
                                     startIcon={<IconRefresh size={18} />}
                                 >
-                                    Retake quiz
+                                    Try again
                                 </Button>
                             )}
                         </Stack>
-
-                        {canRetry && (
+                        {retryMessage() && (
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
                                 sx={{ mt: 1.5 }}
                             >
-                                {attemptsRemaining} attempt
-                                {attemptsRemaining === 1 ? "" : "s"} remaining.
+                                {retryMessage()}
                             </Typography>
                         )}
-                        {!canRetry &&
-                            retryLockReason === "max_attempts_reached" && (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mt: 1.5 }}
-                                >
-                                    All {quiz.maxAttempts} available attempt
-                                    {quiz.maxAttempts === 1
-                                        ? " has"
-                                        : "s have"}{" "}
-                                    been used.
-                                </Typography>
-                            )}
-                        {!canRetry &&
-                            retryLockReason === "passed_retake_disabled" && (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{ mt: 1.5 }}
-                                >
-                                    You passed this quiz. Further attempts are
-                                    disabled by the instructor, although{" "}
-                                    {attemptsRemaining}{" "}
-                                    {attemptsRemaining === 1
-                                        ? "remains"
-                                        : "remain"}{" "}
-                                    in the numeric limit.
-                                </Typography>
-                            )}
-                    </Paper>
+                    </AssessmentResultHero>
+                </Box>
+            )}
+
+            <Box id="quiz-answer-review" sx={{ scrollMarginTop: 24, mb: 3 }}>
+                <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={0.5}
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    sx={{ mb: 1.5 }}
+                >
+                    <Typography component="h2" variant="h6">
+                        Answer review
+                    </Typography>
+                    {activeAttempt && (
+                        <Typography variant="body2" color="text.secondary">
+                            Reviewing attempt #{activeAttempt.attemptNumber}
+                        </Typography>
+                    )}
+                </Stack>
+
+                {!correctAnswersReleased && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        {releaseMessage(quiz.answerReleasePolicy)}
+                    </Alert>
                 )}
 
-                <Box
-                    id="quiz-answer-review"
-                    sx={{ scrollMarginTop: 24, mb: 3 }}
-                >
-                    <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={0.5}
-                        sx={{
-                            mb: 1.5,
-                            justifyContent: "space-between",
-                            alignItems: { xs: "flex-start", sm: "center" },
-                        }}
-                    >
-                        <Typography variant="h6" fontWeight={750}>
-                            Answer review
+                {questionReview.length === 0 ? (
+                    <Paper variant="outlined" sx={{ p: 2.5 }}>
+                        <Typography color="text.secondary">
+                            Question-level review is not available for this
+                            attempt.
                         </Typography>
-                        {activeAttempt && (
-                            <Typography variant="body2" color="text.secondary">
-                                Reviewing attempt #{activeAttempt.attemptNumber}
-                            </Typography>
-                        )}
-                    </Stack>
-
-                    {!correctAnswersReleased && (
-                        <Alert severity="info" sx={{ mb: 2 }}>
-                            {getReleaseMessage(quiz.answerReleasePolicy)}
-                        </Alert>
-                    )}
-
+                    </Paper>
+                ) : (
                     <Stack spacing={1.5}>
                         {questionReview.map((item, index) => {
-                            const questionStatus =
+                            const status =
                                 item.isCorrect === true
                                     ? { label: "Correct", color: "success" }
                                     : item.isCorrect === false
                                       ? { label: "Incorrect", color: "error" }
                                       : {
                                             label: "Pending review",
-                                            color: "default",
+                                            color: "info",
                                         };
 
                             return (
                                 <Paper
                                     key={`${item.questionId}-${index}`}
                                     variant="outlined"
-                                    sx={{ p: { xs: 2, sm: 2.5 } }}
+                                    sx={{
+                                        p: { xs: 2, sm: 2.5 },
+                                        borderRadius: 2,
+                                    }}
                                 >
                                     <Stack
-                                        direction="row"
+                                        direction={{ xs: "column", sm: "row" }}
                                         spacing={1}
-                                        sx={{
-                                            mb: 1.25,
-                                            justifyContent: "space-between",
-                                            alignItems: "flex-start",
-                                        }}
+                                        justifyContent="space-between"
+                                        alignItems={{ sm: "flex-start" }}
+                                        sx={{ mb: 1.25 }}
                                     >
                                         <Box>
                                             <Typography
                                                 variant="overline"
                                                 color="text.secondary"
-                                                sx={{ lineHeight: 1.4 }}
                                             >
                                                 Question {index + 1}
                                             </Typography>
                                             <Typography
                                                 variant="subtitle1"
-                                                fontWeight={700}
+                                                fontWeight={800}
                                             >
                                                 {item.questionText}
                                             </Typography>
                                         </Box>
                                         <Chip
                                             size="small"
-                                            label={questionStatus.label}
-                                            color={questionStatus.color}
+                                            label={status.label}
+                                            color={status.color}
+                                            sx={{ fontWeight: 700 }}
                                         />
                                     </Stack>
 
@@ -444,125 +326,18 @@ export default function QuizResultsRenderer({ quizResults, nextNode = null }) {
                             );
                         })}
                     </Stack>
-                </Box>
-
-                {quiz.showAttemptHistory && attempts.length > 0 && (
-                    <Box>
-                        <Typography
-                            variant="h6"
-                            fontWeight={750}
-                            sx={{ mb: 1.5 }}
-                        >
-                            Attempt history
-                        </Typography>
-                        <Paper variant="outlined">
-                            <TableContainer>
-                                <Table size="small" sx={{ minWidth: 680 }}>
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Attempt</TableCell>
-                                            <TableCell>Score</TableCell>
-                                            <TableCell>Points</TableCell>
-                                            <TableCell>Status</TableCell>
-                                            <TableCell>Submitted</TableCell>
-                                            <TableCell align="right">
-                                                Review
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {attempts.map((attempt) => {
-                                            const attemptStatus =
-                                                getAttemptStatus(attempt);
-                                            const isSelected =
-                                                attempt.id ===
-                                                activeAttempt?.id;
-                                            return (
-                                                <TableRow
-                                                    key={attempt.id}
-                                                    hover
-                                                    selected={isSelected}
-                                                    sx={{ cursor: "pointer" }}
-                                                    onClick={() =>
-                                                        reviewAttempt(
-                                                            attempt.id,
-                                                        )
-                                                    }
-                                                >
-                                                    <TableCell>
-                                                        #{attempt.attemptNumber}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {typeof attempt.score ===
-                                                        "number"
-                                                            ? `${attempt.score.toFixed(1)}%`
-                                                            : "Pending"}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {formatPoints(
-                                                            attempt.pointsEarned,
-                                                        )}{" "}
-                                                        /{" "}
-                                                        {formatPoints(
-                                                            attempt.pointsPossible,
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Chip
-                                                            size="small"
-                                                            icon={
-                                                                attemptStatus.icon
-                                                            }
-                                                            label={
-                                                                attemptStatus.label
-                                                            }
-                                                            color={
-                                                                attemptStatus.color
-                                                            }
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {attempt.submittedAt
-                                                            ? new Date(
-                                                                  attempt.submittedAt,
-                                                              ).toLocaleString()
-                                                            : "—"}
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Button
-                                                            size="small"
-                                                            startIcon={
-                                                                <IconEye
-                                                                    size={16}
-                                                                />
-                                                            }
-                                                            onClick={(
-                                                                event,
-                                                            ) => {
-                                                                event.stopPropagation();
-                                                                reviewAttempt(
-                                                                    attempt.id,
-                                                                );
-                                                            }}
-                                                            disabled={
-                                                                isSelected
-                                                            }
-                                                        >
-                                                            {isSelected
-                                                                ? "Viewing"
-                                                                : "Review"}
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        </Paper>
-                    </Box>
                 )}
-            </motion.div>
+            </Box>
+
+            {quiz.showAttemptHistory && (
+                <AttemptHistory
+                    attempts={historyItems}
+                    selectedId={activeAttempt?.id}
+                    onReview={reviewAttempt}
+                />
+            )}
         </Box>
     );
-}
+};
+
+export default QuizResultsRenderer;

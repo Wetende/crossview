@@ -9,7 +9,6 @@ import {
     Button,
     RadioGroup,
     Radio,
-    FormControlLabel,
     FormGroup,
     Checkbox,
     TextField,
@@ -25,12 +24,16 @@ import {
     IconChevronRight,
     IconSend,
 } from "@tabler/icons-react";
-import { motion } from "framer-motion";
 import MatchingQuestion from "@/features/quizzes/components/MatchingQuestion";
 import OrderingQuestion from "@/features/quizzes/components/OrderingQuestion";
 import FillBlankQuestion from "@/features/quizzes/components/FillBlankQuestion";
 import ImageMatchingQuestion from "@/features/quizzes/components/ImageMatchingQuestion";
 import { getCsrfHeaders } from "@/utils/csrf";
+import {
+    AnswerOptionCard,
+    QuestionNavigator,
+} from "@/features/learning-experience/components";
+import { isQuestionAnswered } from "@/features/course-player/components/Renderers/quizRendererUtils";
 
 export default function Take({
     quiz,
@@ -264,8 +267,6 @@ export default function Take({
     const quizStyle = quiz.quizStyle || "pagination";
     const isSinglePage = quizStyle === "single_page";
     const currentQuestion = questions[currentIdx];
-    const answeredCount = Object.keys(answers).length;
-    const progress = (answeredCount / questions.length) * 100;
 
     const renderQuestionContent = (question) => (
         <>
@@ -278,20 +279,14 @@ export default function Take({
                     }
                 >
                     {question.options.map((opt, idx) => (
-                        <FormControlLabel
+                        <AnswerOptionCard
                             key={opt.id ?? opt.position ?? idx}
-                            value={String(opt.id)}
-                            control={<Radio />}
+                            selected={
+                                String(answers[question.id] ?? "") ===
+                                String(opt.id)
+                            }
+                            control={<Radio value={String(opt.id)} />}
                             label={`${String.fromCharCode(65 + idx)}. ${opt.text}`}
-                            sx={{
-                                border: "1px solid",
-                                borderColor: "divider",
-                                borderRadius: 1,
-                                mb: 1,
-                                mx: 0,
-                                p: 1,
-                                "&:hover": { bgcolor: "action.hover" },
-                            }}
                         />
                     ))}
                 </RadioGroup>
@@ -312,8 +307,9 @@ export default function Take({
                         );
                         const isSelected = selectedSet.has(optionId);
                         return (
-                            <FormControlLabel
+                            <AnswerOptionCard
                                 key={opt.id ?? opt.position ?? idx}
+                                selected={isSelected}
                                 control={
                                     <Checkbox
                                         checked={isSelected}
@@ -344,20 +340,6 @@ export default function Take({
                                     />
                                 }
                                 label={`${String.fromCharCode(65 + idx)}. ${opt.text}`}
-                                sx={{
-                                    border: "1px solid",
-                                    borderColor: isSelected
-                                        ? "primary.main"
-                                        : "divider",
-                                    borderRadius: 1,
-                                    mb: 1,
-                                    mx: 0,
-                                    p: 1,
-                                    bgcolor: isSelected
-                                        ? "primary.50"
-                                        : "transparent",
-                                    "&:hover": { bgcolor: "action.hover" },
-                                }}
                             />
                         );
                     })}
@@ -375,30 +357,15 @@ export default function Take({
                         )
                     }
                 >
-                    <FormControlLabel
-                        value="true"
-                        control={<Radio />}
+                    <AnswerOptionCard
+                        selected={answers[question.id] === true}
+                        control={<Radio value="true" />}
                         label="True"
-                        sx={{
-                            border: "1px solid",
-                            borderColor: "divider",
-                            borderRadius: 1,
-                            mb: 1,
-                            mx: 0,
-                            p: 1,
-                        }}
                     />
-                    <FormControlLabel
-                        value="false"
-                        control={<Radio />}
+                    <AnswerOptionCard
+                        selected={answers[question.id] === false}
+                        control={<Radio value="false" />}
                         label="False"
-                        sx={{
-                            border: "1px solid",
-                            borderColor: "divider",
-                            borderRadius: 1,
-                            mx: 0,
-                            p: 1,
-                        }}
                     />
                 </RadioGroup>
             )}
@@ -455,15 +422,20 @@ export default function Take({
         </>
     );
 
+    const answeredIndexes = questions
+        .map((question, index) =>
+            isQuestionAnswered(question, answers[question.id]) ? index : null,
+        )
+        .filter((index) => index !== null);
+    const answeredCount = answeredIndexes.length;
+    const progress =
+        questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
+
     return (
         <>
             <Head title={`Quiz: ${quiz.title}`} />
             <Container maxWidth="md" sx={{ py: 4 }}>
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                >
+                <Box>
                     {/* Header */}
                     <Paper sx={{ p: 2, mb: 3 }}>
                         <Stack
@@ -515,6 +487,16 @@ export default function Take({
                                 variant="determinate"
                                 value={progress}
                             />
+                            {!isSinglePage && (
+                                <Box sx={{ mt: 2 }}>
+                                    <QuestionNavigator
+                                        count={questions.length}
+                                        currentIndex={currentIdx}
+                                        answeredIndexes={answeredIndexes}
+                                        onSelect={setCurrentIdx}
+                                    />
+                                </Box>
+                            )}
                         </Box>
                     </Paper>
 
@@ -594,7 +576,8 @@ export default function Take({
 
                             {/* Navigation */}
                             <Stack
-                                direction="row"
+                                direction={{ xs: "column-reverse", sm: "row" }}
+                                spacing={1}
                                 justifyContent="space-between"
                             >
                                 <Button
@@ -608,47 +591,6 @@ export default function Take({
                                 >
                                     Previous
                                 </Button>
-
-                                {/* Question dots */}
-                                <Stack
-                                    direction="row"
-                                    spacing={0.5}
-                                    alignItems="center"
-                                >
-                                    {questions.map((q, idx) => (
-                                        <Box
-                                            key={q.id}
-                                            onClick={() => setCurrentIdx(idx)}
-                                            sx={{
-                                                width: 24,
-                                                height: 24,
-                                                borderRadius: "50%",
-                                                bgcolor:
-                                                    answers[q.id] !== undefined
-                                                        ? "success.main"
-                                                        : "grey.300",
-                                                border:
-                                                    idx === currentIdx
-                                                        ? "2px solid"
-                                                        : "none",
-                                                borderColor: "primary.main",
-                                                cursor: "pointer",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                color:
-                                                    answers[q.id] !== undefined
-                                                        ? "white"
-                                                        : "text.secondary",
-                                                fontSize: 10,
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {idx + 1}
-                                        </Box>
-                                    ))}
-                                </Stack>
-
                                 {currentIdx === questions.length - 1 ? (
                                     <Button
                                         variant="contained"
@@ -687,7 +629,7 @@ export default function Take({
                             this one.
                         </Alert>
                     )}
-                </motion.div>
+                </Box>
             </Container>
         </>
     );

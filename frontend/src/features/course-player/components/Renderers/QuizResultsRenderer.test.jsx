@@ -80,8 +80,8 @@ describe("QuizResultsRenderer", () => {
         expect(html).toContain("87%");
         expect(html).toContain("Attempt #2 of 3");
         expect(html).toContain("1 attempt remaining.");
-        expect(html).toContain("Continue to next lesson");
-        expect(html).toContain("Retake quiz");
+        expect(html).toContain("Continue learning");
+        expect(html).toContain("Try again");
         expect(html).not.toContain("All 3 available attempts");
     });
 
