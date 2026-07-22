@@ -23,6 +23,7 @@ import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
 import LearningMomentum from "@/components/LearningMomentum";
 import { CurrentLearningCard } from "@/features/learning-experience/components";
+import { sortLearningPriority } from "@/features/learning-experience/learningSelection";
 import {
     EmptyPanel,
     MetricCard,
@@ -94,19 +95,7 @@ const StudentDashboard = ({
         [enrollments],
     );
     const primaryEnrollment = useMemo(
-        () =>
-            [...summary.active].sort((left, right) => {
-                const progressDifference =
-                    Number(right.progressPercent || 0) -
-                    Number(left.progressPercent || 0);
-                if (progressDifference !== 0) {
-                    return progressDifference;
-                }
-                return (
-                    new Date(right.lastActivity || right.enrolledAt || 0) -
-                    new Date(left.lastActivity || left.enrolledAt || 0)
-                );
-            })[0],
+        () => sortLearningPriority(summary.active)[0],
         [summary.active],
     );
     const primaryDeadline = primaryEnrollment
