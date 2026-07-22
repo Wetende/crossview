@@ -108,6 +108,7 @@ const LectureView = ({
                     program={program}
                     enrollment={enrollment}
                     resumeUrl={resumeUrl}
+                    curriculum={curriculum}
                 />
             ) : node ? (
                 <Whiteboard

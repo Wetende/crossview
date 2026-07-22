@@ -22,6 +22,7 @@ import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
 import LearningMomentum from "@/components/LearningMomentum";
+import { CurrentLearningCard } from "@/features/learning-experience/components";
 import {
     EmptyPanel,
     MetricCard,
@@ -92,6 +93,27 @@ const StudentDashboard = ({
             ),
         [enrollments],
     );
+    const primaryEnrollment = useMemo(
+        () =>
+            [...summary.active].sort((left, right) => {
+                const progressDifference =
+                    Number(right.progressPercent || 0) -
+                    Number(left.progressPercent || 0);
+                if (progressDifference !== 0) {
+                    return progressDifference;
+                }
+                return (
+                    new Date(right.lastActivity || right.enrolledAt || 0) -
+                    new Date(left.lastActivity || left.enrolledAt || 0)
+                );
+            })[0],
+        [summary.active],
+    );
+    const primaryDeadline = primaryEnrollment
+        ? upcomingDeadlines.find(
+              (deadline) => deadline.programId === primaryEnrollment.programId,
+          )
+        : null;
 
     return (
         <Stack spacing={3}>
@@ -100,6 +122,54 @@ const StudentDashboard = ({
                 title="Student dashboard"
                 subtitle="Continue your learning journey, keep track of coursework, and pick up exactly where you left off."
             />
+
+            {primaryEnrollment ? (
+                <Box
+                    component="section"
+                    aria-labelledby="continue-learning-title"
+                >
+                    <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={0.75}
+                        sx={{
+                            mb: 1.5,
+                            alignItems: { xs: "flex-start", sm: "baseline" },
+                            justifyContent: "space-between",
+                        }}
+                    >
+                        <Box>
+                            <Typography
+                                id="continue-learning-title"
+                                component="h2"
+                                variant="h5"
+                            >
+                                Continue learning
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.35 }}
+                            >
+                                Pick up from your most relevant active course.
+                            </Typography>
+                        </Box>
+                        <Button
+                            component={Link}
+                            href="/student/programs/"
+                            size="small"
+                        >
+                            View all courses
+                        </Button>
+                    </Stack>
+                    <CurrentLearningCard
+                        featured
+                        enrollment={{
+                            ...primaryEnrollment,
+                            nextDeadline: primaryDeadline,
+                        }}
+                    />
+                </Box>
+            ) : null}
 
             <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6, xl: 3 }}>

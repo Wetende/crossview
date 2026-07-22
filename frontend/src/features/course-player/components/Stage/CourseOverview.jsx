@@ -1,277 +1,281 @@
+import { useState } from "react";
 import {
+    Alert,
     Box,
-    Typography,
-    Button,
     Card,
     CardContent,
-    Stack,
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
-    Alert,
+    Stack,
+    Typography,
 } from "@mui/material";
-import {
-    Description as DocIcon,
-    CheckCircle as CheckIcon,
-    Download as DownloadIcon,
-    Notifications as NoticeIcon,
-    Schedule as ScheduleIcon,
-} from "@mui/icons-material";
+import { CheckCircle as CheckIcon } from "@mui/icons-material";
 import DOMPurify from "dompurify";
-import DeliveryOverviewCard from "./DeliveryOverviewCard";
 
-export default function CourseOverview({ program, enrollment, resumeUrl }) {
-    const hasStarted = (enrollment?.progressPercent || 0) > 0;
-    const hasNotices = program?.notices?.length > 0;
-    const hasWhatYouLearn =
-        program?.whatYouLearnHtml || program?.whatYouLearnItems?.length > 0;
-    const hasResources = program?.resources?.length > 0;
-    const getNoticeTitle = (notice, index) => {
-        if (typeof notice === "string") return null;
-        return notice?.title || `Notice ${index + 1}`;
-    };
-    const getNoticeContent = (notice) => {
-        if (typeof notice === "string") return notice;
-        return notice?.content || notice?.text || notice?.message || "";
-    };
+import { CourseUnitCard } from "@/features/learning-experience/components";
+import CourseOverviewRail from "./CourseOverviewRail";
+import DeliveryOverviewCard from "./DeliveryOverviewCard";
+import {
+    buildAssessmentSummaries,
+    buildUnitSummaries,
+} from "./courseOverviewModel";
+
+const DismissibleNotice = ({ notice, index }) => {
+    const [visible, setVisible] = useState(true);
+    if (!visible) return null;
+
+    const title =
+        typeof notice === "string"
+            ? null
+            : notice?.title || `Notice ${index + 1}`;
+    const content =
+        typeof notice === "string"
+            ? notice
+            : notice?.content || notice?.text || notice?.message || "";
 
     return (
-        <Box sx={{ maxWidth: 840, mx: "auto" }}>
-            {/* Overview header */}
+        <Alert
+            severity={notice?.type === "warning" ? "warning" : "info"}
+            onClose={() => setVisible(false)}
+            sx={{ borderRadius: 2 }}
+        >
+            {title && (
+                <Typography
+                    variant="subtitle2"
+                    fontWeight={800}
+                    sx={{ mb: 0.5 }}
+                >
+                    {title}
+                </Typography>
+            )}
             <Box
-                sx={{
-                    mb: { xs: 2.5, md: 3 },
-                    display: "flex",
-                    flexDirection: { xs: "column", sm: "row" },
-                    alignItems: { xs: "stretch", sm: "flex-start" },
-                    justifyContent: "space-between",
-                    gap: 2,
+                sx={{ "& p": { m: 0 } }}
+                dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(content),
                 }}
-            >
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography
-                        variant="h5"
-                        fontWeight={800}
-                        sx={{ mb: program?.description ? 1 : 0 }}
-                    >
-                        {program?.name || "Course"}
-                    </Typography>
-                    {program?.description && (
-                        <Box
-                            sx={{
-                                maxWidth: 620,
-                                color: "text.secondary",
-                                "& p": { mb: 0.75 },
-                                "& p:last-of-type": { mb: 0 },
-                            }}
-                            dangerouslySetInnerHTML={{
-                                __html: DOMPurify.sanitize(program.description),
-                            }}
-                        />
-                    )}
-                </Box>
+            />
+        </Alert>
+    );
+};
+
+const CourseOverview = ({
+    program,
+    enrollment,
+    resumeUrl,
+    curriculum = [],
+}) => {
+    const progress = Number(enrollment?.progressPercent || 0);
+    const hasStarted = progress > 0;
+    const units = buildUnitSummaries(curriculum);
+    const assessments = buildAssessmentSummaries(curriculum);
+    const hasWhatYouLearn =
+        program?.whatYouLearnHtml || program?.whatYouLearnItems?.length > 0;
+
+    return (
+        <Box sx={{ maxWidth: 1180, mx: "auto" }}>
+            <Box sx={{ mb: { xs: 2.5, md: 3 } }}>
+                <Typography
+                    component="p"
+                    variant="overline"
+                    color="primary.main"
+                >
+                    Course overview
+                </Typography>
+                <Typography
+                    component="h1"
+                    variant="h4"
+                    sx={{ mb: program?.description ? 1 : 0 }}
+                >
+                    {program?.name || "Course"}
+                </Typography>
+                {program?.description && (
+                    <Box
+                        sx={{
+                            maxWidth: 760,
+                            color: "text.secondary",
+                            "& p": { mt: 0, mb: 0.75 },
+                            "& p:last-of-type": { mb: 0 },
+                        }}
+                        dangerouslySetInnerHTML={{
+                            __html: DOMPurify.sanitize(program.description),
+                        }}
+                    />
+                )}
             </Box>
 
             <DeliveryOverviewCard
                 program={program}
                 resumeUrl={resumeUrl}
                 hasStarted={hasStarted}
-                progressPercent={enrollment?.progressPercent || 0}
+                progressPercent={progress}
             />
 
-            {(enrollment?.upcomingDeadlines || []).length > 0 && (
-                <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
-                    <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
-                        <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                            sx={{ mb: 1 }}
-                        >
-                            <ScheduleIcon color="warning" fontSize="small" />
-                            <Typography variant="h6" fontWeight={700}>
-                                Upcoming deadlines
-                            </Typography>
-                        </Stack>
-                        <List dense disablePadding>
-                            {enrollment.upcomingDeadlines
-                                .slice(0, 3)
-                                .map((deadline) => (
-                                    <ListItem
-                                        key={`${deadline.type}-${deadline.id}`}
-                                        disableGutters
-                                    >
-                                        <ListItemText
-                                            primary={deadline.title}
-                                            secondary={new Date(
-                                                deadline.dueAt,
-                                            ).toLocaleString()}
-                                        />
-                                    </ListItem>
-                                ))}
-                        </List>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Notices */}
-            {hasNotices && (
-                <Box sx={{ mb: 3 }}>
-                    {program.notices.map((notice, idx) => (
-                        <Alert
-                            key={idx}
-                            severity={
-                                notice.type === "warning" ? "warning" : "info"
-                            }
-                            icon={<NoticeIcon />}
-                            sx={{ mb: 1, borderRadius: 2 }}
-                        >
-                            {getNoticeTitle(notice, idx) && (
-                                <Typography
-                                    variant="subtitle2"
-                                    fontWeight={700}
-                                    sx={{ mb: 0.5 }}
-                                >
-                                    {getNoticeTitle(notice, idx)}
-                                </Typography>
-                            )}
-                            <Box
-                                dangerouslySetInnerHTML={{
-                                    __html: DOMPurify.sanitize(
-                                        getNoticeContent(notice),
-                                    ),
-                                }}
-                            />
-                        </Alert>
-                    ))}
-                </Box>
-            )}
-
-            {/* What You'll Learn */}
-            {hasWhatYouLearn && (
-                <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
-                    <CardContent
-                        sx={{
-                            p: { xs: 2, md: 2.5 },
-                            "&:last-child": { pb: { xs: 2, md: 2.5 } },
-                        }}
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                        xs: "1fr",
+                        lg: "minmax(0, 1fr) 300px",
+                    },
+                    gap: { xs: 2.5, md: 3 },
+                    alignItems: "start",
+                }}
+            >
+                <Stack spacing={3} sx={{ minWidth: 0 }}>
+                    <Box
+                        component="section"
+                        aria-labelledby="learning-units-title"
                     >
                         <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                            sx={{ mb: 2 }}
+                            direction={{ xs: "column", sm: "row" }}
+                            alignItems={{ sm: "baseline" }}
+                            justifyContent="space-between"
+                            spacing={0.5}
+                            sx={{ mb: 1.5 }}
                         >
-                            <CheckIcon color="success" fontSize="small" />
-                            <Typography variant="h6" fontWeight={700}>
-                                What You&rsquo;ll Learn
+                            <Typography
+                                id="learning-units-title"
+                                component="h2"
+                                variant="h5"
+                            >
+                                Learning units
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {units.length}{" "}
+                                {units.length === 1 ? "unit" : "units"}
                             </Typography>
                         </Stack>
-                        {program.whatYouLearnHtml ? (
+
+                        {units.length > 0 ? (
                             <Box
                                 sx={{
-                                    "& ul, & ol": { pl: 3, mb: 1 },
-                                    "& li": {
-                                        mb: 0.5,
-                                        color: "text.secondary",
+                                    display: "grid",
+                                    gridTemplateColumns: {
+                                        xs: "1fr",
+                                        sm: "repeat(2, minmax(0, 1fr))",
                                     },
+                                    gap: 2,
                                 }}
-                                dangerouslySetInnerHTML={{
-                                    __html: DOMPurify.sanitize(
-                                        program.whatYouLearnHtml,
-                                    ),
-                                }}
-                            />
-                        ) : (
-                            <List dense disablePadding>
-                                {program.whatYouLearnItems.map((item, idx) => (
-                                    <ListItem
-                                        key={idx}
-                                        disableGutters
-                                        sx={{ py: 0.25 }}
-                                    >
-                                        <ListItemIcon sx={{ minWidth: 28 }}>
-                                            <CheckIcon
-                                                color="success"
-                                                fontSize="small"
-                                            />
-                                        </ListItemIcon>
-                                        <ListItemText
-                                            primary={item}
-                                            primaryTypographyProps={{
-                                                variant: "body2",
-                                            }}
+                            >
+                                {units.map((unit, index) => (
+                                    <Box key={unit.id}>
+                                        <CourseUnitCard
+                                            unit={unit}
+                                            index={index}
                                         />
-                                    </ListItem>
+                                    </Box>
                                 ))}
-                            </List>
+                            </Box>
+                        ) : (
+                            <Card variant="outlined" sx={{ borderRadius: 2.5 }}>
+                                <CardContent>
+                                    <Typography color="text.secondary">
+                                        Course content will appear here when it
+                                        is published.
+                                    </Typography>
+                                </CardContent>
+                            </Card>
                         )}
-                    </CardContent>
-                </Card>
-            )}
+                    </Box>
 
-            {/* Course Resources */}
-            {hasResources && (
-                <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 1 }}>
-                    <CardContent
-                        sx={{
-                            p: { xs: 2, md: 2.5 },
-                            "&:last-child": { pb: { xs: 2, md: 2.5 } },
-                        }}
-                    >
+                    {(program?.notices || []).length > 0 && (
                         <Stack
-                            direction="row"
+                            component="section"
+                            aria-label="Course notices"
                             spacing={1}
-                            alignItems="center"
-                            sx={{ mb: 2 }}
                         >
-                            <DownloadIcon color="info" fontSize="small" />
-                            <Typography variant="h6" fontWeight={700}>
-                                Course Resources
-                            </Typography>
+                            {program.notices.map((notice, index) => (
+                                <DismissibleNotice
+                                    key={notice?.id || notice?.title || index}
+                                    notice={notice}
+                                    index={index}
+                                />
+                            ))}
                         </Stack>
-                        <List dense disablePadding>
-                            {program.resources.map((res) => (
-                                <ListItem
-                                    key={res.id}
-                                    disableGutters
-                                    sx={{ py: 0.5 }}
+                    )}
+
+                    {hasWhatYouLearn && (
+                        <Card
+                            component="section"
+                            variant="outlined"
+                            sx={{ borderRadius: 2.5 }}
+                        >
+                            <CardContent
+                                sx={{
+                                    p: { xs: 2, md: 2.5 },
+                                    "&:last-child": { pb: { xs: 2, md: 2.5 } },
+                                }}
+                            >
+                                <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    sx={{ mb: 1.5 }}
                                 >
-                                    <ListItemIcon sx={{ minWidth: 28 }}>
-                                        <DocIcon
-                                            fontSize="small"
-                                            color="action"
-                                        />
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary={
-                                            res.title || `Resource ${res.id}`
-                                        }
-                                        primaryTypographyProps={{
-                                            variant: "body2",
+                                    <CheckIcon
+                                        color="success"
+                                        fontSize="small"
+                                    />
+                                    <Typography component="h2" variant="h6">
+                                        What you&rsquo;ll learn
+                                    </Typography>
+                                </Stack>
+                                {program.whatYouLearnHtml ? (
+                                    <Box
+                                        sx={{
+                                            color: "text.secondary",
+                                            "& ul, & ol": { pl: 3, mb: 1 },
+                                            "& li": { mb: 0.5 },
+                                        }}
+                                        dangerouslySetInnerHTML={{
+                                            __html: DOMPurify.sanitize(
+                                                program.whatYouLearnHtml,
+                                            ),
                                         }}
                                     />
-                                    <Button
-                                        component="a"
-                                        href={res.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        size="small"
-                                        variant="outlined"
-                                        sx={{
-                                            minWidth: "auto",
-                                            textTransform: "none",
-                                        }}
-                                    >
-                                        Download
-                                    </Button>
-                                </ListItem>
-                            ))}
-                        </List>
-                    </CardContent>
-                </Card>
-            )}
+                                ) : (
+                                    <List dense disablePadding>
+                                        {program.whatYouLearnItems.map(
+                                            (item, index) => (
+                                                <ListItem
+                                                    key={`${item}-${index}`}
+                                                    disableGutters
+                                                    sx={{ py: 0.25 }}
+                                                >
+                                                    <ListItemIcon
+                                                        sx={{ minWidth: 30 }}
+                                                    >
+                                                        <CheckIcon
+                                                            color="success"
+                                                            fontSize="small"
+                                                        />
+                                                    </ListItemIcon>
+                                                    <ListItemText
+                                                        primary={item}
+                                                        primaryTypographyProps={{
+                                                            variant: "body2",
+                                                        }}
+                                                    />
+                                                </ListItem>
+                                            ),
+                                        )}
+                                    </List>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
+                </Stack>
+
+                <CourseOverviewRail
+                    assessments={assessments}
+                    deadlines={enrollment?.upcomingDeadlines || []}
+                    resources={program?.resources || []}
+                />
+            </Box>
         </Box>
     );
-}
+};
+
+export default CourseOverview;

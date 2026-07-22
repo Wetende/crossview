@@ -68,6 +68,12 @@ describe("Student dashboard", () => {
             screen.getByText("Course Progress Distribution"),
         ).toBeInTheDocument();
         expect(screen.getByText("Current Courses")).toBeInTheDocument();
+        expect(
+            screen.getByRole("heading", { name: "Continue learning" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("link", { name: /resume learning/i }),
+        ).toHaveAttribute("href", "/student/programs/101/resume/");
         expect(screen.queryByText("Online Classes")).not.toBeInTheDocument();
         expect(
             screen.getAllByText("Backend Engineering").length,
