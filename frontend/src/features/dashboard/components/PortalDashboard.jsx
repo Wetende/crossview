@@ -45,7 +45,7 @@ export const WelcomePanel = ({
                 inset: 0,
                 opacity: 0.5,
                 backgroundImage:
-                    "radial-gradient(circle, rgba(33,64,154,0.18) 1.5px, transparent 1.5px)",
+                    "radial-gradient(circle, rgba(22,101,52,0.18) 1.5px, transparent 1.5px)",
                 backgroundSize: "18px 18px",
                 maskImage:
                     "linear-gradient(90deg, transparent 52%, black 100%)",
@@ -102,7 +102,7 @@ export const WelcomePanel = ({
                     border: "9px solid",
                     borderColor: (theme) =>
                         theme.palette.mode === "dark" ? "#20386E" : "#EEF2FF",
-                    boxShadow: "0 14px 30px rgba(33,64,154,0.2)",
+                    boxShadow: "0 14px 30px rgba(22,101,52,0.2)",
                 }}
             >
                 <SchoolOutlinedIcon sx={{ fontSize: 40 }} />
@@ -129,7 +129,7 @@ export const MetricCard = ({
                 transition: "transform 180ms ease, box-shadow 180ms ease",
                 "&:hover": {
                     transform: "translateY(-2px)",
-                    boxShadow: "0 14px 32px rgba(33,64,154,0.1)",
+                    boxShadow: "0 14px 32px rgba(22,101,52,0.1)",
                 },
             }}
         >
@@ -280,7 +280,7 @@ export const ProgressPanel = ({ label, value }) => (
             color: "#FFFFFF",
             border: 0,
             background: "linear-gradient(145deg, #166534 0%, #14532D 100%)",
-            boxShadow: "0 18px 34px rgba(33,64,154,0.24)",
+            boxShadow: "0 18px 34px rgba(22,101,52,0.24)",
         }}
     >
         <Typography
