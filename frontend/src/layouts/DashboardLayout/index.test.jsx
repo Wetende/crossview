@@ -9,12 +9,17 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 
 import DashboardLayout from "./index";
 
-const { mockUsePage, mockUseLogoutOptions, mockSharedLogoutAction } =
-    vi.hoisted(() => ({
-        mockUsePage: vi.fn(),
-        mockUseLogoutOptions: vi.fn(),
-        mockSharedLogoutAction: vi.fn(),
-    }));
+const {
+    mockUsePage,
+    mockUseLogoutOptions,
+    mockSharedLogoutAction,
+    mockToggleMode,
+} = vi.hoisted(() => ({
+    mockUsePage: vi.fn(),
+    mockUseLogoutOptions: vi.fn(),
+    mockSharedLogoutAction: vi.fn(),
+    mockToggleMode: vi.fn(),
+}));
 
 vi.mock("@inertiajs/react", () => ({
     Link: ({ children, href, ...props }) => (
@@ -48,12 +53,13 @@ vi.mock("@/components/common/PlatformLogo", () => ({
 }));
 
 vi.mock("@/theme", () => ({
-    useThemeMode: () => ({ isDark: false, toggleMode: vi.fn() }),
+    useThemeMode: () => ({ isDark: false, toggleMode: mockToggleMode }),
 }));
 
 describe("DashboardLayout logout", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        window.localStorage.clear();
         mockUsePage.mockReturnValue({
             props: {
                 auth: {
@@ -64,7 +70,7 @@ describe("DashboardLayout logout", () => {
                     },
                 },
                 platform: {
-                    institutionName: "DigikaTech Africa",
+                    institutionName: "Learning Management System",
                     features: {},
                 },
             },
@@ -83,6 +89,52 @@ describe("DashboardLayout logout", () => {
 
         expect(mockUseLogoutOptions).toHaveBeenCalled();
         expect(mockSharedLogoutAction).toHaveBeenCalledTimes(1);
+    });
+
+    test("sidebar logout uses the shared logout action", () => {
+        render(
+            <DashboardLayout>
+                <div>Dashboard content</div>
+            </DashboardLayout>,
+        );
+
+        fireEvent.click(screen.getAllByRole("button", { name: "Logout" })[0]);
+
+        expect(mockSharedLogoutAction).toHaveBeenCalledTimes(1);
+    });
+
+    test("marks the current route and persists the collapsed sidebar state", async () => {
+        window.history.pushState({}, "", "/dashboard/");
+        render(
+            <DashboardLayout>
+                <div>Dashboard content</div>
+            </DashboardLayout>,
+        );
+
+        expect(
+            screen
+                .getAllByRole("link", { name: "Dashboard" })
+                .some((link) => link.getAttribute("aria-current") === "page"),
+        ).toBe(true);
+
+        fireEvent.click(screen.getByLabelText("Collapse sidebar"));
+        await waitFor(() => {
+            expect(window.localStorage.setItem).toHaveBeenLastCalledWith(
+                "dashboard_sidebar_collapsed",
+                "true",
+            );
+        });
+    });
+
+    test("retains the dark mode toggle", () => {
+        render(
+            <DashboardLayout>
+                <div>Dashboard content</div>
+            </DashboardLayout>,
+        );
+
+        fireEvent.click(screen.getByLabelText("toggle dark mode"));
+        expect(mockToggleMode).toHaveBeenCalledTimes(1);
     });
 
     test("dashboard menu closes immediately when logout is clicked", async () => {
@@ -166,6 +218,8 @@ describe("DashboardLayout logout", () => {
         );
 
         expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
-        expect(screen.queryByText("Instructor Vetting")).not.toBeInTheDocument();
+        expect(
+            screen.queryByText("Instructor Vetting"),
+        ).not.toBeInTheDocument();
     });
 });

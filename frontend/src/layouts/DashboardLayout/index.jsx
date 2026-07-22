@@ -1,873 +1,203 @@
-/**
- * Unified Dashboard Layout - Non-Clipped Sidebar Pattern
- * Full-height sidebar with collapsible functionality
- * Uses global ThemeContext for dark/light mode
- */
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePage } from "@inertiajs/react";
+import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import SwipeableDrawer from "@mui/material/SwipeableDrawer";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 
-import { useState, useEffect } from "react";
-import { Link, usePage } from "@inertiajs/react";
-import {
-    Box,
-    Drawer,
-    SwipeableDrawer,
-    AppBar,
-    Toolbar,
-    Typography,
-    List,
-    ListItem,
-    ListItemButton,
-    ListItemIcon,
-    ListItemText,
-    IconButton,
-    Avatar,
-    Menu,
-    MenuItem,
-    Divider,
-    useMediaQuery,
-    useTheme,
-    Breadcrumbs,
-    Tooltip,
-} from "@mui/material";
-
-// Icons
-import MenuIcon from "@mui/icons-material/Menu";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import SchoolIcon from "@mui/icons-material/School";
-import PeopleIcon from "@mui/icons-material/People";
-import AssignmentIcon from "@mui/icons-material/Assignment";
-import CardMembershipIcon from "@mui/icons-material/CardMembership";
-import SettingsIcon from "@mui/icons-material/Settings";
-import LogoutIcon from "@mui/icons-material/Logout";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import GradingIcon from "@mui/icons-material/Grading";
-import RateReviewIcon from "@mui/icons-material/RateReview";
-import PersonIcon from "@mui/icons-material/Person";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import LightModeIcon from "@mui/icons-material/LightMode";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
-import ReceiptIcon from "@mui/icons-material/Receipt";
-import PaymentsIcon from "@mui/icons-material/Payments";
-import CampaignIcon from "@mui/icons-material/Campaign";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
-import QuizIcon from "@mui/icons-material/Quiz";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import CategoryIcon from "@mui/icons-material/Category";
-
-// Custom Components
-import NotificationPanel from "@/components/NotificationPanel";
-import MessageUnreadBadge from "@/components/MessageUnreadBadge";
-import PlatformLogo from "@/components/common/PlatformLogo";
 import useLogout from "@/hooks/useLogout";
 import { useThemeMode } from "@/theme";
+import DashboardHeader from "./DashboardHeader";
+import DashboardSidebar from "./DashboardSidebar";
+import { filterNavigation, ROLE_NAVIGATION } from "./navigation";
 
-const DRAWER_WIDTH_EXPANDED = 240;
+const DRAWER_WIDTH_EXPANDED = 280;
 const DRAWER_WIDTH_COLLAPSED = 72;
-const SIDEBAR_HEADER_HEIGHT = 56;
-
-// Navigation menus for each role
-const roleNavigation = {
-    student: [
-        {
-            title: "Main",
-            items: [
-                {
-                    label: "Dashboard",
-                    href: "/dashboard/",
-                    icon: DashboardIcon,
-                },
-                {
-                    label: "Enrolled Courses",
-                    href: "/student/programs/",
-                    icon: SchoolIcon,
-                },
-                {
-                    label: "My Assignments",
-                    href: "/student/assignments/",
-                    icon: AssignmentIcon,
-                },
-                {
-                    label: "My Quizzes",
-                    href: "/student/quizzes/",
-                    icon: QuizIcon,
-                },
-            ],
-        },
-        {
-            title: "Communication",
-            items: [
-                {
-                    label: "Messages",
-                    href: "/messages/",
-                    icon: MailOutlineIcon,
-                },
-            ],
-        },
-        {
-            title: "Progress",
-            items: [
-                {
-                    label: "My Certificates",
-                    href: "/student/certificates/",
-                    icon: CardMembershipIcon,
-                },
-            ],
-        },
-        {
-            title: "Account & Settings",
-            items: [
-                {
-                    label: "Profile",
-                    href: "/student/profile/",
-                    icon: PersonIcon,
-                },
-                {
-                    label: "My Wishlist",
-                    href: "/wishlist/",
-                    icon: FavoriteBorderIcon,
-                },
-                {
-                    label: "My Orders",
-                    href: "/student/orders/",
-                    icon: ReceiptIcon,
-                },
-                {
-                    label: "Settings",
-                    href: "/profile/",
-                    icon: SettingsIcon,
-                },
-                {
-                    label: "Logout",
-                    action: "logout",
-                    icon: LogoutIcon,
-                },
-            ],
-        },
-    ],
-    instructor: [
-        {
-            items: [
-                {
-                    label: "Dashboard",
-                    href: "/dashboard/",
-                    icon: DashboardIcon,
-                },
-            ],
-        },
-        {
-            title: "Teaching",
-            items: [
-                {
-                    label: "My Programs",
-                    href: "/instructor/programs/",
-                    icon: SchoolIcon,
-                },
-                {
-                    label: "My Students",
-                    href: "/instructor/students/",
-                    icon: PeopleIcon,
-                },
-            ],
-        },
-        {
-            title: "Progress",
-            items: [
-                {
-                    label: "Gradebook",
-                    href: "/instructor/gradebook/",
-                    icon: GradingIcon,
-                },
-                {
-                    label: "Assignments",
-                    href: "/instructor/assignments/",
-                    icon: AssignmentIcon,
-                },
-            ],
-        },
-        {
-            title: "Communication",
-            items: [
-                {
-                    label: "Announcements",
-                    href: "/instructor/announcements/",
-                    icon: CampaignIcon,
-                },
-                {
-                    label: "Messages",
-                    href: "/messages/",
-                    icon: MailOutlineIcon,
-                },
-            ],
-        },
-        {
-            title: "Review",
-            items: [
-                {
-                    label: "Rubrics",
-                    href: "/rubrics/",
-                    icon: GradingIcon,
-                    requiresFeature: "practicum",
-                },
-                {
-                    label: "Practicum Review",
-                    href: "/instructor/practicum/",
-                    icon: RateReviewIcon,
-                    requiresFeature: "practicum",
-                },
-            ],
-        },
-        {
-            title: "Account & Settings",
-            items: [
-                {
-                    label: "Profile",
-                    href: "/profile/",
-                    icon: PersonIcon,
-                },
-                {
-                    label: "Settings",
-                    href: "/profile/",
-                    icon: SettingsIcon,
-                },
-                {
-                    label: "Logout",
-                    action: "logout",
-                    icon: LogoutIcon,
-                },
-            ],
-        },
-    ],
-    admin: [
-        {
-            items: [
-                {
-                    label: "Dashboard",
-                    href: "/dashboard/",
-                    icon: DashboardIcon,
-                },
-            ],
-        },
-        {
-            title: "Academic",
-            items: [
-                {
-                    label: "Programs",
-                    href: "/admin/programs/",
-                    icon: SchoolIcon,
-                },
-                {
-                    label: "Categories",
-                    href: "/admin/program-categories/",
-                    icon: CategoryIcon,
-                },
-                {
-                    label: "Rubrics",
-                    href: "/rubrics/",
-                    icon: GradingIcon,
-                    requiresFeature: "practicum",
-                },
-            ],
-        },
-        {
-            title: "Management",
-            items: [
-                { label: "Users", href: "/admin/users/", icon: PeopleIcon },
-                {
-                    label: "Enrollments",
-                    href: "/admin/enrollments/",
-                    icon: AssignmentIcon,
-                },
-                {
-                    label: "Certificates",
-                    href: "/admin/certificates/",
-                    icon: CardMembershipIcon,
-                },
-            ],
-        },
-        {
-            title: "Commerce",
-            items: [
-                {
-                    label: "Orders",
-                    href: "/admin/commerce/orders/page/",
-                    icon: PaymentsIcon,
-                },
-            ],
-        },
-        {
-            title: "Communication",
-            items: [
-                {
-                    label: "Announcements",
-                    href: "/admin/announcements/",
-                    icon: CampaignIcon,
-                },
-                {
-                    label: "Messages",
-                    href: "/messages/",
-                    icon: MailOutlineIcon,
-                },
-            ],
-        },
-        {
-            title: "Settings",
-            items: [
-                {
-                    label: "General",
-                    href: "/admin/settings/",
-                    icon: SettingsIcon,
-                    requiresCapability: "showAdminSettings",
-                },
-            ],
-        },
-    ],
-};
-
-const roleColors = {
-    student: "primary",
-    instructor: "success",
-    admin: "warning",
-};
-
+const HEADER_HEIGHT_DESKTOP = 88;
+const HEADER_HEIGHT_MOBILE = 64;
 const STORAGE_KEY_COLLAPSED = "dashboard_sidebar_collapsed";
 
-export default function DashboardLayout({
-    children,
-    breadcrumbs = [],
-    role: propRole,
-}) {
+const DashboardLayout = ({ children, breadcrumbs = [], role: propRole }) => {
     const theme = useTheme();
     const { isDark, toggleMode } = useThemeMode();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+    const { props: pageProps, url = "" } = usePage();
+    const { auth, platform } = pageProps;
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [collapsed, setCollapsed] = useState(() => {
-        if (typeof window !== "undefined") {
-            return localStorage.getItem(STORAGE_KEY_COLLAPSED) === "true";
-        }
-        return false;
-    });
     const [anchorEl, setAnchorEl] = useState(null);
-    const { auth, platform } = usePage().props;
+    const [collapsed, setCollapsed] = useState(() => {
+        if (typeof window === "undefined") {
+            return false;
+        }
+        return window.localStorage.getItem(STORAGE_KEY_COLLAPSED) === "true";
+    });
 
     const role = propRole || auth?.user?.role || "student";
-
-    const navigation = roleNavigation[role] || roleNavigation.student;
-    const currentPath =
-        typeof window !== "undefined" ? window.location.pathname : "";
     const drawerWidth =
         collapsed && !isMobile ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
+    const currentPath =
+        typeof window !== "undefined"
+            ? window.location.pathname
+            : url.split(/[?#]/)[0];
+    const navigation = useMemo(
+        () =>
+            filterNavigation(
+                ROLE_NAVIGATION[role] || ROLE_NAVIGATION.student,
+                platform,
+            ),
+        [platform, role],
+    );
 
-    // Persist collapse state
     useEffect(() => {
         if (typeof window !== "undefined") {
-            localStorage.setItem(STORAGE_KEY_COLLAPSED, collapsed.toString());
+            window.localStorage.setItem(
+                STORAGE_KEY_COLLAPSED,
+                String(collapsed),
+            );
         }
     }, [collapsed]);
 
-    const handleDrawerOpen = () => setMobileOpen(true);
-    const handleDrawerClose = () => setMobileOpen(false);
-    const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-    const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
-    const handleMenuClose = () => setAnchorEl(null);
-    const handleCollapseToggle = () => setCollapsed(!collapsed);
+    const closeUserMenu = useCallback(() => setAnchorEl(null), []);
+    const closeMobileDrawer = useCallback(() => setMobileOpen(false), []);
     const triggerLogout = useLogout({
-        onBefore: handleMenuClose,
-        onSuccess: handleMenuClose,
-        onError: handleMenuClose,
+        onBefore: () => {
+            closeUserMenu();
+            closeMobileDrawer();
+        },
+        onSuccess: closeUserMenu,
+        onError: closeUserMenu,
     });
 
-    const handleNavClick = () => {
-        if (isMobile) handleDrawerClose();
-    };
-
-    const handleLogout = () => triggerLogout();
-
+    const handleLogout = useCallback(() => triggerLogout(), [triggerLogout]);
+    const handleMobileToggle = useCallback(
+        () => setMobileOpen((open) => !open),
+        [],
+    );
+    const handleCollapseToggle = useCallback(
+        () => setCollapsed((value) => !value),
+        [],
+    );
+    const handleUserMenuOpen = useCallback(
+        (event) => setAnchorEl(event.currentTarget),
+        [],
+    );
     const iOS =
         typeof navigator !== "undefined" &&
         /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-    const drawerContent = (
-        <Box
-            sx={{
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                bgcolor: "background.paper",
-                color: "text.primary",
-                transition: "width 0.2s ease-in-out",
-            }}
-        >
-            {/* Sidebar Header - Logo & Collapse Toggle */}
-            <Box
-                sx={{
-                    height: SIDEBAR_HEADER_HEIGHT,
-                    minHeight: SIDEBAR_HEADER_HEIGHT,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent:
-                        collapsed && !isMobile ? "center" : "flex-start",
-                    px: collapsed && !isMobile ? 1.5 : 2,
-                    borderBottom: 1,
-                    borderColor: "divider",
-                    gap: 1,
-                    borderRadius: 0,
-                }}
-            >
-                {/* Logo */}
-                <Box
-                    component={Link}
-                    href="/"
-                    sx={{
-                        color: "primary.main",
-                        borderRadius: 0,
-                        display: "inline-flex",
-                        textDecoration: "none",
-                    }}
-                    aria-label="home"
-                >
-                    <PlatformLogo
-                        platform={platform}
-                        showName={false}
-                        fallbackName="Learning Platform"
-                        logoHeight={collapsed && !isMobile ? 28 : 32}
-                        logoMaxWidth={collapsed && !isMobile ? 32 : 120}
-                        iconContainerSize={28}
-                        iconSize={18}
-                    />
-                </Box>
-
-                {/* Institution Name - only when expanded */}
-                {(!collapsed || isMobile) && (
-                    <Typography
-                        variant="subtitle1"
-                        fontWeight="bold"
-                        color="primary"
-                        sx={{
-                            flex: 1,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        {platform?.institutionName || "Learning Platform"}
-                    </Typography>
-                )}
-
-                {/* Spacer when collapsed */}
-                {collapsed && !isMobile && <Box sx={{ flex: 1 }} />}
-
-                {/* Collapse Toggle - Desktop only */}
-                {!isMobile && (
-                    <IconButton
-                        onClick={handleCollapseToggle}
-                        size="small"
-                        sx={{
-                            color: "text.secondary",
-                            borderRadius: 0,
-                        }}
-                        aria-label={
-                            collapsed ? "Expand sidebar" : "Collapse sidebar"
-                        }
-                    >
-                        {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-                    </IconButton>
-                )}
-            </Box>
-
-            {/* Navigation */}
-            <Box sx={{ flex: 1, overflow: "auto", py: 1 }}>
-                {navigation.map((section, sectionIndex) => {
-                    const filteredItems = section.items.filter((item) => {
-                        if (
-                            item.requiresCapability &&
-                            platform?.capabilities?.[
-                                item.requiresCapability
-                            ] === false
-                        ) {
-                            return false;
-                        }
-                        if (!item.requiresFeature) return true;
-                        return (
-                            platform?.features?.[item.requiresFeature] === true
-                        );
-                    });
-
-                    if (filteredItems.length === 0) return null;
-
-                    return (
-                        <Box key={sectionIndex}>
-                            {section.title && (!collapsed || isMobile) && (
-                                <Typography
-                                    variant="overline"
-                                    sx={{
-                                        px: 2,
-                                        pt: 1,
-                                        pb: 0,
-                                        display: "block",
-                                        color: "text.secondary",
-                                        fontSize: "0.7rem",
-                                        fontWeight: 600,
-                                        lineHeight: 1.5,
-                                    }}
-                                >
-                                    {section.title}
-                                </Typography>
-                            )}
-                            <List disablePadding>
-                                {filteredItems.map((item) => {
-                                    const Icon = item.icon;
-                                    const isActive =
-                                        currentPath === item.href ||
-                                        (item.href !== "/dashboard/" &&
-                                            currentPath.startsWith(item.href));
-
-                                    const listItemButton = (
-                                        <ListItemButton
-                                            component={Link}
-                                            href={item.href}
-                                            onClick={handleNavClick}
-                                            selected={isActive}
-                                            sx={{
-                                                borderRadius: 1,
-                                                minHeight: 36,
-                                                py: 0.5,
-                                                justifyContent:
-                                                    collapsed && !isMobile
-                                                        ? "center"
-                                                        : "flex-start",
-                                                px:
-                                                    collapsed && !isMobile
-                                                        ? 1.5
-                                                        : 2,
-                                                "&.Mui-selected": {
-                                                    bgcolor: "primary.main",
-                                                    color: "primary.contrastText",
-                                                    "&:hover": {
-                                                        bgcolor: "primary.dark",
-                                                    },
-                                                    "& .MuiListItemIcon-root": {
-                                                        color: "primary.contrastText",
-                                                    },
-                                                },
-                                            }}
-                                        >
-                                            <ListItemIcon
-                                                sx={{
-                                                    minWidth:
-                                                        collapsed && !isMobile
-                                                            ? 0
-                                                            : 36,
-                                                    color: isActive
-                                                        ? "inherit"
-                                                        : "text.secondary",
-                                                    justifyContent: "center",
-                                                }}
-                                            >
-                                                <Icon sx={{ fontSize: 20 }} />
-                                            </ListItemIcon>
-                                            {(!collapsed || isMobile) && (
-                                                <ListItemText
-                                                    primary={item.label}
-                                                    primaryTypographyProps={{
-                                                        fontSize: "0.875rem",
-                                                        fontWeight: isActive
-                                                            ? 600
-                                                            : 400,
-                                                    }}
-                                                />
-                                            )}
-                                        </ListItemButton>
-                                    );
-
-                                    return (
-                                        <ListItem
-                                            key={item.href || item.label}
-                                            disablePadding
-                                            sx={{ px: 1, py: 0 }}
-                                        >
-                                            {collapsed && !isMobile ? (
-                                                <Tooltip
-                                                    title={item.label}
-                                                    placement="right"
-                                                    arrow
-                                                >
-                                                    {listItemButton}
-                                                </Tooltip>
-                                            ) : (
-                                                listItemButton
-                                            )}
-                                        </ListItem>
-                                    );
-                                })}
-                            </List>
-                        </Box>
-                    );
-                })}
-            </Box>
-        </Box>
+    const sidebar = (
+        <DashboardSidebar
+            collapsed={collapsed}
+            currentPath={currentPath}
+            isMobile={isMobile}
+            navigation={navigation}
+            onLogout={handleLogout}
+            onNavigate={closeMobileDrawer}
+        />
     );
 
     return (
-        <Box
-            sx={{
-                display: "flex",
-                minHeight: "100vh",
-                bgcolor: "background.default",
-            }}
-        >
-            {/* Sidebar - Full Height (Non-Clipped) */}
-            <Box
-                component="nav"
-                sx={{
-                    width: { md: drawerWidth },
-                    flexShrink: { md: 0 },
-                    transition: "width 0.2s ease-in-out",
-                }}
-            >
-                {/* Mobile Drawer */}
-                <SwipeableDrawer
-                    variant="temporary"
-                    open={mobileOpen}
-                    onOpen={handleDrawerOpen}
-                    onClose={handleDrawerClose}
-                    disableBackdropTransition={!iOS}
-                    disableDiscovery={iOS}
-                    ModalProps={{ keepMounted: true }}
-                    sx={{
-                        display: { xs: "block", md: "none" },
-                        "& .MuiDrawer-paper": {
-                            width: DRAWER_WIDTH_EXPANDED,
-                            boxSizing: "border-box",
-                            borderRadius: 0,
-                        },
-                    }}
-                >
-                    {drawerContent}
-                </SwipeableDrawer>
+        <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+            <DashboardHeader
+                anchorEl={anchorEl}
+                auth={auth}
+                breadcrumbs={breadcrumbs}
+                collapsed={collapsed}
+                drawerWidth={drawerWidth}
+                isDark={isDark}
+                isMobile={isMobile}
+                onCollapseToggle={handleCollapseToggle}
+                onLogout={handleLogout}
+                onMenuClose={closeUserMenu}
+                onMenuOpen={handleUserMenuOpen}
+                onMobileToggle={handleMobileToggle}
+                platform={platform}
+                role={role}
+                toggleMode={toggleMode}
+            />
 
-                {/* Desktop Drawer */}
-                <Drawer
-                    variant="permanent"
-                    sx={{
-                        display: { xs: "none", md: "block" },
-                        "& .MuiDrawer-paper": {
-                            width: drawerWidth,
-                            boxSizing: "border-box",
-                            borderRight: 1,
-                            borderColor: "divider",
-                            transition: "width 0.2s ease-in-out",
-                            overflowX: "hidden",
-                            borderRadius: 0,
-                        },
-                    }}
-                    open
-                >
-                    {drawerContent}
-                </Drawer>
-            </Box>
-
-            {/* Main Content Area */}
             <Box
                 sx={{
                     display: "flex",
-                    flexDirection: "column",
-                    flexGrow: 1,
-                    width: { md: `calc(100% - ${drawerWidth}px)` },
-                    transition: "width 0.2s ease-in-out",
+                    minHeight: {
+                        xs: `calc(100vh - ${HEADER_HEIGHT_MOBILE}px)`,
+                        md: `calc(100vh - ${HEADER_HEIGHT_DESKTOP}px)`,
+                    },
+                    pt: {
+                        xs: `${HEADER_HEIGHT_MOBILE}px`,
+                        md: `${HEADER_HEIGHT_DESKTOP}px`,
+                    },
                 }}
             >
-                {/* AppBar - Content Width Only */}
-                <AppBar
-                    position="sticky"
-                    elevation={0}
+                <Box
+                    component="aside"
                     sx={{
-                        bgcolor: "background.paper",
-                        color: "text.primary",
-                        boxShadow: "none",
-                        borderBottom: 1,
-                        borderColor: "divider",
-                        borderRadius: 0,
+                        width: { md: drawerWidth },
+                        flexShrink: { md: 0 },
+                        transition: "width 200ms ease",
                     }}
                 >
-                    <Toolbar
+                    <SwipeableDrawer
+                        variant="temporary"
+                        open={mobileOpen}
+                        onOpen={() => setMobileOpen(true)}
+                        onClose={closeMobileDrawer}
+                        disableBackdropTransition={!iOS}
+                        disableDiscovery={iOS}
+                        ModalProps={{ keepMounted: true }}
                         sx={{
-                            minHeight: `${SIDEBAR_HEADER_HEIGHT}px !important`,
-                            height: SIDEBAR_HEADER_HEIGHT,
-                            px: 2,
+                            display: { xs: "block", md: "none" },
+                            "& .MuiDrawer-paper": {
+                                top: HEADER_HEIGHT_MOBILE,
+                                width: DRAWER_WIDTH_EXPANDED,
+                                height: `calc(100% - ${HEADER_HEIGHT_MOBILE}px)`,
+                                borderRadius: 0,
+                            },
                         }}
                     >
-                        {/* Mobile Menu Button */}
-                        <IconButton
-                            onClick={handleDrawerToggle}
-                            sx={{
-                                display: { md: "none" },
-                                mr: 1,
-                                color: "text.primary",
-                            }}
-                            aria-label="toggle menu"
-                        >
-                            <MenuIcon />
-                        </IconButton>
+                        {sidebar}
+                    </SwipeableDrawer>
 
-                        {/* Breadcrumbs */}
-                        <Box sx={{ flex: 1 }}>
-                            {breadcrumbs.length > 0 && (
-                                <Breadcrumbs
-                                    separator={
-                                        <NavigateNextIcon fontSize="small" />
-                                    }
-                                >
-                                    {breadcrumbs.map((crumb, index) => {
-                                        const isLast =
-                                            index === breadcrumbs.length - 1;
-                                        return crumb.href && !isLast ? (
-                                            <Link
-                                                key={index}
-                                                href={crumb.href}
-                                                style={{
-                                                    textDecoration: "none",
-                                                }}
-                                            >
-                                                <Typography
-                                                    color="text.secondary"
-                                                    variant="body2"
-                                                >
-                                                    {crumb.label}
-                                                </Typography>
-                                            </Link>
-                                        ) : (
-                                            <Typography
-                                                key={index}
-                                                color="text.primary"
-                                                variant="body2"
-                                            >
-                                                {crumb.label}
-                                            </Typography>
-                                        );
-                                    })}
-                                </Breadcrumbs>
-                            )}
-                        </Box>
+                    <Drawer
+                        variant="permanent"
+                        open
+                        sx={{
+                            display: { xs: "none", md: "block" },
+                            "& .MuiDrawer-paper": {
+                                top: HEADER_HEIGHT_DESKTOP,
+                                width: drawerWidth,
+                                height: `calc(100% - ${HEADER_HEIGHT_DESKTOP}px)`,
+                                border: 0,
+                                borderRadius: 0,
+                                overflowX: "hidden",
+                                transition: "width 200ms ease",
+                            },
+                        }}
+                    >
+                        {sidebar}
+                    </Drawer>
+                </Box>
 
-                        {/* Right Side Controls */}
-                        <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 0.5,
-                            }}
-                        >
-                            {/* Dark/Light Mode Toggle */}
-                            <Tooltip
-                                title={isDark ? "Light mode" : "Dark mode"}
-                            >
-                                <IconButton
-                                    onClick={toggleMode}
-                                    sx={{ color: "text.secondary" }}
-                                    aria-label="toggle dark mode"
-                                >
-                                    {isDark ? (
-                                        <LightModeIcon />
-                                    ) : (
-                                        <DarkModeIcon />
-                                    )}
-                                </IconButton>
-                            </Tooltip>
-
-                            {/* Notifications Panel */}
-                            <MessageUnreadBadge />
-                            <NotificationPanel />
-
-                            {/* User Avatar & Menu */}
-                            <IconButton
-                                onClick={handleMenuOpen}
-                                aria-label="user menu"
-                            >
-                                <Avatar
-                                    sx={{
-                                        width: 32,
-                                        height: 32,
-                                        bgcolor: `${roleColors[role]}.main`,
-                                    }}
-                                >
-                                    {auth?.user?.firstName?.[0] || "U"}
-                                </Avatar>
-                            </IconButton>
-                            <Menu
-                                anchorEl={anchorEl}
-                                open={Boolean(anchorEl)}
-                                onClose={handleMenuClose}
-                                anchorOrigin={{
-                                    vertical: "bottom",
-                                    horizontal: "right",
-                                }}
-                                transformOrigin={{
-                                    vertical: "top",
-                                    horizontal: "right",
-                                }}
-                            >
-                                <MenuItem disabled>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        {auth?.user?.email}
-                                    </Typography>
-                                </MenuItem>
-                                <Divider />
-                                {role === "student" && (
-                                    <MenuItem
-                                        component={Link}
-                                        href="/student/profile/"
-                                    >
-                                        <ListItemIcon>
-                                            <PersonIcon fontSize="small" />
-                                        </ListItemIcon>
-                                        Profile
-                                    </MenuItem>
-                                )}
-                                {role === "admin" &&
-                                    platform?.capabilities
-                                        ?.showAdminSettings !== false && (
-                                        <MenuItem
-                                            component={Link}
-                                            href="/admin/settings/"
-                                        >
-                                            <ListItemIcon>
-                                                <SettingsIcon fontSize="small" />
-                                            </ListItemIcon>
-                                            Settings
-                                        </MenuItem>
-                                    )}
-                                <Divider />
-                                <MenuItem onClick={handleLogout}>
-                                    <ListItemIcon>
-                                        <LogoutIcon fontSize="small" />
-                                    </ListItemIcon>
-                                    Logout
-                                </MenuItem>
-                            </Menu>
-                        </Box>
-                    </Toolbar>
-                </AppBar>
-
-                {/* Main Content */}
                 <Box
                     component="main"
                     sx={{
-                        flexGrow: 1,
-                        p: { xs: 2, md: 3 },
+                        flex: 1,
+                        minWidth: 0,
+                        width: { md: `calc(100% - ${drawerWidth}px)` },
+                        px: { xs: 2, sm: 3, lg: 4 },
+                        py: { xs: 2.5, md: 3.5 },
                         bgcolor: "background.default",
-                        minHeight: `calc(100vh - ${SIDEBAR_HEADER_HEIGHT}px)`,
-                        width: "100%",
-                        maxWidth: "100%",
+                        transition: "width 200ms ease",
                     }}
                 >
-                    <Box sx={{ maxWidth: 1200, mx: "auto", width: "100%" }}>
+                    <Box sx={{ width: "100%", maxWidth: 1540, mx: "auto" }}>
                         {children}
                     </Box>
                 </Box>
             </Box>
         </Box>
     );
-}
+};
+
+export default DashboardLayout;

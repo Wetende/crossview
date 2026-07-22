@@ -107,8 +107,9 @@ export function getContrastText(hex) {
 
     const luminance = getLuminance(rgb.r, rgb.g, rgb.b);
 
-    // Threshold of 0.5 is standard, but usually prefer darker text on mid-tones
-    return luminance > 0.5 ? "#0F172A" : "#FFFFFF";
+    // WCAG contrast crossover: above this luminance, dark text provides the
+    // stronger contrast ratio; below it, white text is easier to read.
+    return luminance > 0.179 ? "#0F172A" : "#FFFFFF";
 }
 
 /**
@@ -120,17 +121,26 @@ export function getContrastText(hex) {
 export function generatePaletteFromColor(hexColor, mode = "light") {
     if (!hexColor) return null;
 
-    // In dark mode, use a lighter variant of the brand color as the main color
-    // to ensure good visibility against the dark background.
     const isDark = mode === "dark";
-    const mainColor = isDark ? lighten(hexColor, 0.3) : hexColor;
+
+    if (isDark) {
+        const mainColor = lighten(hexColor, 0.55);
+        return {
+            lighter: darken(hexColor, 0.15),
+            light: lighten(hexColor, 0.7),
+            main: mainColor,
+            dark: lighten(hexColor, 0.42),
+            darker: lighten(hexColor, 0.3),
+            contrastText: getContrastText(mainColor),
+        };
+    }
 
     return {
         lighter: lighten(hexColor, 0.8),
         light: lighten(hexColor, 0.3),
-        main: mainColor,
+        main: hexColor,
         dark: darken(hexColor, 0.15),
         darker: darken(hexColor, 0.3),
-        contrastText: getContrastText(mainColor),
+        contrastText: getContrastText(hexColor),
     };
 }
