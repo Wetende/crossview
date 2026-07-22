@@ -7,6 +7,7 @@ from typing import Optional
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.http import Http404
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -590,6 +591,138 @@ def _find_first_leaf_node(root_nodes):
         return None
 
     return recurse(root_nodes)
+
+
+@login_required
+def unit_summary(request, pk: int, section_id: int):
+    """Render a derived, read-only completion summary for one curriculum unit."""
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("program"),
+        pk=pk,
+        user=request.user,
+    )
+    program = enrollment.program
+    section = get_object_or_404(
+        CurriculumNode,
+        pk=section_id,
+        program=program,
+        is_published=True,
+    )
+    if not section.children.filter(is_published=True).exists():
+        raise Http404("Unit summary is available for curriculum sections only.")
+
+    blocked_response = _redirect_if_course_prerequisites_unmet(request, enrollment)
+    if blocked_response:
+        return blocked_response
+
+    completions = list(enrollment.completions.values_list("node_id", flat=True))
+    completion_ids = set(completions)
+    engine = ProgressionEngine()
+    unlock_statuses = engine.get_unlock_status(enrollment)
+    status_map = {status["node_id"]: status for status in unlock_statuses}
+
+    descendants = [
+        node
+        for node in section.get_descendants()
+        if node.is_published
+        and not node.children.filter(is_published=True).exists()
+    ]
+    completed_count = sum(node.id in completion_ids for node in descendants)
+    total_count = len(descendants)
+    progress_percent = (
+        completed_count / total_count * 100 if total_count > 0 else 0
+    )
+    first_leaf = descendants[0] if descendants else None
+
+    next_section = (
+        CurriculumNode.objects.filter(
+            program=program,
+            parent=section.parent,
+            is_published=True,
+            position__gt=section.position,
+        )
+        .filter(children__isnull=False)
+        .distinct()
+        .order_by("position", "id")
+        .first()
+    )
+    next_section_first_leaf = (
+        _find_first_leaf_node([next_section]) if next_section else None
+    )
+
+    root_nodes = _get_published_root_nodes(program)
+    curriculum_tree = _build_curriculum_tree(
+        root_nodes,
+        completions,
+        enrollment,
+        status_map,
+    )
+    total_program_nodes = _get_completable_nodes_count(program)
+    overall_progress = (
+        len(completions) / total_program_nodes * 100
+        if total_program_nodes > 0
+        else 0
+    )
+
+    return render(
+        request,
+        "Student/CoursePlayer",
+        {
+            "node": None,
+            "activeView": "unit_summary",
+            "unitSummary": {
+                "id": section.id,
+                "title": section.title,
+                "completedCount": completed_count,
+                "totalCount": total_count,
+                "progressPercent": round(progress_percent, 1),
+                "isComplete": total_count > 0 and completed_count == total_count,
+                "reviewUrl": (
+                    f"/student/programs/{enrollment.id}/session/{first_leaf.id}/"
+                    if first_leaf
+                    else None
+                ),
+                "nextUnit": (
+                    {
+                        "id": next_section.id,
+                        "title": next_section.title,
+                        "url": (
+                            f"/student/programs/{enrollment.id}/session/"
+                            f"{next_section_first_leaf.id}/"
+                        ),
+                    }
+                    if next_section and next_section_first_leaf
+                    else None
+                ),
+                "items": [
+                    {
+                        "id": node.id,
+                        "title": node.title,
+                        "type": node.node_type,
+                        "isCompleted": node.id in completion_ids,
+                        "url": f"/student/programs/{enrollment.id}/session/{node.id}/",
+                    }
+                    for node in descendants
+                ],
+            },
+            "program": _build_program_player_payload(program, enrollment),
+            "instructor": _get_primary_instructor_payload(program),
+            "enrollment": _build_enrollment_player_payload(
+                enrollment,
+                overall_progress,
+            ),
+            "curriculum": curriculum_tree,
+            "resumeUrl": f"/student/programs/{program.id}/resume/",
+            "prevNode": None,
+            "nextNode": None,
+            "progress": round(overall_progress, 1),
+            "isCompleted": False,
+            "isLocked": False,
+            "lockReason": None,
+            "status": "unlocked",
+            "unlocksAt": None,
+        },
+    )
 
 
 def _render_course_player(request, enrollment, node, completions, status_map):

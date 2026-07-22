@@ -23,6 +23,7 @@ import {
     KeyboardArrowUp,
     KeyboardArrowDown,
     CheckCircle as CheckIcon,
+    FlagOutlined as FlagIcon,
     Lock as LockIcon,
 } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
@@ -55,6 +56,23 @@ const NodeItem = ({
         return `${completed}/${node.children.length}`;
     };
 
+    const getLeafCompletion = (currentNode) => {
+        const children = currentNode.children || [];
+        if (children.length === 0) {
+            return { completed: currentNode.isCompleted ? 1 : 0, total: 1 };
+        }
+        return children.reduce(
+            (summary, child) => {
+                const childSummary = getLeafCompletion(child);
+                return {
+                    completed: summary.completed + childSummary.completed,
+                    total: summary.total + childSummary.total,
+                };
+            },
+            { completed: 0, total: 0 },
+        );
+    };
+
     // Determine lesson type icon - colored icons like reference
     const getIcon = () => {
         if (node.isLocked)
@@ -81,13 +99,23 @@ const NodeItem = ({
             case ACTIVITY_TYPES.AUDIO:
                 return <AudioIcon sx={{ color: "info.main", fontSize: 20 }} />;
             case ACTIVITY_TYPES.CODE:
-                return <CodeIcon sx={{ color: "success.main", fontSize: 20 }} />;
+                return (
+                    <CodeIcon sx={{ color: "success.main", fontSize: 20 }} />
+                );
             case ACTIVITY_TYPES.LIVE_MEETING:
-                return <MeetingIcon sx={{ color: "primary.main", fontSize: 20 }} />;
+                return (
+                    <MeetingIcon sx={{ color: "primary.main", fontSize: 20 }} />
+                );
             case ACTIVITY_TYPES.LIVE_STREAM:
-                return <StreamIcon sx={{ color: "error.main", fontSize: 20 }} />;
+                return (
+                    <StreamIcon sx={{ color: "error.main", fontSize: 20 }} />
+                );
             case ACTIVITY_TYPES.IN_PERSON_SESSION:
-                return <LocationIcon sx={{ color: "warning.main", fontSize: 20 }} />;
+                return (
+                    <LocationIcon
+                        sx={{ color: "warning.main", fontSize: 20 }}
+                    />
+                );
             default:
                 return (
                     <TextIcon sx={{ color: "success.main", fontSize: 20 }} />
@@ -121,6 +149,10 @@ const NodeItem = ({
 
     // Section styling - gray background
     if (isSection) {
+        const leafCompletion = getLeafCompletion(node);
+        const unitComplete =
+            leafCompletion.total > 0 &&
+            leafCompletion.completed === leafCompletion.total;
         return (
             <>
                 <ListItem disablePadding>
@@ -182,6 +214,45 @@ const NodeItem = ({
                                     enrollmentId={enrollmentId}
                                 />
                             ))}
+                            <ListItem disablePadding>
+                                <ListItemButton
+                                    component={Link}
+                                    href={`/student/programs/${enrollmentId}/unit/${node.id}/`}
+                                    sx={{
+                                        mx: 1,
+                                        my: 0.75,
+                                        borderRadius: 1.5,
+                                        bgcolor: unitComplete
+                                            ? "success.lighter"
+                                            : "action.hover",
+                                    }}
+                                >
+                                    <ListItemIcon sx={{ minWidth: 36 }}>
+                                        {unitComplete ? (
+                                            <CheckIcon
+                                                color="success"
+                                                fontSize="small"
+                                            />
+                                        ) : (
+                                            <FlagIcon
+                                                color="action"
+                                                fontSize="small"
+                                            />
+                                        )}
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary="End of unit"
+                                        secondary={`${leafCompletion.completed}/${leafCompletion.total} completed`}
+                                        primaryTypographyProps={{
+                                            variant: "body2",
+                                            fontWeight: 700,
+                                        }}
+                                        secondaryTypographyProps={{
+                                            variant: "caption",
+                                        }}
+                                    />
+                                </ListItemButton>
+                            </ListItem>
                         </List>
                     </Collapse>
                 )}

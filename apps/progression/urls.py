@@ -23,6 +23,11 @@ urlpatterns = [
         name="student.session",
     ),
     path(
+        "student/programs/<int:pk>/unit/<int:section_id>/",
+        views.unit_summary,
+        name="student.unit.summary",
+    ),
+    path(
         "student/courses/<int:program_id>/lessons/<int:node_id>/launch/",
         views.course_lesson_launch,
         name="student.lesson.launch",

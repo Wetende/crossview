@@ -7,6 +7,7 @@ import Whiteboard from "../components/Stage/Whiteboard";
 import CourseOverview from "../components/Stage/CourseOverview";
 import { Box, Button, Typography } from "@mui/material";
 import PlayerSupportStrip from "../components/PlayerSupportStrip";
+import UnitCompletionView from "../components/Stage/UnitCompletionView";
 
 const LectureView = ({
     program,
@@ -21,6 +22,7 @@ const LectureView = ({
     notes = [],
     activeView = null,
     resumeUrl = null,
+    unitSummary = null,
 }) => {
     // Local State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -58,13 +60,14 @@ const LectureView = ({
     );
 
     const isOverview = activeView === "overview";
+    const isUnitSummary = activeView === "unit_summary";
 
     return (
         <ClassroomLayout
             programTitle={program?.name || "Loading Course..."}
             backLink="/dashboard/"
             LeftPanel={LeftPanel}
-            RightPanel={isOverview ? null : RightPanel}
+            RightPanel={isOverview || isUnitSummary ? null : RightPanel}
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isDiscussionsOpen={isDiscussionsOpen}
@@ -74,11 +77,13 @@ const LectureView = ({
                 title={
                     isOverview
                         ? `${program?.name || "Course"} - Overview`
-                        : node?.title || program?.name || "Course Player"
+                        : isUnitSummary
+                          ? `${unitSummary?.title || "Unit"} - Summary`
+                          : node?.title || program?.name || "Course Player"
                 }
             />
 
-            {!isOverview && instructor?.id && (
+            {!isOverview && !isUnitSummary && instructor?.id && (
                 <Box
                     sx={{
                         display: "flex",
@@ -110,6 +115,8 @@ const LectureView = ({
                     resumeUrl={resumeUrl}
                     curriculum={curriculum}
                 />
+            ) : isUnitSummary && unitSummary ? (
+                <UnitCompletionView unit={unitSummary} />
             ) : node ? (
                 <Whiteboard
                     node={node}

@@ -121,6 +121,118 @@ class StudentProgramsViewTests(TestCase):
         )
         self.assertIsNone(payload["nextScheduledSession"]["joinUrl"])
 
+    def test_unit_summary_is_derived_from_existing_node_completions(self):
+        student = UserFactory()
+        program = Program.objects.create(
+            name="Unit summary program",
+            code="UNIT-SUMMARY",
+            level="beginner",
+            is_published=True,
+        )
+        enrollment = Enrollment.objects.create(
+            user=student,
+            program=program,
+            status="active",
+        )
+        section = CurriculumNode.objects.create(
+            program=program,
+            title="Foundations",
+            node_type="section",
+            position=1,
+            is_published=True,
+        )
+        completed_lesson = CurriculumNode.objects.create(
+            program=program,
+            parent=section,
+            title="Introduction",
+            node_type="lesson",
+            position=1,
+            is_published=True,
+        )
+        CurriculumNode.objects.create(
+            program=program,
+            parent=section,
+            title="Practice",
+            node_type="quiz",
+            position=2,
+            is_published=True,
+        )
+        next_section = CurriculumNode.objects.create(
+            program=program,
+            title="Automation",
+            node_type="section",
+            position=2,
+            is_published=True,
+        )
+        next_lesson = CurriculumNode.objects.create(
+            program=program,
+            parent=next_section,
+            title="First automation lesson",
+            node_type="lesson",
+            position=1,
+            is_published=True,
+        )
+        NodeCompletion.objects.create(
+            enrollment=enrollment,
+            node=completed_lesson,
+            completed_at=timezone.now(),
+            completion_type="view",
+        )
+        self.client.force_login(student)
+
+        response = self.client.get(
+            reverse(
+                "progression:student.unit.summary",
+                args=[enrollment.id, section.id],
+            ),
+            HTTP_X_INERTIA="true",
+        )
+
+        props = response.json()["props"]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(props["activeView"], "unit_summary")
+        self.assertEqual(props["unitSummary"]["completedCount"], 1)
+        self.assertEqual(props["unitSummary"]["totalCount"], 2)
+        self.assertEqual(props["unitSummary"]["progressPercent"], 50.0)
+        self.assertFalse(props["unitSummary"]["isComplete"])
+        self.assertEqual(props["unitSummary"]["items"][0]["title"], "Introduction")
+        self.assertEqual(
+            props["unitSummary"]["nextUnit"]["url"],
+            f"/student/programs/{enrollment.id}/session/{next_lesson.id}/",
+        )
+
+    def test_unit_summary_hides_sections_from_other_courses(self):
+        student = UserFactory()
+        program = Program.objects.create(
+            name="Owned program",
+            code="OWNED-UNIT",
+            level="beginner",
+            is_published=True,
+        )
+        other_program = Program.objects.create(
+            name="Other program",
+            code="OTHER-UNIT",
+            level="beginner",
+            is_published=True,
+        )
+        enrollment = Enrollment.objects.create(user=student, program=program)
+        other_section = CurriculumNode.objects.create(
+            program=other_program,
+            title="Private section",
+            node_type="section",
+            is_published=True,
+        )
+        self.client.force_login(student)
+
+        response = self.client.get(
+            reverse(
+                "progression:student.unit.summary",
+                args=[enrollment.id, other_section.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_program_resume_renders_first_incomplete_lesson(self):
         student = UserFactory()
         program = Program.objects.create(
