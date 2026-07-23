@@ -203,7 +203,10 @@ const StudentDashboard = ({
                                                     <Stack
                                                         direction="row"
                                                         spacing={1.25}
-                                                        alignItems="center"
+                                                        sx={{
+                                                            alignItems:
+                                                                "center",
+                                                        }}
                                                     >
                                                         <LinearProgress
                                                             variant="determinate"
@@ -294,12 +297,14 @@ const StudentDashboard = ({
                                                 <ListItemText
                                                     primary={deadline.title}
                                                     secondary={`${deadline.programName} · ${formatDate(deadline.dueAt)}`}
-                                                    primaryTypographyProps={{
-                                                        variant: "body2",
-                                                        fontWeight: 700,
-                                                    }}
-                                                    secondaryTypographyProps={{
-                                                        variant: "caption",
+                                                    slotProps={{
+                                                        primary: {
+                                                            variant: "body2",
+                                                            fontWeight: 700,
+                                                        },
+                                                        secondary: {
+                                                            variant: "caption",
+                                                        },
                                                     }}
                                                 />
                                             </ListItem>
@@ -333,9 +338,12 @@ const StudentDashboard = ({
                                         <Box key={enrollment.id}>
                                             <Stack
                                                 direction="row"
-                                                justifyContent="space-between"
                                                 spacing={2}
-                                                sx={{ mb: 0.8 }}
+                                                sx={{
+                                                    mb: 0.8,
+                                                    justifyContent:
+                                                        "space-between",
+                                                }}
                                             >
                                                 <Typography
                                                     variant="body2"
@@ -417,12 +425,16 @@ const StudentDashboard = ({
                                                         secondary={
                                                             assignment.programName
                                                         }
-                                                        primaryTypographyProps={{
-                                                            variant: "body2",
-                                                            fontWeight: 700,
-                                                        }}
-                                                        secondaryTypographyProps={{
-                                                            variant: "caption",
+                                                        slotProps={{
+                                                            primary: {
+                                                                variant:
+                                                                    "body2",
+                                                                fontWeight: 700,
+                                                            },
+                                                            secondary: {
+                                                                variant:
+                                                                    "caption",
+                                                            },
                                                         }}
                                                     />
                                                     <StatusChip
@@ -466,12 +478,14 @@ const StudentDashboard = ({
                                             <ListItemText
                                                 primary={quiz.title}
                                                 secondary={`${quiz.programName} · ${quiz.attempts || 0} attempt${quiz.attempts === 1 ? "" : "s"}`}
-                                                primaryTypographyProps={{
-                                                    variant: "body2",
-                                                    fontWeight: 700,
-                                                }}
-                                                secondaryTypographyProps={{
-                                                    variant: "caption",
+                                                slotProps={{
+                                                    primary: {
+                                                        variant: "body2",
+                                                        fontWeight: 700,
+                                                    },
+                                                    secondary: {
+                                                        variant: "caption",
+                                                    },
                                                 }}
                                             />
                                             <StatusChip

@@ -6,8 +6,14 @@ import {
     within,
 } from "@testing-library/react";
 import { describe, expect, test, vi, beforeEach } from "vitest";
+import {
+    createTheme,
+    ThemeProvider as MuiThemeProvider,
+    useTheme,
+} from "@mui/material/styles";
 
 import DashboardLayout from "./index";
+import { COLORS } from "@/theme/palette";
 
 const {
     mockUsePage,
@@ -135,6 +141,40 @@ describe("DashboardLayout logout", () => {
 
         fireEvent.click(screen.getByLabelText("toggle dark mode"));
         expect(mockToggleMode).toHaveBeenCalledTimes(1);
+    });
+
+    test("uses the product dashboard palette and typography instead of runtime branding", () => {
+        const ThemeProbe = () => {
+            const theme = useTheme();
+            return (
+                <>
+                    <span data-testid="dashboard-primary">
+                        {theme.palette.primary.main}
+                    </span>
+                    <span data-testid="dashboard-heading-font">
+                        {theme.typography.h4.fontFamily}
+                    </span>
+                </>
+            );
+        };
+        const runtimeTheme = createTheme({
+            palette: { primary: { main: "#FF00FF" } },
+        });
+
+        render(
+            <MuiThemeProvider theme={runtimeTheme}>
+                <DashboardLayout>
+                    <ThemeProbe />
+                </DashboardLayout>
+            </MuiThemeProvider>,
+        );
+
+        expect(screen.getByTestId("dashboard-primary")).toHaveTextContent(
+            COLORS.PRIMARY,
+        );
+        expect(screen.getByTestId("dashboard-heading-font")).toHaveTextContent(
+            "Archivo",
+        );
     });
 
     test("dashboard menu closes immediately when logout is clicked", async () => {

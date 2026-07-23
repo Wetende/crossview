@@ -23,7 +23,7 @@ export default function Assignments({ assignments = [] }) {
 
       <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
         {/* Header */}
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 4 }}>
+        <Stack direction="row" sx={{ mb: 4, justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
             <Typography variant="h4" fontWeight={700} gutterBottom>
               My Assignments

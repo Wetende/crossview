@@ -54,9 +54,12 @@ export const WelcomePanel = ({
         <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={2}
-            alignItems={{ xs: "flex-start", sm: "center" }}
-            justifyContent="space-between"
-            sx={{ position: "relative", zIndex: 1 }}
+            sx={{
+                position: "relative",
+                zIndex: 1,
+                alignItems: { xs: "flex-start", sm: "center" },
+                justifyContent: "space-between",
+            }}
         >
             <Box sx={{ maxWidth: 760 }}>
                 <Typography
@@ -133,7 +136,7 @@ export const MetricCard = ({
                 },
             }}
         >
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                 <Box
                     sx={{
                         width: 48,
@@ -200,9 +203,9 @@ export const SectionCard = ({
         <Stack
             direction="row"
             spacing={2}
-            alignItems="center"
-            justifyContent="space-between"
             sx={{
+                alignItems: "center",
+                justifyContent: "space-between",
                 px: { xs: 2.25, md: 3 },
                 py: 2.25,
                 borderBottom: "1px solid",
@@ -238,9 +241,14 @@ export const EmptyPanel = ({
     title,
 }) => (
     <Stack
-        alignItems="center"
-        justifyContent="center"
-        sx={{ minHeight: 220, px: 3, py: 5, textAlign: "center" }}
+        sx={{
+            minHeight: 220,
+            px: 3,
+            py: 5,
+            textAlign: "center",
+            alignItems: "center",
+            justifyContent: "center",
+        }}
     >
         <Box
             sx={{
@@ -291,9 +299,11 @@ export const ProgressPanel = ({ label, value }) => (
         </Typography>
         <Stack
             direction="row"
-            justifyContent="space-between"
-            alignItems="flex-end"
-            sx={{ mt: 1.5 }}
+            sx={{
+                mt: 1.5,
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+            }}
         >
             <Box>
                 <Typography

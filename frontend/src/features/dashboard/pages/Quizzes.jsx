@@ -17,7 +17,7 @@ export default function Quizzes({ quizzes = [] }) {
 
       <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
         {/* Header */}
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 4 }}>
+        <Stack direction="row" sx={{ mb: 4, justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <Box>
             <Typography variant="h5" color="text.secondary" gutterBottom>
               Enrolled Quizzes
@@ -55,7 +55,7 @@ export default function Quizzes({ quizzes = [] }) {
                   {/* Body: Quiz Details Row */}
                   <Box sx={{ py: 1, px: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Box>
-                      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
+                      <Stack direction="row" spacing={1.5} sx={{ mb: 0.5, alignItems: 'center' }}>
                         <Typography variant="subtitle2" fontWeight={500} color="text.primary">
                           {quiz.title}
                         </Typography>
@@ -71,7 +71,7 @@ export default function Quizzes({ quizzes = [] }) {
                       </Typography>
                     </Box>
                     
-                    <Stack direction="row" spacing={4} alignItems="center">
+                    <Stack direction="row" spacing={4} sx={{ alignItems: 'center' }}>
                       <Typography variant="body2" fontWeight={600} color="text.primary">
                         {quiz.bestScore !== null ? `${quiz.bestScore}%` : '0%'}
                       </Typography>

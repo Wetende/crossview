@@ -148,8 +148,8 @@ const InstructorDashboard = ({
                                     <ListItemText
                                         primary={submission.studentName}
                                         secondary={`${submission.nodeTitle} · ${submission.programName}`}
-                                        primaryTypographyProps={{
-                                            fontWeight: 700,
+                                        slotProps={{
+                                            primary: { fontWeight: 700 },
                                         }}
                                     />
                                 </ListItem>
@@ -191,8 +191,7 @@ const InstructorDashboard = ({
                         </Typography>
                         <Stack
                             direction="row"
-                            gap={1}
-                            sx={{ mt: 2.5, flexWrap: "wrap" }}
+                            sx={{ mt: 2.5, gap: 1, flexWrap: "wrap" }}
                         >
                             <Chip
                                 label={`${gradingWorkload.assignments || 0} assignments`}
@@ -292,7 +291,9 @@ const InstructorDashboard = ({
                             <ListItemText
                                 primary={request.studentName}
                                 secondary={`${request.programName} · ${new Date(request.createdAt).toLocaleDateString()}`}
-                                primaryTypographyProps={{ fontWeight: 700 }}
+                                slotProps={{
+                                    primary: { fontWeight: 700 },
+                                }}
                             />
                             <Box sx={{ display: { xs: "none", sm: "block" } }}>
                                 <StatusChip

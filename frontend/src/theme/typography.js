@@ -101,3 +101,5 @@ export default function typography(theme) {
         },
     };
 }
+
+export const dashboardTypography = typography;

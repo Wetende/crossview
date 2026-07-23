@@ -124,10 +124,14 @@ const DashboardSidebar = ({
                                     {collapsed && !isMobile ? null : (
                                         <ListItemText
                                             primary={item.label}
-                                            primaryTypographyProps={{
-                                                fontSize: "0.93rem",
-                                                fontWeight: active ? 700 : 500,
-                                                letterSpacing: "0.005em",
+                                            slotProps={{
+                                                primary: {
+                                                    fontSize: "0.93rem",
+                                                    fontWeight: active
+                                                        ? 700
+                                                        : 500,
+                                                    letterSpacing: "0.005em",
+                                                },
                                             }}
                                         />
                                     )}

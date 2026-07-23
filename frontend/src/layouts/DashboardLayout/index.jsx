@@ -4,10 +4,16 @@ import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import SwipeableDrawer from "@mui/material/SwipeableDrawer";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
+import {
+    createTheme,
+    ThemeProvider as MuiThemeProvider,
+    useTheme,
+} from "@mui/material/styles";
 
 import useLogout from "@/hooks/useLogout";
 import { useThemeMode } from "@/theme";
+import palette from "@/theme/palette";
+import { dashboardTypography } from "@/theme/typography";
 import DashboardHeader from "./DashboardHeader";
 import DashboardSidebar from "./DashboardSidebar";
 import { filterNavigation, ROLE_NAVIGATION } from "./navigation";
@@ -36,6 +42,15 @@ const DashboardLayout = ({ children, breadcrumbs = [], role: propRole }) => {
     const role = propRole || auth?.user?.role || "student";
     const drawerWidth =
         collapsed && !isMobile ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH_EXPANDED;
+    const dashboardTheme = useMemo(() => {
+        const themeWithPalette = createTheme(theme, {
+            palette: palette(theme.palette.mode),
+        });
+
+        return createTheme(themeWithPalette, {
+            typography: dashboardTypography(themeWithPalette),
+        });
+    }, [theme]);
     const currentPath =
         typeof window !== "undefined"
             ? window.location.pathname
@@ -98,7 +113,8 @@ const DashboardLayout = ({ children, breadcrumbs = [], role: propRole }) => {
     );
 
     return (
-        <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+        <MuiThemeProvider theme={dashboardTheme}>
+            <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
             <DashboardHeader
                 anchorEl={anchorEl}
                 auth={auth}
@@ -196,7 +212,8 @@ const DashboardLayout = ({ children, breadcrumbs = [], role: propRole }) => {
                     </Box>
                 </Box>
             </Box>
-        </Box>
+            </Box>
+        </MuiThemeProvider>
     );
 };
 

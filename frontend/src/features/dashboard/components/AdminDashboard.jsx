@@ -144,12 +144,14 @@ const AdminDashboard = ({ firstName, recentActivity = [], stats = {} }) => {
                                         <ListItemText
                                             primary={activity.description}
                                             secondary={activity.timestamp}
-                                            primaryTypographyProps={{
-                                                variant: "body2",
-                                                fontWeight: 700,
-                                            }}
-                                            secondaryTypographyProps={{
-                                                variant: "caption",
+                                            slotProps={{
+                                                primary: {
+                                                    variant: "body2",
+                                                    fontWeight: 700,
+                                                },
+                                                secondary: {
+                                                    variant: "caption",
+                                                },
                                             }}
                                         />
                                         <StatusChip
@@ -189,9 +191,11 @@ const AdminDashboard = ({ firstName, recentActivity = [], stats = {} }) => {
                             </Typography>
                             <Stack
                                 direction="row"
-                                justifyContent="space-between"
-                                alignItems="flex-end"
-                                sx={{ mt: 1 }}
+                                sx={{
+                                    mt: 1,
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-end",
+                                }}
                             >
                                 <Box>
                                     <Typography
@@ -287,10 +291,10 @@ const AdminDashboard = ({ firstName, recentActivity = [], stats = {} }) => {
                     <Grid size={{ xs: 12, md: 6 }}>
                         <Stack
                             direction="row"
-                            alignItems="center"
                             spacing={2}
                             sx={{
                                 p: 3,
+                                alignItems: "center",
                                 borderRight: { md: "1px solid" },
                                 borderColor: "divider",
                             }}
@@ -330,10 +334,10 @@ const AdminDashboard = ({ firstName, recentActivity = [], stats = {} }) => {
                     <Grid size={{ xs: 12, md: 6 }}>
                         <Stack
                             direction="row"
-                            alignItems="center"
                             spacing={2}
                             sx={{
                                 p: 3,
+                                alignItems: "center",
                                 borderTop: { xs: "1px solid", md: 0 },
                                 borderColor: "divider",
                             }}
