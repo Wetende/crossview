@@ -6,8 +6,8 @@ import ScheduledSessionRenderer from "./ScheduledSessionRenderer";
 const baseSession = {
     id: 1,
     title: "Weekly workshop",
-    startsAt: "2026-07-21T09:00:00Z",
-    endsAt: "2026-07-21T10:00:00Z",
+    startsAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    endsAt: new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString(),
     timezone: "Africa/Nairobi",
     status: "scheduled",
     hasEnded: false,

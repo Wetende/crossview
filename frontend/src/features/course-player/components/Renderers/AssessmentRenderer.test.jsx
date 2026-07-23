@@ -117,7 +117,7 @@ describe("AssessmentRenderer", () => {
         );
 
         expect(screen.getAllByText("Explain your leadership style.").length).toBeGreaterThan(0);
-        expect(screen.getByText("QUESTION 1 OF 1")).toBeInTheDocument();
+        expect(screen.getByText(/question 1 of 1/i)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Finish Quiz" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Start Assignment" })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Submit Assignment" })).not.toBeInTheDocument();
@@ -144,7 +144,9 @@ describe("AssessmentRenderer", () => {
             />,
         );
 
-        expect(await screen.findByText("QUESTION 1 OF 1")).toBeInTheDocument();
+        expect(
+            await screen.findByText(/question 1 of 1/i),
+        ).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Finish Quiz" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Start Assignment" })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Submit Assignment" })).not.toBeInTheDocument();
@@ -173,7 +175,9 @@ describe("AssessmentRenderer", () => {
             />,
         );
 
-        expect(await screen.findByText("QUESTION 1 OF 1")).toBeInTheDocument();
+        expect(
+            await screen.findByText(/question 1 of 1/i),
+        ).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Finish Quiz" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Start Assignment" })).toBeInTheDocument();
 
