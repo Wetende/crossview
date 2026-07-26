@@ -7,6 +7,7 @@ import {
     richTextImageFigureSx,
     richTextImageSx,
 } from '@/utils/richTextImages';
+import { richTextContentSx } from '@/components/rich-text/richTextEditorConfig';
 
 const RichTextBlock = ({ data }) => {
     if (!data || !data.html) return null;
@@ -22,6 +23,7 @@ const RichTextBlock = ({ data }) => {
             sx={{
                 mb: 3,
                 typography: 'body1',
+                ...richTextContentSx,
                 '& img': { ...richTextImageSx, my: 2 },
                 [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                     ...richTextImageFigureSx,

@@ -12,6 +12,7 @@ import {
     getRichTextImageDataAttributes,
     getUploadedImageUrl,
     isImageFile,
+    normalizeRichTextImageDimension,
     normalizeRichTextImageAttributes,
     renderRichTextImageCaptions,
     richTextImageFigureSx,
@@ -85,7 +86,6 @@ describe("rich text image helpers", () => {
         expect(RICH_TEXT_IMAGE_MAX_WIDTH).toBe("720px");
         expect(richTextImageSx).toMatchObject({
             display: "block",
-            width: "auto",
             maxWidth: "min(100%, var(--rich-text-image-width))",
             height: "auto",
             mx: "auto",
@@ -112,13 +112,14 @@ describe("rich text image helpers", () => {
     });
 
     test("normalizes rich text image controls", () => {
-        expect(normalizeRichTextImageAttributes()).toEqual(
-            {
-                ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
-                alt: "",
-                imageCaption: "",
-            },
-        );
+        expect(normalizeRichTextImageAttributes()).toEqual({
+            ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
+            alt: "",
+            imageCaption: "",
+            decorative: false,
+            width: null,
+            height: null,
+        });
         expect(
             normalizeRichTextImageAttributes({
                 imageSize: RICH_TEXT_IMAGE_SIZES.SMALL,
@@ -127,6 +128,9 @@ describe("rich text image helpers", () => {
                 imageLayout: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
                 alt: "  A system diagram  ",
                 imageCaption: "  Figure 1: AI workflow  ",
+                decorative: true,
+                width: "640",
+                height: 360,
             }),
         ).toEqual({
             imageSize: "small",
@@ -135,6 +139,9 @@ describe("rich text image helpers", () => {
             imageLayout: "inline",
             alt: "A system diagram",
             imageCaption: "Figure 1: AI workflow",
+            decorative: true,
+            width: 640,
+            height: 360,
         });
         expect(
             normalizeRichTextImageAttributes({
@@ -147,7 +154,18 @@ describe("rich text image helpers", () => {
             ...DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
             alt: "",
             imageCaption: "",
+            decorative: false,
+            width: null,
+            height: null,
         });
+    });
+
+    test("normalizes persisted image dimensions", () => {
+        expect(normalizeRichTextImageDimension("640px")).toBe(640);
+        expect(normalizeRichTextImageDimension(2400)).toBe(2400);
+        expect(normalizeRichTextImageDimension(39)).toBeNull();
+        expect(normalizeRichTextImageDimension(2401)).toBeNull();
+        expect(normalizeRichTextImageDimension("not-a-size")).toBeNull();
     });
 
     test("builds image data attributes for sanitized rendering", () => {
@@ -156,8 +174,12 @@ describe("rich text image helpers", () => {
             "data-rich-text-image-align",
             "data-rich-text-image-crop",
             "data-rich-text-image-layout",
+            "data-rich-text-image-decorative",
             "data-rich-text-image-caption",
             "data-rich-text-image-figure",
+            "width",
+            "height",
+            "role",
         ]);
         expect(
             getRichTextImageDataAttributes({
@@ -166,6 +188,7 @@ describe("rich text image helpers", () => {
                 imageCrop: RICH_TEXT_IMAGE_CROPS.COVER,
                 imageLayout: RICH_TEXT_IMAGE_LAYOUTS.INLINE,
                 imageCaption: "Figure 1",
+                decorative: true,
             }),
         ).toEqual({
             "data-rich-text-image-size": "full",
@@ -173,6 +196,7 @@ describe("rich text image helpers", () => {
             "data-rich-text-image-crop": "cover",
             "data-rich-text-image-layout": "inline",
             "data-rich-text-image-caption": "Figure 1",
+            "data-rich-text-image-decorative": "true",
         });
     });
 
@@ -192,5 +216,15 @@ describe("rich text image helpers", () => {
         expect(html).toContain(
             "<figcaption>Figure 1: AI workflow</figcaption>",
         );
+    });
+
+    test("keeps resized images responsive when captions are rendered", () => {
+        const html = renderRichTextImageCaptions(
+            '<img src="/media/a.png" alt="Chart" width="640" height="360" data-rich-text-image-caption="Results">',
+        );
+
+        expect(html).toContain('style="width: min(100%, 640px);"');
+        expect(html).toContain('width="640"');
+        expect(html).toContain('height="360"');
     });
 });

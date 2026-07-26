@@ -6,6 +6,10 @@ import { router } from "@inertiajs/react";
 import ProviderWrapper from "@/app/ProviderWrapper";
 import PlatformBranding from "@/components/PlatformBranding";
 import "@/config"; // Load fonts
+import "@fontsource/albert-sans/400.css";
+import "@fontsource/albert-sans/500.css";
+import "@fontsource/albert-sans/600.css";
+import "@fontsource/albert-sans/700.css";
 import "./styles/app.css";
 import "nprogress/nprogress.css";
 

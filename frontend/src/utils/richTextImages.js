@@ -38,8 +38,12 @@ export const RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES = [
     "data-rich-text-image-align",
     "data-rich-text-image-crop",
     "data-rich-text-image-layout",
+    "data-rich-text-image-decorative",
     RICH_TEXT_IMAGE_CAPTION_ATTRIBUTE,
     RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE,
+    "width",
+    "height",
+    "role",
 ];
 
 const allowedValues = (values) => Object.values(values);
@@ -67,6 +71,16 @@ export const normalizeRichTextImageLayout = (value) =>
 export const normalizeRichTextImageTextAttribute = (value) =>
     typeof value === "string" ? value.trim() : "";
 
+export const normalizeRichTextImageDimension = (value) => {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 40 && parsed <= 2400
+        ? parsed
+        : null;
+};
+
 export const normalizeRichTextImageAttributes = (attributes = {}) => ({
     imageSize: normalizeRichTextImageSize(attributes.imageSize),
     imageAlign: normalizeRichTextImageAlign(attributes.imageAlign),
@@ -74,6 +88,9 @@ export const normalizeRichTextImageAttributes = (attributes = {}) => ({
     imageLayout: normalizeRichTextImageLayout(attributes.imageLayout),
     alt: normalizeRichTextImageTextAttribute(attributes.alt),
     imageCaption: normalizeRichTextImageTextAttribute(attributes.imageCaption),
+    decorative: Boolean(attributes.decorative),
+    width: normalizeRichTextImageDimension(attributes.width),
+    height: normalizeRichTextImageDimension(attributes.height),
 });
 
 export const getRichTextImageDataAttributes = (attributes = {}) => {
@@ -90,6 +107,9 @@ export const getRichTextImageDataAttributes = (attributes = {}) => {
         dataAttributes[RICH_TEXT_IMAGE_CAPTION_ATTRIBUTE] =
             normalized.imageCaption;
     }
+    if (normalized.decorative) {
+        dataAttributes["data-rich-text-image-decorative"] = "true";
+    }
 
     return dataAttributes;
 };
@@ -97,16 +117,17 @@ export const getRichTextImageDataAttributes = (attributes = {}) => {
 export const richTextImageSx = {
     "--rich-text-image-width": RICH_TEXT_IMAGE_MAX_WIDTH,
     display: "block",
-    width: "auto",
     maxWidth: "min(100%, var(--rich-text-image-width))",
     height: "auto",
     objectFit: "contain",
     mx: "auto",
     "&[data-rich-text-image-size='small']": {
         "--rich-text-image-width": RICH_TEXT_IMAGE_SMALL_WIDTH,
+        width: RICH_TEXT_IMAGE_SMALL_WIDTH,
     },
     "&[data-rich-text-image-size='medium']": {
         "--rich-text-image-width": RICH_TEXT_IMAGE_MAX_WIDTH,
+        width: "auto",
     },
     "&[data-rich-text-image-size='full']": {
         width: "100%",
@@ -259,6 +280,12 @@ export const renderRichTextImageCaptions = (html) => {
                     "data-rich-text-image-layout",
                 ),
                 imageCaption,
+                decorative:
+                    imageElement.getAttribute(
+                        "data-rich-text-image-decorative",
+                    ) === "true",
+                width: imageElement.getAttribute("width"),
+                height: imageElement.getAttribute("height"),
             });
             const figure = document.createElement("figure");
             figure.setAttribute(RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE, "true");
@@ -267,6 +294,12 @@ export const renderRichTextImageCaptions = (html) => {
                     figure.setAttribute(name, value);
                 },
             );
+            if (imageAttributes.width) {
+                figure.setAttribute(
+                    "style",
+                    `width: min(100%, ${imageAttributes.width}px);`,
+                );
+            }
 
             const figcaption = document.createElement("figcaption");
             figcaption.textContent = imageCaption;
