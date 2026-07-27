@@ -15,8 +15,6 @@ import {
     Code as CodeIcon,
     Crop169,
     Delete as DeleteIcon,
-    Edit,
-    FitScreen,
     FormatAlignCenter,
     FormatAlignLeft,
     FormatAlignRight,
@@ -55,7 +53,6 @@ import {
     getAdjacentFontSize,
 } from "./richTextEditorConfig";
 import {
-    RICH_TEXT_IMAGE_ALIGNS,
     RICH_TEXT_IMAGE_CROPS,
     RICH_TEXT_IMAGE_LAYOUTS,
     RICH_TEXT_IMAGE_SIZES,
@@ -329,9 +326,13 @@ export function RichTextEditorToolbar({
     editor,
     onOpenLink,
     onOpenImage,
+    imageAttributes,
+    onUpdateImage,
+    onDeleteImage,
     isFullscreen,
     onToggleFullscreen,
 }) {
+    const isImageSelected = editor.isActive("image");
     const fontFamily = editor.getAttributes("textStyle").fontFamily || "";
     const direction =
         editor.getAttributes("paragraph").dir ||
@@ -475,10 +476,17 @@ export function RichTextEditorToolbar({
             />
             <ToolbarButton
                 onClick={onOpenImage}
-                active={editor.isActive("image")}
+                active={isImageSelected}
                 icon={<InsertPhoto fontSize="small" />}
-                title={editor.isActive("image") ? "Edit image" : "Insert image"}
+                title={isImageSelected ? "Edit image details" : "Insert image"}
             />
+            {isImageSelected && (
+                <ImageToolbarActions
+                    attributes={imageAttributes}
+                    onUpdate={onUpdateImage}
+                    onDelete={onDeleteImage}
+                />
+            )}
             <ToolbarDivider />
             {["left", "center", "right"].map((alignment) => {
                 const Icon =
@@ -490,12 +498,24 @@ export function RichTextEditorToolbar({
                 return (
                     <ToolbarButton
                         key={alignment}
-                        onClick={() =>
-                            editor.chain().focus().setTextAlign(alignment).run()
+                        onClick={() => {
+                            if (isImageSelected) {
+                                onUpdateImage({ imageAlign: alignment });
+                                return;
+                            }
+                            editor
+                                .chain()
+                                .focus()
+                                .setTextAlign(alignment)
+                                .run();
+                        }}
+                        active={
+                            isImageSelected
+                                ? imageAttributes.imageAlign === alignment
+                                : editor.isActive({ textAlign: alignment })
                         }
-                        active={editor.isActive({ textAlign: alignment })}
                         icon={<Icon fontSize="small" />}
-                        title={`Align ${alignment}`}
+                        title={`Align ${isImageSelected ? "image " : ""}${alignment}`}
                     />
                 );
             })}
@@ -559,27 +579,9 @@ export function RichTextEditorToolbar({
     );
 }
 
-export function ImageQuickControls({ attributes, onUpdate, onEdit, onDelete }) {
+const ImageToolbarActions = ({ attributes, onUpdate, onDelete }) => {
     return (
         <>
-            {[RICH_TEXT_IMAGE_ALIGNS.LEFT, RICH_TEXT_IMAGE_ALIGNS.CENTER].map(
-                (alignment) => (
-                    <ToolbarButton
-                        key={alignment}
-                        onClick={() => onUpdate({ imageAlign: alignment })}
-                        active={attributes.imageAlign === alignment}
-                        icon={
-                            alignment === RICH_TEXT_IMAGE_ALIGNS.LEFT ? (
-                                <FormatAlignLeft fontSize="small" />
-                            ) : (
-                                <FormatAlignCenter fontSize="small" />
-                            )
-                        }
-                        title={`Align image ${alignment}`}
-                    />
-                ),
-            )}
-            <ToolbarDivider />
             <ToolbarButton
                 onClick={() =>
                     onUpdate({
@@ -618,21 +620,12 @@ export function ImageQuickControls({ attributes, onUpdate, onEdit, onDelete }) {
                 icon={<Crop169 fontSize="small" />}
                 title="Crop image to 16:9"
             />
-            <ToolbarDivider />
-            <ToolbarButton
-                onClick={onEdit}
-                icon={<Edit fontSize="small" />}
-                title="Edit image details and dimensions"
-            />
             <ToolbarButton
                 onClick={onDelete}
                 icon={<DeleteIcon fontSize="small" />}
                 title="Delete image"
                 tone="danger"
             />
-            <Tooltip title="Drag a corner handle to resize" arrow>
-                <FitScreen fontSize="small" color="action" sx={{ mx: 0.5 }} />
-            </Tooltip>
         </>
     );
-}
+};

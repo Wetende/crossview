@@ -7,6 +7,7 @@ export const RICH_TEXT_IMAGE_SIZES = {
 export const RICH_TEXT_IMAGE_ALIGNS = {
     LEFT: "left",
     CENTER: "center",
+    RIGHT: "right",
 };
 
 export const RICH_TEXT_IMAGE_CROPS = {
@@ -140,6 +141,10 @@ export const richTextImageSx = {
     "&[data-rich-text-image-align='center']": {
         mx: "auto",
     },
+    "&[data-rich-text-image-align='right']": {
+        ml: "auto",
+        mr: 0,
+    },
     "&[data-rich-text-image-crop='cover']": {
         width: "min(100%, var(--rich-text-image-width))",
         aspectRatio: "16 / 9",
@@ -198,6 +203,10 @@ export const richTextImageFigureSx = {
     },
     "&[data-rich-text-image-align='center']": {
         mx: "auto",
+    },
+    "&[data-rich-text-image-align='right']": {
+        ml: "auto",
+        mr: 0,
     },
     "&[data-rich-text-image-layout='inline']": {
         display: "inline-block",

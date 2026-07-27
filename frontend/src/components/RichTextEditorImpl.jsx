@@ -2,7 +2,6 @@ import React from "react";
 import axios from "axios";
 import { Extension } from "@tiptap/core";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
@@ -22,10 +21,7 @@ import {
     RichTextImageDialog,
     RichTextLinkDialog,
 } from "./rich-text/RichTextEditorDialogs";
-import {
-    ImageQuickControls,
-    RichTextEditorToolbar,
-} from "./rich-text/RichTextEditorToolbar";
+import { RichTextEditorToolbar } from "./rich-text/RichTextEditorToolbar";
 import {
     EMPTY_IMAGE_VALUE,
     EMPTY_LINK_VALUE,
@@ -61,6 +57,41 @@ const getImageCaptionFromElement = (element) =>
             element.closest?.("figure")?.querySelector("figcaption")
                 ?.textContent,
     );
+
+const syncRichTextImageElement = (imageElement, nodeAttributes) => {
+    const normalized = normalizeRichTextImageAttributes(nodeAttributes);
+
+    imageElement.setAttribute("src", nodeAttributes.src || "");
+    imageElement.setAttribute("alt", normalized.alt);
+    if (nodeAttributes.title) {
+        imageElement.setAttribute("title", nodeAttributes.title);
+    } else {
+        imageElement.removeAttribute("title");
+    }
+
+    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES.forEach((attributeName) => {
+        imageElement.removeAttribute(attributeName);
+    });
+    Object.entries(getRichTextImageDataAttributes(normalized)).forEach(
+        ([name, value]) => imageElement.setAttribute(name, value),
+    );
+
+    if (normalized.decorative) {
+        imageElement.setAttribute("role", "presentation");
+    }
+    if (normalized.width) {
+        imageElement.setAttribute("width", normalized.width);
+        imageElement.style.width = `${normalized.width}px`;
+    } else {
+        imageElement.style.removeProperty("width");
+    }
+    if (normalized.height) {
+        imageElement.setAttribute("height", normalized.height);
+        imageElement.style.height = `${normalized.height}px`;
+    } else {
+        imageElement.style.removeProperty("height");
+    }
+};
 
 const RichTextImage = Image.extend({
     addAttributes() {
@@ -157,6 +188,35 @@ const RichTextImage = Image.extend({
             },
         };
     },
+    addNodeView() {
+        const createParentNodeView = this.parent?.();
+        if (!createParentNodeView) return null;
+
+        return (props) => {
+            const nodeView = createParentNodeView(props);
+            if (!nodeView) return null;
+            const updateParentNodeView = nodeView.onUpdate;
+
+            syncRichTextImageElement(nodeView.element, props.node.attrs);
+            nodeView.onUpdate = (
+                updatedNode,
+                decorations,
+                innerDecorations,
+            ) => {
+                if (updatedNode.type !== props.node.type) return false;
+                syncRichTextImageElement(nodeView.element, updatedNode.attrs);
+                return updateParentNodeView
+                    ? updateParentNodeView(
+                          updatedNode,
+                          decorations,
+                          innerDecorations,
+                      )
+                    : true;
+            };
+
+            return nodeView;
+        };
+    },
 });
 
 const TextDirection = Extension.create({
@@ -231,59 +291,6 @@ const getImageInsertErrorMessage = (error) => {
     );
 };
 
-const SCROLLABLE_OVERFLOW_VALUES = new Set(["auto", "scroll", "overlay"]);
-
-const getNearestScrollTarget = (element) => {
-    if (!element || typeof window === "undefined") {
-        return null;
-    }
-
-    let currentElement = element.parentElement;
-    while (currentElement && currentElement !== document.body) {
-        const style = window.getComputedStyle(currentElement);
-        const canScrollY =
-            SCROLLABLE_OVERFLOW_VALUES.has(style.overflowY) ||
-            SCROLLABLE_OVERFLOW_VALUES.has(style.overflow);
-        if (
-            canScrollY &&
-            currentElement.scrollHeight > currentElement.clientHeight
-        ) {
-            return currentElement;
-        }
-        currentElement = currentElement.parentElement;
-    }
-    return window;
-};
-
-const getSelectedImageElement = (editor) => {
-    if (!editor?.isActive("image")) {
-        return null;
-    }
-    const node = editor.view.nodeDOM(editor.state.selection.from);
-    if (node instanceof HTMLImageElement) return node;
-    return node instanceof Element ? node.querySelector("img") : null;
-};
-
-const isElementVisible = (element, scrollTarget) => {
-    if (!element || !scrollTarget) return false;
-    const elementRect = element.getBoundingClientRect();
-    const containerRect =
-        scrollTarget === window
-            ? {
-                  top: 0,
-                  left: 0,
-                  bottom: window.innerHeight,
-                  right: window.innerWidth,
-              }
-            : scrollTarget.getBoundingClientRect();
-    return (
-        elementRect.bottom > containerRect.top &&
-        elementRect.top < containerRect.bottom &&
-        elementRect.right > containerRect.left &&
-        elementRect.left < containerRect.right
-    );
-};
-
 export default function RichTextEditorImpl({
     value,
     onChange,
@@ -292,16 +299,12 @@ export default function RichTextEditorImpl({
     imageUploadUrl,
     onImageUploadError,
 }) {
-    const editorSurfaceRef = React.useRef(null);
     const editorRef = React.useRef(null);
     const imageUploadUrlRef = React.useRef(imageUploadUrl);
     const onImageUploadErrorRef = React.useRef(onImageUploadError);
     const [, refreshToolbar] = React.useReducer((count) => count + 1, 0);
     const [uploadingImageCount, setUploadingImageCount] = React.useState(0);
     const [imageInsertError, setImageInsertError] = React.useState("");
-    const [imageMenuVisible, setImageMenuVisible] = React.useState(true);
-    const [imageMenuScrollTarget, setImageMenuScrollTarget] =
-        React.useState(null);
     const [isFullscreen, setIsFullscreen] = React.useState(false);
     const [linkDialog, setLinkDialog] = React.useState({
         open: false,
@@ -396,10 +399,7 @@ export default function RichTextEditorImpl({
         content: value || "",
         onUpdate: ({ editor: currentEditor }) =>
             onChange?.(currentEditor.getHTML()),
-        onSelectionUpdate: ({ editor: currentEditor }) => {
-            setImageMenuVisible(currentEditor.isActive("image"));
-            refreshToolbar();
-        },
+        onSelectionUpdate: refreshToolbar,
         onTransaction: refreshToolbar,
         editorProps: {
             handlePaste,
@@ -411,29 +411,6 @@ export default function RichTextEditorImpl({
     });
 
     editorRef.current = editor;
-
-    React.useLayoutEffect(() => {
-        const target = getNearestScrollTarget(editorSurfaceRef.current);
-        if (!target) return;
-        setImageMenuScrollTarget((current) =>
-            current?.target === target
-                ? current
-                : { target, key: (current?.key || 0) + 1 },
-        );
-    }, [editor, isFullscreen]);
-
-    React.useEffect(() => {
-        const scrollTarget = imageMenuScrollTarget?.target;
-        if (!scrollTarget) return undefined;
-        const onScroll = () => {
-            const selected = getSelectedImageElement(editorRef.current);
-            if (selected) {
-                setImageMenuVisible(isElementVisible(selected, scrollTarget));
-            }
-        };
-        scrollTarget.addEventListener("scroll", onScroll, { passive: true });
-        return () => scrollTarget.removeEventListener("scroll", onScroll);
-    }, [imageMenuScrollTarget]);
 
     React.useEffect(() => {
         if (editor && value !== editor.getHTML()) {
@@ -544,14 +521,12 @@ export default function RichTextEditorImpl({
     const deleteSelectedImage = () => {
         if (!isImageSelected) return;
         editor.chain().focus().deleteSelection().run();
-        setImageMenuVisible(false);
         setImageDialog((current) => ({ ...current, open: false }));
     };
 
     return (
         <>
             <Paper
-                ref={editorSurfaceRef}
                 variant="outlined"
                 sx={{
                     borderRadius: isFullscreen ? 0 : 1,
@@ -570,6 +545,9 @@ export default function RichTextEditorImpl({
                     editor={editor}
                     onOpenLink={openLinkDialog}
                     onOpenImage={openImageDialog}
+                    imageAttributes={activeImageAttributes}
+                    onUpdateImage={updateSelectedImage}
+                    onDeleteImage={deleteSelectedImage}
                     isFullscreen={isFullscreen}
                     onToggleFullscreen={() =>
                         setIsFullscreen((current) => !current)
@@ -584,42 +562,6 @@ export default function RichTextEditorImpl({
                     >
                         {imageInsertError}
                     </Alert>
-                )}
-                {imageMenuScrollTarget && imageMenuVisible && (
-                    <BubbleMenu
-                        key={imageMenuScrollTarget.key}
-                        editor={editor}
-                        pluginKey="richTextImageControls"
-                        updateDelay={0}
-                        shouldShow={({ editor: currentEditor }) =>
-                            currentEditor.isActive("image")
-                        }
-                        options={{
-                            placement: "top",
-                            offset: 12,
-                            scrollTarget: imageMenuScrollTarget.target,
-                        }}
-                    >
-                        <Paper
-                            elevation={8}
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 0.25,
-                                p: 0.75,
-                                borderRadius: 1.5,
-                                border: 1,
-                                borderColor: "divider",
-                            }}
-                        >
-                            <ImageQuickControls
-                                attributes={activeImageAttributes}
-                                onUpdate={updateSelectedImage}
-                                onEdit={openImageDialog}
-                                onDelete={deleteSelectedImage}
-                            />
-                        </Paper>
-                    </BubbleMenu>
                 )}
                 <Box
                     sx={(theme) => ({
@@ -674,10 +616,21 @@ export default function RichTextEditorImpl({
                                 my: 1.5,
                             },
                             "& [data-resize-container]": {
-                                justifyContent: "center",
                                 maxWidth: "100%",
                                 my: 1.5,
                             },
+                            "& [data-resize-container]:has(img[data-rich-text-image-align='left'])":
+                                {
+                                    justifyContent: "flex-start",
+                                },
+                            "& [data-resize-container]:has(img[data-rich-text-image-align='center'])":
+                                {
+                                    justifyContent: "center",
+                                },
+                            "& [data-resize-container]:has(img[data-rich-text-image-align='right'])":
+                                {
+                                    justifyContent: "flex-end",
+                                },
                             "& [data-resize-wrapper]": { maxWidth: "100%" },
                             "& [data-resize-wrapper] > img": {
                                 display: "block",

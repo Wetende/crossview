@@ -101,10 +101,18 @@ describe("rich text image helpers", () => {
                 width: "min(48%, var(--rich-text-image-width))",
                 maxWidth: "calc(50% - 12px)",
             },
+            "&[data-rich-text-image-align='right']": {
+                ml: "auto",
+                mr: 0,
+            },
         });
         expect(richTextImageFigureSx).toMatchObject({
             display: "block",
             width: "min(100%, var(--rich-text-image-width))",
+            "&[data-rich-text-image-align='right']": {
+                ml: "auto",
+                mr: 0,
+            },
             "& > figcaption": {
                 textAlign: "center",
             },
@@ -146,7 +154,7 @@ describe("rich text image helpers", () => {
         expect(
             normalizeRichTextImageAttributes({
                 imageSize: "tiny",
-                imageAlign: "right",
+                imageAlign: "diagonal",
                 imageCrop: "square",
                 imageLayout: "float",
             }),
@@ -158,6 +166,11 @@ describe("rich text image helpers", () => {
             width: null,
             height: null,
         });
+        expect(
+            normalizeRichTextImageAttributes({
+                imageAlign: RICH_TEXT_IMAGE_ALIGNS.RIGHT,
+            }).imageAlign,
+        ).toBe("right");
     });
 
     test("normalizes persisted image dimensions", () => {
