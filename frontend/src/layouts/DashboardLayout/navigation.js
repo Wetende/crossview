@@ -212,6 +212,11 @@ export const ROLE_NAVIGATION = {
                     href: "/admin/certificates/",
                     icon: CardMembershipIcon,
                 },
+                {
+                    label: "Certificate Templates",
+                    href: "/admin/certificate-templates/",
+                    icon: CardMembershipIcon,
+                },
             ],
         },
         {

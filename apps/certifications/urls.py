@@ -26,5 +26,35 @@ urlpatterns = [
         views.admin_certificate_release,
         name="admin.certificates.release",
     ),
+    # Visual certificate template builder
+    path(
+        "admin/certificate-templates/",
+        views.admin_certificate_templates,
+        name="admin.certificate_templates",
+    ),
+    path(
+        "admin/certificate-templates/create/",
+        views.admin_certificate_template_create,
+        name="admin.certificate_template.create",
+    ),
+    path(
+        "admin/certificate-templates/<int:template_id>/clone/",
+        views.admin_certificate_template_clone,
+        name="admin.certificate_template.clone",
+    ),
+    path(
+        "admin/certificate-templates/<int:template_id>/builder/",
+        views.admin_certificate_template_builder,
+        name="admin.certificate_template.builder",
+    ),
+    path(
+        "admin/certificate-templates/<int:template_id>/save/",
+        views.admin_certificate_template_save,
+        name="admin.certificate_template.save",
+    ),
+    path(
+        "admin/certificate-templates/<int:template_id>/publish/",
+        views.admin_certificate_template_publish,
+        name="admin.certificate_template.publish",
+    ),
 ]
-

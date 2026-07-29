@@ -1,13 +1,42 @@
 from django.contrib import admin
-from .models import CertificateTemplate, Certificate, VerificationLog
+from .models import (
+    Certificate,
+    CertificateTemplate,
+    CertificateTemplateVersion,
+    VerificationLog,
+)
 
 
 @admin.register(CertificateTemplate)
 class CertificateTemplateAdmin(admin.ModelAdmin):
-    list_display = ["name", "blueprint", "is_default", "created_at"]
-    list_filter = ["is_default", "blueprint"]
+    list_display = [
+        "name",
+        "owner",
+        "status",
+        "visibility",
+        "is_starter",
+        "blueprint",
+        "is_default",
+        "created_at",
+    ]
+    list_filter = ["status", "visibility", "is_starter", "is_default", "blueprint"]
     search_fields = ["name"]
     ordering = ["name"]
+
+
+@admin.register(CertificateTemplateVersion)
+class CertificateTemplateVersionAdmin(admin.ModelAdmin):
+    list_display = [
+        "template",
+        "version_number",
+        "orientation",
+        "is_published",
+        "created_by",
+        "updated_at",
+    ]
+    list_filter = ["orientation", "is_published"]
+    search_fields = ["template__name", "checksum"]
+    raw_id_fields = ["template", "created_by"]
 
 
 @admin.register(Certificate)

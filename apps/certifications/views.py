@@ -7,6 +7,8 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
@@ -19,12 +21,24 @@ from inertia import render
 from apps.certifications.models import (
     Certificate,
     CertificateEligibility,
+    CertificateTemplate,
 )
 from apps.certifications.services import (
     CertificateEligibilityService,
     VerificationService,
     serialize_verification_result,
 )
+from apps.certifications.template_builder import (
+    clone_template,
+    create_blank_template,
+    publish_template,
+    require_editable_template,
+    require_template_manager,
+    require_viewable_template,
+    save_template,
+    serialize_template,
+)
+from apps.core.utils import get_post_data
 from apps.progression.models import Enrollment
 
 
@@ -271,6 +285,160 @@ def admin_certificate_refresh_queue(request):
 
     messages.success(request, f"Certificate eligibility refreshed for {refreshed} enrollments")
     return redirect("certifications:admin.certificates")
+
+
+def _validation_message(exc: ValidationError) -> str:
+    if hasattr(exc, "message_dict"):
+        return " ".join(
+            message
+            for messages_for_field in exc.message_dict.values()
+            for message in messages_for_field
+        )
+    return " ".join(exc.messages)
+
+
+@login_required
+def admin_certificate_templates(request):
+    """MasterStudy-style gallery of starters and the current user's templates."""
+    require_template_manager(request.user)
+    visible_templates = CertificateTemplate.objects.filter(
+        Q(visibility=CertificateTemplate.Visibility.SYSTEM)
+        | Q(owner=request.user)
+        | Q(owner__isnull=True, is_starter=False)
+    )
+    if request.user.is_superuser:
+        visible_templates = CertificateTemplate.objects.all()
+    visible_templates = (
+        visible_templates.filter(versions__isnull=False)
+        .distinct()
+        .prefetch_related("versions")
+        .order_by(
+            "-is_starter",
+            "name",
+        )
+    )
+
+    templates = [serialize_template(template) for template in visible_templates]
+    return render(
+        request,
+        "Admin/CertificateTemplates/Index",
+        {
+            "starters": [item for item in templates if item["isStarter"]],
+            "templates": [item for item in templates if not item["isStarter"]],
+        },
+    )
+
+
+@login_required
+@require_POST
+def admin_certificate_template_create(request):
+    require_template_manager(request.user)
+    data = get_post_data(request)
+    try:
+        template = create_blank_template(
+            name=data.get("name"),
+            orientation=data.get("orientation", "landscape"),
+            user=request.user,
+        )
+    except ValidationError as exc:
+        messages.error(request, _validation_message(exc))
+        return redirect("certifications:admin.certificate_templates")
+    messages.success(request, "Blank certificate created.")
+    return redirect(
+        "certifications:admin.certificate_template.builder",
+        template_id=template.id,
+    )
+
+
+@login_required
+@require_POST
+def admin_certificate_template_clone(request, template_id: int):
+    source = get_object_or_404(CertificateTemplate, pk=template_id)
+    require_viewable_template(source, request.user)
+    data = get_post_data(request)
+    try:
+        template = clone_template(
+            source=source,
+            name=data.get("name") or f"{source.name} copy",
+            user=request.user,
+        )
+    except ValidationError as exc:
+        messages.error(request, _validation_message(exc))
+        return redirect("certifications:admin.certificate_templates")
+    messages.success(request, f"{source.name} copied. You can now make it your own.")
+    return redirect(
+        "certifications:admin.certificate_template.builder",
+        template_id=template.id,
+    )
+
+
+@login_required
+def admin_certificate_template_builder(request, template_id: int):
+    template = get_object_or_404(
+        CertificateTemplate.objects.prefetch_related("versions"),
+        pk=template_id,
+    )
+    require_viewable_template(template, request.user)
+    if template.is_starter:
+        messages.info(request, "Copy this starter before editing it.")
+        return redirect("certifications:admin.certificate_templates")
+    require_editable_template(template, request.user)
+    return render(
+        request,
+        "Admin/CertificateTemplates/Builder",
+        {
+            "template": serialize_template(template),
+        },
+    )
+
+
+@login_required
+@require_POST
+def admin_certificate_template_save(request, template_id: int):
+    template = get_object_or_404(CertificateTemplate, pk=template_id)
+    data = get_post_data(request)
+    try:
+        template, version = save_template(
+            template=template,
+            name=data.get("name"),
+            layout=data.get("layout"),
+            user=request.user,
+        )
+    except ValidationError as exc:
+        messages.error(request, _validation_message(exc))
+    else:
+        if version.is_published:
+            messages.info(request, f"Version {version.version_number} is already saved.")
+        else:
+            messages.success(request, f"Draft v{version.version_number} saved.")
+    return redirect(
+        "certifications:admin.certificate_template.builder",
+        template_id=template.id,
+    )
+
+
+@login_required
+@require_POST
+def admin_certificate_template_publish(request, template_id: int):
+    template = get_object_or_404(CertificateTemplate, pk=template_id)
+    data = get_post_data(request)
+    try:
+        template, _ = save_template(
+            template=template,
+            name=data.get("name"),
+            layout=data.get("layout"),
+            user=request.user,
+        )
+        _, version = publish_template(template=template, user=request.user)
+    except ValidationError as exc:
+        messages.error(request, _validation_message(exc))
+    else:
+        messages.success(request, f"Version {version.version_number} published.")
+    return redirect(
+        "certifications:admin.certificate_template.builder",
+        template_id=template.id,
+    )
+
 
 def _get_client_ip(request):
     """Get client IP address from request."""

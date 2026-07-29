@@ -20,7 +20,24 @@ class CertificateTemplate(TimeStampedModel):
         '{{serial_number}}'
     ]
 
+    class Visibility(models.TextChoices):
+        PRIVATE = "private", "Private"
+        SHARED = "shared", "Shared"
+        SYSTEM = "system", "System"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+        ARCHIVED = "archived", "Archived"
+
     name = models.CharField(max_length=255)
+    owner = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="certificate_templates",
+    )
     blueprint = models.ForeignKey(
         'blueprints.AcademicBlueprint',
         on_delete=models.SET_NULL,
@@ -28,15 +45,56 @@ class CertificateTemplate(TimeStampedModel):
         blank=True,
         related_name='certificate_templates'
     )
-    template_html = models.TextField()
+    template_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Legacy HTML renderer content. Visual templates use versioned layout data.",
+    )
     is_default = models.BooleanField(default=False)
-    metadata = models.JSONField(blank=True, null=True)
+    visibility = models.CharField(
+        max_length=20,
+        choices=Visibility.choices,
+        default=Visibility.PRIVATE,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+    is_starter = models.BooleanField(default=False)
+    source_template = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="derived_templates",
+    )
+    current_version_number = models.PositiveIntegerField(default=1)
+    metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = 'certificate_templates'
         indexes = [
             models.Index(fields=['blueprint'], name='cert_tmpl_blueprint_idx'),
             models.Index(fields=['is_default'], name='cert_tmpl_is_default_idx'),
+            models.Index(
+                fields=["visibility", "status"],
+                name="cert_tmpl_vis_status_idx",
+            ),
+            models.Index(fields=["owner"], name="cert_tmpl_owner_idx"),
+            models.Index(fields=["is_starter"], name="cert_tmpl_starter_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(is_starter=False)
+                    | models.Q(
+                        visibility="system",
+                        owner__isnull=True,
+                    )
+                ),
+                name="cert_starter_is_system",
+            ),
         ]
 
     def __str__(self):
@@ -52,6 +110,69 @@ class CertificateTemplate(TimeStampedModel):
     def get_missing_placeholders(self) -> list:
         """Return list of missing required placeholders."""
         return [p for p in self.REQUIRED_PLACEHOLDERS if p not in self.template_html]
+
+    @property
+    def current_version(self):
+        """Return the draft version currently opened by the visual builder."""
+        return self.versions.filter(
+            version_number=self.current_version_number,
+        ).first()
+
+
+class CertificateTemplateVersion(TimeStampedModel):
+    """Immutable-on-publish visual layout version for a certificate template."""
+
+    class Orientation(models.TextChoices):
+        LANDSCAPE = "landscape", "Landscape"
+        PORTRAIT = "portrait", "Portrait"
+
+    template = models.ForeignKey(
+        CertificateTemplate,
+        on_delete=models.CASCADE,
+        related_name="versions",
+    )
+    version_number = models.PositiveIntegerField()
+    orientation = models.CharField(
+        max_length=20,
+        choices=Orientation.choices,
+        default=Orientation.LANDSCAPE,
+    )
+    width_mm = models.DecimalField(max_digits=6, decimal_places=2, default=297)
+    height_mm = models.DecimalField(max_digits=6, decimal_places=2, default=210)
+    layout = models.JSONField(default=dict)
+    created_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="certificate_template_versions",
+    )
+    is_published = models.BooleanField(default=False)
+    published_at = models.DateTimeField(null=True, blank=True)
+    checksum = models.CharField(max_length=64, blank=True, default="")
+
+    class Meta:
+        db_table = "certificate_template_versions"
+        ordering = ["template_id", "-version_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["template", "version_number"],
+                name="cert_tmpl_version_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(width_mm__gt=0, height_mm__gt=0),
+                name="cert_tmpl_page_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["template", "is_published"],
+                name="cert_ver_published_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.template.name} v{self.version_number}"
 
 
 class Certificate(TimeStampedModel):
