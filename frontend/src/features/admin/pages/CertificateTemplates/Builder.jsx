@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
 import {
     DndContext,
@@ -17,8 +17,12 @@ import {
     DialogContent,
     DialogTitle,
     Divider,
+    FormControl,
+    InputLabel,
     IconButton,
+    MenuItem,
     Paper,
+    Select,
     Stack,
     TextField,
     ToggleButton,
@@ -34,6 +38,7 @@ import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import LayersIcon from "@mui/icons-material/Layers";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import PreviewIcon from "@mui/icons-material/Preview";
@@ -42,6 +47,10 @@ import QrCode2Icon from "@mui/icons-material/QrCode2";
 import RedoIcon from "@mui/icons-material/Redo";
 import SaveIcon from "@mui/icons-material/Save";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
+import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
+import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import ShapeLineIcon from "@mui/icons-material/ShapeLine";
 import TextFieldsIcon from "@mui/icons-material/TextFields";
 import UndoIcon from "@mui/icons-material/Undo";
@@ -50,6 +59,7 @@ import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 
 import CertificateCanvas from "@/features/certifications/components/CertificateCanvas";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { getCsrfHeaders } from "@/utils/csrf";
 
 const ELEMENT_LIBRARY = [
     { type: "text", label: "Text", icon: TextFieldsIcon, content: "Your text" },
@@ -67,10 +77,42 @@ const ELEMENT_LIBRARY = [
     },
     {
         type: "dynamic_text",
+        label: "Completion date",
+        icon: CalendarMonthIcon,
+        content: "{{completion_date}}",
+    },
+    {
+        type: "dynamic_text",
         label: "Issue date",
         icon: CalendarMonthIcon,
         content: "{{issue_date}}",
     },
+    {
+        type: "dynamic_text",
+        label: "Certificate code",
+        icon: FingerprintIcon,
+        content: "{{serial_number}}",
+    },
+    {
+        type: "dynamic_text",
+        label: "Instructor",
+        icon: BadgeOutlinedIcon,
+        content: "{{instructor_name}}",
+    },
+    {
+        type: "dynamic_text",
+        label: "Organisation",
+        icon: BusinessOutlinedIcon,
+        content: "{{organization_name}}",
+    },
+    {
+        type: "dynamic_text",
+        label: "Verification URL",
+        icon: QrCode2Icon,
+        content: "{{verification_url}}",
+    },
+    { type: "image", label: "Image / logo", icon: ImageOutlinedIcon, content: "" },
+    { type: "signature", label: "Signature", icon: DrawOutlinedIcon, content: "" },
     { type: "shape", label: "Shape", icon: ShapeLineIcon, content: "" },
     { type: "line", label: "Line", icon: HorizontalRuleIcon, content: "" },
     { type: "qr_code", label: "QR code", icon: QrCode2Icon, content: "" },
@@ -79,8 +121,25 @@ const ELEMENT_LIBRARY = [
 function makeElement(definition, widthMm, heightMm, index) {
     const isQr = definition.type === "qr_code";
     const isLine = definition.type === "line";
-    const width = isQr ? 28 : isLine ? 70 : definition.type === "shape" ? 45 : 120;
-    const height = isQr ? 28 : isLine ? 3 : definition.type === "shape" ? 35 : 18;
+    const isAsset = ["image", "signature"].includes(definition.type);
+    const width = isQr
+        ? 28
+        : isLine
+          ? 70
+          : definition.type === "shape"
+            ? 45
+            : isAsset
+              ? 48
+              : 120;
+    const height = isQr
+        ? 28
+        : isLine
+          ? 3
+          : definition.type === "shape"
+            ? 35
+            : isAsset
+              ? 28
+              : 18;
     return {
         id: `${definition.type}-${Date.now()}-${index}`,
         type: definition.type,
@@ -93,6 +152,7 @@ function makeElement(definition, widthMm, heightMm, index) {
         hidden: false,
         zIndex: index + 1,
         content: definition.content,
+        assetUrl: definition.assetUrl,
         shape: definition.type === "shape" ? "rectangle" : undefined,
         styles:
             definition.type === "shape"
@@ -145,6 +205,13 @@ export default function CertificateTemplateBuilder({ template }) {
     const [previewOpen, setPreviewOpen] = useState(false);
     const [publishOpen, setPublishOpen] = useState(false);
     const canvasRef = useRef(null);
+    const assetInputRef = useRef(null);
+    const uploadModeRef = useRef("image");
+    const initialDocument = useRef(
+        JSON.stringify({ name: template.name, layout: template.layout }),
+    );
+    const isDirty =
+        JSON.stringify({ name, layout }) !== initialDocument.current;
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
         useSensor(KeyboardSensor),
@@ -154,6 +221,58 @@ export default function CertificateTemplateBuilder({ template }) {
         () => layout.elements.find((element) => element.id === selectedId) || null,
         [layout.elements, selectedId],
     );
+
+    useEffect(() => {
+        const warnBeforeLeaving = (event) => {
+            if (!isDirty) return;
+            event.preventDefault();
+            event.returnValue = "";
+        };
+        window.addEventListener("beforeunload", warnBeforeLeaving);
+        return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+    }, [isDirty]);
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            const tagName = event.target?.tagName?.toLowerCase();
+            if (["input", "textarea", "select"].includes(tagName)) return;
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+                event.preventDefault();
+                if (event.shiftKey) redo();
+                else undo();
+                return;
+            }
+            if (!selected) return;
+            if (event.key === "Delete" || event.key === "Backspace") {
+                event.preventDefault();
+                deleteSelected();
+                return;
+            }
+            const delta = event.shiftKey ? 5 : 1;
+            const positions = {
+                ArrowLeft: [-delta, 0],
+                ArrowRight: [delta, 0],
+                ArrowUp: [0, -delta],
+                ArrowDown: [0, delta],
+            };
+            if (!positions[event.key]) return;
+            event.preventDefault();
+            const [xDelta, yDelta] = positions[event.key];
+            updateSelectedPosition(
+                selected.id,
+                Math.min(
+                    widthMm - selected.width,
+                    Math.max(0, selected.x + xDelta),
+                ),
+                Math.min(
+                    heightMm - selected.height,
+                    Math.max(0, selected.y + yDelta),
+                ),
+            );
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    });
 
     const commitLayout = (nextLayout) => {
         setPast((items) => [...items, layout].slice(-50));
@@ -179,6 +298,11 @@ export default function CertificateTemplateBuilder({ template }) {
     };
 
     const addElement = (definition) => {
+        if (["image", "signature"].includes(definition.type)) {
+            uploadModeRef.current = definition.type;
+            assetInputRef.current?.click();
+            return;
+        }
         const element = makeElement(
             definition,
             widthMm,
@@ -190,6 +314,55 @@ export default function CertificateTemplateBuilder({ template }) {
             elements: [...layout.elements, element],
         });
         setSelectedId(element.id);
+    };
+
+    const uploadAsset = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        const body = new FormData();
+        body.append("file", file);
+        setProcessing(true);
+        try {
+            const response = await fetch("/admin/certificate-assets/upload/", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: getCsrfHeaders(),
+                body,
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Upload failed.");
+            if (uploadModeRef.current === "background") {
+                commitLayout({
+                    ...layout,
+                    background: {
+                        ...(layout.background || {}),
+                        image: result.url,
+                    },
+                });
+            } else {
+                const element = makeElement(
+                    {
+                    type: uploadModeRef.current,
+                    label: uploadModeRef.current,
+                    content: result.url,
+                    assetUrl: result.url,
+                    },
+                    widthMm,
+                    heightMm,
+                    layout.elements.length,
+                );
+                commitLayout({
+                    ...layout,
+                    elements: [...layout.elements, element],
+                });
+                setSelectedId(element.id);
+            }
+        } catch (error) {
+            window.alert(error.message);
+        } finally {
+            setProcessing(false);
+        }
     };
 
     const deleteSelected = () => {
@@ -212,6 +385,15 @@ export default function CertificateTemplateBuilder({ template }) {
         };
         commitLayout({ ...layout, elements: [...layout.elements, copy] });
         setSelectedId(copy.id);
+    };
+
+    const moveSelectedLayer = (direction) => {
+        if (!selected) return;
+        const next = Math.max(
+            0,
+            Math.min(layout.elements.length + 1, selected.zIndex + direction),
+        );
+        updateSelected({ zIndex: next });
     };
 
     const undo = () => {
@@ -268,12 +450,46 @@ export default function CertificateTemplateBuilder({ template }) {
             { name: name.trim(), layout },
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    initialDocument.current = JSON.stringify({
+                        name: name.trim(),
+                        layout,
+                    });
+                },
                 onFinish: () => {
                     setProcessing(false);
                     setPublishOpen(false);
                 },
             },
         );
+    };
+
+    const openPdfPreview = async () => {
+        setProcessing(true);
+        try {
+            const response = await fetch(
+                `/admin/certificate-templates/${template.id}/preview/`,
+                {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: getCsrfHeaders({
+                        "Content-Type": "application/json",
+                    }),
+                    body: JSON.stringify({ layout }),
+                },
+            );
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || "Preview could not be generated.");
+            }
+            const url = URL.createObjectURL(await response.blob());
+            window.open(url, "_blank", "noopener,noreferrer");
+            window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        } catch (error) {
+            window.alert(error.message);
+        } finally {
+            setProcessing(false);
+        }
     };
 
     return (
@@ -347,6 +563,11 @@ export default function CertificateTemplateBuilder({ template }) {
                 >
                     Preview
                 </Button>
+                {isDirty && (
+                    <Typography variant="caption" color="warning.main">
+                        Unsaved changes
+                    </Typography>
+                )}
                 <Button
                     startIcon={<SaveIcon />}
                     variant="outlined"
@@ -368,7 +589,12 @@ export default function CertificateTemplateBuilder({ template }) {
             <Box
                 sx={{
                     display: "grid",
-                    gridTemplateColumns: { xs: "1fr", lg: "230px minmax(0, 1fr) 270px" },
+                    gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "185px minmax(0, 1fr) 220px",
+                        md: "210px minmax(0, 1fr) 250px",
+                        xl: "230px minmax(0, 1fr) 270px",
+                    },
                     minHeight: 720,
                     border: "1px solid",
                     borderColor: "divider",
@@ -381,8 +607,8 @@ export default function CertificateTemplateBuilder({ template }) {
                     component="aside"
                     sx={{
                         p: 2,
-                        borderRight: { lg: "1px solid" },
-                        borderBottom: { xs: "1px solid", lg: 0 },
+                        borderRight: { sm: "1px solid" },
+                        borderBottom: { xs: "1px solid", sm: 0 },
                         borderColor: "divider",
                     }}
                 >
@@ -393,7 +619,7 @@ export default function CertificateTemplateBuilder({ template }) {
                     <Box
                         sx={{
                             display: "grid",
-                            gridTemplateColumns: { xs: "repeat(2, 1fr)", lg: "1fr" },
+                            gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "1fr" },
                             gap: 1,
                         }}
                     >
@@ -401,6 +627,13 @@ export default function CertificateTemplateBuilder({ template }) {
                             <PaletteButton key={item.label} item={item} onAdd={addElement} />
                         ))}
                     </Box>
+                    <input
+                        ref={assetInputRef}
+                        type="file"
+                        hidden
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={uploadAsset}
+                    />
                     <Divider sx={{ my: 2.5 }} />
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                         <LayersIcon fontSize="small" />
@@ -502,8 +735,8 @@ export default function CertificateTemplateBuilder({ template }) {
                     component="aside"
                     sx={{
                         p: 2,
-                        borderLeft: { lg: "1px solid" },
-                        borderTop: { xs: "1px solid", lg: 0 },
+                        borderLeft: { sm: "1px solid" },
+                        borderTop: { xs: "1px solid", sm: 0 },
                         borderColor: "divider",
                     }}
                 >
@@ -515,7 +748,7 @@ export default function CertificateTemplateBuilder({ template }) {
                                     {selected.type.replace("_", " ")}
                                 </Typography>
                             </Box>
-                            {!["shape", "line", "qr_code"].includes(selected.type) && (
+                            {!["shape", "line", "qr_code", "image", "signature"].includes(selected.type) && (
                                 <TextField
                                     label="Content"
                                     multiline
@@ -558,8 +791,41 @@ export default function CertificateTemplateBuilder({ template }) {
                                     />
                                 ))}
                             </Box>
-                            {!["shape", "line", "qr_code"].includes(selected.type) && (
+                            <TextField
+                                type="number"
+                                size="small"
+                                label="Rotation (degrees)"
+                                value={selected.rotation || 0}
+                                inputProps={{ min: -360, max: 360 }}
+                                onChange={(event) =>
+                                    updateSelected({
+                                        rotation: Math.max(
+                                            -360,
+                                            Math.min(360, Number(event.target.value)),
+                                        ),
+                                    })
+                                }
+                            />
+                            {!["shape", "line", "qr_code", "image", "signature"].includes(selected.type) && (
                                 <>
+                                    <FormControl size="small" fullWidth>
+                                        <InputLabel>Font</InputLabel>
+                                        <Select
+                                            label="Font"
+                                            value={selected.styles?.fontFamily || "Albert Sans"}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "fontFamily",
+                                                    event.target.value,
+                                                )
+                                            }
+                                        >
+                                            <MenuItem value="Albert Sans">Albert Sans</MenuItem>
+                                            <MenuItem value="Georgia">Georgia</MenuItem>
+                                            <MenuItem value="Arial">Arial</MenuItem>
+                                            <MenuItem value="Times New Roman">Times New Roman</MenuItem>
+                                        </Select>
+                                    </FormControl>
                                     <TextField
                                         type="number"
                                         size="small"
@@ -572,6 +838,47 @@ export default function CertificateTemplateBuilder({ template }) {
                                             )
                                         }
                                     />
+                                    <TextField
+                                        type="number"
+                                        size="small"
+                                        label="Font weight"
+                                        value={selected.styles?.fontWeight || 400}
+                                        inputProps={{ min: 300, max: 900, step: 100 }}
+                                        onChange={(event) =>
+                                            updateSelectedStyle(
+                                                "fontWeight",
+                                                Number(event.target.value),
+                                            )
+                                        }
+                                    />
+                                    <Stack direction="row" spacing={1}>
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Line height"
+                                            value={selected.styles?.lineHeight || 1.2}
+                                            inputProps={{ min: 0.8, max: 3, step: 0.1 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "lineHeight",
+                                                    Number(event.target.value),
+                                                )
+                                            }
+                                        />
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Letter spacing"
+                                            value={selected.styles?.letterSpacing || 0}
+                                            inputProps={{ min: -5, max: 20, step: 0.5 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "letterSpacing",
+                                                    Number(event.target.value),
+                                                )
+                                            }
+                                        />
+                                    </Stack>
                                     <TextField
                                         type="color"
                                         size="small"
@@ -610,6 +917,30 @@ export default function CertificateTemplateBuilder({ template }) {
                                 />
                             )}
                             <Divider />
+                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                                <Button
+                                    size="small"
+                                    onClick={() =>
+                                        updateSelected({ locked: !selected.locked })
+                                    }
+                                >
+                                    {selected.locked ? "Unlock" : "Lock"}
+                                </Button>
+                                <Button
+                                    size="small"
+                                    onClick={() =>
+                                        updateSelected({ hidden: !selected.hidden })
+                                    }
+                                >
+                                    {selected.hidden ? "Show" : "Hide"}
+                                </Button>
+                                <Button size="small" onClick={() => moveSelectedLayer(1)}>
+                                    Forward
+                                </Button>
+                                <Button size="small" onClick={() => moveSelectedLayer(-1)}>
+                                    Back
+                                </Button>
+                            </Stack>
                             <Stack direction="row" spacing={1}>
                                 <Button
                                     startIcon={<ContentCopyIcon />}
@@ -629,13 +960,59 @@ export default function CertificateTemplateBuilder({ template }) {
                             </Stack>
                         </Stack>
                     ) : (
-                        <Stack spacing={1.5} alignItems="center" sx={{ py: 6, textAlign: "center" }}>
+                        <Stack spacing={2} sx={{ py: 2 }}>
+                            <Typography fontWeight={700}>Page</Typography>
+                            <TextField
+                                type="color"
+                                size="small"
+                                label="Background colour"
+                                value={layout.background?.color || "#ffffff"}
+                                onChange={(event) =>
+                                    commitLayout({
+                                        ...layout,
+                                        background: {
+                                            ...(layout.background || {}),
+                                            color: event.target.value,
+                                        },
+                                    })
+                                }
+                                InputLabelProps={{ shrink: true }}
+                            />
+                            <Button
+                                variant="outlined"
+                                startIcon={<ImageOutlinedIcon />}
+                                onClick={() => {
+                                    uploadModeRef.current = "background";
+                                    assetInputRef.current?.click();
+                                }}
+                            >
+                                Background image
+                            </Button>
+                            {layout.background?.image && (
+                                <Button
+                                    color="error"
+                                    onClick={() =>
+                                        commitLayout({
+                                            ...layout,
+                                            background: {
+                                                ...(layout.background || {}),
+                                                image: null,
+                                            },
+                                        })
+                                    }
+                                >
+                                    Remove background
+                                </Button>
+                            )}
+                            <Divider />
+                            <Stack spacing={1.5} alignItems="center" sx={{ textAlign: "center" }}>
                             <ArticleIcon color="disabled" sx={{ fontSize: 42 }} />
                             <Typography fontWeight={700}>Select an element</Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Click an item on the certificate to edit its content,
                                 position and style.
                             </Typography>
+                            </Stack>
                         </Stack>
                     )}
                 </Box>
@@ -660,6 +1037,9 @@ export default function CertificateTemplateBuilder({ template }) {
                     />
                 </DialogContent>
                 <DialogActions>
+                    <Button onClick={openPdfPreview} disabled={processing}>
+                        Open PDF preview
+                    </Button>
                     <Button onClick={() => setPreviewOpen(false)}>Close</Button>
                 </DialogActions>
             </Dialog>

@@ -51,13 +51,17 @@ function CanvasElement({
         : undefined;
     const common = {
         ref: setNodeRef,
-        ...attributes,
-        ...listeners,
-        onPointerDown: (event) => {
-            event.stopPropagation();
-            onSelect?.(element.id);
-            listeners?.onPointerDown?.(event);
-        },
+        ...(interactive ? attributes : {}),
+        ...(interactive ? listeners : {}),
+        ...(interactive
+            ? {
+                  onPointerDown: (event) => {
+                      event.stopPropagation();
+                      onSelect?.(element.id);
+                      listeners?.onPointerDown?.(event);
+                  },
+              }
+            : {}),
         sx: {
             position: "absolute",
             left: `${(element.x / 297) * 100}%`,
@@ -125,6 +129,25 @@ function CanvasElement({
                     border: "5px solid white",
                 }}
             />
+        );
+    }
+
+    if (["image", "signature"].includes(element.type)) {
+        return (
+            <Box {...common}>
+                <Box
+                    component="img"
+                    src={element.assetUrl || element.content}
+                    alt=""
+                    draggable={false}
+                    sx={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        pointerEvents: "none",
+                    }}
+                />
+            </Box>
         );
     }
 

@@ -42,13 +42,18 @@ def other_staff():
 def test_seeded_starters_are_protected_visual_templates():
     starters = CertificateTemplate.objects.filter(is_starter=True)
 
-    assert starters.count() == 5
+    assert starters.count() == 10
     assert set(starters.values_list("name", flat=True)) == {
         "Classic Formal",
         "Modern Blue",
         "Minimal Professional",
         "Academic Gold",
         "Participation",
+        "Elegant Teal",
+        "Geometric Navy",
+        "Golden Horizon",
+        "Creative Coral",
+        "Emerald Grid",
     }
     assert all(starter.visibility == "system" for starter in starters)
     assert all(starter.owner_id is None for starter in starters)
@@ -175,7 +180,10 @@ def test_non_staff_user_cannot_open_template_gallery(client):
     )
     client.force_login(user)
 
-    response = client.get(reverse("certifications:admin.certificate_templates"))
+    response = client.get(
+        reverse("certifications:admin.certificate_templates"),
+        secure=True,
+    )
 
     assert response.status_code == 403
 
@@ -191,6 +199,7 @@ def test_clone_endpoint_never_changes_system_starter(client, staff_user):
             kwargs={"template_id": starter.id},
         ),
         {"name": "My classic certificate"},
+        secure=True,
     )
 
     assert response.status_code == 302
@@ -214,7 +223,8 @@ def test_system_starter_cannot_be_opened_in_editor(client, staff_user):
         reverse(
             "certifications:admin.certificate_template.builder",
             kwargs={"template_id": starter.id},
-        )
+        ),
+        secure=True,
     )
 
     assert response.status_code == 302

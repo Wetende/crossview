@@ -175,6 +175,105 @@ class CertificateTemplateVersion(TimeStampedModel):
         return f"{self.template.name} v{self.version_number}"
 
 
+class CertificateTemplateAssignment(TimeStampedModel):
+    """Published template selected at system, category, or course level."""
+
+    class Scope(models.TextChoices):
+        DEFAULT = "default", "System default"
+        CATEGORY = "category", "Course category"
+        COURSE = "course", "Course"
+
+    scope = models.CharField(max_length=20, choices=Scope.choices)
+    template_version = models.ForeignKey(
+        CertificateTemplateVersion,
+        on_delete=models.PROTECT,
+        related_name="assignments",
+        null=True,
+        blank=True,
+    )
+    category = models.CharField(max_length=100, blank=True, default="")
+    program = models.OneToOneField(
+        "core.Program",
+        on_delete=models.CASCADE,
+        related_name="certificate_assignment",
+        null=True,
+        blank=True,
+    )
+    issue_enabled = models.BooleanField(default=True)
+    assigned_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        related_name="certificate_template_assignments",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "certificate_template_assignments"
+        indexes = [
+            models.Index(fields=["scope", "category"], name="cert_assign_scope_cat_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["scope"],
+                condition=models.Q(scope="default"),
+                name="cert_assign_one_default",
+            ),
+            models.UniqueConstraint(
+                fields=["category"],
+                condition=models.Q(scope="category"),
+                name="cert_assign_one_category",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        scope="default",
+                        program__isnull=True,
+                        category="",
+                        template_version__isnull=False,
+                    )
+                    | models.Q(
+                        scope="category",
+                        program__isnull=True,
+                        template_version__isnull=False,
+                    )
+                    & ~models.Q(category="")
+                    | models.Q(
+                        scope="course",
+                        program__isnull=False,
+                        category="",
+                    )
+                ),
+                name="cert_assign_scope_fields",
+            ),
+        ]
+
+    def __str__(self):
+        target = self.category or self.program or "System"
+        return f"{target}: {self.template_version or 'inherited'}"
+
+
+class CertificateAsset(TimeStampedModel):
+    """Image uploaded for use in a user's certificate layouts."""
+
+    owner = models.ForeignKey(
+        "core.User",
+        on_delete=models.CASCADE,
+        related_name="certificate_assets",
+    )
+    file = models.ImageField(upload_to="certificates/assets/%Y/%m/")
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)
+    size = models.PositiveIntegerField()
+
+    class Meta:
+        db_table = "certificate_assets"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.original_name
+
+
 class Certificate(TimeStampedModel):
     """
     Generated PDF certificate awarded to a student upon program completion.
@@ -190,6 +289,13 @@ class Certificate(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name='certificates'
     )
+    template_version = models.ForeignKey(
+        CertificateTemplateVersion,
+        on_delete=models.PROTECT,
+        related_name="certificates",
+        null=True,
+        blank=True,
+    )
     serial_number = models.CharField(max_length=50, unique=True)
     student_name = models.CharField(max_length=255)
     program_title = models.CharField(max_length=255)
@@ -200,6 +306,7 @@ class Certificate(TimeStampedModel):
     revoked_at = models.DateTimeField(blank=True, null=True)
     revocation_reason = models.TextField(blank=True, null=True)
     metadata = models.JSONField(blank=True, null=True)
+    layout_snapshot = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = 'certificates'

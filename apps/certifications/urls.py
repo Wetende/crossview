@@ -8,6 +8,11 @@ app_name = "certifications"
 urlpatterns = [
     # Public verification page (Inertia)
     path("verify/<str:serial_number>/", views.verify_certificate, name="verify"),
+    path(
+        "certificates/download/<path:signed_value>/",
+        views.signed_certificate_download,
+        name="certificate.signed_download",
+    ),
     # REST API for certificate download (file download needs REST)
     path(
         "api/v1/student/certificates/<int:pk>/download/",
@@ -56,5 +61,20 @@ urlpatterns = [
         "admin/certificate-templates/<int:template_id>/publish/",
         views.admin_certificate_template_publish,
         name="admin.certificate_template.publish",
+    ),
+    path(
+        "admin/certificate-templates/<int:template_id>/preview/",
+        views.admin_certificate_template_preview,
+        name="admin.certificate_template.preview",
+    ),
+    path(
+        "admin/certificate-assets/upload/",
+        views.admin_certificate_asset_upload,
+        name="admin.certificate_asset.upload",
+    ),
+    path(
+        "admin/certificate-templates/link/",
+        views.admin_certificate_assignment_save,
+        name="admin.certificate_template.assignment",
     ),
 ]

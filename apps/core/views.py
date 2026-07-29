@@ -6062,6 +6062,31 @@ def serialize_program_data(program):
         .order_by("first_name", "last_name", "email")[:200]
     ]
     certificate_enabled = bool(program.blueprint and program.blueprint.certificate_enabled)
+    from apps.certifications.assignments import (
+        published_template_versions,
+        resolve_certificate_template,
+        serialize_assignment,
+    )
+
+    resolved_certificate = resolve_certificate_template(program)
+    course_certificate_assignment = getattr(
+        program,
+        "certificate_assignment",
+        None,
+    )
+    available_certificate_templates = [
+        {
+            "id": version.template_id,
+            "name": version.template.name,
+            "templateVersionId": version.id,
+            "version": version.version_number,
+            "orientation": version.orientation,
+            "widthMm": float(version.width_mm),
+            "heightMm": float(version.height_mm),
+            "layout": version.layout,
+        }
+        for version in published_template_versions()
+    ]
     delivery_profile = get_course_delivery_profile(program)
 
     return {
@@ -6093,6 +6118,30 @@ def serialize_program_data(program):
                 if certificate_enabled
                 else "Not enabled for this course blueprint"
             ),
+            "certificateTemplates": available_certificate_templates,
+            "courseCertificate": {
+                "issueEnabled": (
+                    course_certificate_assignment.issue_enabled
+                    if course_certificate_assignment
+                    else certificate_enabled
+                ),
+                "templateVersionId": (
+                    course_certificate_assignment.template_version_id
+                    if course_certificate_assignment
+                    else None
+                ),
+                "templateName": (
+                    resolved_certificate.template.name
+                    if resolved_certificate.template
+                    else None
+                ),
+                "source": resolved_certificate.source,
+                "assignment": (
+                    serialize_assignment(course_certificate_assignment)
+                    if course_certificate_assignment
+                    else None
+                ),
+            },
             "whatYouLearn": program.what_you_learn_items or [],
             "whatYouLearnHtml": resolve_learning_outcomes_html(
                 program.what_you_learn_html,
@@ -7724,6 +7773,9 @@ def instructor_program_update_settings(request, pk: int):
     is_prerequisites_section = is_settings_tab and settings_section == "prerequisites"
     is_files_section = is_settings_tab and settings_section == "files"
     is_reviews_section = is_settings_tab and settings_section == "reviews"
+    is_certificate_section = (
+        is_settings_tab and settings_section == "certificate"
+    )
 
     delete_resource_ids = data.get("deleteResourceIds", []) if is_files_section else []
     if delete_resource_ids is None:
@@ -7835,6 +7887,23 @@ def instructor_program_update_settings(request, pk: int):
             return _redirect_to_builder()
         program.rating_count = rating_count
 
+    certificate_selection = None
+    if is_certificate_section and "certificate_issue_enabled" in data:
+        from apps.certifications.models import CertificateTemplateVersion
+
+        issue_enabled = _to_bool(data.get("certificate_issue_enabled"))
+        version_id = _to_int(data.get("certificate_template_version_id"))
+        version = None
+        if version_id:
+            version = CertificateTemplateVersion.objects.filter(
+                pk=version_id,
+                is_published=True,
+            ).first()
+            if version is None:
+                messages.error(request, "Choose a published certificate.")
+                return _redirect_to_builder()
+        certificate_selection = (issue_enabled, version)
+
     if is_access_section and "access_duration_days" in data:
         program.access_duration_days = access_duration_days
     if "drip_enabled" in data:
@@ -7844,6 +7913,17 @@ def instructor_program_update_settings(request, pk: int):
 
     with transaction.atomic():
         program.save()
+
+        if certificate_selection is not None:
+            from apps.certifications.assignments import set_course_assignment
+
+            issue_enabled, version = certificate_selection
+            set_course_assignment(
+                program=program,
+                version=version,
+                issue_enabled=issue_enabled,
+                user=request.user,
+            )
 
         if normalized_delete_resource_ids:
             resources_to_delete = ProgramResource.objects.filter(

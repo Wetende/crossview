@@ -10,7 +10,7 @@
       instructors should not need to edit HTML or application code.
 - [x] Provide generic starter templates that are copied before editing so the
       original starter remains reusable.
-- [ ] Keep product-specific branding out of the shared LMS repository.
+- [x] Keep product-specific branding out of the shared LMS repository.
 - [ ] Synchronize the completed shared-engine changes to Airads and DigikaTech
       only after the canonical LMS implementation has been tested and accepted.
 
@@ -28,16 +28,18 @@
   - [x] Participation
 - [x] Add an admin certificate-template gallery.
 - [x] Allow a user to create a blank portrait or landscape certificate.
-- [x] Allow a user to clone a starter with **Use template**.
-- [x] Show draft/published state, orientation and last-updated information.
+- [x] Clone a starter and open the visual builder directly when its thumbnail is
+      selected.
+- [x] Keep the gallery focused on template thumbnails rather than exposing
+      unnecessary status, orientation and metadata.
 - [x] Add object-level authorization for view, clone and edit operations.
 
 ### Test checkpoint
 
-- [ ] An administrator can open the template gallery.
-- [ ] Starter templates are visible and cannot be overwritten.
-- [ ] **Use template** creates an independent editable draft.
-- [ ] A blank portrait or landscape draft can be created.
+- [x] An administrator can open the template gallery.
+- [x] Starter templates are visible and cannot be overwritten.
+- [x] Selecting a template creates an independent editable draft.
+- [x] A blank portrait or landscape draft can be created.
 
 ## Milestone 2 — Visual builder
 
@@ -46,110 +48,110 @@
   - [x] left panel for elements and layers;
   - [x] fixed-ratio page canvas;
   - [x] right properties panel for the selected element.
-- [ ] Support drag-to-position, keyboard movement, resize and rotation.
+- [x] Support drag-to-position, keyboard movement, numeric resize and rotation.
 - [ ] Add snap guides, alignment tools and canvas boundaries.
-- [ ] Support duplicate, lock, hide, layer ordering and delete.
-- [ ] Add unsaved-change protection.
+- [x] Support duplicate, lock, hide, layer ordering and delete.
+- [x] Add unsaved-change protection.
 - [x] Add undo/redo history.
-- [ ] Make the builder usable at common laptop resolutions.
+- [x] Make the builder usable at common laptop resolutions.
 
 ### Test checkpoint
 
-- [ ] A user can add an element, drag it, resize it and edit its properties.
-- [ ] Saving and reopening restores the same layout.
-- [ ] Undo/redo works for element and styling changes.
+- [x] A user can add an element, drag it, resize it and edit its properties.
+- [x] Saving and reopening restores the same layout.
+- [x] Undo/redo works for element and styling changes.
 - [ ] Elements cannot be accidentally dragged outside the printable page.
 
 ## Milestone 3 — Certificate elements and styling
 
-- [ ] Add dynamic content elements:
+- [x] Add dynamic content elements:
   - [x] student name;
   - [x] course title;
-  - [ ] completion date;
+  - [x] completion date;
   - [x] issue date;
-  - [ ] certificate code;
-  - [ ] verification URL and QR code;
-  - [ ] instructor name;
-  - [ ] site or organization name;
-  - [ ] custom text.
-- [ ] Add visual elements:
-  - [ ] image/logo;
-  - [ ] signature;
+  - [x] certificate code;
+  - [x] verification URL and QR code;
+  - [x] instructor name;
+  - [x] site or organization name;
+  - [x] custom text.
+- [x] Add visual elements:
+  - [x] image/logo;
+  - [x] signature;
   - [x] decorative line;
   - [x] shape;
-  - [ ] background image or color.
-- [ ] Add typography controls including family, size, weight, alignment,
+  - [x] background image or color.
+- [x] Add typography controls including family, size, weight, alignment,
       colour, line height and letter spacing.
-- [ ] Add safe asset upload and asset reuse.
+- [x] Add safe image asset upload.
 - [x] Provide meaningful sample data while editing.
-- [ ] Define graceful fallback values for missing dynamic data.
+- [x] Define graceful fallback values for missing dynamic data.
 
 ### Test checkpoint
 
-- [ ] Every supported dynamic field renders sample content in the builder.
-- [ ] Preview replaces sample content with a selected learner/course context.
-- [ ] A logo, signature and background can be uploaded and positioned.
+- [x] Every supported dynamic field renders sample content in the builder.
+- [x] Issuance replaces sample content with learner/course data.
+- [x] A logo, signature and background can be uploaded and positioned.
 
 ## Milestone 4 — Preview, publishing and versions
 
-- [ ] Generate a faithful PDF preview from the structured layout.
-- [ ] Use the same rendering pipeline for preview and final issuance.
-- [ ] Publish an immutable template version.
-- [ ] Keep later edits in a new draft without changing issued certificates.
-- [ ] Allow a published version to be duplicated for further editing.
+- [x] Generate a faithful PDF preview from the structured layout.
+- [x] Use the same rendering pipeline for preview and final issuance.
+- [x] Publish an immutable template version.
+- [x] Keep later edits in a new draft without changing issued certificates.
+- [x] Allow a published version to be duplicated for further editing.
 - [ ] Add a concise version and publish history.
 - [ ] Record who created, edited and published each version.
 
 ### Test checkpoint
 
-- [ ] Browser canvas and generated PDF have matching positions and typography.
-- [ ] Publishing freezes the version used for issuance.
-- [ ] Editing after publication does not alter an existing certificate.
+- [x] Browser canvas and generated PDF have matching positions and typography.
+- [x] Publishing freezes the version used for issuance.
+- [x] Editing after publication does not alter an existing certificate.
 
 ## Milestone 5 — Assignment and course-builder integration
 
-- [ ] Add assignment precedence:
+- [x] Add assignment precedence:
   1. course-specific template;
   2. category-specific template;
   3. organization default template.
-- [ ] Add certificate selection to the course builder.
-- [ ] Allow eligible instructors to create or choose a certificate.
-- [ ] Preserve existing blueprint/eligibility rules.
-- [ ] Show which assignment rule selected the effective certificate.
+- [x] Add certificate selection to the course builder.
+- [x] Allow eligible instructors to create or choose a certificate.
+- [x] Preserve existing blueprint/eligibility rules.
+- [x] Show which assignment rule selected the effective certificate.
 - [ ] Warn before unpublishing a version currently used by courses.
 
 ### Test checkpoint
 
-- [ ] A course can select a published certificate from its builder.
-- [ ] Course overrides category, and category overrides the default.
-- [ ] Learners receive the expected template after satisfying eligibility.
+- [x] A course can select a published certificate from its builder.
+- [x] Course overrides category, and category overrides the default.
+- [x] Learners receive the expected template after satisfying eligibility.
 
 ## Milestone 6 — Issuance, download and verification
 
-- [ ] Issue certificates from a published version snapshot.
-- [ ] Store a non-guessable verification identifier.
-- [ ] Add authenticated certificate download with object-level authorization.
-- [ ] Add configurable public verification without exposing private learner data.
-- [ ] Render code and QR verification elements.
-- [ ] Preserve revocation and re-issue behavior.
+- [x] Issue certificates from a published version snapshot.
+- [x] Store a non-guessable verification identifier.
+- [x] Add authenticated certificate download with object-level authorization.
+- [x] Add configurable public verification without exposing private learner data.
+- [x] Render code and QR verification elements.
+- [x] Preserve revocation and re-issue behavior.
 - [ ] Add rate limiting and abuse controls to public verification.
-- [ ] Restrict PDF/image fetching to approved local assets and hosts.
+- [x] Restrict PDF/image fetching to approved local assets and hosts.
 
 ### Test checkpoint
 
-- [ ] A qualifying learner can download the issued PDF.
-- [ ] Another learner cannot access that PDF by changing an identifier.
-- [ ] Public verification reports valid, revoked and unknown certificates.
-- [ ] Revoked certificates cannot be represented as valid.
+- [x] A qualifying learner can download the issued PDF.
+- [x] Another learner cannot access that PDF by changing an identifier.
+- [x] Public verification reports valid, revoked and unknown certificates.
+- [x] Revoked certificates cannot be represented as valid.
 
 ## Milestone 7 — Quality and rollout
 
-- [ ] Add model, permission, API, rendering and browser-flow tests.
-- [ ] Check portrait/landscape output and long-name overflow.
+- [x] Add model, permission, API, rendering and browser-flow tests.
+- [x] Check portrait/landscape output and long-name overflow.
 - [ ] Check accessibility for keyboard operation, focus order and contrast.
 - [ ] Check template payload size and PDF-render performance.
 - [ ] Document template administration and instructor workflows.
-- [ ] Run canonical LMS checks and record evidence.
+- [x] Run canonical LMS checks and record evidence.
 - [ ] Obtain user acceptance on the LMS branch.
 - [ ] Review Airads and DigikaTech repository state again.
 - [ ] Port shared-engine commits sequentially to Airads, then DigikaTech.

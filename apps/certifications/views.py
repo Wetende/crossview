@@ -4,14 +4,18 @@ Requirements: 5.2, 5.3, 6.1, 6.2, 6.3
 """
 
 from datetime import timedelta
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.db.models import Q
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
+from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -20,10 +24,22 @@ from inertia import render
 
 from apps.certifications.models import (
     Certificate,
+    CertificateAsset,
     CertificateEligibility,
     CertificateTemplate,
+    CertificateTemplateAssignment,
+    CertificateTemplateVersion,
 )
+from apps.certifications.assignments import (
+    published_template_versions,
+    serialize_assignment,
+    set_category_assignment,
+    set_course_assignment,
+    set_default_assignment,
+)
+from apps.certifications.rendering import render_layout_pdf
 from apps.certifications.services import (
+    CertificationEngine,
     CertificateEligibilityService,
     VerificationService,
     serialize_verification_result,
@@ -37,8 +53,11 @@ from apps.certifications.template_builder import (
     require_viewable_template,
     save_template,
     serialize_template,
+    validate_layout,
 )
 from apps.core.utils import get_post_data
+from apps.core.models import Program
+from apps.platform.models import PlatformSettings
 from apps.progression.models import Enrollment
 
 
@@ -84,6 +103,38 @@ def certificate_download(request, pk):
             "url": signed_url,
             "filename": f"certificate_{certificate.serial_number}.pdf",
         }
+    )
+
+
+@login_required
+def signed_certificate_download(request, signed_value):
+    """Stream a signed certificate only to its learner or an administrator."""
+    certificate = CertificationEngine().verify_signed_url(signed_value)
+    if certificate is None:
+        raise Http404("Certificate download link is invalid or expired.")
+    owns_certificate = certificate.enrollment.user_id == request.user.id
+    if not (owns_certificate or request.user.is_staff or request.user.is_superuser):
+        raise Http404("Certificate not found.")
+    if certificate.is_revoked:
+        return HttpResponse(
+            "This certificate has been revoked.",
+            status=403,
+            content_type="text/plain",
+        )
+
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    pdf_file = (media_root / certificate.pdf_path).resolve()
+    try:
+        pdf_file.relative_to(media_root)
+    except ValueError as exc:
+        raise Http404("Certificate file is invalid.") from exc
+    if not pdf_file.is_file():
+        raise Http404("Certificate file is missing.")
+    return FileResponse(
+        pdf_file.open("rb"),
+        as_attachment=True,
+        filename=f"certificate_{certificate.serial_number}.pdf",
+        content_type="application/pdf",
     )
 
 
@@ -299,7 +350,7 @@ def _validation_message(exc: ValidationError) -> str:
 
 @login_required
 def admin_certificate_templates(request):
-    """MasterStudy-style gallery of starters and the current user's templates."""
+    """Compact visual gallery plus MasterStudy-style assignment overview."""
     require_template_manager(request.user)
     visible_templates = CertificateTemplate.objects.filter(
         Q(visibility=CertificateTemplate.Visibility.SYSTEM)
@@ -319,12 +370,43 @@ def admin_certificate_templates(request):
     )
 
     templates = [serialize_template(template) for template in visible_templates]
+    assignments = list(
+        CertificateTemplateAssignment.objects.select_related(
+            "template_version__template",
+            "program",
+        ).order_by("scope", "category", "program__name")
+    )
+    published = []
+    for version in published_template_versions():
+        template_data = serialize_template(version.template)
+        template_data.update(
+            {
+                "version": version.version_number,
+                "templateVersionId": version.id,
+                "orientation": version.orientation,
+                "widthMm": float(version.width_mm),
+                "heightMm": float(version.height_mm),
+                "layout": version.layout,
+            }
+        )
+        published.append(template_data)
     return render(
         request,
         "Admin/CertificateTemplates/Index",
         {
             "starters": [item for item in templates if item["isStarter"]],
             "templates": [item for item in templates if not item["isStarter"]],
+            "publishedTemplates": published,
+            "assignments": [serialize_assignment(item) for item in assignments],
+            "categories": PlatformSettings.get_settings().get_program_categories(),
+            "programs": [
+                {
+                    "id": program.id,
+                    "name": program.name,
+                    "category": program.category or "",
+                }
+                for program in Program.objects.order_by("name")
+            ],
         },
     )
 
@@ -438,6 +520,130 @@ def admin_certificate_template_publish(request, template_id: int):
         "certifications:admin.certificate_template.builder",
         template_id=template.id,
     )
+
+
+@login_required
+@require_POST
+def admin_certificate_template_preview(request, template_id: int):
+    """Render the current draft with the same pipeline used for issuance."""
+    template = get_object_or_404(CertificateTemplate, pk=template_id)
+    require_editable_template(template, request.user)
+    version = template.current_version
+    data = get_post_data(request)
+    try:
+        layout = validate_layout(
+            data.get("layout"),
+            width_mm=version.width_mm,
+            height_mm=version.height_mm,
+        )
+        with NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
+            temp_path = temp_file.name
+        render_layout_pdf(
+            layout=layout,
+            width_mm=version.width_mm,
+            height_mm=version.height_mm,
+            data={
+                "student_name": "Alex Morgan",
+                "program_title": "Foundations of Professional Practice",
+                "completion_date": "24 July 2026",
+                "issue_date": "30 July 2026",
+                "serial_number": "CERT-2026-00142",
+                "instructor_name": "Dr Taylor Reed",
+                "organization_name": PlatformSettings.get_settings().institution_name,
+                "verification_url": "https://example.test/certificates/verify/CERT-2026-00142/",
+            },
+            target=temp_path,
+        )
+        pdf_bytes = Path(temp_path).read_bytes()
+        Path(temp_path).unlink(missing_ok=True)
+    except ValidationError as exc:
+        return JsonResponse({"error": _validation_message(exc)}, status=400)
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="certificate-preview.pdf"'
+    return response
+
+
+@login_required
+@require_POST
+def admin_certificate_asset_upload(request):
+    """Validate and store a reusable PNG/JPEG/WebP certificate image."""
+    require_template_manager(request.user)
+    upload = request.FILES.get("file")
+    if upload is None:
+        return JsonResponse({"error": "Choose an image to upload."}, status=400)
+    if upload.size > 5 * 1024 * 1024:
+        return JsonResponse({"error": "Images must be 5 MB or smaller."}, status=400)
+    allowed_types = {"image/png", "image/jpeg", "image/webp"}
+    if upload.content_type not in allowed_types:
+        return JsonResponse(
+            {"error": "Use a PNG, JPEG, or WebP image."},
+            status=400,
+        )
+    try:
+        from PIL import Image
+
+        image = Image.open(upload)
+        image.verify()
+        upload.seek(0)
+    except Exception:
+        return JsonResponse({"error": "The uploaded image is invalid."}, status=400)
+
+    asset = CertificateAsset.objects.create(
+        owner=request.user,
+        file=upload,
+        original_name=Path(upload.name).name[:255],
+        content_type=upload.content_type,
+        size=upload.size,
+    )
+    return JsonResponse(
+        {
+            "id": asset.id,
+            "name": asset.original_name,
+            "url": asset.file.url,
+        },
+        status=201,
+    )
+
+
+@login_required
+@require_POST
+def admin_certificate_assignment_save(request):
+    """Save a default, category, or course assignment from the linking tab."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        raise Http404
+    data = get_post_data(request)
+    scope = str(data.get("scope") or "").strip()
+    version_id = data.get("templateVersionId")
+    version = None
+    if version_id:
+        version = get_object_or_404(
+            CertificateTemplateVersion.objects.select_related("template"),
+            pk=version_id,
+        )
+    try:
+        if scope == CertificateTemplateAssignment.Scope.DEFAULT:
+            set_default_assignment(version=version, user=request.user)
+        elif scope == CertificateTemplateAssignment.Scope.CATEGORY:
+            set_category_assignment(
+                category=data.get("category"),
+                version=version,
+                user=request.user,
+            )
+        elif scope == CertificateTemplateAssignment.Scope.COURSE:
+            program = get_object_or_404(Program, pk=data.get("programId"))
+            set_course_assignment(
+                program=program,
+                version=version,
+                issue_enabled=data.get("issueEnabled", True),
+                user=request.user,
+            )
+        else:
+            raise ValidationError({"scope": "Choose a valid assignment type."})
+    except ValidationError as exc:
+        messages.error(request, _validation_message(exc))
+    else:
+        messages.success(request, "Certificate link saved.")
+    return redirect("/admin/certificate-templates/?tab=link")
 
 
 def _get_client_ip(request):

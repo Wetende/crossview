@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
@@ -37,11 +38,28 @@ PAGE_SIZES = {
 }
 MAX_ELEMENTS = 100
 MAX_LAYOUT_BYTES = 250_000
+ALLOWED_FONTS = {
+    "Albert Sans",
+    "Arial",
+    "Georgia",
+    "Times New Roman",
+    "sans-serif",
+    "serif",
+}
+HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 def can_manage_templates(user) -> bool:
-    """Return whether a user can access the first admin-only builder release."""
-    return bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+    """Allow staff and instructors to create their own visual templates."""
+    return bool(
+        user
+        and user.is_authenticated
+        and (
+            user.is_staff
+            or user.is_superuser
+            or user.groups.filter(name="Instructors").exists()
+        )
+    )
 
 
 def require_template_manager(user) -> None:
@@ -146,6 +164,83 @@ def _number(value, field_name: str, *, minimum=None, maximum=None) -> float:
     return round(parsed, 3)
 
 
+def _color(value, fallback, *, transparent=False):
+    candidate = str(value or "").strip()
+    if transparent and candidate == "transparent":
+        return candidate
+    return candidate if HEX_COLOR.fullmatch(candidate) else fallback
+
+
+def _normalize_styles(element_type, raw_styles):
+    styles = raw_styles if isinstance(raw_styles, dict) else {}
+    if element_type == "shape":
+        return {
+            "fill": _color(styles.get("fill"), "#3157d5", transparent=True),
+            "stroke": _color(
+                styles.get("stroke"),
+                "transparent",
+                transparent=True,
+            ),
+            "strokeWidth": _number(
+                styles.get("strokeWidth", 1),
+                "strokeWidth",
+                minimum=0,
+                maximum=20,
+            ),
+        }
+    if element_type == "line":
+        return {
+            "stroke": _color(styles.get("stroke"), "#172033"),
+            "strokeWidth": _number(
+                styles.get("strokeWidth", 1),
+                "strokeWidth",
+                minimum=0.1,
+                maximum=20,
+            ),
+        }
+    if element_type in {"text", "dynamic_text"}:
+        font = str(styles.get("fontFamily") or "Albert Sans")
+        align = str(styles.get("textAlign") or "center")
+        vertical = str(styles.get("verticalAlign") or "center")
+        return {
+            "fontFamily": font if font in ALLOWED_FONTS else "Albert Sans",
+            "fontSize": _number(
+                styles.get("fontSize", 16),
+                "fontSize",
+                minimum=6,
+                maximum=160,
+            ),
+            "fontWeight": int(
+                _number(
+                    styles.get("fontWeight", 400),
+                    "fontWeight",
+                    minimum=100,
+                    maximum=900,
+                )
+            ),
+            "color": _color(styles.get("color"), "#172033"),
+            "textAlign": (
+                align if align in {"left", "center", "right", "justify"} else "center"
+            ),
+            "verticalAlign": (
+                vertical if vertical in {"top", "center", "bottom"} else "center"
+            ),
+            "lineHeight": _number(
+                styles.get("lineHeight", 1.2),
+                "lineHeight",
+                minimum=0.8,
+                maximum=3,
+            ),
+            "letterSpacing": _number(
+                styles.get("letterSpacing", 0),
+                "letterSpacing",
+                minimum=-5,
+                maximum=20,
+            ),
+        }
+    return {}
+
+
 def validate_layout(layout: dict, *, width_mm, height_mm) -> dict:
     """Validate and normalize the bounded JSON document used by the builder."""
     if not isinstance(layout, dict):
@@ -185,7 +280,7 @@ def validate_layout(layout: dict, *, width_mm, height_mm) -> dict:
         y = _number(raw.get("y"), "y", minimum=0, maximum=page_height - height)
         rotation = _number(raw.get("rotation", 0), "rotation", minimum=-360, maximum=360)
         content = str(raw.get("content") or "")[:2000]
-        styles = raw.get("styles") if isinstance(raw.get("styles"), dict) else {}
+        styles = _normalize_styles(element_type, raw.get("styles"))
 
         normalized = deepcopy(raw)
         normalized.update(

@@ -1,1 +1,0 @@
-import{c as o}from"./createReactComponent-F_q02nw7.js";const t=[["path",{d:"M15 4.5l-4 4l-4 1.5l-1.5 1.5l7 7l1.5 -1.5l1.5 -4l4 -4",key:"svg-0"}],["path",{d:"M9 15l-4.5 4.5",key:"svg-1"}],["path",{d:"M14.5 4l5.5 5.5",key:"svg-2"}]],l=o("outline","pin","Pin",t);export{l as I};

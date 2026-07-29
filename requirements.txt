@@ -24,6 +24,7 @@ WeasyPrint>=61.0
 
 # Image Processing
 Pillow>=10.2.0
+qrcode[pil]>=8.0
 
 # PDF Parsing
 PyMuPDF>=1.23.0
