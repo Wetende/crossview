@@ -5,7 +5,7 @@ import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import PersonIcon from "@mui/icons-material/Person";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import ShapeLineIcon from "@mui/icons-material/ShapeLine";
@@ -72,7 +72,7 @@ export const ELEMENT_LIBRARY = [
         group: "Student",
         type: "dynamic_text",
         label: "Student name",
-        icon: PersonOutlineIcon,
+        icon: PersonIcon,
         content: "{{student_name}}",
     },
     {
