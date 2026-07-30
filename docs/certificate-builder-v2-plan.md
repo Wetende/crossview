@@ -51,10 +51,13 @@ source of PDF output.
 
 | Area | v2 behaviour | Status |
 | --- | --- | --- |
+| Builder navigation | Certificates and Link certificates, matching the assignment workflow | Implemented |
+| Left rail | Editable certificate thumbnails, current selection and create button | Implemented |
 | Top toolbar | Name, status, undo, redo, selected-item duplicate, preview, test PDF, save and publish | Implemented |
 | Preview controls | Zoom, standard/long-name data, printable safe area and snapping | Implemented |
-| Element panel | Grouped Design, Certificate, Course, Student, Instructor and Organisation fields | Implemented |
-| Layers | Select, rename, lock, hide, order, duplicate and delete | Implemented; drag reordering remains |
+| Right sidebar | Elements and Backgrounds tabs, with contextual properties after selection | Implemented |
+| Element panel | Grouped Certificate, Course, Student, Instructor, Design and Organisation fields | Implemented |
+| Layer operations | Lock, hide, order, duplicate and delete from the selected element; no raw Layers list in the primary interface | Implemented |
 | Canvas | Drag, keyboard move, rotate, page bounds, safe margins, page/element snapping and page alignment | Implemented; resize handles and visible live snap guides remain |
 | Text properties | Font, size, weight, italic, underline, colour, case, spacing, line height, alignment, opacity and shadow | Implemented |
 | Dynamic text safety | Auto-shrink, min/max sizes, wrapping, one-line mode, ellipsis and overflow warning | Implemented |

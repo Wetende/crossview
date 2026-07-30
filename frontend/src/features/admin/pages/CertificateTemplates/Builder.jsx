@@ -37,7 +37,6 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import ArticleIcon from "@mui/icons-material/Article";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -45,7 +44,6 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import LayersIcon from "@mui/icons-material/Layers";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import PreviewIcon from "@mui/icons-material/Preview";
 import PublishIcon from "@mui/icons-material/Publish";
@@ -311,6 +309,20 @@ const ELEMENT_LIBRARY = [
     },
 ];
 
+const elementDisplayName = (element) => {
+    if (element.name) return element.name;
+    const matchingDefinition = ELEMENT_LIBRARY.find(
+        (item) =>
+            item.type === element.type &&
+            item.content &&
+            item.content === element.content,
+    );
+    if (matchingDefinition) return matchingDefinition.label;
+    return element.type
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
 function makeElement(definition, widthMm, heightMm, index) {
     const isQr = definition.type === "qr_code";
     const isLine = definition.type === "line";
@@ -435,6 +447,136 @@ function PaletteButton({ item, onAdd }) {
     );
 }
 
+function CertificateRail({ templates, currentTemplateId, onCreate, onSelect }) {
+    return (
+        <Box
+            component="aside"
+            sx={{
+                borderRight: { sm: "1px solid" },
+                borderBottom: { xs: "1px solid", sm: 0 },
+                borderColor: "divider",
+                bgcolor: "#f5f7fb",
+                minWidth: 0,
+            }}
+        >
+            <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{
+                    px: 1.5,
+                    py: 1.25,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                }}
+            >
+                <Typography variant="subtitle2" fontWeight={800}>
+                    Certificates{" "}
+                    <Typography
+                        component="span"
+                        variant="caption"
+                        color="text.secondary"
+                    >
+                        {templates.length}
+                    </Typography>
+                </Typography>
+                <Tooltip title="Create certificate">
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={onCreate}
+                        aria-label="Create certificate"
+                    >
+                        <AddIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            </Stack>
+            <Stack
+                spacing={1}
+                sx={{
+                    p: 1,
+                    maxHeight: { sm: "calc(100vh - 240px)" },
+                    overflowY: "auto",
+                }}
+            >
+                {templates.map((item) => {
+                    const active = item.id === currentTemplateId;
+                    return (
+                        <Paper
+                            key={item.id}
+                            component="button"
+                            type="button"
+                            elevation={0}
+                            aria-current={active ? "page" : undefined}
+                            onClick={() => onSelect(item)}
+                            sx={{
+                                width: "100%",
+                                p: 0,
+                                overflow: "hidden",
+                                textAlign: "left",
+                                cursor: "pointer",
+                                border: "2px solid",
+                                borderColor: active
+                                    ? "primary.main"
+                                    : "divider",
+                                borderRadius: 1.5,
+                                bgcolor: "background.paper",
+                                transition:
+                                    "border-color 140ms ease, box-shadow 140ms ease",
+                                "&:hover": {
+                                    borderColor: "primary.main",
+                                    boxShadow:
+                                        "0 7px 20px rgba(25, 37, 61, .10)",
+                                },
+                                "&:focus-visible": {
+                                    outline: "3px solid",
+                                    outlineColor: "primary.light",
+                                    outlineOffset: 2,
+                                },
+                            }}
+                        >
+                            <Box
+                                sx={{
+                                    p: 0.75,
+                                    height: 102,
+                                    display: "grid",
+                                    placeItems: "center",
+                                    bgcolor: "#eef1f6",
+                                    overflow: "hidden",
+                                }}
+                            >
+                                <CertificateCanvas
+                                    layout={item.layout}
+                                    widthMm={item.widthMm}
+                                    heightMm={item.heightMm}
+                                    sx={{
+                                        width:
+                                            item.orientation === "portrait"
+                                                ? "46%"
+                                                : "100%",
+                                        maxHeight: "100%",
+                                        boxShadow:
+                                            "0 4px 12px rgba(25, 37, 61, .12)",
+                                    }}
+                                />
+                            </Box>
+                            <Typography
+                                variant="caption"
+                                fontWeight={700}
+                                noWrap
+                                sx={{ display: "block", px: 1, py: 0.75 }}
+                            >
+                                {item.name}
+                            </Typography>
+                        </Paper>
+                    );
+                })}
+            </Stack>
+        </Box>
+    );
+}
+
 function closestSnap(value, targets, threshold = 2) {
     const closest = targets.reduce(
         (closest, target) =>
@@ -488,7 +630,10 @@ function snapElementPosition({
     };
 }
 
-export default function CertificateTemplateBuilder({ template }) {
+export default function CertificateTemplateBuilder({
+    template,
+    templates = [],
+}) {
     const widthMm = Number(template.widthMm);
     const heightMm = Number(template.heightMm);
     const [name, setName] = useState(template.name);
@@ -497,13 +642,19 @@ export default function CertificateTemplateBuilder({ template }) {
     const [past, setPast] = useState([]);
     const [future, setFuture] = useState([]);
     const [zoom, setZoom] = useState(0.82);
-    const [leftTab, setLeftTab] = useState("elements");
+    const [rightTab, setRightTab] = useState("elements");
     const [sampleProfile, setSampleProfile] = useState("standard");
     const [showSafeArea, setShowSafeArea] = useState(true);
     const [snapEnabled, setSnapEnabled] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [publishOpen, setPublishOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [newTemplateName, setNewTemplateName] = useState(
+        "Untitled certificate",
+    );
+    const [newTemplateOrientation, setNewTemplateOrientation] =
+        useState("landscape");
     const canvasRef = useRef(null);
     const assetInputRef = useRef(null);
     const uploadModeRef = useRef("image");
@@ -669,6 +820,7 @@ export default function CertificateTemplateBuilder({ template }) {
                         image: result.url,
                     },
                 });
+                setRightTab("elements");
             } else if (replaceAssetIdRef.current) {
                 const assetId = replaceAssetIdRef.current;
                 commitLayout({
@@ -894,6 +1046,38 @@ export default function CertificateTemplateBuilder({ template }) {
         }
     };
 
+    const openBuilderTemplate = (nextTemplate) => {
+        if (nextTemplate.id === template.id) return;
+        if (
+            isDirty &&
+            !window.confirm(
+                "You have unsaved changes. Open another certificate anyway?",
+            )
+        ) {
+            return;
+        }
+        router.visit(
+            `/admin/certificate-templates/${nextTemplate.id}/builder/`,
+        );
+    };
+
+    const createCertificate = () => {
+        setProcessing(true);
+        router.post(
+            "/admin/certificate-templates/create/",
+            {
+                name: newTemplateName.trim() || "Untitled certificate",
+                orientation: newTemplateOrientation,
+            },
+            {
+                onFinish: () => {
+                    setProcessing(false);
+                    setCreateOpen(false);
+                },
+            },
+        );
+    };
+
     return (
         <DashboardLayout
             role="admin"
@@ -906,6 +1090,44 @@ export default function CertificateTemplateBuilder({ template }) {
             ]}
         >
             <Head title={`Edit ${template.name}`} />
+
+            <Stack
+                direction={{ xs: "column", sm: "row" }}
+                alignItems={{ xs: "stretch", sm: "center" }}
+                justifyContent="space-between"
+                gap={1}
+                sx={{ mb: 1.5, px: 0.5 }}
+            >
+                <Typography variant="h5" component="h1" fontWeight={780}>
+                    Certificate Builder
+                </Typography>
+                <Tabs
+                    value="certificates"
+                    aria-label="Certificate builder sections"
+                    sx={{
+                        minHeight: 38,
+                        "& .MuiTab-root": {
+                            minHeight: 38,
+                            py: 0.5,
+                            textTransform: "none",
+                            fontWeight: 750,
+                        },
+                    }}
+                >
+                    <Tab
+                        value="certificates"
+                        label="Certificates"
+                        component={Link}
+                        href="/admin/certificate-templates/"
+                    />
+                    <Tab
+                        value="link"
+                        label="Link certificates"
+                        component={Link}
+                        href="/admin/certificate-templates/?tab=link"
+                    />
+                </Tabs>
+            </Stack>
 
             <Paper
                 elevation={0}
@@ -1029,159 +1251,12 @@ export default function CertificateTemplateBuilder({ template }) {
                     bgcolor: "background.paper",
                 }}
             >
-                <Box
-                    component="aside"
-                    sx={{
-                        p: 1.5,
-                        borderRight: { sm: "1px solid" },
-                        borderBottom: { xs: "1px solid", sm: 0 },
-                        borderColor: "divider",
-                        maxHeight: { sm: "calc(100vh - 190px)" },
-                        overflowY: "auto",
-                    }}
-                >
-                    <Tabs
-                        value={leftTab}
-                        onChange={(_, value) => setLeftTab(value)}
-                        variant="fullWidth"
-                        sx={{ mb: 1.5, minHeight: 36 }}
-                    >
-                        <Tab
-                            value="elements"
-                            label="Elements"
-                            sx={{ minHeight: 36 }}
-                        />
-                        <Tab
-                            value="layers"
-                            label="Layers"
-                            sx={{ minHeight: 36 }}
-                        />
-                    </Tabs>
-                    {leftTab === "elements" ? (
-                        <Stack spacing={2}>
-                            {[
-                                "Design",
-                                "Certificate",
-                                "Course",
-                                "Student",
-                                "Instructor",
-                                "Organisation",
-                            ].map((group) => (
-                                <Box key={group}>
-                                    <Stack
-                                        direction="row"
-                                        spacing={0.75}
-                                        alignItems="center"
-                                        sx={{ mb: 0.75 }}
-                                    >
-                                        <AddIcon
-                                            color="primary"
-                                            fontSize="small"
-                                        />
-                                        <Typography
-                                            variant="overline"
-                                            fontWeight={800}
-                                            color="text.secondary"
-                                        >
-                                            {group}
-                                        </Typography>
-                                    </Stack>
-                                    <Box
-                                        sx={{
-                                            display: "grid",
-                                            gridTemplateColumns: {
-                                                xs: "repeat(2, 1fr)",
-                                                sm: "1fr",
-                                            },
-                                            gap: 0.75,
-                                        }}
-                                    >
-                                        {ELEMENT_LIBRARY.filter(
-                                            (item) => item.group === group,
-                                        ).map((item) => (
-                                            <PaletteButton
-                                                key={`${item.group}-${item.label}`}
-                                                item={item}
-                                                onAdd={addElement}
-                                            />
-                                        ))}
-                                    </Box>
-                                </Box>
-                            ))}
-                        </Stack>
-                    ) : (
-                        <>
-                            <Stack
-                                direction="row"
-                                spacing={1}
-                                alignItems="center"
-                                sx={{ mb: 1 }}
-                            >
-                                <LayersIcon fontSize="small" />
-                                <Typography
-                                    variant="subtitle2"
-                                    fontWeight={700}
-                                >
-                                    Certificate layers
-                                </Typography>
-                            </Stack>
-                            <Stack spacing={0.5}>
-                                {[...layout.elements]
-                                    .sort(
-                                        (first, second) =>
-                                            (second.zIndex || 0) -
-                                            (first.zIndex || 0),
-                                    )
-                                    .map((element) => (
-                                        <Button
-                                            key={element.id}
-                                            color={
-                                                selectedId === element.id
-                                                    ? "primary"
-                                                    : "inherit"
-                                            }
-                                            variant={
-                                                selectedId === element.id
-                                                    ? "outlined"
-                                                    : "text"
-                                            }
-                                            onClick={() =>
-                                                setSelectedId(element.id)
-                                            }
-                                            sx={{
-                                                justifyContent: "flex-start",
-                                                textTransform: "none",
-                                                overflow: "hidden",
-                                                opacity: element.hidden
-                                                    ? 0.5
-                                                    : 1,
-                                            }}
-                                        >
-                                            <Typography
-                                                variant="caption"
-                                                noWrap
-                                            >
-                                                {element.locked ? "🔒 " : ""}
-                                                {element.name ||
-                                                    element.content ||
-                                                    element.type.replace(
-                                                        "_",
-                                                        " ",
-                                                    )}
-                                            </Typography>
-                                        </Button>
-                                    ))}
-                            </Stack>
-                        </>
-                    )}
-                    <input
-                        ref={assetInputRef}
-                        type="file"
-                        hidden
-                        accept="image/png,image/jpeg,image/webp"
-                        onChange={uploadAsset}
-                    />
-                </Box>
+                <CertificateRail
+                    templates={templates}
+                    currentTemplateId={template.id}
+                    onCreate={() => setCreateOpen(true)}
+                    onSelect={openBuilderTemplate}
+                />
 
                 <Box
                     sx={{
@@ -1312,7 +1387,12 @@ export default function CertificateTemplateBuilder({ template }) {
                                     heightMm={heightMm}
                                     selectedId={selectedId}
                                     interactive
-                                    onSelect={setSelectedId}
+                                    onSelect={(elementId) => {
+                                        setSelectedId(elementId);
+                                        if (elementId) {
+                                            setRightTab("elements");
+                                        }
+                                    }}
                                     sampleProfile={sampleProfile}
                                     showSafeArea={showSafeArea}
                                 />
@@ -1324,17 +1404,216 @@ export default function CertificateTemplateBuilder({ template }) {
                 <Box
                     component="aside"
                     sx={{
-                        p: 2,
                         borderLeft: { sm: "1px solid" },
                         borderTop: { xs: "1px solid", sm: 0 },
                         borderColor: "divider",
+                        minWidth: 0,
+                        bgcolor: "#f5f7fb",
+                        maxHeight: { sm: "calc(100vh - 190px)" },
+                        overflowY: "auto",
                     }}
                 >
-                    {selected ? (
-                        <Stack spacing={2}>
+                    <Tabs
+                        value={rightTab}
+                        onChange={(_, value) => {
+                            setRightTab(value);
+                            if (value === "backgrounds") {
+                                setSelectedId(null);
+                            }
+                        }}
+                        variant="fullWidth"
+                        sx={{
+                            px: 1,
+                            py: 0.75,
+                            minHeight: 42,
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                            bgcolor: "background.paper",
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 2,
+                            "& .MuiTab-root": {
+                                minHeight: 34,
+                                py: 0.5,
+                                textTransform: "none",
+                                fontWeight: 750,
+                            },
+                        }}
+                    >
+                        <Tab value="elements" label="Elements" />
+                        <Tab value="backgrounds" label="Backgrounds" />
+                    </Tabs>
+                    {rightTab === "backgrounds" ? (
+                        <Stack spacing={2} sx={{ p: 1.5 }}>
+                            <Typography
+                                variant="overline"
+                                fontWeight={800}
+                                color="text.secondary"
+                            >
+                                Background image
+                            </Typography>
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: 1,
+                                    minHeight: 130,
+                                    display: "grid",
+                                    placeItems: "center",
+                                    overflow: "hidden",
+                                    bgcolor: "background.paper",
+                                }}
+                            >
+                                {layout.background?.image ? (
+                                    <Box
+                                        component="img"
+                                        src={layout.background.image}
+                                        alt="Certificate background"
+                                        sx={{
+                                            width: "100%",
+                                            maxHeight: 160,
+                                            objectFit: "contain",
+                                        }}
+                                    />
+                                ) : (
+                                    <Stack
+                                        spacing={1}
+                                        alignItems="center"
+                                        sx={{ color: "text.secondary" }}
+                                    >
+                                        <ImageOutlinedIcon />
+                                        <Typography variant="caption">
+                                            No background image
+                                        </Typography>
+                                    </Stack>
+                                )}
+                            </Paper>
+                            <Button
+                                variant="outlined"
+                                startIcon={<ImageOutlinedIcon />}
+                                onClick={() => {
+                                    uploadModeRef.current = "background";
+                                    replaceAssetIdRef.current = null;
+                                    assetInputRef.current?.click();
+                                }}
+                                disabled={Boolean(layout.background?.locked)}
+                            >
+                                {layout.background?.image
+                                    ? "Change background"
+                                    : "Select image"}
+                            </Button>
+                            {layout.background?.image && (
+                                <Button
+                                    color="error"
+                                    startIcon={<DeleteOutlineIcon />}
+                                    disabled={Boolean(
+                                        layout.background?.locked,
+                                    )}
+                                    onClick={() =>
+                                        commitLayout({
+                                            ...layout,
+                                            background: {
+                                                ...(layout.background || {}),
+                                                image: null,
+                                            },
+                                        })
+                                    }
+                                >
+                                    Remove background
+                                </Button>
+                            )}
+                            <Divider />
+                            <Typography fontWeight={750}>
+                                Page settings
+                            </Typography>
+                            <Stack direction="row" spacing={1}>
+                                <Chip
+                                    size="small"
+                                    label="A4"
+                                    variant="outlined"
+                                />
+                                <Chip
+                                    size="small"
+                                    label={template.orientation}
+                                    variant="outlined"
+                                    sx={{ textTransform: "capitalize" }}
+                                />
+                            </Stack>
+                            <TextField
+                                type="color"
+                                size="small"
+                                label="Background colour"
+                                value={layout.background?.color || "#ffffff"}
+                                disabled={Boolean(layout.background?.locked)}
+                                onChange={(event) =>
+                                    commitLayout({
+                                        ...layout,
+                                        background: {
+                                            ...(layout.background || {}),
+                                            color: event.target.value,
+                                        },
+                                    })
+                                }
+                                InputLabelProps={{ shrink: true }}
+                            />
+                            <TextField
+                                type="number"
+                                size="small"
+                                label="Safe margin (mm)"
+                                value={layout.safeAreaMm ?? 10}
+                                inputProps={{
+                                    min: 0,
+                                    max: Math.min(widthMm, heightMm) / 3,
+                                    step: 1,
+                                }}
+                                onChange={(event) =>
+                                    commitLayout({
+                                        ...layout,
+                                        safeAreaMm: Math.max(
+                                            0,
+                                            Math.min(
+                                                Math.min(widthMm, heightMm) / 3,
+                                                Number(event.target.value),
+                                            ),
+                                        ),
+                                    })
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        size="small"
+                                        checked={Boolean(
+                                            layout.background?.locked,
+                                        )}
+                                        onChange={(event) =>
+                                            commitLayout({
+                                                ...layout,
+                                                background: {
+                                                    ...(layout.background ||
+                                                        {}),
+                                                    locked: event.target
+                                                        .checked,
+                                                },
+                                            })
+                                        }
+                                    />
+                                }
+                                label="Lock background"
+                            />
+                        </Stack>
+                    ) : selected ? (
+                        <Stack spacing={2} sx={{ p: 1.5 }}>
                             <Box>
+                                <Button
+                                    size="small"
+                                    color="inherit"
+                                    onClick={() => setSelectedId(null)}
+                                    sx={{ mb: 1, px: 0 }}
+                                >
+                                    ← All elements
+                                </Button>
                                 <Typography fontWeight={700}>
-                                    Properties
+                                    {elementDisplayName(selected)}
                                 </Typography>
                                 <Typography
                                     variant="caption"
@@ -1343,15 +1622,6 @@ export default function CertificateTemplateBuilder({ template }) {
                                     {selected.type.replace("_", " ")}
                                 </Typography>
                             </Box>
-                            <TextField
-                                label="Layer name"
-                                size="small"
-                                value={selected.name || ""}
-                                onChange={(event) =>
-                                    updateSelected({ name: event.target.value })
-                                }
-                                helperText="Shown only in the Layers panel."
-                            />
                             {selectedFit?.overflows && (
                                 <Alert severity="warning">
                                     This sample still overflows at{" "}
@@ -1537,7 +1807,10 @@ export default function CertificateTemplateBuilder({ template }) {
                                             value={
                                                 selected.styles?.fontSize || 16
                                             }
-                                            inputProps={{ min: 6, max: 160 }}
+                                            inputProps={{
+                                                min: 6,
+                                                max: 160,
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "fontSize",
@@ -1562,7 +1835,10 @@ export default function CertificateTemplateBuilder({ template }) {
                                                         16,
                                                 )
                                             }
-                                            inputProps={{ min: 6, max: 160 }}
+                                            inputProps={{
+                                                min: 6,
+                                                max: 160,
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "minFontSize",
@@ -1584,7 +1860,10 @@ export default function CertificateTemplateBuilder({ template }) {
                                                 selected.styles?.fontSize ||
                                                 16
                                             }
-                                            inputProps={{ min: 6, max: 160 }}
+                                            inputProps={{
+                                                min: 6,
+                                                max: 160,
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "maxFontSize",
@@ -2002,7 +2281,10 @@ export default function CertificateTemplateBuilder({ template }) {
                                                 selected.styles?.borderRadius ||
                                                 0
                                             }
-                                            inputProps={{ min: 0, max: 100 }}
+                                            inputProps={{
+                                                min: 0,
+                                                max: 100,
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "borderRadius",
@@ -2054,7 +2336,9 @@ export default function CertificateTemplateBuilder({ template }) {
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{ shrink: true }}
+                                            InputLabelProps={{
+                                                shrink: true,
+                                            }}
                                         />
                                     </Box>
                                 </Stack>
@@ -2110,7 +2394,9 @@ export default function CertificateTemplateBuilder({ template }) {
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{ shrink: true }}
+                                            InputLabelProps={{
+                                                shrink: true,
+                                            }}
                                         />
                                         <TextField
                                             type="color"
@@ -2126,7 +2412,9 @@ export default function CertificateTemplateBuilder({ template }) {
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{ shrink: true }}
+                                            InputLabelProps={{
+                                                shrink: true,
+                                            }}
                                         />
                                         <TextField
                                             type="number"
@@ -2286,139 +2574,101 @@ export default function CertificateTemplateBuilder({ template }) {
                             </Stack>
                         </Stack>
                     ) : (
-                        <Stack spacing={2} sx={{ py: 2 }}>
-                            <Typography fontWeight={700}>Page</Typography>
-                            <Stack direction="row" spacing={1}>
-                                <Chip
-                                    size="small"
-                                    label="A4"
-                                    variant="outlined"
-                                />
-                                <Chip
-                                    size="small"
-                                    label={template.orientation}
-                                    variant="outlined"
-                                    sx={{ textTransform: "capitalize" }}
-                                />
-                            </Stack>
-                            <TextField
-                                type="number"
-                                size="small"
-                                label="Safe margin (mm)"
-                                value={layout.safeAreaMm ?? 10}
-                                inputProps={{
-                                    min: 0,
-                                    max: Math.min(widthMm, heightMm) / 3,
-                                    step: 1,
-                                }}
-                                onChange={(event) =>
-                                    commitLayout({
-                                        ...layout,
-                                        safeAreaMm: Math.max(
-                                            0,
-                                            Math.min(
-                                                Math.min(widthMm, heightMm) / 3,
-                                                Number(event.target.value),
-                                            ),
-                                        ),
-                                    })
-                                }
-                            />
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        size="small"
-                                        checked={Boolean(
-                                            layout.background?.locked,
-                                        )}
-                                        onChange={(event) =>
-                                            commitLayout({
-                                                ...layout,
-                                                background: {
-                                                    ...(layout.background ||
-                                                        {}),
-                                                    locked: event.target
-                                                        .checked,
-                                                },
-                                            })
-                                        }
-                                    />
-                                }
-                                label="Lock background"
-                            />
-                            <TextField
-                                type="color"
-                                size="small"
-                                label="Background colour"
-                                value={layout.background?.color || "#ffffff"}
-                                disabled={Boolean(layout.background?.locked)}
-                                onChange={(event) =>
-                                    commitLayout({
-                                        ...layout,
-                                        background: {
-                                            ...(layout.background || {}),
-                                            color: event.target.value,
-                                        },
-                                    })
-                                }
-                                InputLabelProps={{ shrink: true }}
-                            />
-                            <Button
-                                variant="outlined"
-                                startIcon={<ImageOutlinedIcon />}
-                                onClick={() => {
-                                    uploadModeRef.current = "background";
-                                    replaceAssetIdRef.current = null;
-                                    assetInputRef.current?.click();
-                                }}
-                                disabled={Boolean(layout.background?.locked)}
-                            >
-                                Background image
-                            </Button>
-                            {layout.background?.image && (
-                                <Button
-                                    color="error"
-                                    disabled={Boolean(
-                                        layout.background?.locked,
-                                    )}
-                                    onClick={() =>
-                                        commitLayout({
-                                            ...layout,
-                                            background: {
-                                                ...(layout.background || {}),
-                                                image: null,
-                                            },
-                                        })
-                                    }
-                                >
-                                    Remove background
-                                </Button>
-                            )}
-                            <Divider />
-                            <Stack
-                                spacing={1.5}
-                                alignItems="center"
-                                sx={{ textAlign: "center" }}
-                            >
-                                <ArticleIcon
-                                    color="disabled"
-                                    sx={{ fontSize: 42 }}
-                                />
-                                <Typography fontWeight={700}>
-                                    Select an element
-                                </Typography>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    Click an item on the certificate to edit its
-                                    content, position and style.
-                                </Typography>
-                            </Stack>
+                        <Stack spacing={2} sx={{ p: 1.5 }}>
+                            {[
+                                "Certificate",
+                                "Course",
+                                "Student",
+                                "Instructor",
+                                "Design",
+                                "Organisation",
+                            ].map((group) => (
+                                <Box key={group}>
+                                    <Typography
+                                        variant="overline"
+                                        fontWeight={800}
+                                        color="text.secondary"
+                                        sx={{ display: "block", mb: 0.75 }}
+                                    >
+                                        {group}
+                                    </Typography>
+                                    <Stack spacing={0.5}>
+                                        {ELEMENT_LIBRARY.filter(
+                                            (item) => item.group === group,
+                                        ).map((item) => (
+                                            <PaletteButton
+                                                key={`${item.group}-${item.label}`}
+                                                item={item}
+                                                onAdd={addElement}
+                                            />
+                                        ))}
+                                    </Stack>
+                                </Box>
+                            ))}
                         </Stack>
                     )}
                 </Box>
             </Box>
+
+            <input
+                ref={assetInputRef}
+                type="file"
+                hidden
+                accept="image/png,image/jpeg,image/webp"
+                onChange={uploadAsset}
+            />
+
+            <Dialog
+                open={createOpen}
+                onClose={() => !processing && setCreateOpen(false)}
+                fullWidth
+                maxWidth="xs"
+            >
+                <DialogTitle>Create a certificate</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
+                        <TextField
+                            label="Certificate name"
+                            value={newTemplateName}
+                            onChange={(event) =>
+                                setNewTemplateName(event.target.value)
+                            }
+                            autoFocus
+                            fullWidth
+                        />
+                        <FormControl fullWidth>
+                            <InputLabel>Orientation</InputLabel>
+                            <Select
+                                label="Orientation"
+                                value={newTemplateOrientation}
+                                onChange={(event) =>
+                                    setNewTemplateOrientation(
+                                        event.target.value,
+                                    )
+                                }
+                            >
+                                <MenuItem value="landscape">Landscape</MenuItem>
+                                <MenuItem value="portrait">Portrait</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => setCreateOpen(false)}
+                        disabled={processing}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={createCertificate}
+                        disabled={processing || !newTemplateName.trim()}
+                    >
+                        {processing ? "Creating…" : "Create"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog
                 open={previewOpen}

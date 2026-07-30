@@ -45,9 +45,12 @@
 
 - [x] Build the MasterStudy-style workspace:
   - [x] top toolbar with name, status, undo/redo, zoom, save and preview;
-  - [x] left panel for elements and layers;
+  - [x] left thumbnail rail for switching between editable certificates;
   - [x] fixed-ratio page canvas;
-  - [x] right properties panel for the selected element.
+  - [x] right Elements/Backgrounds sidebar with contextual element properties.
+- [x] Keep Layers out of the primary interface and expose ordering, locking,
+      duplication and deletion from the selected element instead.
+- [x] Provide Certificates and Link certificates navigation from the builder.
 - [x] Support drag-to-position, keyboard movement, numeric resize and rotation.
 - [x] Add page/element snapping, safe-area alignment tools and canvas
       boundaries.

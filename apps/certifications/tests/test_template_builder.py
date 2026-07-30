@@ -347,6 +347,47 @@ def test_system_starter_cannot_be_opened_in_editor(client, staff_user):
     assert response.url == reverse("certifications:admin.certificate_templates")
 
 
+def test_builder_includes_editable_certificates_for_thumbnail_rail(
+    client,
+    staff_user,
+):
+    current = create_blank_template(
+        name="Current certificate",
+        orientation=CertificateTemplateVersion.Orientation.LANDSCAPE,
+        user=staff_user,
+    )
+    other = create_blank_template(
+        name="Other certificate",
+        orientation=CertificateTemplateVersion.Orientation.PORTRAIT,
+        user=staff_user,
+    )
+    client.force_login(staff_user)
+
+    response = client.get(
+        reverse(
+            "certifications:admin.certificate_template.builder",
+            kwargs={"template_id": current.id},
+        ),
+        HTTP_X_INERTIA="true",
+        secure=True,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["component"] == "Admin/CertificateTemplates/Builder"
+    assert payload["props"]["template"]["id"] == current.id
+    assert {
+        (item["id"], item["name"])
+        for item in payload["props"]["templates"]
+    } >= {
+        (current.id, "Current certificate"),
+        (other.id, "Other certificate"),
+    }
+    assert all(
+        not item["isStarter"] for item in payload["props"]["templates"]
+    )
+
+
 def test_portrait_blank_template_fits_page(staff_user):
     template = create_blank_template(
         name="Portrait",

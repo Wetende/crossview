@@ -352,26 +352,27 @@ def _validation_message(exc: ValidationError) -> str:
     return " ".join(exc.messages)
 
 
+def _visible_certificate_templates(user):
+    templates = CertificateTemplate.objects.filter(
+        Q(visibility=CertificateTemplate.Visibility.SYSTEM)
+        | Q(owner=user)
+        | Q(owner__isnull=True, is_starter=False)
+    )
+    if user.is_superuser:
+        templates = CertificateTemplate.objects.all()
+    return (
+        templates.filter(versions__isnull=False)
+        .distinct()
+        .prefetch_related("versions")
+        .order_by("-is_starter", "name")
+    )
+
+
 @login_required
 def admin_certificate_templates(request):
     """Compact visual gallery plus MasterStudy-style assignment overview."""
     require_template_manager(request.user)
-    visible_templates = CertificateTemplate.objects.filter(
-        Q(visibility=CertificateTemplate.Visibility.SYSTEM)
-        | Q(owner=request.user)
-        | Q(owner__isnull=True, is_starter=False)
-    )
-    if request.user.is_superuser:
-        visible_templates = CertificateTemplate.objects.all()
-    visible_templates = (
-        visible_templates.filter(versions__isnull=False)
-        .distinct()
-        .prefetch_related("versions")
-        .order_by(
-            "-is_starter",
-            "name",
-        )
-    )
+    visible_templates = _visible_certificate_templates(request.user)
 
     templates = [serialize_template(template) for template in visible_templates]
     assignments = list(
@@ -474,6 +475,11 @@ def admin_certificate_template_builder(request, template_id: int):
         "Admin/CertificateTemplates/Builder",
         {
             "template": serialize_template(template),
+            "templates": [
+                serialize_template(item)
+                for item in _visible_certificate_templates(request.user)
+                if not item.is_starter
+            ],
         },
     )
 
