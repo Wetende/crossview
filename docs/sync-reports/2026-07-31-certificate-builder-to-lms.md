@@ -7,8 +7,8 @@ Date: 2026-07-31
 - Classification: shared engine
 - Canonical repository: LMS
 - Reviewed base: `013fe90b538a0c8db66131f955269e453738d572`
-- Reviewed feature head: `ff7a3c90ea0b21690551bf6dbd51333d8b9e68d4`
-- Included range: `013fe90b..ff7a3c90` (18 commits)
+- Reviewed source/build head: `9abbf096`
+- Included range: `013fe90b..9abbf096` (21 commits)
 - Destination before promotion: `main` and `origin/main` at
   `013fe90b538a0c8db66131f955269e453738d572`
 
@@ -47,6 +47,23 @@ Run from `/home/wetende/Projects/lms-certificate-builder` with
 The pytest run reported 951 existing warnings, including the isolated
 worktree's missing `staticfiles/` collection directory; there were no test
 failures.
+
+### Downstream compatibility follow-up
+
+Airads verification found that MUI Icons 9 no longer exports
+`PersonOutline`. The shared element library now uses the cross-version
+`Person` icon instead:
+
+- Source correction: `a3998e9c`
+- Rebuilt LMS assets: `9abbf096`
+- Focused certificate frontend tests: 5 passed
+- Full Vitest suite with a 10-second per-test timeout: 67 files and 176 tests
+  passed
+- Production build: passed in 33.79 seconds
+
+Two default-timeout full-suite attempts each reported a different unrelated
+five-second jsdom timeout with 175 tests passing. Both timed-out tests passed
+individually, and the unfiltered 10-second-timeout run passed completely.
 
 ## Promotion order
 
