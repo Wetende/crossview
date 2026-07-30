@@ -7,8 +7,8 @@ Date: 2026-07-31
 - Classification: shared engine
 - Canonical repository: LMS
 - Reviewed base: `013fe90b538a0c8db66131f955269e453738d572`
-- Reviewed source/build head: `9abbf096`
-- Included range: `013fe90b..9abbf096` (21 commits)
+- Reviewed source/build head: `e4ed897f`
+- Included range: `013fe90b..e4ed897f` (24 commits)
 - Destination before promotion: `main` and `origin/main` at
   `013fe90b538a0c8db66131f955269e453738d572`
 
@@ -64,6 +64,15 @@ Airads verification found that MUI Icons 9 no longer exports
 Two default-timeout full-suite attempts each reported a different unrelated
 five-second jsdom timeout with 175 tests passing. Both timed-out tests passed
 individually, and the unfiltered 10-second-timeout run passed completely.
+
+Airads' production build then identified one additional MUI 9 compatibility
+gap: `DeleteOutline` is unavailable there. The builder now uses the
+cross-version `Delete` icon:
+
+- Source correction: `a285eee7`
+- Rebuilt LMS assets: `e4ed897f`
+- Focused builder tests: 4 passed
+- Production build: passed in 43.43 seconds
 
 ## Promotion order
 
