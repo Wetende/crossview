@@ -14,6 +14,7 @@ from apps.certifications.models import Certificate, CertificateTemplate
 from apps.certifications.services import CertificationEngine
 from apps.core.models import Program, User
 from apps.core.views import serialize_program_data
+from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment
 
 
@@ -204,6 +205,25 @@ def test_issuance_populates_extended_course_and_student_fields(
         last_name="O’Dwyer",
     )
     program.instructors.add(instructor)
+    module = CurriculumNode.objects.create(
+        program=program,
+        node_type="Module",
+        title="Core module",
+        is_published=True,
+    )
+    for title, lesson_type in (
+        ("Core lesson", "text"),
+        ("Knowledge check", "quiz"),
+        ("Final task", "assignment"),
+    ):
+        CurriculumNode.objects.create(
+            program=program,
+            parent=module,
+            node_type="Lesson",
+            title=title,
+            properties={"lesson_type": lesson_type},
+            is_published=True,
+        )
     set_default_assignment(
         version=published_version("Classic Formal"),
         user=staff_user,
@@ -223,6 +243,9 @@ def test_issuance_populates_extended_course_and_student_fields(
     assert generator.data["student_name"] == "Alex Morgan"
     assert generator.data["student_number"] == f"STU-{learner.id:06d}"
     assert generator.data["program_title"] == "Professional Practice"
+    assert generator.data["course_details"] == (
+        "1 lesson, 1 quiz, 1 assignment"
+    )
     assert generator.data["course_level"] == "Professional Diploma"
     assert generator.data["department"] == "Business"
     assert generator.data["course_duration"] == "40 hours"

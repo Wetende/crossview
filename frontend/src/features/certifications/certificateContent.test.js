@@ -22,7 +22,7 @@ const textElement = (styles = {}) => ({
 describe("certificate content fitting", () => {
     it("replaces every supported placeholder using a chosen preview profile", () => {
         const content = certificateSampleContent(
-            "{{student_name}} — {{program_title}}",
+            "{{student_name}} — {{program_title}} — {{course_details}}",
             "stress",
         );
 
@@ -30,6 +30,7 @@ describe("certificate content fitting", () => {
         expect(content).toContain(
             "Advanced International Professional Certificate",
         );
+        expect(content).toContain("128 lessons, 24 quizzes, 12 assignments");
     });
 
     it("shrinks a long dynamic name without going below the configured minimum", () => {

@@ -302,6 +302,76 @@ def serialize_verification_result(result: VerificationResult) -> dict:
     }
 
 
+COURSE_CONTAINER_TYPES = {
+    "category",
+    "chapter",
+    "module",
+    "part",
+    "section",
+    "semester",
+    "term",
+    "topic",
+    "unit",
+    "week",
+    "year",
+}
+
+
+def _published_course_item_counts(program) -> dict[str, int]:
+    from apps.assessments.models import Assignment, Quiz
+
+    nodes = list(
+        program.curriculum_nodes.filter(is_published=True).values(
+            "id",
+            "parent_id",
+            "node_type",
+            "properties",
+        )
+    )
+    parent_ids = {node["parent_id"] for node in nodes if node["parent_id"]}
+    counts = {"lesson": 0, "quiz": 0, "assignment": 0}
+
+    for node in nodes:
+        if node["id"] in parent_ids:
+            continue
+        properties = (
+            node["properties"] if isinstance(node["properties"], dict) else {}
+        )
+        node_type = str(node["node_type"] or "").strip().lower()
+        lesson_type = str(properties.get("lesson_type") or "").strip().lower()
+        content_type = lesson_type or node_type
+        if content_type in {"quiz", "assignment"}:
+            counts[content_type] += 1
+            continue
+        if content_type not in COURSE_CONTAINER_TYPES:
+            counts["lesson"] += 1
+
+    counts["quiz"] = max(
+        counts["quiz"],
+        Quiz.objects.filter(
+            node__program=program,
+            node__is_published=True,
+            is_published=True,
+        ).count(),
+    )
+    counts["assignment"] = max(
+        counts["assignment"],
+        Assignment.objects.filter(program=program, is_published=True).count(),
+    )
+    return counts
+
+
+def build_course_details(program) -> str:
+    """Summarize the published learning items represented by a certificate."""
+    labels = []
+    for item, count in _published_course_item_counts(program).items():
+        if not count:
+            continue
+        plural = "quizzes" if item == "quiz" else f"{item}s"
+        labels.append(f"{count} {item if count == 1 else plural}")
+    return ", ".join(labels)
+
+
 class CertificationEngine:
     """
     Main orchestration service for certificate generation and management.
@@ -393,6 +463,7 @@ class CertificationEngine:
                 getattr(enrollment.user, "examination_number", "") or ""
             ),
             'program_title': enrollment.program.name,
+            'course_details': build_course_details(enrollment.program),
             'course_level': (
                 enrollment.program.level
                 or enrollment.program.qualification_family

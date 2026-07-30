@@ -19,6 +19,7 @@ PLACEHOLDER_FALLBACKS = {
     "admission_number": "",
     "examination_number": "",
     "program_title": "Completed course",
+    "course_details": "",
     "course_level": "",
     "department": "",
     "campus": "",

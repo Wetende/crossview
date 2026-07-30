@@ -4,6 +4,7 @@ const STANDARD_SAMPLE_VALUES = {
     admission_number: "ADM-2026-184",
     examination_number: "KNEC-042781",
     program_title: "Foundations of Professional Practice",
+    course_details: "4 lessons, 3 quizzes, 1 assignment",
     course_level: "Professional certificate",
     department: "Business and Leadership",
     campus: "Main campus",
@@ -31,6 +32,7 @@ const STRESS_SAMPLE_VALUES = {
     examination_number: "NATIONAL-EXAMINATION-042781-KE",
     program_title:
         "Advanced International Professional Certificate in Sustainable Community Leadership",
+    course_details: "128 lessons, 24 quizzes, 12 assignments",
     course_level: "Higher Professional Diploma — Niveau supérieur",
     department: "Technology, Engineering and Digital Transformation",
     campus: "München International Learning Campus",

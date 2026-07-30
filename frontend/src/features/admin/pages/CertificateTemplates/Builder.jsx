@@ -55,6 +55,7 @@ import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import ShapeLineIcon from "@mui/icons-material/ShapeLine";
 import TextFieldsIcon from "@mui/icons-material/TextFields";
 import UndoIcon from "@mui/icons-material/Undo";
@@ -205,26 +206,39 @@ const ELEMENT_LIBRARY = [
     {
         group: "Course",
         type: "dynamic_text",
+        label: "Details",
+        icon: FormatListBulletedIcon,
+        content: "{{course_details}}",
+        styles: {
+            fontSize: 16,
+            minFontSize: 9,
+            maxFontSize: 16,
+            fontWeight: 500,
+        },
+    },
+    {
+        group: "Course metadata",
+        type: "dynamic_text",
         label: "Course level",
         icon: SchoolOutlinedIcon,
         content: "{{course_level}}",
     },
     {
-        group: "Course",
+        group: "Course metadata",
         type: "dynamic_text",
         label: "Department",
         icon: BusinessOutlinedIcon,
         content: "{{department}}",
     },
     {
-        group: "Course",
+        group: "Course metadata",
         type: "dynamic_text",
         label: "Grade",
         icon: BadgeOutlinedIcon,
         content: "{{grade}}",
     },
     {
-        group: "Course",
+        group: "Course metadata",
         type: "dynamic_text",
         label: "Score",
         icon: BadgeOutlinedIcon,
@@ -247,14 +261,14 @@ const ELEMENT_LIBRARY = [
     {
         group: "Course",
         type: "dynamic_text",
-        label: "Course start date",
+        label: "Start date",
         icon: CalendarMonthIcon,
         content: "{{course_start_date}}",
     },
     {
         group: "Course",
         type: "dynamic_text",
-        label: "Completion date",
+        label: "End date",
         icon: CalendarMonthIcon,
         content: "{{completion_date}}",
     },
@@ -2705,6 +2719,7 @@ export default function CertificateTemplateBuilder({
                                 "Design",
                                 "Organisation",
                                 "Verification",
+                                "Course metadata",
                             ].map((group) => (
                                 <Box key={group}>
                                     <Typography
@@ -2723,9 +2738,10 @@ export default function CertificateTemplateBuilder({
                                                 key={`${item.group}-${item.label}`}
                                                 item={item}
                                                 onAdd={addElement}
-                                                compact={
-                                                    group === "Certificate"
-                                                }
+                                                compact={[
+                                                    "Certificate",
+                                                    "Course",
+                                                ].includes(group)}
                                             />
                                         ))}
                                     </Stack>
