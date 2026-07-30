@@ -38,7 +38,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DeleteIcon from "@mui/icons-material/Delete";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import PreviewIcon from "@mui/icons-material/Preview";
 import SaveIcon from "@mui/icons-material/Save";
@@ -1214,7 +1214,7 @@ export default function CertificateTemplateBuilder({
                             {layout.background?.image && (
                                 <Button
                                     color="error"
-                                    startIcon={<DeleteOutlineIcon />}
+                                    startIcon={<DeleteIcon />}
                                     disabled={Boolean(
                                         layout.background?.locked,
                                     )}
@@ -2390,7 +2390,7 @@ export default function CertificateTemplateBuilder({
                                     Duplicate
                                 </Button>
                                 <Button
-                                    startIcon={<DeleteOutlineIcon />}
+                                    startIcon={<DeleteIcon />}
                                     onClick={deleteSelected}
                                     color="error"
                                     size="small"
