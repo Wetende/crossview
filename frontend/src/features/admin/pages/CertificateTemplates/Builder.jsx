@@ -36,7 +36,6 @@ import {
     Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -56,9 +55,11 @@ import {
     certificateSampleContent,
     fitCertificateText,
 } from "@/features/certifications/certificateContent";
-import DashboardLayout from "@/layouts/DashboardLayout";
 import { getCsrfHeaders } from "@/utils/csrf";
 
+import CertificateBuilderWorkspace, {
+    CertificateCanvasRulers,
+} from "./CertificateBuilderWorkspace";
 import {
     ADDITIONAL_ELEMENT_GROUPS,
     ELEMENT_LIBRARY,
@@ -267,6 +268,10 @@ function CertificateRail({ templates, currentTemplateId, onCreate, onSelect }) {
                 borderColor: "divider",
                 bgcolor: "#f5f7fb",
                 minWidth: 0,
+                minHeight: 0,
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
             }}
         >
             <Stack
@@ -305,8 +310,9 @@ function CertificateRail({ templates, currentTemplateId, onCreate, onSelect }) {
             <Stack
                 spacing={1}
                 sx={{
+                    flex: 1,
+                    minHeight: 0,
                     p: 1,
-                    maxHeight: { sm: "calc(100vh - 240px)" },
                     overflowY: "auto",
                 }}
             >
@@ -890,37 +896,21 @@ export default function CertificateTemplateBuilder({
     };
 
     return (
-        <DashboardLayout
-            role="admin"
-            breadcrumbs={[
-                {
-                    label: "Certificate templates",
-                    href: "/admin/certificate-templates/",
-                },
-                { label: template.name },
-            ]}
-        >
-            <Head title={`Edit ${template.name}`} />
-
-            <Stack
-                direction={{ xs: "column", sm: "row" }}
-                alignItems={{ xs: "stretch", sm: "center" }}
-                justifyContent="space-between"
-                gap={1}
-                sx={{ mb: 1.5, px: 0.5 }}
-            >
-                <Typography variant="h5" component="h1" fontWeight={780}>
-                    Certificate Builder
-                </Typography>
+        <CertificateBuilderWorkspace
+            backHref="/admin/certificate-templates/"
+            navigation={
                 <Tabs
                     value="certificates"
                     aria-label="Certificate builder sections"
                     sx={{
-                        minHeight: 38,
+                        height: "100%",
+                        minHeight: 52,
                         "& .MuiTab-root": {
-                            minHeight: 38,
+                            minHeight: 52,
                             py: 0.5,
+                            px: 2,
                             textTransform: "none",
+                            fontSize: "0.78rem",
                             fontWeight: 750,
                         },
                     }}
@@ -938,126 +928,21 @@ export default function CertificateTemplateBuilder({
                         href="/admin/certificate-templates/?tab=link"
                     />
                 </Tabs>
-            </Stack>
-
-            <Paper
-                elevation={0}
-                sx={{
-                    mb: 2,
-                    px: 2,
-                    py: 1.5,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 2.5,
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: 1.5,
-                }}
-            >
-                <Tooltip title="Back to templates">
-                    <IconButton
-                        component={Link}
-                        href="/admin/certificate-templates/"
-                        color="inherit"
-                    >
-                        <ArrowBackIcon />
-                    </IconButton>
-                </Tooltip>
-                <TextField
-                    variant="standard"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    inputProps={{ "aria-label": "Template name" }}
-                    sx={{ minWidth: 220, flex: "1 1 260px" }}
-                />
-                <Chip
-                    label={template.status}
-                    size="small"
-                    color={
-                        template.status === "published" ? "success" : "default"
-                    }
-                    sx={{ textTransform: "capitalize" }}
-                />
-                <Divider orientation="vertical" flexItem />
-                <ButtonGroup size="small" variant="outlined">
-                    <Tooltip title="Undo">
-                        <span>
-                            <IconButton onClick={undo} disabled={!past.length}>
-                                <UndoIcon fontSize="small" />
-                            </IconButton>
-                        </span>
-                    </Tooltip>
-                    <Tooltip title="Redo">
-                        <span>
-                            <IconButton
-                                onClick={redo}
-                                disabled={!future.length}
-                            >
-                                <RedoIcon fontSize="small" />
-                            </IconButton>
-                        </span>
-                    </Tooltip>
-                </ButtonGroup>
-                <Button
-                    startIcon={<ContentCopyIcon />}
-                    color="inherit"
-                    onClick={duplicateSelected}
-                    disabled={!selected}
-                >
-                    Duplicate
-                </Button>
-                <Button
-                    startIcon={<PreviewIcon />}
-                    color="inherit"
-                    onClick={() => setPreviewOpen(true)}
-                >
-                    Preview
-                </Button>
-                <Button
-                    startIcon={<DownloadOutlinedIcon />}
-                    color="inherit"
-                    onClick={() => openPdfPreview(true)}
-                    disabled={processing}
-                >
-                    Test PDF
-                </Button>
-                {isDirty && (
-                    <Typography variant="caption" color="warning.main">
-                        Unsaved changes
-                    </Typography>
-                )}
-                <Button
-                    startIcon={<SaveIcon />}
-                    variant="outlined"
-                    onClick={() => submit("save")}
-                    disabled={processing || !name.trim()}
-                >
-                    Save
-                </Button>
-                <Button
-                    startIcon={<PublishIcon />}
-                    variant="contained"
-                    onClick={() => setPublishOpen(true)}
-                    disabled={processing || !name.trim()}
-                >
-                    Publish
-                </Button>
-            </Paper>
+            }
+        >
+            <Head title={`Edit ${template.name}`} />
 
             <Box
                 sx={{
+                    height: "100%",
                     display: "grid",
                     gridTemplateColumns: {
-                        xs: "1fr",
-                        sm: "185px minmax(0, 1fr) 220px",
+                        xs: "170px minmax(620px, 1fr) 220px",
                         md: "210px minmax(0, 1fr) 250px",
                         xl: "230px minmax(0, 1fr) 270px",
                     },
-                    minHeight: 720,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 3,
+                    minWidth: 1010,
+                    minHeight: 0,
                     overflow: "hidden",
                     bgcolor: "background.paper",
                 }}
@@ -1072,6 +957,7 @@ export default function CertificateTemplateBuilder({
                 <Box
                     sx={{
                         minWidth: 0,
+                        minHeight: 0,
                         bgcolor: "#e9edf4",
                         display: "flex",
                         flexDirection: "column",
@@ -1085,7 +971,9 @@ export default function CertificateTemplateBuilder({
                         useFlexGap
                         flexWrap="wrap"
                         sx={{
-                            py: 1.25,
+                            minHeight: 52,
+                            flexShrink: 0,
+                            py: 0.75,
                             px: 1,
                             borderBottom: "1px solid rgba(25,37,61,.08)",
                         }}
@@ -1169,47 +1057,160 @@ export default function CertificateTemplateBuilder({
                             }
                         />
                     </Stack>
-                    <Box
-                        sx={{
-                            flex: 1,
-                            overflow: "auto",
-                            p: { xs: 3, xl: 6 },
-                            display: "grid",
-                            placeItems: "center",
-                        }}
-                    >
+                    <CertificateCanvasRulers>
                         <Box
                             sx={{
-                                width:
-                                    template.orientation === "portrait"
-                                        ? `${620 * zoom}px`
-                                        : `${960 * zoom}px`,
-                                maxWidth: "100%",
+                                height: "100%",
+                                overflow: "auto",
+                                p: { xs: 3, xl: 5 },
+                                display: "grid",
+                                placeItems: "center",
                             }}
                         >
-                            <DndContext
-                                sensors={sensors}
-                                onDragEnd={handleDragEnd}
+                            <Box
+                                sx={{
+                                    width:
+                                        template.orientation === "portrait"
+                                            ? `${620 * zoom}px`
+                                            : `${960 * zoom}px`,
+                                    maxWidth: "100%",
+                                }}
                             >
-                                <CertificateCanvas
-                                    ref={canvasRef}
-                                    layout={layout}
-                                    widthMm={widthMm}
-                                    heightMm={heightMm}
-                                    selectedId={selectedId}
-                                    interactive
-                                    onSelect={(elementId) => {
-                                        setSelectedId(elementId);
-                                        if (elementId) {
-                                            setRightTab("elements");
-                                        }
-                                    }}
-                                    sampleProfile={sampleProfile}
-                                    showSafeArea={showSafeArea}
-                                />
-                            </DndContext>
+                                <DndContext
+                                    sensors={sensors}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    <CertificateCanvas
+                                        ref={canvasRef}
+                                        layout={layout}
+                                        widthMm={widthMm}
+                                        heightMm={heightMm}
+                                        selectedId={selectedId}
+                                        interactive
+                                        onSelect={(elementId) => {
+                                            setSelectedId(elementId);
+                                            if (elementId) {
+                                                setRightTab("elements");
+                                            }
+                                        }}
+                                        sampleProfile={sampleProfile}
+                                        showSafeArea={showSafeArea}
+                                    />
+                                </DndContext>
+                            </Box>
                         </Box>
-                    </Box>
+                    </CertificateCanvasRulers>
+                    <Paper
+                        square
+                        elevation={0}
+                        sx={{
+                            minHeight: 56,
+                            flexShrink: 0,
+                            px: 1.25,
+                            py: 0.75,
+                            borderTop: "1px solid",
+                            borderColor: "divider",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.75,
+                            overflowX: "auto",
+                        }}
+                    >
+                        <TextField
+                            variant="standard"
+                            value={name}
+                            onChange={(event) => setName(event.target.value)}
+                            inputProps={{ "aria-label": "Template name" }}
+                            sx={{ minWidth: 170, flex: "1 1 210px" }}
+                        />
+                        <Chip
+                            label={template.status}
+                            size="small"
+                            color={
+                                template.status === "published"
+                                    ? "success"
+                                    : "default"
+                            }
+                            sx={{ textTransform: "capitalize" }}
+                        />
+                        {isDirty && (
+                            <Typography
+                                variant="caption"
+                                color="warning.main"
+                                noWrap
+                            >
+                                Unsaved changes
+                            </Typography>
+                        )}
+                        <ButtonGroup size="small" variant="outlined">
+                            <Tooltip title="Undo">
+                                <span>
+                                    <IconButton
+                                        onClick={undo}
+                                        disabled={!past.length}
+                                    >
+                                        <UndoIcon fontSize="small" />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                            <Tooltip title="Redo">
+                                <span>
+                                    <IconButton
+                                        onClick={redo}
+                                        disabled={!future.length}
+                                    >
+                                        <RedoIcon fontSize="small" />
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        </ButtonGroup>
+                        <Tooltip title="Duplicate selected element">
+                            <span>
+                                <IconButton
+                                    size="small"
+                                    onClick={duplicateSelected}
+                                    disabled={!selected}
+                                >
+                                    <ContentCopyIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+                        <Button
+                            size="small"
+                            startIcon={<PreviewIcon />}
+                            color="inherit"
+                            onClick={() => setPreviewOpen(true)}
+                        >
+                            Preview
+                        </Button>
+                        <Tooltip title="Download test PDF">
+                            <IconButton
+                                size="small"
+                                onClick={() => openPdfPreview(true)}
+                                disabled={processing}
+                            >
+                                <DownloadOutlinedIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        <Button
+                            size="small"
+                            startIcon={<SaveIcon />}
+                            variant="outlined"
+                            onClick={() => submit("save")}
+                            disabled={processing || !name.trim()}
+                        >
+                            Save
+                        </Button>
+                        <Button
+                            size="small"
+                            startIcon={<PublishIcon />}
+                            variant="contained"
+                            onClick={() => setPublishOpen(true)}
+                            disabled={processing || !name.trim()}
+                        >
+                            Publish
+                        </Button>
+                    </Paper>
                 </Box>
 
                 <Box
@@ -1219,8 +1220,8 @@ export default function CertificateTemplateBuilder({
                         borderTop: { xs: "1px solid", sm: 0 },
                         borderColor: "divider",
                         minWidth: 0,
+                        height: "100%",
                         bgcolor: "#f5f7fb",
-                        maxHeight: { sm: "calc(100vh - 190px)" },
                         overflowY: "auto",
                     }}
                 >
@@ -2704,6 +2705,6 @@ export default function CertificateTemplateBuilder({
                     </Button>
                 </DialogActions>
             </Dialog>
-        </DashboardLayout>
+        </CertificateBuilderWorkspace>
     );
 }
