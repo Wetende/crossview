@@ -340,7 +340,7 @@ class Certificate(TimeStampedModel):
 
 
 class CertificateEligibility(TimeStampedModel):
-    """Eligibility queue entry for manual admin certificate release."""
+    """Automatic issuance audit record and manual recovery queue entry."""
 
     STATUS_CHOICES = [
         ("pending", "Pending Release"),

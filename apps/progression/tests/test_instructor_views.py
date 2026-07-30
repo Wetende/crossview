@@ -5,6 +5,7 @@ Requirements: All instructor dashboard functionality
 
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -370,16 +371,20 @@ class TestInstructorGradebook:
             is_published=False,
         )
 
-        response = client.post(
-            reverse(
-                "progression:instructor.gradebook.publish",
-                kwargs={"pk": assignment.program.id},
+        with patch(
+            "apps.certifications.services.CertificateEligibilityService.issue_if_eligible"
+        ) as issue_if_eligible:
+            response = client.post(
+                reverse(
+                    "progression:instructor.gradebook.publish",
+                    kwargs={"pk": assignment.program.id},
+                )
             )
-        )
 
         assert response.status_code == 302
         result.refresh_from_db()
         assert result.is_published is True
+        issue_if_eligible.assert_called_once()
 
 
 @pytest.mark.django_db

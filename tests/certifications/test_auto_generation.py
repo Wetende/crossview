@@ -1,4 +1,4 @@
-"""Tests for certificate eligibility queue and manual release workflow."""
+"""Tests for automatic certificate issuance and its recovery queue."""
 
 from uuid import uuid4
 from unittest.mock import patch
@@ -131,10 +131,19 @@ def _create_competency_enrollment_with_result(*, certificate_enabled: bool = Tru
 
 
 @pytest.mark.django_db
-def test_program_completion_creates_pending_eligibility_when_requirements_met():
+@patch("apps.certifications.services.TemplateGenerator.generate")
+def test_program_completion_automatically_issues_when_requirements_met(
+    mock_generate,
+):
+    mock_generate.return_value = "certificates/test-automatic.pdf"
     enrollment = _create_enrollment_with_result(
         certificate_enabled=True,
         total=82.0,
+    )
+    CertificateTemplate.objects.create(
+        name="Default Template",
+        template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
+        is_default=True,
     )
 
     engine = CertificationEngine()
@@ -145,8 +154,72 @@ def test_program_completion_creates_pending_eligibility_when_requirements_met():
         record = engine.on_program_completed(enrollment)
 
     assert isinstance(record, CertificateEligibility)
-    assert record.status == "pending"
-    assert Certificate.objects.filter(enrollment=enrollment).exists() is False
+    assert record.status == "released"
+    assert record.certificate is not None
+    assert record.reviewed_by is None
+    assert "Automatically issued" in record.release_notes
+    assert Certificate.objects.filter(enrollment=enrollment).count() == 1
+
+
+@pytest.mark.django_db
+@patch("apps.certifications.services.TemplateGenerator.generate")
+def test_automatic_issuance_is_idempotent(mock_generate):
+    mock_generate.return_value = "certificates/test-idempotent.pdf"
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=True,
+        total=86.0,
+    )
+    CertificateTemplate.objects.create(
+        name="Default Template",
+        template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
+        is_default=True,
+    )
+    service = CertificateEligibilityService()
+
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        first = service.issue_if_eligible(enrollment)
+        second = service.issue_if_eligible(enrollment)
+
+    assert first.status == "released"
+    assert second.status == "released"
+    assert first.certificate_id == second.certificate_id
+    assert Certificate.objects.filter(enrollment=enrollment).count() == 1
+    assert mock_generate.call_count == 1
+
+
+@pytest.mark.django_db
+@patch("apps.certifications.services.TemplateGenerator.generate")
+def test_failed_automatic_render_stays_pending_and_retries_once(mock_generate):
+    mock_generate.side_effect = RuntimeError("renderer unavailable")
+    enrollment = _create_enrollment_with_result(
+        certificate_enabled=True,
+        total=91.0,
+    )
+    CertificateTemplate.objects.create(
+        name="Default Template",
+        template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
+        is_default=True,
+    )
+    service = CertificateEligibilityService()
+
+    with patch(
+        "apps.progression.services.ProgressionEngine.calculate_progress",
+        return_value=100.0,
+    ):
+        pending = service.issue_if_eligible(enrollment)
+        mock_generate.side_effect = None
+        mock_generate.return_value = "certificates/test-retry.pdf"
+        released = service.issue_if_eligible(enrollment)
+
+    assert pending.status == "pending"
+    assert "renderer unavailable" in pending.release_notes
+    assert released.status == "released"
+    assert released.certificate is not None
+    assert Certificate.objects.filter(enrollment=enrollment).count() == 1
+    assert mock_generate.call_count == 2
 
 
 @pytest.mark.django_db
@@ -231,10 +304,17 @@ def test_admin_release_creates_certificate_once(mock_generate):
 
 
 @pytest.mark.django_db
-def test_completion_signal_refreshes_queue_without_auto_issuing_certificate():
+@patch("apps.certifications.services.TemplateGenerator.generate")
+def test_completion_signal_automatically_issues_certificate(mock_generate):
+    mock_generate.return_value = "certificates/test-signal.pdf"
     enrollment = _create_enrollment_with_result(
         certificate_enabled=True,
         total=79.0,
+    )
+    CertificateTemplate.objects.create(
+        name="Default Template",
+        template_html="{{student_name}} {{program_title}} {{completion_date}} {{serial_number}}",
+        is_default=True,
     )
 
     with patch(
@@ -245,8 +325,9 @@ def test_completion_signal_refreshes_queue_without_auto_issuing_certificate():
 
     queue = CertificateEligibility.objects.filter(enrollment=enrollment).first()
     assert queue is not None
-    assert queue.status == "pending"
-    assert Certificate.objects.filter(enrollment=enrollment).exists() is False
+    assert queue.status == "released"
+    assert queue.certificate is not None
+    assert Certificate.objects.filter(enrollment=enrollment).count() == 1
 
 
 @pytest.mark.django_db

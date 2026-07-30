@@ -331,10 +331,14 @@ def admin_certificate_refresh_queue(request):
 
     refreshed = 0
     for enrollment in enrollments:
-        service.refresh_enrollment(enrollment)
+        service.issue_if_eligible(enrollment)
         refreshed += 1
 
-    messages.success(request, f"Certificate eligibility refreshed for {refreshed} enrollments")
+    messages.success(
+        request,
+        f"Certificate eligibility refreshed for {refreshed} enrollments; "
+        "eligible certificates were issued automatically.",
+    )
     return redirect("certifications:admin.certificates")
 
 

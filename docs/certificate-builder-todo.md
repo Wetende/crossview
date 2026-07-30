@@ -128,6 +128,11 @@
 
 ## Milestone 6 — Issuance, download and verification
 
+- [x] Automatically issue exactly one certificate when course completion,
+      progress, grade and certificate-configuration requirements are satisfied.
+- [x] Recheck issuance when a final grade is published after course completion.
+- [x] Keep failed PDF renders pending for administrator retry without blocking
+      learner completion.
 - [x] Issue certificates from a published version snapshot.
 - [x] Store a non-guessable verification identifier.
 - [x] Add authenticated certificate download with object-level authorization.
@@ -139,6 +144,10 @@
 
 ### Test checkpoint
 
+- [x] A qualifying completion issues a certificate without an administrator
+      release step.
+- [x] Repeated completion/refresh events do not create duplicate certificates.
+- [x] A rendering failure remains pending and succeeds on a later retry.
 - [x] A qualifying learner can download the issued PDF.
 - [x] Another learner cannot access that PDF by changing an identifier.
 - [x] Public verification reports valid, revoked and unknown certificates.

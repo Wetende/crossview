@@ -3285,10 +3285,11 @@ def instructor_gradebook_publish(request, pk: int):
 
     if enrollment_ids:
         enrollments = Enrollment.objects.filter(id__in=enrollment_ids).select_related(
-            "user", "program"
+            "user", "program", "program__blueprint"
         )
         for enrollment in enrollments:
             NotificationService.notify_grade_published(enrollment)
+            eligibility_service.issue_if_eligible(enrollment)
 
     return redirect("progression:instructor.gradebook", pk=pk)
 

@@ -111,7 +111,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
   };
 
   const queueStatusLabel = (status) => {
-    if (status === 'pending') return 'Pending Release';
+    if (status === 'pending') return 'Pending Issuance';
     if (status === 'released') return 'Released';
     if (status === 'ineligible') return 'Ineligible';
     return 'Unknown';
@@ -119,16 +119,17 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
 
   return (
     <DashboardLayout role="admin">
-      <Head title="Certificates Management" />
+      <Head title="Certificates" />
       
       <Stack spacing={3}>
         {/* Header */}
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Certificates Management
+            Certificates
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage certificate eligibility and admin releases
+            Review automatically issued certificates and retry anything awaiting
+            recovery.
           </Typography>
         </Box>
 
@@ -144,13 +145,13 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
             onClick={handleRefreshQueue}
             disabled={refreshingQueue}
           >
-            {refreshingQueue ? 'Refreshing...' : 'Refresh Eligibility Queue'}
+            {refreshingQueue ? 'Retrying...' : 'Retry Pending Issuance'}
           </Button>
         </Stack>
 
         {/* Stats Cards */}
         <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -164,7 +165,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -178,7 +179,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -192,14 +193,14 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
               <StatCard
-                title="Pending Queue"
+                title="Pending Issuance"
                 value={stats.pendingQueue || 0}
                 icon={HourglassEmptyIcon}
                 color="warning"
@@ -240,7 +241,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                   <TableCell>Student</TableCell>
                   <TableCell>Program</TableCell>
                   <TableCell>Issued Date</TableCell>
-                  <TableCell>Queue Status</TableCell>
+                  <TableCell>Issuance Status</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -309,7 +310,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                       <TableCell align="right">
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                           {cert.canRelease && (
-                            <Tooltip title="Release Certificate">
+                            <Tooltip title="Retry Certificate Issuance">
                               <span>
                                 <IconButton
                                   size="small"

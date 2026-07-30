@@ -2,6 +2,7 @@
 Certification services - Template generation, serial numbers, verification.
 Requirements: 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3
 """
+import logging
 import os
 import random
 import string
@@ -27,6 +28,9 @@ from .models import (
 )
 from .assignments import resolve_certificate_template
 from .rendering import render_layout_pdf
+
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateValidationError(Exception):
@@ -409,7 +413,7 @@ class CertificationEngine:
         Returns:
             Eligibility queue record when refreshed, else None
         """
-        return CertificateEligibilityService().refresh_enrollment(enrollment)
+        return CertificateEligibilityService().issue_if_eligible(enrollment)
 
     def get_certificate_for_download(self, certificate: Certificate) -> str:
         """
@@ -462,7 +466,9 @@ class CertificationEngine:
 
 
 class CertificateEligibilityService:
-    """Compute, queue, and release certificate eligibility records."""
+    """Compute eligibility, issue automatically, and retain a recovery queue."""
+
+    AUTOMATIC_RELEASE_NOTE = "Automatically issued after course completion."
 
     def _get_program_result(self, enrollment):
         from apps.assessments.models import AssessmentResult
@@ -592,6 +598,81 @@ class CertificateEligibilityService:
                 records.append(record)
         return records
 
+    @staticmethod
+    def _mark_released(
+        eligibility: CertificateEligibility,
+        certificate: Certificate,
+        *,
+        reviewed_by=None,
+        notes: str = "",
+    ) -> CertificateEligibility:
+        eligibility.status = "released"
+        eligibility.certificate = certificate
+        eligibility.reviewed_by = reviewed_by
+        eligibility.released_at = timezone.now()
+        eligibility.release_notes = notes
+        if not eligibility.eligible_at:
+            eligibility.eligible_at = eligibility.released_at
+        eligibility.save()
+        return eligibility
+
+    @transaction.atomic
+    def issue_if_eligible(
+        self,
+        enrollment,
+    ) -> Optional[CertificateEligibility]:
+        """Issue one certificate automatically when the enrollment is eligible.
+
+        A pending queue record is retained when PDF generation cannot complete,
+        allowing the existing administrator release action to retry safely.
+        """
+        eligibility = self.refresh_enrollment(enrollment)
+        if eligibility is None or eligibility.status != "pending":
+            return eligibility
+
+        eligibility = (
+            CertificateEligibility.objects.select_for_update()
+            .select_related(
+                "enrollment",
+                "enrollment__program",
+                "enrollment__program__blueprint",
+                "enrollment__user",
+                "certificate",
+            )
+            .get(pk=eligibility.pk)
+        )
+        if eligibility.status != "pending":
+            return eligibility
+
+        existing_certificate = Certificate.objects.filter(
+            enrollment=eligibility.enrollment
+        ).first()
+        try:
+            with transaction.atomic():
+                certificate = (
+                    existing_certificate
+                    or CertificationEngine().generate_certificate(
+                        eligibility.enrollment
+                    )
+                )
+        except Exception as exc:
+            eligibility.release_notes = (
+                f"Automatic issuance pending: {str(exc) or exc.__class__.__name__}"
+            )[:1000]
+            eligibility.save(update_fields=["release_notes", "updated_at"])
+            logger.exception(
+                "Automatic certificate issuance failed for enrollment_id=%s; "
+                "the recovery queue remains pending",
+                eligibility.enrollment_id,
+            )
+            return eligibility
+
+        return self._mark_released(
+            eligibility,
+            certificate,
+            notes=self.AUTOMATIC_RELEASE_NOTE,
+        )
+
     @transaction.atomic
     def release(self, eligibility: CertificateEligibility, approved_by, notes: str = "") -> Certificate:
         eligibility = CertificateEligibility.objects.select_for_update().select_related(
@@ -616,14 +697,11 @@ class CertificateEligibilityService:
         else:
             certificate = CertificationEngine().generate_certificate(eligibility.enrollment)
 
-        eligibility.status = "released"
-        eligibility.certificate = certificate
-        eligibility.reviewed_by = approved_by
-        eligibility.released_at = timezone.now()
-        if notes:
-            eligibility.release_notes = notes
-        if not eligibility.eligible_at:
-            eligibility.eligible_at = eligibility.released_at
-        eligibility.save()
+        self._mark_released(
+            eligibility,
+            certificate,
+            reviewed_by=approved_by,
+            notes=notes,
+        )
 
         return certificate
