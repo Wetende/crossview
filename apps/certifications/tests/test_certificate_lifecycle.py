@@ -13,6 +13,7 @@ from apps.certifications.assignments import (
 from apps.certifications.models import Certificate, CertificateTemplate
 from apps.certifications.services import CertificationEngine
 from apps.core.models import Program, User
+from apps.core.views import serialize_program_data
 from apps.progression.models import Enrollment
 
 
@@ -95,6 +96,36 @@ def test_assignment_precedence_is_course_then_category_then_default(
     )
     assert resolve_certificate_template(program).version == course
     assert resolve_certificate_template(program).source == "course"
+
+
+def test_course_builder_exposes_the_effective_inherited_template(
+    staff_user,
+    program,
+):
+    category = published_version("Elegant Teal")
+    course = published_version("Modern Blue")
+    set_category_assignment(
+        category=program.category,
+        version=category,
+        user=staff_user,
+    )
+    set_course_assignment(
+        program=program,
+        version=course,
+        issue_enabled=True,
+        user=staff_user,
+    )
+
+    certificate_data = serialize_program_data(program)["program"][
+        "courseCertificate"
+    ]
+
+    assert certificate_data["templateVersionId"] == course.id
+    assert certificate_data["templateName"] == "Modern Blue"
+    assert certificate_data["source"] == "course"
+    assert certificate_data["inheritedTemplateVersionId"] == category.id
+    assert certificate_data["inheritedTemplateName"] == "Elegant Teal"
+    assert certificate_data["inheritedSource"] == "category"
 
 
 def test_course_can_disable_inherited_certificate(staff_user, program):

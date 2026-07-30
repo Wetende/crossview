@@ -82,6 +82,11 @@ def resolve_certificate_template(program) -> ResolvedCertificateTemplate:
                 True,
             )
 
+    return resolve_inherited_certificate_template(program)
+
+
+def resolve_inherited_certificate_template(program) -> ResolvedCertificateTemplate:
+    """Resolve the category or system certificate without a course override."""
     if program.category:
         category_assignment = (
             CertificateTemplateAssignment.objects.filter(

@@ -115,6 +115,9 @@
   2. category-specific template;
   3. organization default template.
 - [x] Add certificate selection to the course builder.
+- [x] Show published certificates as visual course-builder thumbnails with a
+      selected state and non-destructive preview dialog.
+- [x] Preview the inherited category/system design on the default tile.
 - [x] Allow eligible instructors to create or choose a certificate.
 - [x] Preserve existing blueprint/eligibility rules.
 - [x] Show which assignment rule selected the effective certificate.

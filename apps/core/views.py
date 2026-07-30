@@ -6065,10 +6065,12 @@ def serialize_program_data(program):
     from apps.certifications.assignments import (
         published_template_versions,
         resolve_certificate_template,
+        resolve_inherited_certificate_template,
         serialize_assignment,
     )
 
     resolved_certificate = resolve_certificate_template(program)
+    inherited_certificate = resolve_inherited_certificate_template(program)
     course_certificate_assignment = getattr(
         program,
         "certificate_assignment",
@@ -6135,6 +6137,17 @@ def serialize_program_data(program):
                     if resolved_certificate.template
                     else None
                 ),
+                "inheritedTemplateVersionId": (
+                    inherited_certificate.version.id
+                    if inherited_certificate.version
+                    else None
+                ),
+                "inheritedTemplateName": (
+                    inherited_certificate.template.name
+                    if inherited_certificate.template
+                    else None
+                ),
+                "inheritedSource": inherited_certificate.source,
                 "source": resolved_certificate.source,
                 "assignment": (
                     serialize_assignment(course_certificate_assignment)

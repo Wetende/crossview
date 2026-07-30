@@ -50,7 +50,7 @@ import AutosaveStatus from "./AutosaveStatus";
 import useAutosave from "../hooks/useAutosave";
 import { SETTINGS_SECTIONS } from "../utils/builderTabs";
 import EngagementEditor from "./EngagementEditor";
-import CertificateCanvas from "@/features/certifications/components/CertificateCanvas";
+import CertificateTemplateSelector from "@/features/certifications/components/CertificateTemplateSelector";
 
 const SETTINGS_SECTION_ICONS = {
     main: MainIcon,
@@ -1165,68 +1165,24 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     }
                     label="Issue a certificate upon completion"
                 />
-                <FormControl
-                    fullWidth
+                <CertificateTemplateSelector
+                    templates={program.certificateTemplates || []}
+                    value={formData.certificate_template_version_id}
+                    defaultTemplateVersionId={
+                        program.courseCertificate?.inheritedTemplateVersionId
+                    }
+                    defaultTemplateName={
+                        program.courseCertificate?.inheritedTemplateName
+                    }
+                    defaultSource={program.courseCertificate?.inheritedSource}
                     disabled={!formData.certificate_issue_enabled}
-                >
-                    <InputLabel>Certificate</InputLabel>
-                    <Select
-                        label="Certificate"
-                        value={formData.certificate_template_version_id}
-                        onChange={(event) =>
-                            setData(
-                                "certificate_template_version_id",
-                                event.target.value,
-                            )
-                        }
-                    >
-                        <MenuItem value="">
-                            Default by system
-                        </MenuItem>
-                        {(program.certificateTemplates || []).map((template) => (
-                            <MenuItem
-                                key={template.templateVersionId}
-                                value={template.templateVersionId}
-                            >
-                                {template.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                {formData.certificate_template_version_id &&
-                    (() => {
-                        const selectedTemplate = (
-                            program.certificateTemplates || []
-                        ).find(
-                            (template) =>
-                                template.templateVersionId ===
-                                formData.certificate_template_version_id,
-                        );
-                        return selectedTemplate ? (
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    p: 2,
-                                    bgcolor: "#eef1f7",
-                                    display: "grid",
-                                    placeItems: "center",
-                                }}
-                            >
-                                <CertificateCanvas
-                                    layout={selectedTemplate.layout}
-                                    widthMm={selectedTemplate.widthMm}
-                                    heightMm={selectedTemplate.heightMm}
-                                    sx={{
-                                        width:
-                                            selectedTemplate.orientation ===
-                                            "portrait"
-                                                ? "42%"
-                                                : "78%",
-                                    }}
-                                />
-                            </Paper>
-                        ) : null;
-                    })()}
+                    onChange={(templateVersionId) =>
+                        setData(
+                            "certificate_template_version_id",
+                            templateVersionId,
+                        )
+                    }
+                />
             </Stack>,
         );
 
