@@ -242,6 +242,54 @@ def test_layout_validation_preserves_bounded_text_fitting_and_asset_styles():
     }
 
 
+def test_shape_variants_are_normalized_and_rendered():
+    layout = validate_layout(
+        {
+            "elements": [
+                {
+                    "id": "circle",
+                    "type": "shape",
+                    "shape": "circle",
+                    "x": 10,
+                    "y": 10,
+                    "width": 24,
+                    "height": 24,
+                    "styles": {
+                        "fill": "#3157d5",
+                        "stroke": "#172033",
+                        "strokeWidth": 2,
+                    },
+                },
+                {
+                    "id": "invalid-shape",
+                    "type": "shape",
+                    "shape": "triangle",
+                    "x": 40,
+                    "y": 10,
+                    "width": 30,
+                    "height": 20,
+                    "styles": {},
+                },
+            ]
+        },
+        width_mm=297,
+        height_mm=210,
+    )
+
+    assert layout["elements"][0]["shape"] == "circle"
+    assert layout["elements"][1]["shape"] == "rectangle"
+
+    document = layout_to_html(
+        layout=layout,
+        width_mm=297,
+        height_mm=210,
+        data={},
+    )
+
+    assert "border-radius:50%" in document
+    assert "border-radius:0.0px" in document
+
+
 def test_long_multilingual_text_shrinks_and_renders_with_matching_font_size():
     element = {
         "id": "student",

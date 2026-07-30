@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Box, Typography } from "@mui/material";
+import { QRCodeSVG } from "qrcode.react";
 
 import {
     certificateSampleContent,
@@ -141,24 +142,39 @@ function CanvasElement({
     }
 
     if (element.type === "qr_code") {
+        const qrValue = certificateSampleContent(
+            "{{verification_url}}",
+            sampleProfile,
+        );
         return (
             <Box
                 {...common}
                 sx={{
                     ...common.sx,
-                    background: `repeating-conic-gradient(${
-                        element.styles?.foreground || "#172033"
-                    } 0 25%, ${
-                        element.styles?.background || "#ffffff"
-                    } 0 50%) 50% / 8px 8px`,
+                    bgcolor: element.styles?.background || "#ffffff",
                     border: `${element.styles?.borderWidth || 0}px solid ${
                         element.styles?.borderColor || "transparent"
                     }`,
-                    boxShadow: `inset 0 0 0 ${
-                        element.styles?.padding ?? 1.5
-                    }mm ${element.styles?.background || "#ffffff"}`,
+                    boxSizing: "border-box",
+                    p: `${element.styles?.padding ?? 1.5}mm`,
                 }}
-            />
+            >
+                <QRCodeSVG
+                    value={qrValue}
+                    size={256}
+                    level={element.styles?.errorCorrection || "M"}
+                    bgColor={element.styles?.background || "#ffffff"}
+                    fgColor={element.styles?.foreground || "#172033"}
+                    marginSize={0}
+                    title="Certificate verification QR code"
+                    style={{
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                        pointerEvents: "none",
+                    }}
+                />
+            </Box>
         );
     }
 

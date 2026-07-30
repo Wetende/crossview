@@ -434,6 +434,11 @@ def validate_layout(layout: dict, *, width_mm, height_mm) -> dict:
                 "styles": styles,
             }
         )
+        if element_type == "shape":
+            shape = str(raw.get("shape") or "rectangle")
+            normalized["shape"] = (
+                shape if shape in {"rectangle", "circle"} else "rectangle"
+            )
         normalized_elements.append(normalized)
 
     background = layout.get("background")

@@ -71,18 +71,46 @@ import { getCsrfHeaders } from "@/utils/csrf";
 
 const ELEMENT_LIBRARY = [
     {
-        group: "Design",
+        group: "Certificate",
         type: "text",
         label: "Text",
         icon: TextFieldsIcon,
         content: "Your text",
     },
     {
-        group: "Design",
+        group: "Certificate",
         type: "image",
-        label: "Image / logo",
+        label: "Image",
         icon: ImageOutlinedIcon,
         content: "",
+    },
+    {
+        group: "Certificate",
+        type: "shape",
+        label: "Shape",
+        icon: ShapeLineIcon,
+        content: "",
+    },
+    {
+        group: "Certificate",
+        type: "dynamic_text",
+        label: "Certificate code",
+        icon: FingerprintIcon,
+        content: "{{serial_number}}",
+    },
+    {
+        group: "Certificate",
+        type: "qr_code",
+        label: "QR-Code",
+        icon: QrCode2Icon,
+        content: "",
+    },
+    {
+        group: "Certificate",
+        type: "dynamic_text",
+        label: "Current date",
+        icon: CalendarMonthIcon,
+        content: "{{issue_date}}",
     },
     {
         group: "Design",
@@ -103,13 +131,6 @@ const ELEMENT_LIBRARY = [
         type: "image",
         label: "Decorative pattern",
         icon: ImageOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "shape",
-        label: "Shape",
-        icon: ShapeLineIcon,
         content: "",
     },
     {
@@ -238,35 +259,14 @@ const ELEMENT_LIBRARY = [
         content: "{{completion_date}}",
     },
     {
-        group: "Certificate",
-        type: "dynamic_text",
-        label: "Issue date",
-        icon: CalendarMonthIcon,
-        content: "{{issue_date}}",
-    },
-    {
-        group: "Certificate",
-        type: "dynamic_text",
-        label: "Certificate code",
-        icon: FingerprintIcon,
-        content: "{{serial_number}}",
-    },
-    {
-        group: "Certificate",
+        group: "Verification",
         type: "dynamic_text",
         label: "Verification code",
         icon: FingerprintIcon,
         content: "{{verification_code}}",
     },
     {
-        group: "Certificate",
-        type: "qr_code",
-        label: "QR code",
-        icon: QrCode2Icon,
-        content: "",
-    },
-    {
-        group: "Certificate",
+        group: "Verification",
         type: "dynamic_text",
         label: "Verification URL",
         icon: QrCode2Icon,
@@ -385,6 +385,7 @@ function makeElement(definition, widthMm, heightMm, index) {
                   fill: "#3157d5",
                   stroke: "transparent",
                   strokeWidth: 1,
+                  borderRadius: 0,
                   opacity: 1,
               }
             : definition.type === "line"
@@ -426,7 +427,7 @@ function makeElement(definition, widthMm, heightMm, index) {
     };
 }
 
-function PaletteButton({ item, onAdd }) {
+function PaletteButton({ item, onAdd, compact = false }) {
     const Icon = item.icon;
     return (
         <Button
@@ -434,11 +435,16 @@ function PaletteButton({ item, onAdd }) {
             onClick={() => onAdd(item)}
             sx={{
                 justifyContent: "flex-start",
-                px: 1.5,
-                py: 1.25,
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: "background.paper",
+                minHeight: compact ? 36 : undefined,
+                px: compact ? 0.75 : 1.5,
+                py: compact ? 0.5 : 1.25,
+                border: compact ? 0 : "1px solid",
+                borderColor: compact ? "transparent" : "divider",
+                bgcolor: compact ? "transparent" : "background.paper",
+                fontWeight: compact ? 600 : undefined,
+                "&:hover": {
+                    bgcolor: compact ? "action.hover" : undefined,
+                },
             }}
             startIcon={<Icon fontSize="small" />}
         >
@@ -2473,51 +2479,167 @@ export default function CertificateTemplateBuilder({
                                 </Stack>
                             )}
                             {selected.type === "shape" && (
-                                <Stack direction="row" spacing={1}>
-                                    <TextField
-                                        type="color"
-                                        size="small"
-                                        label="Fill colour"
-                                        value={
-                                            selected.styles?.fill ===
-                                            "transparent"
-                                                ? "#ffffff"
-                                                : selected.styles?.fill ||
-                                                  "#3157d5"
-                                        }
-                                        onChange={(event) =>
-                                            updateSelectedStyle(
-                                                "fill",
-                                                event.target.value,
-                                            )
-                                        }
-                                        InputLabelProps={{ shrink: true }}
-                                    />
-                                    <TextField
-                                        type="number"
-                                        size="small"
-                                        label="Opacity"
-                                        value={selected.styles?.opacity ?? 1}
-                                        inputProps={{
-                                            min: 0,
-                                            max: 1,
-                                            step: 0.05,
-                                        }}
-                                        onChange={(event) =>
-                                            updateSelectedStyle(
-                                                "opacity",
-                                                Math.max(
-                                                    0,
-                                                    Math.min(
-                                                        1,
+                                <Stack spacing={1}>
+                                    <FormControl size="small" fullWidth>
+                                        <InputLabel>Shape</InputLabel>
+                                        <Select
+                                            label="Shape"
+                                            value={
+                                                selected.shape || "rectangle"
+                                            }
+                                            onChange={(event) => {
+                                                const shape =
+                                                    event.target.value;
+                                                const size = Math.min(
+                                                    selected.width,
+                                                    selected.height,
+                                                );
+                                                updateSelected({
+                                                    shape,
+                                                    ...(shape === "circle"
+                                                        ? {
+                                                              width: size,
+                                                              height: size,
+                                                          }
+                                                        : {}),
+                                                });
+                                            }}
+                                        >
+                                            <MenuItem value="rectangle">
+                                                Rectangle
+                                            </MenuItem>
+                                            <MenuItem value="circle">
+                                                Circle
+                                            </MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    <Stack direction="row" spacing={1}>
+                                        <TextField
+                                            type="color"
+                                            size="small"
+                                            fullWidth
+                                            label="Fill"
+                                            value={
+                                                selected.styles?.fill ===
+                                                "transparent"
+                                                    ? "#ffffff"
+                                                    : selected.styles?.fill ||
+                                                      "#3157d5"
+                                            }
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "fill",
+                                                    event.target.value,
+                                                )
+                                            }
+                                            InputLabelProps={{ shrink: true }}
+                                        />
+                                        <TextField
+                                            type="color"
+                                            size="small"
+                                            fullWidth
+                                            label="Outline"
+                                            value={
+                                                selected.styles?.stroke ===
+                                                "transparent"
+                                                    ? "#3157d5"
+                                                    : selected.styles?.stroke ||
+                                                      "#3157d5"
+                                            }
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "stroke",
+                                                    event.target.value,
+                                                )
+                                            }
+                                            InputLabelProps={{ shrink: true }}
+                                        />
+                                    </Stack>
+                                    <Stack direction="row" spacing={1}>
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            fullWidth
+                                            label="Outline width"
+                                            value={
+                                                selected.styles?.strokeWidth ??
+                                                1
+                                            }
+                                            inputProps={{
+                                                min: 0,
+                                                max: 20,
+                                                step: 0.5,
+                                            }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "strokeWidth",
+                                                    Math.max(
+                                                        0,
                                                         Number(
                                                             event.target.value,
                                                         ),
                                                     ),
-                                                ),
-                                            )
-                                        }
-                                    />
+                                                )
+                                            }
+                                        />
+                                        {selected.shape !== "circle" && (
+                                            <TextField
+                                                type="number"
+                                                size="small"
+                                                fullWidth
+                                                label="Corner radius"
+                                                value={
+                                                    selected.styles
+                                                        ?.borderRadius ?? 0
+                                                }
+                                                inputProps={{
+                                                    min: 0,
+                                                    max: 100,
+                                                }}
+                                                onChange={(event) =>
+                                                    updateSelectedStyle(
+                                                        "borderRadius",
+                                                        Math.max(
+                                                            0,
+                                                            Number(
+                                                                event.target
+                                                                    .value,
+                                                            ),
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                        )}
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            fullWidth
+                                            label="Opacity"
+                                            value={
+                                                selected.styles?.opacity ?? 1
+                                            }
+                                            inputProps={{
+                                                min: 0,
+                                                max: 1,
+                                                step: 0.05,
+                                            }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "opacity",
+                                                    Math.max(
+                                                        0,
+                                                        Math.min(
+                                                            1,
+                                                            Number(
+                                                                event.target
+                                                                    .value,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </Stack>
                                 </Stack>
                             )}
                             <Divider />
@@ -2582,6 +2704,7 @@ export default function CertificateTemplateBuilder({
                                 "Instructor",
                                 "Design",
                                 "Organisation",
+                                "Verification",
                             ].map((group) => (
                                 <Box key={group}>
                                     <Typography
@@ -2600,6 +2723,9 @@ export default function CertificateTemplateBuilder({
                                                 key={`${item.group}-${item.label}`}
                                                 item={item}
                                                 onAdd={addElement}
+                                                compact={
+                                                    group === "Certificate"
+                                                }
                                             />
                                         ))}
                                     </Stack>
