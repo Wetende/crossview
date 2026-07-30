@@ -81,7 +81,9 @@ function TemplateTile({
                         heightMm={template.heightMm}
                         sx={{
                             width:
-                                template.orientation === "portrait" ? "49%" : "100%",
+                                template.orientation === "portrait"
+                                    ? "49%"
+                                    : "100%",
                             boxShadow: "0 8px 22px rgba(21,31,55,.12)",
                         }}
                     />
@@ -133,7 +135,11 @@ function TemplatePicker({
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
             <DialogTitle sx={{ pb: 0.5 }}>{title}</DialogTitle>
             <DialogContent>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+                <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2.5 }}
+                >
                     Select one of the options to continue
                 </Typography>
                 <Box
@@ -152,7 +158,9 @@ function TemplatePicker({
                             key={template.templateVersionId}
                             template={template}
                             selected={selected === template.templateVersionId}
-                            onClick={() => setSelected(template.templateVersionId)}
+                            onClick={() =>
+                                setSelected(template.templateVersionId)
+                            }
                             showName={false}
                         />
                     ))}
@@ -202,7 +210,9 @@ function LinkingPanel({
     programs,
 }) {
     const [picker, setPicker] = useState(null);
-    const defaultAssignment = assignments.find((item) => item.scope === "default");
+    const defaultAssignment = assignments.find(
+        (item) => item.scope === "default",
+    );
     const assignmentForCategory = (category) =>
         assignments.find(
             (item) => item.scope === "category" && item.category === category,
@@ -362,7 +372,11 @@ export default function CertificateTemplatesIndex({
             nextTab === "link"
                 ? "/admin/certificate-templates/?tab=link"
                 : "/admin/certificate-templates/";
-        window.history.replaceState({}, "", url);
+        router.visit(url, {
+            replace: true,
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     return (
@@ -413,7 +427,9 @@ export default function CertificateTemplatesIndex({
                             <TemplateTile
                                 key={template.id}
                                 template={template}
-                                onClick={() => !processing && openTemplate(template)}
+                                onClick={() =>
+                                    !processing && openTemplate(template)
+                                }
                             />
                         ))}
                     </Box>
@@ -448,7 +464,9 @@ export default function CertificateTemplatesIndex({
                             <Select
                                 label="Orientation"
                                 value={orientation}
-                                onChange={(event) => setOrientation(event.target.value)}
+                                onChange={(event) =>
+                                    setOrientation(event.target.value)
+                                }
                             >
                                 <MenuItem value="landscape">Landscape</MenuItem>
                                 <MenuItem value="portrait">Portrait</MenuItem>

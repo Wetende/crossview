@@ -1,9 +1,17 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import CertificateBuilderWorkspace, {
     CertificateCanvasRulers,
 } from "./CertificateBuilderWorkspace";
+
+vi.mock("@inertiajs/react", () => ({
+    Link: ({ children, ...props }) => (
+        <a data-inertia-link="true" {...props}>
+            {children}
+        </a>
+    ),
+}));
 
 describe("certificate builder workspace", () => {
     it("owns the viewport and returns to the certificate dashboard", () => {
@@ -25,11 +33,14 @@ describe("certificate builder workspace", () => {
         expect(screen.getByTestId("certificate-builder-header")).toHaveStyle({
             backgroundColor: "#eef2f7",
         });
-        expect(
-            screen.getByRole("link", {
-                name: "Back to certificate dashboard",
-            }),
-        ).toHaveAttribute("href", "/admin/certificate-templates/");
+        const backLink = screen.getByRole("link", {
+            name: "Back to certificate dashboard",
+        });
+        expect(backLink).toHaveAttribute("data-inertia-link", "true");
+        expect(backLink).toHaveAttribute(
+            "href",
+            "/admin/certificate-templates/",
+        );
         expect(
             screen.getByRole("main", {
                 name: "Certificate builder workspace",

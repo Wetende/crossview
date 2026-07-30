@@ -7,6 +7,7 @@ import {
     Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { Link } from "@inertiajs/react";
 
 const HORIZONTAL_RULER_MARKS = Array.from(
     { length: 17 },
@@ -141,7 +142,7 @@ export default function CertificateBuilderWorkspace({
                 <Stack direction="row" alignItems="center" spacing={0.75}>
                     <Tooltip title="Back to certificate dashboard">
                         <IconButton
-                            component="a"
+                            component={Link}
                             href={backHref}
                             size="small"
                             aria-label="Back to certificate dashboard"
