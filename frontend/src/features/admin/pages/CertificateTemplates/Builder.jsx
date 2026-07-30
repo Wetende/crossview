@@ -456,9 +456,6 @@ export default function CertificateTemplateBuilder({
     const [zoom, setZoom] = useState(0.82);
     const [rightTab, setRightTab] = useState("elements");
     const [showAdditionalFields, setShowAdditionalFields] = useState(false);
-    const [sampleProfile, setSampleProfile] = useState("standard");
-    const [showSafeArea, setShowSafeArea] = useState(true);
-    const [snapEnabled, setSnapEnabled] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
@@ -493,12 +490,12 @@ export default function CertificateTemplateBuilder({
             return null;
         }
         return fitCertificateText({
-            text: certificateSampleContent(selected.content, sampleProfile),
+            text: certificateSampleContent(selected.content, "standard"),
             element: selected,
             pageWidthMm: widthMm,
             pageHeightMm: heightMm,
         });
-    }, [heightMm, sampleProfile, selected, widthMm]);
+    }, [heightMm, selected, widthMm]);
     const selectedIsText = Boolean(
         selected && ["text", "dynamic_text"].includes(selected.type),
     );
@@ -767,19 +764,17 @@ export default function CertificateTemplateBuilder({
             heightMm - element.height,
             Math.max(0, element.y + delta.y / pixelsPerMm),
         );
-        if (snapEnabled) {
-            const snapped = snapElementPosition({
-                element,
-                x: nextX,
-                y: nextY,
-                elements: layout.elements,
-                widthMm,
-                heightMm,
-                safeAreaMm: Number(layout.safeAreaMm) || 0,
-            });
-            nextX = snapped.x;
-            nextY = snapped.y;
-        }
+        const snapped = snapElementPosition({
+            element,
+            x: nextX,
+            y: nextY,
+            elements: layout.elements,
+            widthMm,
+            heightMm,
+            safeAreaMm: Number(layout.safeAreaMm) || 0,
+        });
+        nextX = snapped.x;
+        nextY = snapped.y;
         updateSelectedPosition(element.id, nextX, nextY);
     };
 
@@ -954,8 +949,8 @@ export default function CertificateTemplateBuilder({
                                                 setRightTab("elements");
                                             }
                                         }}
-                                        sampleProfile={sampleProfile}
-                                        showSafeArea={showSafeArea}
+                                        sampleProfile="standard"
+                                        showSafeArea={false}
                                     />
                                 </DndContext>
                             </Box>
@@ -1032,81 +1027,6 @@ export default function CertificateTemplateBuilder({
                                 >
                                     <CenterFocusStrongIcon fontSize="small" />
                                 </IconButton>
-                            </Tooltip>
-                            <Divider
-                                orientation="vertical"
-                                flexItem
-                                sx={{ mx: 0.5 }}
-                            />
-                            <FormControl
-                                size="small"
-                                variant="standard"
-                                sx={{ minWidth: 112 }}
-                            >
-                                <Select
-                                    value={sampleProfile}
-                                    onChange={(event) =>
-                                        setSampleProfile(event.target.value)
-                                    }
-                                    inputProps={{
-                                        "aria-label": "Preview data",
-                                    }}
-                                >
-                                    <MenuItem value="standard">Sample</MenuItem>
-                                    <MenuItem value="stress">
-                                        Long-name test
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
-                            <Tooltip title="Show safe printing area">
-                                <FormControlLabel
-                                    sx={{ m: 0 }}
-                                    control={
-                                        <Switch
-                                            size="small"
-                                            checked={showSafeArea}
-                                            onChange={(event) =>
-                                                setShowSafeArea(
-                                                    event.target.checked,
-                                                )
-                                            }
-                                            inputProps={{
-                                                "aria-label":
-                                                    "Show safe printing area",
-                                            }}
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="caption">
-                                            Safe area
-                                        </Typography>
-                                    }
-                                />
-                            </Tooltip>
-                            <Tooltip title="Snap elements to guides">
-                                <FormControlLabel
-                                    sx={{ m: 0 }}
-                                    control={
-                                        <Switch
-                                            size="small"
-                                            checked={snapEnabled}
-                                            onChange={(event) =>
-                                                setSnapEnabled(
-                                                    event.target.checked,
-                                                )
-                                            }
-                                            inputProps={{
-                                                "aria-label":
-                                                    "Snap elements to guides",
-                                            }}
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="caption">
-                                            Snap
-                                        </Typography>
-                                    }
-                                />
                             </Tooltip>
                         </Stack>
                         <Stack
@@ -2576,7 +2496,7 @@ export default function CertificateTemplateBuilder({
                         layout={layout}
                         widthMm={widthMm}
                         heightMm={heightMm}
-                        sampleProfile={sampleProfile}
+                        sampleProfile="standard"
                         showSafeArea={false}
                         sx={{
                             width:
