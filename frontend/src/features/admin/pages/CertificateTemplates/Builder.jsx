@@ -61,6 +61,11 @@ import {
     ELEMENT_LIBRARY,
     PRIMARY_ELEMENT_GROUPS,
 } from "./certificateElementLibrary";
+import {
+    BUILDER_ZOOM,
+    fitBuilderZoom,
+    stepBuilderZoom,
+} from "./certificateBuilderViewport";
 
 const elementDisplayName = (element) => {
     if (element.name) return element.name;
@@ -448,12 +453,14 @@ export default function CertificateTemplateBuilder({
 }) {
     const widthMm = Number(template.widthMm);
     const heightMm = Number(template.heightMm);
+    const canvasBaseWidth = template.orientation === "portrait" ? 620 : 960;
+    const canvasBaseHeight = canvasBaseWidth * (heightMm / widthMm);
     const [name, setName] = useState(template.name);
     const [layout, setLayout] = useState(template.layout);
     const [selectedId, setSelectedId] = useState(null);
     const [past, setPast] = useState([]);
     const [future, setFuture] = useState([]);
-    const [zoom, setZoom] = useState(0.82);
+    const [zoom, setZoom] = useState(BUILDER_ZOOM.initial);
     const [rightTab, setRightTab] = useState("elements");
     const [showAdditionalFields, setShowAdditionalFields] = useState(false);
     const [processing, setProcessing] = useState(false);
@@ -465,6 +472,7 @@ export default function CertificateTemplateBuilder({
     const [newTemplateOrientation, setNewTemplateOrientation] =
         useState("landscape");
     const canvasRef = useRef(null);
+    const canvasViewportRef = useRef(null);
     const assetInputRef = useRef(null);
     const uploadModeRef = useRef("image");
     const uploadLayerNameRef = useRef("Image / logo");
@@ -813,6 +821,19 @@ export default function CertificateTemplateBuilder({
         );
     };
 
+    const fitCanvasToViewport = () => {
+        const viewport = canvasViewportRef.current;
+        if (!viewport) return;
+        setZoom(
+            fitBuilderZoom({
+                viewportWidth: viewport.clientWidth,
+                viewportHeight: viewport.clientHeight,
+                canvasWidth: canvasBaseWidth,
+                canvasHeight: canvasBaseHeight,
+            }),
+        );
+    };
+
     const openBuilderTemplate = (nextTemplate) => {
         if (nextTemplate.id === template.id) return;
         if (
@@ -908,51 +929,59 @@ export default function CertificateTemplateBuilder({
                     sx={{
                         minWidth: 0,
                         minHeight: 0,
-                        bgcolor: "#e9edf4",
+                        bgcolor: "#ffffff",
                         display: "flex",
                         flexDirection: "column",
                     }}
                 >
                     <CertificateCanvasRulers>
                         <Box
+                            ref={canvasViewportRef}
                             sx={{
                                 height: "100%",
                                 overflow: "auto",
-                                p: { xs: 3, xl: 5 },
-                                display: "grid",
-                                placeItems: "center",
+                                bgcolor: "#ffffff",
                             }}
                         >
                             <Box
                                 sx={{
-                                    width:
-                                        template.orientation === "portrait"
-                                            ? `${620 * zoom}px`
-                                            : `${960 * zoom}px`,
-                                    maxWidth: "100%",
+                                    boxSizing: "border-box",
+                                    width: "max-content",
+                                    minWidth: "100%",
+                                    minHeight: "100%",
+                                    p: { xs: 3, xl: 5 },
+                                    display: "grid",
+                                    placeItems: "center",
                                 }}
                             >
-                                <DndContext
-                                    sensors={sensors}
-                                    onDragEnd={handleDragEnd}
+                                <Box
+                                    sx={{
+                                        width: `${canvasBaseWidth * zoom}px`,
+                                        flex: "0 0 auto",
+                                    }}
                                 >
-                                    <CertificateCanvas
-                                        ref={canvasRef}
-                                        layout={layout}
-                                        widthMm={widthMm}
-                                        heightMm={heightMm}
-                                        selectedId={selectedId}
-                                        interactive
-                                        onSelect={(elementId) => {
-                                            setSelectedId(elementId);
-                                            if (elementId) {
-                                                setRightTab("elements");
-                                            }
-                                        }}
-                                        sampleProfile="standard"
-                                        showSafeArea={false}
-                                    />
-                                </DndContext>
+                                    <DndContext
+                                        sensors={sensors}
+                                        onDragEnd={handleDragEnd}
+                                    >
+                                        <CertificateCanvas
+                                            ref={canvasRef}
+                                            layout={layout}
+                                            widthMm={widthMm}
+                                            heightMm={heightMm}
+                                            selectedId={selectedId}
+                                            interactive
+                                            onSelect={(elementId) => {
+                                                setSelectedId(elementId);
+                                                if (elementId) {
+                                                    setRightTab("elements");
+                                                }
+                                            }}
+                                            sampleProfile="standard"
+                                            showSafeArea={false}
+                                        />
+                                    </DndContext>
+                                </Box>
                             </Box>
                         </Box>
                     </CertificateCanvasRulers>
@@ -966,93 +995,104 @@ export default function CertificateTemplateBuilder({
                             py: 0.75,
                             borderTop: "1px solid",
                             borderColor: "divider",
-                            display: "grid",
-                            gridTemplateColumns:
-                                "minmax(170px, 1fr) auto minmax(170px, 1fr)",
+                            display: "flex",
+                            justifyContent: "center",
                             alignItems: "center",
-                            gap: 1,
                             overflowX: "auto",
                         }}
                     >
-                        <TextField
-                            variant="standard"
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                            inputProps={{ "aria-label": "Template name" }}
-                            sx={{ minWidth: 170, maxWidth: 360 }}
-                        />
-                        <Stack
-                            direction="row"
-                            alignItems="center"
-                            justifyContent="center"
-                            spacing={0.25}
+                        <Box
+                            sx={{
+                                width: "min(100%, 840px)",
+                                display: "grid",
+                                gridTemplateColumns:
+                                    "minmax(190px, 1fr) auto minmax(190px, 1fr)",
+                                alignItems: "center",
+                                gap: 1,
+                            }}
                         >
-                            <Tooltip title="Zoom out">
-                                <IconButton
-                                    size="small"
-                                    aria-label="Zoom out"
-                                    onClick={() =>
-                                        setZoom((value) =>
-                                            Math.max(0.45, value - 0.1),
-                                        )
-                                    }
-                                >
-                                    <ZoomOutIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Typography
-                                variant="caption"
-                                sx={{ minWidth: 38, textAlign: "center" }}
+                            <TextField
+                                variant="standard"
+                                value={name}
+                                onChange={(event) =>
+                                    setName(event.target.value)
+                                }
+                                inputProps={{ "aria-label": "Template name" }}
+                                sx={{ minWidth: 190 }}
+                            />
+                            <Stack
+                                direction="row"
+                                alignItems="center"
+                                justifyContent="center"
+                                spacing={0.25}
                             >
-                                {Math.round(zoom * 100)}%
-                            </Typography>
-                            <Tooltip title="Zoom in">
-                                <IconButton
-                                    size="small"
-                                    aria-label="Zoom in"
-                                    onClick={() =>
-                                        setZoom((value) =>
-                                            Math.min(1.2, value + 0.1),
-                                        )
-                                    }
+                                <Tooltip title="Zoom out">
+                                    <IconButton
+                                        size="small"
+                                        aria-label="Zoom out"
+                                        onClick={() =>
+                                            setZoom((value) =>
+                                                stepBuilderZoom(value, -1),
+                                            )
+                                        }
+                                    >
+                                        <ZoomOutIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Typography
+                                    variant="caption"
+                                    sx={{ minWidth: 42, textAlign: "center" }}
                                 >
-                                    <ZoomInIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Fit canvas">
-                                <IconButton
+                                    {Math.round(zoom * 100)}%
+                                </Typography>
+                                <Tooltip title="Zoom in">
+                                    <IconButton
+                                        size="small"
+                                        aria-label="Zoom in"
+                                        onClick={() =>
+                                            setZoom((value) =>
+                                                stepBuilderZoom(value, 1),
+                                            )
+                                        }
+                                    >
+                                        <ZoomInIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Fit canvas">
+                                    <IconButton
+                                        size="small"
+                                        aria-label="Fit canvas"
+                                        onClick={fitCanvasToViewport}
+                                    >
+                                        <CenterFocusStrongIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            </Stack>
+                            <Stack
+                                direction="row"
+                                justifyContent="flex-end"
+                                alignItems="center"
+                                spacing={0.75}
+                            >
+                                <Button
                                     size="small"
-                                    aria-label="Fit canvas"
-                                    onClick={() => setZoom(0.82)}
+                                    startIcon={<PreviewIcon />}
+                                    color="inherit"
+                                    onClick={() => setPreviewOpen(true)}
                                 >
-                                    <CenterFocusStrongIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
-                        <Stack
-                            direction="row"
-                            justifyContent="flex-end"
-                            alignItems="center"
-                            spacing={0.75}
-                        >
-                            <Button
-                                size="small"
-                                startIcon={<PreviewIcon />}
-                                color="inherit"
-                                onClick={() => setPreviewOpen(true)}
-                            >
-                                Preview
-                            </Button>
-                            <Button
-                                size="small"
-                                startIcon={<SaveIcon />}
-                                variant="contained"
-                                onClick={saveCertificate}
-                                disabled={processing || !name.trim()}
-                            >
-                                {processing ? "Saving…" : "Save"}
-                            </Button>
-                        </Stack>
+                                    Preview
+                                </Button>
+                                <Button
+                                    size="small"
+                                    startIcon={<SaveIcon />}
+                                    variant="contained"
+                                    onClick={saveCertificate}
+                                    disabled={processing || !name.trim()}
+                                >
+                                    {processing ? "Saving…" : "Save"}
+                                </Button>
+                            </Stack>
+                        </Box>
                     </Paper>
                 </Box>
 

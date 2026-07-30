@@ -8,7 +8,17 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
-const RULER_MARKS = Array.from({ length: 11 }, (_, index) => index * 100);
+const HORIZONTAL_RULER_MARKS = Array.from(
+    { length: 17 },
+    (_, index) => index * 100,
+);
+const VERTICAL_RULER_MARKS = Array.from(
+    { length: 12 },
+    (_, index) => index * 100,
+);
+
+const rulerPosition = (index, marks) =>
+    `${(index / (marks.length - 1)) * 100}%`;
 
 const HorizontalRuler = () => (
     <Box
@@ -19,18 +29,23 @@ const HorizontalRuler = () => (
             minWidth: 620,
             borderBottom: "1px solid",
             borderColor: "#d8dee8",
-            bgcolor: "#f8fafc",
-            backgroundImage:
-                "repeating-linear-gradient(to right, transparent 0, transparent 9px, rgba(100,116,139,.28) 9px, rgba(100,116,139,.28) 10px)",
+            bgcolor: "#ffffff",
+            backgroundImage: [
+                "linear-gradient(to right, transparent 0, transparent calc(100% - 1px), rgba(100,116,139,.32) calc(100% - 1px), rgba(100,116,139,.32) 100%)",
+                "linear-gradient(to right, transparent 0, transparent calc(100% - 1px), rgba(71,85,105,.48) calc(100% - 1px), rgba(71,85,105,.48) 100%)",
+            ].join(","),
+            backgroundSize: "0.625% 5px, 6.25% 10px",
+            backgroundPosition: "left bottom, left bottom",
+            backgroundRepeat: "repeat-x",
         }}
     >
-        {RULER_MARKS.map((mark, index) => (
+        {HORIZONTAL_RULER_MARKS.map((mark, index) => (
             <Typography
                 key={mark}
                 component="span"
                 sx={{
                     position: "absolute",
-                    left: `${index * 10}%`,
+                    left: rulerPosition(index, HORIZONTAL_RULER_MARKS),
                     top: 2,
                     ml: index ? -1 : 0.5,
                     color: "#8290a4",
@@ -53,18 +68,23 @@ const VerticalRuler = () => (
             minHeight: 440,
             borderRight: "1px solid",
             borderColor: "#d8dee8",
-            bgcolor: "#f8fafc",
-            backgroundImage:
-                "repeating-linear-gradient(to bottom, transparent 0, transparent 9px, rgba(100,116,139,.28) 9px, rgba(100,116,139,.28) 10px)",
+            bgcolor: "#ffffff",
+            backgroundImage: [
+                "linear-gradient(to bottom, transparent 0, transparent calc(100% - 1px), rgba(100,116,139,.32) calc(100% - 1px), rgba(100,116,139,.32) 100%)",
+                "linear-gradient(to bottom, transparent 0, transparent calc(100% - 1px), rgba(71,85,105,.48) calc(100% - 1px), rgba(71,85,105,.48) 100%)",
+            ].join(","),
+            backgroundSize: "5px 0.909%, 10px 9.091%",
+            backgroundPosition: "right top, right top",
+            backgroundRepeat: "repeat-y",
         }}
     >
-        {RULER_MARKS.map((mark, index) => (
+        {VERTICAL_RULER_MARKS.map((mark, index) => (
             <Typography
                 key={mark}
                 component="span"
                 sx={{
                     position: "absolute",
-                    top: `${index * 10}%`,
+                    top: rulerPosition(index, VERTICAL_RULER_MARKS),
                     left: 4,
                     mt: index ? -1 : 0.5,
                     color: "#8290a4",
@@ -99,6 +119,7 @@ export default function CertificateBuilderWorkspace({
             }}
         >
             <Paper
+                data-testid="certificate-builder-header"
                 component="header"
                 square
                 elevation={0}
@@ -111,6 +132,7 @@ export default function CertificateBuilderWorkspace({
                     alignItems: "center",
                     px: 1.25,
                     borderRadius: 0,
+                    bgcolor: "#eef2f7",
                     borderBottom: "1px solid",
                     borderColor: "divider",
                     zIndex: 4,
@@ -182,12 +204,14 @@ export function CertificateCanvasRulers({ children }) {
                     borderRight: "1px solid",
                     borderBottom: "1px solid",
                     borderColor: "#d8dee8",
-                    bgcolor: "#f8fafc",
+                    bgcolor: "#ffffff",
                 }}
             />
             <HorizontalRuler />
             <VerticalRuler />
-            <Box sx={{ minWidth: 0, minHeight: 0 }}>{children}</Box>
+            <Box sx={{ minWidth: 0, minHeight: 0, bgcolor: "#ffffff" }}>
+                {children}
+            </Box>
         </Box>
     );
 }

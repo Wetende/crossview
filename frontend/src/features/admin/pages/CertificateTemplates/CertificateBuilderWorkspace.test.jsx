@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import CertificateBuilderWorkspace, {
@@ -22,6 +22,9 @@ describe("certificate builder workspace", () => {
                 overflow: "hidden",
             },
         );
+        expect(screen.getByTestId("certificate-builder-header")).toHaveStyle({
+            backgroundColor: "#eef2f7",
+        });
         expect(
             screen.getByRole("link", {
                 name: "Back to certificate dashboard",
@@ -41,8 +44,19 @@ describe("certificate builder workspace", () => {
             </CertificateCanvasRulers>,
         );
 
-        expect(screen.getByTestId("horizontal-ruler")).toBeInTheDocument();
-        expect(screen.getByTestId("vertical-ruler")).toBeInTheDocument();
+        const horizontalRuler = screen.getByTestId("horizontal-ruler");
+        const verticalRuler = screen.getByTestId("vertical-ruler");
+
+        expect(horizontalRuler).toHaveStyle({
+            backgroundColor: "#ffffff",
+            backgroundRepeat: "repeat-x",
+        });
+        expect(verticalRuler).toHaveStyle({
+            backgroundColor: "#ffffff",
+            backgroundRepeat: "repeat-y",
+        });
+        expect(within(horizontalRuler).getByText("1600")).toBeInTheDocument();
+        expect(within(verticalRuler).getByText("1100")).toBeInTheDocument();
         expect(screen.getByText("Certificate canvas")).toBeInTheDocument();
     });
 });
