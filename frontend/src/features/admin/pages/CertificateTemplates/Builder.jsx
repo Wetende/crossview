@@ -37,27 +37,16 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import PreviewIcon from "@mui/icons-material/Preview";
 import PublishIcon from "@mui/icons-material/Publish";
-import QrCode2Icon from "@mui/icons-material/QrCode2";
 import RedoIcon from "@mui/icons-material/Redo";
 import SaveIcon from "@mui/icons-material/Save";
-import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
-import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
-import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
-import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
-import FingerprintIcon from "@mui/icons-material/Fingerprint";
-import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import ShapeLineIcon from "@mui/icons-material/ShapeLine";
-import TextFieldsIcon from "@mui/icons-material/TextFields";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import UndoIcon from "@mui/icons-material/Undo";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
@@ -70,258 +59,11 @@ import {
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { getCsrfHeaders } from "@/utils/csrf";
 
-const ELEMENT_LIBRARY = [
-    {
-        group: "Certificate",
-        type: "text",
-        label: "Text",
-        icon: TextFieldsIcon,
-        content: "Your text",
-    },
-    {
-        group: "Certificate",
-        type: "image",
-        label: "Image",
-        icon: ImageOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Certificate",
-        type: "shape",
-        label: "Shape",
-        icon: ShapeLineIcon,
-        content: "",
-    },
-    {
-        group: "Certificate",
-        type: "dynamic_text",
-        label: "Certificate code",
-        icon: FingerprintIcon,
-        content: "{{serial_number}}",
-    },
-    {
-        group: "Certificate",
-        type: "qr_code",
-        label: "QR-Code",
-        icon: QrCode2Icon,
-        content: "",
-    },
-    {
-        group: "Certificate",
-        type: "dynamic_text",
-        label: "Current date",
-        icon: CalendarMonthIcon,
-        content: "{{issue_date}}",
-    },
-    {
-        group: "Design",
-        type: "signature",
-        label: "Signature",
-        icon: DrawOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "image",
-        label: "Official seal",
-        icon: BadgeOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "image",
-        label: "Decorative pattern",
-        icon: ImageOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "line",
-        label: "Line",
-        icon: HorizontalRuleIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "shape",
-        label: "Page border",
-        icon: ShapeLineIcon,
-        content: "",
-        variant: "page-border",
-        styles: {
-            fill: "transparent",
-            stroke: "#3157d5",
-            strokeWidth: 2,
-        },
-    },
-    {
-        group: "Design",
-        type: "text",
-        label: "Watermark",
-        icon: TextFieldsIcon,
-        content: "CERTIFIED",
-        variant: "watermark",
-        styles: {
-            fontSize: 52,
-            fontWeight: 700,
-            color: "#3157d5",
-            opacity: 0.12,
-        },
-    },
-    {
-        group: "Student",
-        type: "dynamic_text",
-        label: "Student name",
-        icon: PersonOutlineIcon,
-        content: "{{student_name}}",
-    },
-    {
-        group: "Student",
-        type: "dynamic_text",
-        label: "Student number",
-        icon: FingerprintIcon,
-        content: "{{student_number}}",
-    },
-    {
-        group: "Student",
-        type: "dynamic_text",
-        label: "Admission number",
-        icon: FingerprintIcon,
-        content: "{{admission_number}}",
-    },
-    {
-        group: "Student",
-        type: "dynamic_text",
-        label: "Examination number",
-        icon: FingerprintIcon,
-        content: "{{examination_number}}",
-    },
-    {
-        group: "Course",
-        type: "dynamic_text",
-        label: "Course name",
-        icon: SchoolOutlinedIcon,
-        content: "{{program_title}}",
-    },
-    {
-        group: "Course",
-        type: "dynamic_text",
-        label: "Details",
-        icon: FormatListBulletedIcon,
-        content: "{{course_details}}",
-        styles: {
-            fontSize: 16,
-            minFontSize: 9,
-            maxFontSize: 16,
-            fontWeight: 500,
-        },
-    },
-    {
-        group: "Course metadata",
-        type: "dynamic_text",
-        label: "Course level",
-        icon: SchoolOutlinedIcon,
-        content: "{{course_level}}",
-    },
-    {
-        group: "Course metadata",
-        type: "dynamic_text",
-        label: "Department",
-        icon: BusinessOutlinedIcon,
-        content: "{{department}}",
-    },
-    {
-        group: "Course metadata",
-        type: "dynamic_text",
-        label: "Grade",
-        icon: BadgeOutlinedIcon,
-        content: "{{grade}}",
-    },
-    {
-        group: "Course metadata",
-        type: "dynamic_text",
-        label: "Score",
-        icon: BadgeOutlinedIcon,
-        content: "{{score}}",
-    },
-    {
-        group: "Course",
-        type: "dynamic_text",
-        label: "Progress",
-        icon: BadgeOutlinedIcon,
-        content: "{{progress}}",
-    },
-    {
-        group: "Course",
-        type: "dynamic_text",
-        label: "Course duration",
-        icon: CalendarMonthIcon,
-        content: "{{course_duration}}",
-    },
-    {
-        group: "Course",
-        type: "dynamic_text",
-        label: "Start date",
-        icon: CalendarMonthIcon,
-        content: "{{course_start_date}}",
-    },
-    {
-        group: "Course",
-        type: "dynamic_text",
-        label: "End date",
-        icon: CalendarMonthIcon,
-        content: "{{completion_date}}",
-    },
-    {
-        group: "Verification",
-        type: "dynamic_text",
-        label: "Verification code",
-        icon: FingerprintIcon,
-        content: "{{verification_code}}",
-    },
-    {
-        group: "Verification",
-        type: "dynamic_text",
-        label: "Verification URL",
-        icon: QrCode2Icon,
-        content: "{{verification_url}}",
-    },
-    {
-        group: "Instructor",
-        type: "dynamic_text",
-        label: "Instructor",
-        icon: BadgeOutlinedIcon,
-        content: "{{instructor_name}}",
-    },
-    {
-        group: "Instructor",
-        type: "dynamic_text",
-        label: "Co-instructor",
-        icon: BadgeOutlinedIcon,
-        content: "{{co_instructor_name}}",
-    },
-    {
-        group: "Instructor",
-        type: "dynamic_text",
-        label: "Principal / director",
-        icon: BadgeOutlinedIcon,
-        content: "{{principal_name}}",
-    },
-    {
-        group: "Organisation",
-        type: "dynamic_text",
-        label: "Organisation",
-        icon: BusinessOutlinedIcon,
-        content: "{{organization_name}}",
-    },
-    {
-        group: "Organisation",
-        type: "dynamic_text",
-        label: "Campus",
-        icon: BusinessOutlinedIcon,
-        content: "{{campus}}",
-    },
-];
+import {
+    ADDITIONAL_ELEMENT_GROUPS,
+    ELEMENT_LIBRARY,
+    PRIMARY_ELEMENT_GROUPS,
+} from "./certificateElementLibrary";
 
 const elementDisplayName = (element) => {
     if (element.name) return element.name;
@@ -441,29 +183,77 @@ function makeElement(definition, widthMm, heightMm, index) {
     };
 }
 
-function PaletteButton({ item, onAdd, compact = false }) {
+function PaletteButton({ item, onAdd }) {
     const Icon = item.icon;
     return (
         <Button
             color="inherit"
+            fullWidth
+            disableRipple
             onClick={() => onAdd(item)}
             sx={{
                 justifyContent: "flex-start",
-                minHeight: compact ? 36 : undefined,
-                px: compact ? 0.75 : 1.5,
-                py: compact ? 0.5 : 1.25,
-                border: compact ? 0 : "1px solid",
-                borderColor: compact ? "transparent" : "divider",
-                bgcolor: compact ? "transparent" : "background.paper",
-                fontWeight: compact ? 600 : undefined,
+                minHeight: 34,
+                px: 0.5,
+                py: 0.4,
+                border: 0,
+                borderRadius: 1.25,
+                bgcolor: "transparent",
+                color: "#354052",
+                fontSize: "0.82rem",
+                fontWeight: 550,
+                lineHeight: 1.25,
+                textTransform: "none",
                 "&:hover": {
-                    bgcolor: compact ? "action.hover" : undefined,
+                    bgcolor: "#e8edf5",
+                    color: "#172033",
+                },
+                "& .MuiButton-startIcon": {
+                    ml: 0,
+                    mr: 1.15,
+                    color: "#66758b",
+                },
+                "& .MuiButton-startIcon svg": {
+                    fontSize: 18,
                 },
             }}
             startIcon={<Icon fontSize="small" />}
         >
             {item.label}
         </Button>
+    );
+}
+
+function ElementPaletteGroup({ group, onAdd }) {
+    const items = ELEMENT_LIBRARY.filter((item) => item.group === group);
+    if (!items.length) return null;
+
+    return (
+        <Box>
+            <Typography
+                variant="overline"
+                sx={{
+                    display: "block",
+                    mb: 0.45,
+                    color: "#7b879a",
+                    fontSize: "0.64rem",
+                    fontWeight: 750,
+                    letterSpacing: "0.055em",
+                    lineHeight: 1.3,
+                }}
+            >
+                {group}
+            </Typography>
+            <Stack spacing={0.1}>
+                {items.map((item) => (
+                    <PaletteButton
+                        key={`${item.group}-${item.label}`}
+                        item={item}
+                        onAdd={onAdd}
+                    />
+                ))}
+            </Stack>
+        </Box>
     );
 }
 
@@ -663,6 +453,7 @@ export default function CertificateTemplateBuilder({
     const [future, setFuture] = useState([]);
     const [zoom, setZoom] = useState(0.82);
     const [rightTab, setRightTab] = useState("elements");
+    const [showAdditionalFields, setShowAdditionalFields] = useState(false);
     const [sampleProfile, setSampleProfile] = useState("standard");
     const [showSafeArea, setShowSafeArea] = useState(true);
     const [snapEnabled, setSnapEnabled] = useState(true);
@@ -1443,20 +1234,35 @@ export default function CertificateTemplateBuilder({
                         }}
                         variant="fullWidth"
                         sx={{
-                            px: 1,
-                            py: 0.75,
-                            minHeight: 42,
-                            borderBottom: "1px solid",
-                            borderColor: "divider",
-                            bgcolor: "background.paper",
+                            p: 1.25,
+                            minHeight: 50,
+                            bgcolor: "#f5f7fb",
                             position: "sticky",
                             top: 0,
                             zIndex: 2,
+                            "& .MuiTabs-flexContainer": {
+                                gap: 0.35,
+                                p: 0.35,
+                                borderRadius: 1.5,
+                                bgcolor: "#e5eaf2",
+                            },
+                            "& .MuiTabs-indicator": {
+                                display: "none",
+                            },
                             "& .MuiTab-root": {
-                                minHeight: 34,
-                                py: 0.5,
+                                minHeight: 32,
+                                py: 0.35,
+                                px: 1,
+                                borderRadius: 1.1,
+                                color: "#5f6b7d",
+                                fontSize: "0.78rem",
                                 textTransform: "none",
-                                fontWeight: 750,
+                                fontWeight: 650,
+                            },
+                            "& .MuiTab-root.Mui-selected": {
+                                bgcolor: "background.paper",
+                                color: "#182134",
+                                boxShadow: "0 1px 3px rgba(20, 31, 50, 0.12)",
                             },
                         }}
                     >
@@ -2710,43 +2516,65 @@ export default function CertificateTemplateBuilder({
                             </Stack>
                         </Stack>
                     ) : (
-                        <Stack spacing={2} sx={{ p: 1.5 }}>
-                            {[
-                                "Certificate",
-                                "Course",
-                                "Student",
-                                "Instructor",
-                                "Design",
-                                "Organisation",
-                                "Verification",
-                                "Course metadata",
-                            ].map((group) => (
-                                <Box key={group}>
-                                    <Typography
-                                        variant="overline"
-                                        fontWeight={800}
-                                        color="text.secondary"
-                                        sx={{ display: "block", mb: 0.75 }}
-                                    >
-                                        {group}
-                                    </Typography>
-                                    <Stack spacing={0.5}>
-                                        {ELEMENT_LIBRARY.filter(
-                                            (item) => item.group === group,
-                                        ).map((item) => (
-                                            <PaletteButton
-                                                key={`${item.group}-${item.label}`}
-                                                item={item}
-                                                onAdd={addElement}
-                                                compact={[
-                                                    "Certificate",
-                                                    "Course",
-                                                ].includes(group)}
-                                            />
-                                        ))}
-                                    </Stack>
-                                </Box>
+                        <Stack spacing={1.65} sx={{ px: 1.5, pb: 2, pt: 0.75 }}>
+                            {PRIMARY_ELEMENT_GROUPS.map((group) => (
+                                <ElementPaletteGroup
+                                    key={group}
+                                    group={group}
+                                    onAdd={addElement}
+                                />
                             ))}
+                            <Box
+                                sx={{
+                                    pt: 0.75,
+                                    borderTop: "1px solid",
+                                    borderColor: "#dfe4ec",
+                                }}
+                            >
+                                <Button
+                                    color="inherit"
+                                    fullWidth
+                                    onClick={() =>
+                                        setShowAdditionalFields(
+                                            (value) => !value,
+                                        )
+                                    }
+                                    endIcon={
+                                        <ExpandMoreIcon
+                                            sx={{
+                                                transform: showAdditionalFields
+                                                    ? "rotate(180deg)"
+                                                    : "rotate(0deg)",
+                                                transition:
+                                                    "transform 160ms ease",
+                                            }}
+                                        />
+                                    }
+                                    aria-expanded={showAdditionalFields}
+                                    sx={{
+                                        justifyContent: "space-between",
+                                        px: 0.5,
+                                        py: 0.5,
+                                        color: "#566276",
+                                        fontSize: "0.75rem",
+                                        fontWeight: 700,
+                                        textTransform: "none",
+                                    }}
+                                >
+                                    Additional fields
+                                </Button>
+                            </Box>
+                            {showAdditionalFields && (
+                                <>
+                                    {ADDITIONAL_ELEMENT_GROUPS.map((group) => (
+                                        <ElementPaletteGroup
+                                            key={group}
+                                            group={group}
+                                            onAdd={addElement}
+                                        />
+                                    ))}
+                                </>
+                            )}
                         </Stack>
                     )}
                 </Box>
