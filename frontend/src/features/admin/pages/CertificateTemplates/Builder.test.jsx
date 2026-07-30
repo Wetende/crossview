@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    ADDITIONAL_ELEMENT_GROUPS,
     ELEMENT_LIBRARY,
     PRIMARY_ELEMENT_GROUPS,
 } from "./certificateElementLibrary";
@@ -52,5 +53,30 @@ describe("certificate builder element palette", () => {
                     item.label.toLowerCase().includes("soon"),
             ),
         ).toBe(false);
+    });
+
+    it("keeps additional fields limited to non-duplicate certificate data", () => {
+        expect(ADDITIONAL_ELEMENT_GROUPS).toEqual([
+            "Organisation",
+            "Student metadata",
+            "Instructor metadata",
+            "Course metadata",
+        ]);
+        expect(labelsFor("Organisation")).toEqual(["Organisation", "Campus"]);
+        expect(labelsFor("Student metadata")).toEqual([
+            "Admission number",
+            "Examination number",
+        ]);
+        expect(labelsFor("Instructor metadata")).toEqual([
+            "Principal / director",
+        ]);
+        expect(labelsFor("Course metadata")).toEqual([
+            "Course level",
+            "Department",
+            "Grade",
+            "Score",
+        ]);
+        expect(labelsFor("Design")).toEqual([]);
+        expect(labelsFor("Verification")).toEqual([]);
     });
 });

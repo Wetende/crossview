@@ -39,14 +39,10 @@ import AddIcon from "@mui/icons-material/Add";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import PreviewIcon from "@mui/icons-material/Preview";
-import PublishIcon from "@mui/icons-material/Publish";
-import RedoIcon from "@mui/icons-material/Redo";
 import SaveIcon from "@mui/icons-material/Save";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import UndoIcon from "@mui/icons-material/Undo";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 
@@ -465,7 +461,6 @@ export default function CertificateTemplateBuilder({
     const [snapEnabled, setSnapEnabled] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
-    const [publishOpen, setPublishOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
     const [newTemplateName, setNewTemplateName] = useState(
         "Untitled certificate",
@@ -803,10 +798,10 @@ export default function CertificateTemplateBuilder({
         });
     };
 
-    const submit = (action) => {
+    const saveCertificate = () => {
         setProcessing(true);
         router.post(
-            `/admin/certificate-templates/${template.id}/${action}/`,
+            `/admin/certificate-templates/${template.id}/save/`,
             { name: name.trim(), layout },
             {
                 preserveScroll: true,
@@ -818,49 +813,9 @@ export default function CertificateTemplateBuilder({
                 },
                 onFinish: () => {
                     setProcessing(false);
-                    setPublishOpen(false);
                 },
             },
         );
-    };
-
-    const openPdfPreview = async (download = false) => {
-        setProcessing(true);
-        try {
-            const response = await fetch(
-                `/admin/certificate-templates/${template.id}/preview/`,
-                {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: getCsrfHeaders({
-                        "Content-Type": "application/json",
-                    }),
-                    body: JSON.stringify({ layout, sampleProfile }),
-                },
-            );
-            if (!response.ok) {
-                const result = await response.json();
-                throw new Error(
-                    result.error || "Preview could not be generated.",
-                );
-            }
-            const url = URL.createObjectURL(await response.blob());
-            if (download) {
-                const anchor = document.createElement("a");
-                anchor.href = url;
-                anchor.download = `${name.trim() || "certificate"}-test.pdf`;
-                document.body.appendChild(anchor);
-                anchor.click();
-                anchor.remove();
-            } else {
-                window.open(url, "_blank", "noopener,noreferrer");
-            }
-            window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-        } catch (error) {
-            window.alert(error.message);
-        } finally {
-            setProcessing(false);
-        }
     };
 
     const openBuilderTemplate = (nextTemplate) => {
@@ -963,100 +918,6 @@ export default function CertificateTemplateBuilder({
                         flexDirection: "column",
                     }}
                 >
-                    <Stack
-                        direction="row"
-                        justifyContent="center"
-                        alignItems="center"
-                        spacing={1}
-                        useFlexGap
-                        flexWrap="wrap"
-                        sx={{
-                            minHeight: 52,
-                            flexShrink: 0,
-                            py: 0.75,
-                            px: 1,
-                            borderBottom: "1px solid rgba(25,37,61,.08)",
-                        }}
-                    >
-                        <IconButton
-                            size="small"
-                            onClick={() =>
-                                setZoom((value) => Math.max(0.45, value - 0.1))
-                            }
-                        >
-                            <ZoomOutIcon fontSize="small" />
-                        </IconButton>
-                        <Typography
-                            variant="caption"
-                            sx={{ minWidth: 42, textAlign: "center" }}
-                        >
-                            {Math.round(zoom * 100)}%
-                        </Typography>
-                        <IconButton
-                            size="small"
-                            onClick={() =>
-                                setZoom((value) => Math.min(1.2, value + 0.1))
-                            }
-                        >
-                            <ZoomInIcon fontSize="small" />
-                        </IconButton>
-                        <Tooltip title="Fit canvas">
-                            <IconButton
-                                size="small"
-                                onClick={() => setZoom(0.82)}
-                            >
-                                <CenterFocusStrongIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Divider orientation="vertical" flexItem />
-                        <FormControl size="small" sx={{ minWidth: 148 }}>
-                            <InputLabel>Preview data</InputLabel>
-                            <Select
-                                label="Preview data"
-                                value={sampleProfile}
-                                onChange={(event) =>
-                                    setSampleProfile(event.target.value)
-                                }
-                            >
-                                <MenuItem value="standard">
-                                    Standard sample
-                                </MenuItem>
-                                <MenuItem value="stress">
-                                    Long-name test
-                                </MenuItem>
-                            </Select>
-                        </FormControl>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    size="small"
-                                    checked={showSafeArea}
-                                    onChange={(event) =>
-                                        setShowSafeArea(event.target.checked)
-                                    }
-                                />
-                            }
-                            label={
-                                <Typography variant="caption">
-                                    Safe area
-                                </Typography>
-                            }
-                        />
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    size="small"
-                                    checked={snapEnabled}
-                                    onChange={(event) =>
-                                        setSnapEnabled(event.target.checked)
-                                    }
-                                />
-                            }
-                            label={
-                                <Typography variant="caption">Snap</Typography>
-                            }
-                        />
-                    </Stack>
                     <CertificateCanvasRulers>
                         <Box
                             sx={{
@@ -1104,15 +965,17 @@ export default function CertificateTemplateBuilder({
                         square
                         elevation={0}
                         sx={{
-                            minHeight: 56,
+                            minHeight: 58,
                             flexShrink: 0,
                             px: 1.25,
                             py: 0.75,
                             borderTop: "1px solid",
                             borderColor: "divider",
-                            display: "flex",
+                            display: "grid",
+                            gridTemplateColumns:
+                                "minmax(170px, 1fr) auto minmax(170px, 1fr)",
                             alignItems: "center",
-                            gap: 0.75,
+                            gap: 1,
                             overflowX: "auto",
                         }}
                     >
@@ -1121,95 +984,155 @@ export default function CertificateTemplateBuilder({
                             value={name}
                             onChange={(event) => setName(event.target.value)}
                             inputProps={{ "aria-label": "Template name" }}
-                            sx={{ minWidth: 170, flex: "1 1 210px" }}
+                            sx={{ minWidth: 170, maxWidth: 360 }}
                         />
-                        <Chip
-                            label={template.status}
-                            size="small"
-                            color={
-                                template.status === "published"
-                                    ? "success"
-                                    : "default"
-                            }
-                            sx={{ textTransform: "capitalize" }}
-                        />
-                        {isDirty && (
-                            <Typography
-                                variant="caption"
-                                color="warning.main"
-                                noWrap
-                            >
-                                Unsaved changes
-                            </Typography>
-                        )}
-                        <ButtonGroup size="small" variant="outlined">
-                            <Tooltip title="Undo">
-                                <span>
-                                    <IconButton
-                                        onClick={undo}
-                                        disabled={!past.length}
-                                    >
-                                        <UndoIcon fontSize="small" />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                            <Tooltip title="Redo">
-                                <span>
-                                    <IconButton
-                                        onClick={redo}
-                                        disabled={!future.length}
-                                    >
-                                        <RedoIcon fontSize="small" />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                        </ButtonGroup>
-                        <Tooltip title="Duplicate selected element">
-                            <span>
+                        <Stack
+                            direction="row"
+                            alignItems="center"
+                            justifyContent="center"
+                            spacing={0.25}
+                        >
+                            <Tooltip title="Zoom out">
                                 <IconButton
                                     size="small"
-                                    onClick={duplicateSelected}
-                                    disabled={!selected}
+                                    aria-label="Zoom out"
+                                    onClick={() =>
+                                        setZoom((value) =>
+                                            Math.max(0.45, value - 0.1),
+                                        )
+                                    }
                                 >
-                                    <ContentCopyIcon fontSize="small" />
+                                    <ZoomOutIcon fontSize="small" />
                                 </IconButton>
-                            </span>
-                        </Tooltip>
-                        <Button
-                            size="small"
-                            startIcon={<PreviewIcon />}
-                            color="inherit"
-                            onClick={() => setPreviewOpen(true)}
-                        >
-                            Preview
-                        </Button>
-                        <Tooltip title="Download test PDF">
-                            <IconButton
-                                size="small"
-                                onClick={() => openPdfPreview(true)}
-                                disabled={processing}
+                            </Tooltip>
+                            <Typography
+                                variant="caption"
+                                sx={{ minWidth: 38, textAlign: "center" }}
                             >
-                                <DownloadOutlinedIcon fontSize="small" />
-                            </IconButton>
-                        </Tooltip>
-                        <Button
-                            size="small"
-                            startIcon={<SaveIcon />}
-                            variant="outlined"
-                            onClick={() => submit("save")}
-                            disabled={processing || !name.trim()}
+                                {Math.round(zoom * 100)}%
+                            </Typography>
+                            <Tooltip title="Zoom in">
+                                <IconButton
+                                    size="small"
+                                    aria-label="Zoom in"
+                                    onClick={() =>
+                                        setZoom((value) =>
+                                            Math.min(1.2, value + 0.1),
+                                        )
+                                    }
+                                >
+                                    <ZoomInIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Fit canvas">
+                                <IconButton
+                                    size="small"
+                                    aria-label="Fit canvas"
+                                    onClick={() => setZoom(0.82)}
+                                >
+                                    <CenterFocusStrongIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                            <Divider
+                                orientation="vertical"
+                                flexItem
+                                sx={{ mx: 0.5 }}
+                            />
+                            <FormControl
+                                size="small"
+                                variant="standard"
+                                sx={{ minWidth: 112 }}
+                            >
+                                <Select
+                                    value={sampleProfile}
+                                    onChange={(event) =>
+                                        setSampleProfile(event.target.value)
+                                    }
+                                    inputProps={{
+                                        "aria-label": "Preview data",
+                                    }}
+                                >
+                                    <MenuItem value="standard">Sample</MenuItem>
+                                    <MenuItem value="stress">
+                                        Long-name test
+                                    </MenuItem>
+                                </Select>
+                            </FormControl>
+                            <Tooltip title="Show safe printing area">
+                                <FormControlLabel
+                                    sx={{ m: 0 }}
+                                    control={
+                                        <Switch
+                                            size="small"
+                                            checked={showSafeArea}
+                                            onChange={(event) =>
+                                                setShowSafeArea(
+                                                    event.target.checked,
+                                                )
+                                            }
+                                            inputProps={{
+                                                "aria-label":
+                                                    "Show safe printing area",
+                                            }}
+                                        />
+                                    }
+                                    label={
+                                        <Typography variant="caption">
+                                            Safe area
+                                        </Typography>
+                                    }
+                                />
+                            </Tooltip>
+                            <Tooltip title="Snap elements to guides">
+                                <FormControlLabel
+                                    sx={{ m: 0 }}
+                                    control={
+                                        <Switch
+                                            size="small"
+                                            checked={snapEnabled}
+                                            onChange={(event) =>
+                                                setSnapEnabled(
+                                                    event.target.checked,
+                                                )
+                                            }
+                                            inputProps={{
+                                                "aria-label":
+                                                    "Snap elements to guides",
+                                            }}
+                                        />
+                                    }
+                                    label={
+                                        <Typography variant="caption">
+                                            Snap
+                                        </Typography>
+                                    }
+                                />
+                            </Tooltip>
+                        </Stack>
+                        <Stack
+                            direction="row"
+                            justifyContent="flex-end"
+                            alignItems="center"
+                            spacing={0.75}
                         >
-                            Save
-                        </Button>
-                        <Button
-                            size="small"
-                            startIcon={<PublishIcon />}
-                            variant="contained"
-                            onClick={() => setPublishOpen(true)}
-                            disabled={processing || !name.trim()}
-                        >
-                            Publish
-                        </Button>
+                            <Button
+                                size="small"
+                                startIcon={<PreviewIcon />}
+                                color="inherit"
+                                onClick={() => setPreviewOpen(true)}
+                            >
+                                Preview
+                            </Button>
+                            <Button
+                                size="small"
+                                startIcon={<SaveIcon />}
+                                variant="contained"
+                                onClick={saveCertificate}
+                                disabled={processing || !name.trim()}
+                            >
+                                {processing ? "Saving…" : "Save"}
+                            </Button>
+                        </Stack>
                     </Paper>
                 </Box>
 
@@ -2665,44 +2588,7 @@ export default function CertificateTemplateBuilder({
                     />
                 </DialogContent>
                 <DialogActions>
-                    <Button
-                        onClick={() => openPdfPreview(false)}
-                        disabled={processing}
-                    >
-                        Open PDF preview
-                    </Button>
-                    <Button
-                        startIcon={<DownloadOutlinedIcon />}
-                        onClick={() => openPdfPreview(true)}
-                        disabled={processing}
-                    >
-                        Download test PDF
-                    </Button>
                     <Button onClick={() => setPreviewOpen(false)}>Close</Button>
-                </DialogActions>
-            </Dialog>
-
-            <Dialog open={publishOpen} onClose={() => setPublishOpen(false)}>
-                <DialogTitle>Publish this certificate?</DialogTitle>
-                <DialogContent>
-                    <Typography color="text.secondary">
-                        Publishing freezes version {template.version}. Later
-                        edits will begin a new draft so issued certificates
-                        remain unchanged.
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setPublishOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<PublishIcon />}
-                        onClick={() => submit("publish")}
-                        disabled={processing}
-                    >
-                        {processing ? "Publishing…" : "Publish version"}
-                    </Button>
                 </DialogActions>
             </Dialog>
         </CertificateBuilderWorkspace>

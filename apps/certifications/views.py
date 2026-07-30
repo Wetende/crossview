@@ -490,19 +490,23 @@ def admin_certificate_template_save(request, template_id: int):
     template = get_object_or_404(CertificateTemplate, pk=template_id)
     data = get_post_data(request)
     try:
-        template, version = save_template(
+        template, _ = save_template(
             template=template,
             name=data.get("name"),
             layout=data.get("layout"),
             user=request.user,
         )
+        template, _ = publish_template(
+            template=template,
+            user=request.user,
+        )
     except ValidationError as exc:
         messages.error(request, _validation_message(exc))
     else:
-        if version.is_published:
-            messages.info(request, f"Version {version.version_number} is already saved.")
-        else:
-            messages.success(request, f"Draft v{version.version_number} saved.")
+        messages.success(
+            request,
+            f"{template.name} saved and ready to use.",
+        )
     return redirect(
         "certifications:admin.certificate_template.builder",
         template_id=template.id,

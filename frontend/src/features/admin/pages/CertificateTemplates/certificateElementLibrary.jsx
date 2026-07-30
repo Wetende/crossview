@@ -1,11 +1,9 @@
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
-import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
@@ -21,9 +19,7 @@ export const PRIMARY_ELEMENT_GROUPS = [
 ];
 
 export const ADDITIONAL_ELEMENT_GROUPS = [
-    "Design",
     "Organisation",
-    "Verification",
     "Student metadata",
     "Instructor metadata",
     "Course metadata",
@@ -71,61 +67,6 @@ export const ELEMENT_LIBRARY = [
         label: "Current date",
         icon: CalendarMonthIcon,
         content: "{{issue_date}}",
-    },
-    {
-        group: "Design",
-        type: "signature",
-        label: "Signature",
-        icon: DrawOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "image",
-        label: "Official seal",
-        icon: BadgeOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "image",
-        label: "Decorative pattern",
-        icon: ImageOutlinedIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "line",
-        label: "Line",
-        icon: HorizontalRuleIcon,
-        content: "",
-    },
-    {
-        group: "Design",
-        type: "shape",
-        label: "Page border",
-        icon: ShapeLineIcon,
-        content: "",
-        variant: "page-border",
-        styles: {
-            fill: "transparent",
-            stroke: "#3157d5",
-            strokeWidth: 2,
-        },
-    },
-    {
-        group: "Design",
-        type: "text",
-        label: "Watermark",
-        icon: TextFieldsIcon,
-        content: "CERTIFIED",
-        variant: "watermark",
-        styles: {
-            fontSize: 52,
-            fontWeight: 700,
-            color: "#3157d5",
-            opacity: 0.12,
-        },
     },
     {
         group: "Student",
@@ -230,20 +171,6 @@ export const ELEMENT_LIBRARY = [
         label: "End date",
         icon: CalendarMonthIcon,
         content: "{{completion_date}}",
-    },
-    {
-        group: "Verification",
-        type: "dynamic_text",
-        label: "Verification code",
-        icon: FingerprintIcon,
-        content: "{{verification_code}}",
-    },
-    {
-        group: "Verification",
-        type: "dynamic_text",
-        label: "Verification URL",
-        icon: QrCode2Icon,
-        content: "{{verification_url}}",
     },
     {
         group: "Instructor",

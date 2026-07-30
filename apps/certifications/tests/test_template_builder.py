@@ -152,6 +152,36 @@ def test_saving_unchanged_published_template_does_not_create_duplicate(staff_use
     assert template.versions.count() == 1
 
 
+def test_builder_save_makes_template_available_without_separate_publish(
+    client,
+    staff_user,
+):
+    template = create_blank_template(
+        name="Ready on save",
+        orientation="landscape",
+        user=staff_user,
+    )
+    client.force_login(staff_user)
+
+    response = client.post(
+        reverse(
+            "certifications:admin.certificate_template.save",
+            kwargs={"template_id": template.id},
+        ),
+        {
+            "name": "Ready on save",
+            "layout": template.current_version.layout,
+        },
+        content_type="application/json",
+        secure=True,
+    )
+
+    assert response.status_code == 302
+    template.refresh_from_db()
+    assert template.status == CertificateTemplate.Status.PUBLISHED
+    assert template.current_version.is_published is True
+
+
 def test_layout_validation_rejects_element_outside_printable_page():
     with pytest.raises(ValidationError):
         validate_layout(
