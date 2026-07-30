@@ -8,6 +8,7 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 import {
+    Alert,
     Box,
     Button,
     ButtonGroup,
@@ -18,12 +19,16 @@ import {
     DialogTitle,
     Divider,
     FormControl,
+    FormControlLabel,
     InputLabel,
     IconButton,
     MenuItem,
     Paper,
     Select,
     Stack,
+    Switch,
+    Tab,
+    Tabs,
     TextField,
     ToggleButton,
     ToggleButtonGroup,
@@ -37,6 +42,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -58,71 +64,258 @@ import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 
 import CertificateCanvas from "@/features/certifications/components/CertificateCanvas";
+import {
+    certificateSampleContent,
+    fitCertificateText,
+} from "@/features/certifications/certificateContent";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { getCsrfHeaders } from "@/utils/csrf";
 
 const ELEMENT_LIBRARY = [
-    { type: "text", label: "Text", icon: TextFieldsIcon, content: "Your text" },
     {
+        group: "Design",
+        type: "text",
+        label: "Text",
+        icon: TextFieldsIcon,
+        content: "Your text",
+    },
+    {
+        group: "Design",
+        type: "image",
+        label: "Image / logo",
+        icon: ImageOutlinedIcon,
+        content: "",
+    },
+    {
+        group: "Design",
+        type: "signature",
+        label: "Signature",
+        icon: DrawOutlinedIcon,
+        content: "",
+    },
+    {
+        group: "Design",
+        type: "image",
+        label: "Official seal",
+        icon: BadgeOutlinedIcon,
+        content: "",
+    },
+    {
+        group: "Design",
+        type: "image",
+        label: "Decorative pattern",
+        icon: ImageOutlinedIcon,
+        content: "",
+    },
+    {
+        group: "Design",
+        type: "shape",
+        label: "Shape",
+        icon: ShapeLineIcon,
+        content: "",
+    },
+    {
+        group: "Design",
+        type: "line",
+        label: "Line",
+        icon: HorizontalRuleIcon,
+        content: "",
+    },
+    {
+        group: "Design",
+        type: "shape",
+        label: "Page border",
+        icon: ShapeLineIcon,
+        content: "",
+        variant: "page-border",
+        styles: {
+            fill: "transparent",
+            stroke: "#3157d5",
+            strokeWidth: 2,
+        },
+    },
+    {
+        group: "Design",
+        type: "text",
+        label: "Watermark",
+        icon: TextFieldsIcon,
+        content: "CERTIFIED",
+        variant: "watermark",
+        styles: {
+            fontSize: 52,
+            fontWeight: 700,
+            color: "#3157d5",
+            opacity: 0.12,
+        },
+    },
+    {
+        group: "Student",
         type: "dynamic_text",
         label: "Student name",
         icon: PersonOutlineIcon,
         content: "{{student_name}}",
     },
     {
+        group: "Student",
         type: "dynamic_text",
-        label: "Course title",
+        label: "Student number",
+        icon: FingerprintIcon,
+        content: "{{student_number}}",
+    },
+    {
+        group: "Student",
+        type: "dynamic_text",
+        label: "Admission number",
+        icon: FingerprintIcon,
+        content: "{{admission_number}}",
+    },
+    {
+        group: "Student",
+        type: "dynamic_text",
+        label: "Examination number",
+        icon: FingerprintIcon,
+        content: "{{examination_number}}",
+    },
+    {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Course name",
         icon: SchoolOutlinedIcon,
         content: "{{program_title}}",
     },
     {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Course level",
+        icon: SchoolOutlinedIcon,
+        content: "{{course_level}}",
+    },
+    {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Department",
+        icon: BusinessOutlinedIcon,
+        content: "{{department}}",
+    },
+    {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Grade",
+        icon: BadgeOutlinedIcon,
+        content: "{{grade}}",
+    },
+    {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Score",
+        icon: BadgeOutlinedIcon,
+        content: "{{score}}",
+    },
+    {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Progress",
+        icon: BadgeOutlinedIcon,
+        content: "{{progress}}",
+    },
+    {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Course duration",
+        icon: CalendarMonthIcon,
+        content: "{{course_duration}}",
+    },
+    {
+        group: "Course",
+        type: "dynamic_text",
+        label: "Course start date",
+        icon: CalendarMonthIcon,
+        content: "{{course_start_date}}",
+    },
+    {
+        group: "Course",
         type: "dynamic_text",
         label: "Completion date",
         icon: CalendarMonthIcon,
         content: "{{completion_date}}",
     },
     {
+        group: "Certificate",
         type: "dynamic_text",
         label: "Issue date",
         icon: CalendarMonthIcon,
         content: "{{issue_date}}",
     },
     {
+        group: "Certificate",
         type: "dynamic_text",
         label: "Certificate code",
         icon: FingerprintIcon,
         content: "{{serial_number}}",
     },
     {
+        group: "Certificate",
+        type: "dynamic_text",
+        label: "Verification code",
+        icon: FingerprintIcon,
+        content: "{{verification_code}}",
+    },
+    {
+        group: "Certificate",
+        type: "qr_code",
+        label: "QR code",
+        icon: QrCode2Icon,
+        content: "",
+    },
+    {
+        group: "Certificate",
+        type: "dynamic_text",
+        label: "Verification URL",
+        icon: QrCode2Icon,
+        content: "{{verification_url}}",
+    },
+    {
+        group: "Instructor",
         type: "dynamic_text",
         label: "Instructor",
         icon: BadgeOutlinedIcon,
         content: "{{instructor_name}}",
     },
     {
+        group: "Instructor",
+        type: "dynamic_text",
+        label: "Co-instructor",
+        icon: BadgeOutlinedIcon,
+        content: "{{co_instructor_name}}",
+    },
+    {
+        group: "Instructor",
+        type: "dynamic_text",
+        label: "Principal / director",
+        icon: BadgeOutlinedIcon,
+        content: "{{principal_name}}",
+    },
+    {
+        group: "Organisation",
         type: "dynamic_text",
         label: "Organisation",
         icon: BusinessOutlinedIcon,
         content: "{{organization_name}}",
     },
     {
+        group: "Organisation",
         type: "dynamic_text",
-        label: "Verification URL",
-        icon: QrCode2Icon,
-        content: "{{verification_url}}",
+        label: "Campus",
+        icon: BusinessOutlinedIcon,
+        content: "{{campus}}",
     },
-    { type: "image", label: "Image / logo", icon: ImageOutlinedIcon, content: "" },
-    { type: "signature", label: "Signature", icon: DrawOutlinedIcon, content: "" },
-    { type: "shape", label: "Shape", icon: ShapeLineIcon, content: "" },
-    { type: "line", label: "Line", icon: HorizontalRuleIcon, content: "" },
-    { type: "qr_code", label: "QR code", icon: QrCode2Icon, content: "" },
 ];
 
 function makeElement(definition, widthMm, heightMm, index) {
     const isQr = definition.type === "qr_code";
     const isLine = definition.type === "line";
     const isAsset = ["image", "signature"].includes(definition.type);
-    const width = isQr
+    let width = isQr
         ? 28
         : isLine
           ? 70
@@ -131,7 +324,7 @@ function makeElement(definition, widthMm, heightMm, index) {
             : isAsset
               ? 48
               : 120;
-    const height = isQr
+    let height = isQr
         ? 28
         : isLine
           ? 3
@@ -140,34 +333,84 @@ function makeElement(definition, widthMm, heightMm, index) {
             : isAsset
               ? 28
               : 18;
+    let x = Math.max(0, (widthMm - width) / 2);
+    let y = Math.max(0, (heightMm - height) / 2);
+    let rotation = 0;
+    if (definition.variant === "page-border") {
+        width = Math.max(1, widthMm - 20);
+        height = Math.max(1, heightMm - 20);
+        x = 10;
+        y = 10;
+    }
+    if (definition.variant === "watermark") {
+        width = widthMm * 0.72;
+        height = heightMm * 0.22;
+        x = (widthMm - width) / 2;
+        y = (heightMm - height) / 2;
+        rotation = -28;
+    }
+    const textStyles = {
+        fontFamily: "Albert Sans",
+        fontSize: definition.type === "dynamic_text" ? 22 : 16,
+        minFontSize: definition.type === "dynamic_text" ? 10 : 8,
+        maxFontSize: definition.type === "dynamic_text" ? 22 : 16,
+        autoShrink: definition.type === "dynamic_text",
+        singleLine: false,
+        textOverflow: "ellipsis",
+        fontWeight: definition.type === "dynamic_text" ? 600 : 400,
+        fontStyle: "normal",
+        textDecoration: "none",
+        textTransform: "none",
+        color: "#172033",
+        textAlign: "center",
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        opacity: 1,
+    };
+    const styles =
+        definition.type === "shape"
+            ? {
+                  fill: "#3157d5",
+                  stroke: "transparent",
+                  strokeWidth: 1,
+                  opacity: 1,
+              }
+            : definition.type === "line"
+              ? { stroke: "#3157d5", strokeWidth: 1, opacity: 1 }
+              : isAsset
+                ? {
+                      objectFit: "contain",
+                      opacity: 1,
+                      borderColor: "transparent",
+                      borderWidth: 0,
+                      borderRadius: 0,
+                  }
+                : isQr
+                  ? {
+                        foreground: "#172033",
+                        background: "#ffffff",
+                        errorCorrection: "M",
+                        padding: 1.5,
+                        borderColor: "transparent",
+                        borderWidth: 0,
+                    }
+                  : textStyles;
     return {
         id: `${definition.type}-${Date.now()}-${index}`,
+        name: definition.label,
         type: definition.type,
-        x: Math.max(0, (widthMm - width) / 2),
-        y: Math.max(0, (heightMm - height) / 2),
+        x,
+        y,
         width,
         height,
-        rotation: 0,
+        rotation,
         locked: false,
         hidden: false,
         zIndex: index + 1,
         content: definition.content,
         assetUrl: definition.assetUrl,
         shape: definition.type === "shape" ? "rectangle" : undefined,
-        styles:
-            definition.type === "shape"
-                ? { fill: "#3157d5", stroke: "transparent", strokeWidth: 1 }
-                : definition.type === "line"
-                  ? { stroke: "#3157d5", strokeWidth: 1 }
-                  : {
-                        fontFamily: "Albert Sans",
-                        fontSize: definition.type === "dynamic_text" ? 22 : 16,
-                        fontWeight: definition.type === "dynamic_text" ? 600 : 400,
-                        color: "#172033",
-                        textAlign: "center",
-                        lineHeight: 1.2,
-                        letterSpacing: 0,
-                    },
+        styles: { ...styles, ...(definition.styles || {}) },
     };
 }
 
@@ -192,6 +435,59 @@ function PaletteButton({ item, onAdd }) {
     );
 }
 
+function closestSnap(value, targets, threshold = 2) {
+    const closest = targets.reduce(
+        (closest, target) =>
+            Math.abs(target - value) < Math.abs(closest - value)
+                ? target
+                : closest,
+        value,
+    );
+    return Math.abs(closest - value) <= threshold ? closest : value;
+}
+
+function snapElementPosition({
+    element,
+    x,
+    y,
+    elements,
+    widthMm,
+    heightMm,
+    safeAreaMm,
+}) {
+    const otherElements = elements.filter((item) => item.id !== element.id);
+    const xTargets = [
+        0,
+        safeAreaMm,
+        (widthMm - element.width) / 2,
+        widthMm - safeAreaMm - element.width,
+        widthMm - element.width,
+    ];
+    const yTargets = [
+        0,
+        safeAreaMm,
+        (heightMm - element.height) / 2,
+        heightMm - safeAreaMm - element.height,
+        heightMm - element.height,
+    ];
+    otherElements.forEach((item) => {
+        xTargets.push(
+            item.x,
+            item.x + item.width - element.width,
+            item.x + item.width / 2 - element.width / 2,
+        );
+        yTargets.push(
+            item.y,
+            item.y + item.height - element.height,
+            item.y + item.height / 2 - element.height / 2,
+        );
+    });
+    return {
+        x: closestSnap(Math.round(x), xTargets),
+        y: closestSnap(Math.round(y), yTargets),
+    };
+}
+
 export default function CertificateTemplateBuilder({ template }) {
     const widthMm = Number(template.widthMm);
     const heightMm = Number(template.heightMm);
@@ -201,12 +497,18 @@ export default function CertificateTemplateBuilder({ template }) {
     const [past, setPast] = useState([]);
     const [future, setFuture] = useState([]);
     const [zoom, setZoom] = useState(0.82);
+    const [leftTab, setLeftTab] = useState("elements");
+    const [sampleProfile, setSampleProfile] = useState("standard");
+    const [showSafeArea, setShowSafeArea] = useState(true);
+    const [snapEnabled, setSnapEnabled] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [publishOpen, setPublishOpen] = useState(false);
     const canvasRef = useRef(null);
     const assetInputRef = useRef(null);
     const uploadModeRef = useRef("image");
+    const uploadLayerNameRef = useRef("Image / logo");
+    const replaceAssetIdRef = useRef(null);
     const initialDocument = useRef(
         JSON.stringify({ name: template.name, layout: template.layout }),
     );
@@ -218,8 +520,27 @@ export default function CertificateTemplateBuilder({ template }) {
     );
 
     const selected = useMemo(
-        () => layout.elements.find((element) => element.id === selectedId) || null,
+        () =>
+            layout.elements.find((element) => element.id === selectedId) ||
+            null,
         [layout.elements, selectedId],
+    );
+    const selectedFit = useMemo(() => {
+        if (!selected || !["text", "dynamic_text"].includes(selected.type)) {
+            return null;
+        }
+        return fitCertificateText({
+            text: certificateSampleContent(selected.content, sampleProfile),
+            element: selected,
+            pageWidthMm: widthMm,
+            pageHeightMm: heightMm,
+        });
+    }, [heightMm, sampleProfile, selected, widthMm]);
+    const selectedIsText = Boolean(
+        selected && ["text", "dynamic_text"].includes(selected.type),
+    );
+    const selectedIsAsset = Boolean(
+        selected && ["image", "signature"].includes(selected.type),
     );
 
     useEffect(() => {
@@ -229,14 +550,18 @@ export default function CertificateTemplateBuilder({ template }) {
             event.returnValue = "";
         };
         window.addEventListener("beforeunload", warnBeforeLeaving);
-        return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+        return () =>
+            window.removeEventListener("beforeunload", warnBeforeLeaving);
     }, [isDirty]);
 
     useEffect(() => {
         const handleKeyDown = (event) => {
             const tagName = event.target?.tagName?.toLowerCase();
             if (["input", "textarea", "select"].includes(tagName)) return;
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+            if (
+                (event.ctrlKey || event.metaKey) &&
+                event.key.toLowerCase() === "z"
+            ) {
                 event.preventDefault();
                 if (event.shiftKey) redo();
                 else undo();
@@ -285,7 +610,9 @@ export default function CertificateTemplateBuilder({ template }) {
         commitLayout({
             ...layout,
             elements: layout.elements.map((element) =>
-                element.id === selected.id ? { ...element, ...updates } : element,
+                element.id === selected.id
+                    ? { ...element, ...updates }
+                    : element,
             ),
         });
     };
@@ -300,6 +627,8 @@ export default function CertificateTemplateBuilder({ template }) {
     const addElement = (definition) => {
         if (["image", "signature"].includes(definition.type)) {
             uploadModeRef.current = definition.type;
+            uploadLayerNameRef.current = definition.label;
+            replaceAssetIdRef.current = null;
             assetInputRef.current?.click();
             return;
         }
@@ -340,13 +669,27 @@ export default function CertificateTemplateBuilder({ template }) {
                         image: result.url,
                     },
                 });
+            } else if (replaceAssetIdRef.current) {
+                const assetId = replaceAssetIdRef.current;
+                commitLayout({
+                    ...layout,
+                    elements: layout.elements.map((element) =>
+                        element.id === assetId
+                            ? {
+                                  ...element,
+                                  content: result.url,
+                                  assetUrl: result.url,
+                              }
+                            : element,
+                    ),
+                });
             } else {
                 const element = makeElement(
                     {
-                    type: uploadModeRef.current,
-                    label: uploadModeRef.current,
-                    content: result.url,
-                    assetUrl: result.url,
+                        type: uploadModeRef.current,
+                        label: uploadLayerNameRef.current,
+                        content: result.url,
+                        assetUrl: result.url,
                     },
                     widthMm,
                     heightMm,
@@ -361,6 +704,7 @@ export default function CertificateTemplateBuilder({ template }) {
         } catch (error) {
             window.alert(error.message);
         } finally {
+            replaceAssetIdRef.current = null;
             setProcessing(false);
         }
     };
@@ -369,7 +713,9 @@ export default function CertificateTemplateBuilder({ template }) {
         if (!selected) return;
         commitLayout({
             ...layout,
-            elements: layout.elements.filter((element) => element.id !== selected.id),
+            elements: layout.elements.filter(
+                (element) => element.id !== selected.id,
+            ),
         });
         setSelectedId(null);
     };
@@ -396,6 +742,38 @@ export default function CertificateTemplateBuilder({ template }) {
         updateSelected({ zIndex: next });
     };
 
+    const alignSelected = (alignment) => {
+        if (!selected) return;
+        const safeArea = Number(layout.safeAreaMm) || 0;
+        const positions = {
+            left: { x: safeArea },
+            center: { x: (widthMm - selected.width) / 2 },
+            right: { x: widthMm - safeArea - selected.width },
+            top: { y: safeArea },
+            middle: { y: (heightMm - selected.height) / 2 },
+            bottom: { y: heightMm - safeArea - selected.height },
+        };
+        const next = positions[alignment] || {};
+        updateSelected({
+            ...(next.x === undefined
+                ? {}
+                : {
+                      x: Math.max(
+                          0,
+                          Math.min(widthMm - selected.width, next.x),
+                      ),
+                  }),
+            ...(next.y === undefined
+                ? {}
+                : {
+                      y: Math.max(
+                          0,
+                          Math.min(heightMm - selected.height, next.y),
+                      ),
+                  }),
+        });
+    };
+
     const undo = () => {
         if (!past.length) return;
         const previous = past[past.length - 1];
@@ -417,14 +795,27 @@ export default function CertificateTemplateBuilder({ template }) {
         const canvasWidth = canvasRef.current?.getBoundingClientRect().width;
         if (!element || !canvasWidth) return;
         const pixelsPerMm = canvasWidth / widthMm;
-        const nextX = Math.min(
+        let nextX = Math.min(
             widthMm - element.width,
             Math.max(0, element.x + delta.x / pixelsPerMm),
         );
-        const nextY = Math.min(
+        let nextY = Math.min(
             heightMm - element.height,
             Math.max(0, element.y + delta.y / pixelsPerMm),
         );
+        if (snapEnabled) {
+            const snapped = snapElementPosition({
+                element,
+                x: nextX,
+                y: nextY,
+                elements: layout.elements,
+                widthMm,
+                heightMm,
+                safeAreaMm: Number(layout.safeAreaMm) || 0,
+            });
+            nextX = snapped.x;
+            nextY = snapped.y;
+        }
         updateSelectedPosition(element.id, nextX, nextY);
     };
 
@@ -464,7 +855,7 @@ export default function CertificateTemplateBuilder({ template }) {
         );
     };
 
-    const openPdfPreview = async () => {
+    const openPdfPreview = async (download = false) => {
         setProcessing(true);
         try {
             const response = await fetch(
@@ -475,15 +866,26 @@ export default function CertificateTemplateBuilder({ template }) {
                     headers: getCsrfHeaders({
                         "Content-Type": "application/json",
                     }),
-                    body: JSON.stringify({ layout }),
+                    body: JSON.stringify({ layout, sampleProfile }),
                 },
             );
             if (!response.ok) {
                 const result = await response.json();
-                throw new Error(result.error || "Preview could not be generated.");
+                throw new Error(
+                    result.error || "Preview could not be generated.",
+                );
             }
             const url = URL.createObjectURL(await response.blob());
-            window.open(url, "_blank", "noopener,noreferrer");
+            if (download) {
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = `${name.trim() || "certificate"}-test.pdf`;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+            } else {
+                window.open(url, "_blank", "noopener,noreferrer");
+            }
             window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
         } catch (error) {
             window.alert(error.message);
@@ -496,7 +898,10 @@ export default function CertificateTemplateBuilder({ template }) {
         <DashboardLayout
             role="admin"
             breadcrumbs={[
-                { label: "Certificate templates", href: "/admin/certificate-templates/" },
+                {
+                    label: "Certificate templates",
+                    href: "/admin/certificate-templates/",
+                },
                 { label: template.name },
             ]}
         >
@@ -536,7 +941,9 @@ export default function CertificateTemplateBuilder({ template }) {
                 <Chip
                     label={template.status}
                     size="small"
-                    color={template.status === "published" ? "success" : "default"}
+                    color={
+                        template.status === "published" ? "success" : "default"
+                    }
                     sx={{ textTransform: "capitalize" }}
                 />
                 <Divider orientation="vertical" flexItem />
@@ -550,18 +957,37 @@ export default function CertificateTemplateBuilder({ template }) {
                     </Tooltip>
                     <Tooltip title="Redo">
                         <span>
-                            <IconButton onClick={redo} disabled={!future.length}>
+                            <IconButton
+                                onClick={redo}
+                                disabled={!future.length}
+                            >
                                 <RedoIcon fontSize="small" />
                             </IconButton>
                         </span>
                     </Tooltip>
                 </ButtonGroup>
                 <Button
+                    startIcon={<ContentCopyIcon />}
+                    color="inherit"
+                    onClick={duplicateSelected}
+                    disabled={!selected}
+                >
+                    Duplicate
+                </Button>
+                <Button
                     startIcon={<PreviewIcon />}
                     color="inherit"
                     onClick={() => setPreviewOpen(true)}
                 >
                     Preview
+                </Button>
+                <Button
+                    startIcon={<DownloadOutlinedIcon />}
+                    color="inherit"
+                    onClick={() => openPdfPreview(true)}
+                    disabled={processing}
+                >
+                    Test PDF
                 </Button>
                 {isDirty && (
                     <Typography variant="caption" color="warning.main">
@@ -606,27 +1032,148 @@ export default function CertificateTemplateBuilder({ template }) {
                 <Box
                     component="aside"
                     sx={{
-                        p: 2,
+                        p: 1.5,
                         borderRight: { sm: "1px solid" },
                         borderBottom: { xs: "1px solid", sm: 0 },
                         borderColor: "divider",
+                        maxHeight: { sm: "calc(100vh - 190px)" },
+                        overflowY: "auto",
                     }}
                 >
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                        <AddIcon color="primary" />
-                        <Typography fontWeight={700}>Add elements</Typography>
-                    </Stack>
-                    <Box
-                        sx={{
-                            display: "grid",
-                            gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "1fr" },
-                            gap: 1,
-                        }}
+                    <Tabs
+                        value={leftTab}
+                        onChange={(_, value) => setLeftTab(value)}
+                        variant="fullWidth"
+                        sx={{ mb: 1.5, minHeight: 36 }}
                     >
-                        {ELEMENT_LIBRARY.map((item) => (
-                            <PaletteButton key={item.label} item={item} onAdd={addElement} />
-                        ))}
-                    </Box>
+                        <Tab
+                            value="elements"
+                            label="Elements"
+                            sx={{ minHeight: 36 }}
+                        />
+                        <Tab
+                            value="layers"
+                            label="Layers"
+                            sx={{ minHeight: 36 }}
+                        />
+                    </Tabs>
+                    {leftTab === "elements" ? (
+                        <Stack spacing={2}>
+                            {[
+                                "Design",
+                                "Certificate",
+                                "Course",
+                                "Student",
+                                "Instructor",
+                                "Organisation",
+                            ].map((group) => (
+                                <Box key={group}>
+                                    <Stack
+                                        direction="row"
+                                        spacing={0.75}
+                                        alignItems="center"
+                                        sx={{ mb: 0.75 }}
+                                    >
+                                        <AddIcon
+                                            color="primary"
+                                            fontSize="small"
+                                        />
+                                        <Typography
+                                            variant="overline"
+                                            fontWeight={800}
+                                            color="text.secondary"
+                                        >
+                                            {group}
+                                        </Typography>
+                                    </Stack>
+                                    <Box
+                                        sx={{
+                                            display: "grid",
+                                            gridTemplateColumns: {
+                                                xs: "repeat(2, 1fr)",
+                                                sm: "1fr",
+                                            },
+                                            gap: 0.75,
+                                        }}
+                                    >
+                                        {ELEMENT_LIBRARY.filter(
+                                            (item) => item.group === group,
+                                        ).map((item) => (
+                                            <PaletteButton
+                                                key={`${item.group}-${item.label}`}
+                                                item={item}
+                                                onAdd={addElement}
+                                            />
+                                        ))}
+                                    </Box>
+                                </Box>
+                            ))}
+                        </Stack>
+                    ) : (
+                        <>
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                sx={{ mb: 1 }}
+                            >
+                                <LayersIcon fontSize="small" />
+                                <Typography
+                                    variant="subtitle2"
+                                    fontWeight={700}
+                                >
+                                    Certificate layers
+                                </Typography>
+                            </Stack>
+                            <Stack spacing={0.5}>
+                                {[...layout.elements]
+                                    .sort(
+                                        (first, second) =>
+                                            (second.zIndex || 0) -
+                                            (first.zIndex || 0),
+                                    )
+                                    .map((element) => (
+                                        <Button
+                                            key={element.id}
+                                            color={
+                                                selectedId === element.id
+                                                    ? "primary"
+                                                    : "inherit"
+                                            }
+                                            variant={
+                                                selectedId === element.id
+                                                    ? "outlined"
+                                                    : "text"
+                                            }
+                                            onClick={() =>
+                                                setSelectedId(element.id)
+                                            }
+                                            sx={{
+                                                justifyContent: "flex-start",
+                                                textTransform: "none",
+                                                overflow: "hidden",
+                                                opacity: element.hidden
+                                                    ? 0.5
+                                                    : 1,
+                                            }}
+                                        >
+                                            <Typography
+                                                variant="caption"
+                                                noWrap
+                                            >
+                                                {element.locked ? "🔒 " : ""}
+                                                {element.name ||
+                                                    element.content ||
+                                                    element.type.replace(
+                                                        "_",
+                                                        " ",
+                                                    )}
+                                            </Typography>
+                                        </Button>
+                                    ))}
+                            </Stack>
+                        </>
+                    )}
                     <input
                         ref={assetInputRef}
                         type="file"
@@ -634,32 +1181,6 @@ export default function CertificateTemplateBuilder({ template }) {
                         accept="image/png,image/jpeg,image/webp"
                         onChange={uploadAsset}
                     />
-                    <Divider sx={{ my: 2.5 }} />
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                        <LayersIcon fontSize="small" />
-                        <Typography variant="subtitle2" fontWeight={700}>
-                            Layers
-                        </Typography>
-                    </Stack>
-                    <Stack spacing={0.5}>
-                        {[...layout.elements].reverse().map((element) => (
-                            <Button
-                                key={element.id}
-                                color={selectedId === element.id ? "primary" : "inherit"}
-                                variant={selectedId === element.id ? "outlined" : "text"}
-                                onClick={() => setSelectedId(element.id)}
-                                sx={{
-                                    justifyContent: "flex-start",
-                                    textTransform: "none",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                <Typography variant="caption" noWrap>
-                                    {element.content || element.type.replace("_", " ")}
-                                </Typography>
-                            </Button>
-                        ))}
-                    </Stack>
                 </Box>
 
                 <Box
@@ -675,28 +1196,92 @@ export default function CertificateTemplateBuilder({ template }) {
                         justifyContent="center"
                         alignItems="center"
                         spacing={1}
-                        sx={{ py: 1.25, borderBottom: "1px solid rgba(25,37,61,.08)" }}
+                        useFlexGap
+                        flexWrap="wrap"
+                        sx={{
+                            py: 1.25,
+                            px: 1,
+                            borderBottom: "1px solid rgba(25,37,61,.08)",
+                        }}
                     >
                         <IconButton
                             size="small"
-                            onClick={() => setZoom((value) => Math.max(0.45, value - 0.1))}
+                            onClick={() =>
+                                setZoom((value) => Math.max(0.45, value - 0.1))
+                            }
                         >
                             <ZoomOutIcon fontSize="small" />
                         </IconButton>
-                        <Typography variant="caption" sx={{ minWidth: 42, textAlign: "center" }}>
+                        <Typography
+                            variant="caption"
+                            sx={{ minWidth: 42, textAlign: "center" }}
+                        >
                             {Math.round(zoom * 100)}%
                         </Typography>
                         <IconButton
                             size="small"
-                            onClick={() => setZoom((value) => Math.min(1.2, value + 0.1))}
+                            onClick={() =>
+                                setZoom((value) => Math.min(1.2, value + 0.1))
+                            }
                         >
                             <ZoomInIcon fontSize="small" />
                         </IconButton>
                         <Tooltip title="Fit canvas">
-                            <IconButton size="small" onClick={() => setZoom(0.82)}>
+                            <IconButton
+                                size="small"
+                                onClick={() => setZoom(0.82)}
+                            >
                                 <CenterFocusStrongIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
+                        <Divider orientation="vertical" flexItem />
+                        <FormControl size="small" sx={{ minWidth: 148 }}>
+                            <InputLabel>Preview data</InputLabel>
+                            <Select
+                                label="Preview data"
+                                value={sampleProfile}
+                                onChange={(event) =>
+                                    setSampleProfile(event.target.value)
+                                }
+                            >
+                                <MenuItem value="standard">
+                                    Standard sample
+                                </MenuItem>
+                                <MenuItem value="stress">
+                                    Long-name test
+                                </MenuItem>
+                            </Select>
+                        </FormControl>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={showSafeArea}
+                                    onChange={(event) =>
+                                        setShowSafeArea(event.target.checked)
+                                    }
+                                />
+                            }
+                            label={
+                                <Typography variant="caption">
+                                    Safe area
+                                </Typography>
+                            }
+                        />
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    size="small"
+                                    checked={snapEnabled}
+                                    onChange={(event) =>
+                                        setSnapEnabled(event.target.checked)
+                                    }
+                                />
+                            }
+                            label={
+                                <Typography variant="caption">Snap</Typography>
+                            }
+                        />
                     </Stack>
                     <Box
                         sx={{
@@ -716,7 +1301,10 @@ export default function CertificateTemplateBuilder({ template }) {
                                 maxWidth: "100%",
                             }}
                         >
-                            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                            <DndContext
+                                sensors={sensors}
+                                onDragEnd={handleDragEnd}
+                            >
                                 <CertificateCanvas
                                     ref={canvasRef}
                                     layout={layout}
@@ -725,6 +1313,8 @@ export default function CertificateTemplateBuilder({ template }) {
                                     selectedId={selectedId}
                                     interactive
                                     onSelect={setSelectedId}
+                                    sampleProfile={sampleProfile}
+                                    showSafeArea={showSafeArea}
                                 />
                             </DndContext>
                         </Box>
@@ -743,19 +1333,43 @@ export default function CertificateTemplateBuilder({ template }) {
                     {selected ? (
                         <Stack spacing={2}>
                             <Box>
-                                <Typography fontWeight={700}>Properties</Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography fontWeight={700}>
+                                    Properties
+                                </Typography>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                >
                                     {selected.type.replace("_", " ")}
                                 </Typography>
                             </Box>
-                            {!["shape", "line", "qr_code", "image", "signature"].includes(selected.type) && (
+                            <TextField
+                                label="Layer name"
+                                size="small"
+                                value={selected.name || ""}
+                                onChange={(event) =>
+                                    updateSelected({ name: event.target.value })
+                                }
+                                helperText="Shown only in the Layers panel."
+                            />
+                            {selectedFit?.overflows && (
+                                <Alert severity="warning">
+                                    This sample still overflows at{" "}
+                                    {selectedFit.fontSize}px. Enlarge the text
+                                    box, allow wrapping, or reduce the minimum
+                                    font size.
+                                </Alert>
+                            )}
+                            {selectedIsText && (
                                 <TextField
                                     label="Content"
                                     multiline
                                     minRows={2}
                                     value={selected.content}
                                     onChange={(event) =>
-                                        updateSelected({ content: event.target.value })
+                                        updateSelected({
+                                            content: event.target.value,
+                                        })
                                     }
                                     fullWidth
                                 />
@@ -763,7 +1377,8 @@ export default function CertificateTemplateBuilder({ template }) {
                             <Box
                                 sx={{
                                     display: "grid",
-                                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                                    gridTemplateColumns:
+                                        "repeat(2, minmax(0, 1fr))",
                                     gap: 1,
                                 }}
                             >
@@ -779,12 +1394,27 @@ export default function CertificateTemplateBuilder({ template }) {
                                         size="small"
                                         label={`${label} (mm)`}
                                         value={selected[key]}
-                                        inputProps={{ min: key === "width" || key === "height" ? 1 : 0, max: maximum }}
+                                        inputProps={{
+                                            min:
+                                                key === "width" ||
+                                                key === "height"
+                                                    ? 1
+                                                    : 0,
+                                            max: maximum,
+                                        }}
                                         onChange={(event) =>
                                             updateSelected({
                                                 [key]: Math.max(
-                                                    key === "width" || key === "height" ? 1 : 0,
-                                                    Math.min(maximum, Number(event.target.value)),
+                                                    key === "width" ||
+                                                        key === "height"
+                                                        ? 1
+                                                        : 0,
+                                                    Math.min(
+                                                        maximum,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
                                                 ),
                                             })
                                         }
@@ -801,18 +1431,76 @@ export default function CertificateTemplateBuilder({ template }) {
                                     updateSelected({
                                         rotation: Math.max(
                                             -360,
-                                            Math.min(360, Number(event.target.value)),
+                                            Math.min(
+                                                360,
+                                                Number(event.target.value),
+                                            ),
                                         ),
                                     })
                                 }
                             />
-                            {!["shape", "line", "qr_code", "image", "signature"].includes(selected.type) && (
+                            <Box>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ display: "block", mb: 0.75 }}
+                                >
+                                    Align within safe area
+                                </Typography>
+                                <ButtonGroup
+                                    size="small"
+                                    variant="outlined"
+                                    fullWidth
+                                    sx={{ mb: 0.75 }}
+                                >
+                                    <Button
+                                        onClick={() => alignSelected("left")}
+                                    >
+                                        Left
+                                    </Button>
+                                    <Button
+                                        onClick={() => alignSelected("center")}
+                                    >
+                                        Centre
+                                    </Button>
+                                    <Button
+                                        onClick={() => alignSelected("right")}
+                                    >
+                                        Right
+                                    </Button>
+                                </ButtonGroup>
+                                <ButtonGroup
+                                    size="small"
+                                    variant="outlined"
+                                    fullWidth
+                                >
+                                    <Button
+                                        onClick={() => alignSelected("top")}
+                                    >
+                                        Top
+                                    </Button>
+                                    <Button
+                                        onClick={() => alignSelected("middle")}
+                                    >
+                                        Middle
+                                    </Button>
+                                    <Button
+                                        onClick={() => alignSelected("bottom")}
+                                    >
+                                        Bottom
+                                    </Button>
+                                </ButtonGroup>
+                            </Box>
+                            {selectedIsText && (
                                 <>
                                     <FormControl size="small" fullWidth>
                                         <InputLabel>Font</InputLabel>
                                         <Select
                                             label="Font"
-                                            value={selected.styles?.fontFamily || "Albert Sans"}
+                                            value={
+                                                selected.styles?.fontFamily ||
+                                                "Albert Sans"
+                                            }
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "fontFamily",
@@ -820,30 +1508,108 @@ export default function CertificateTemplateBuilder({ template }) {
                                                 )
                                             }
                                         >
-                                            <MenuItem value="Albert Sans">Albert Sans</MenuItem>
-                                            <MenuItem value="Georgia">Georgia</MenuItem>
-                                            <MenuItem value="Arial">Arial</MenuItem>
-                                            <MenuItem value="Times New Roman">Times New Roman</MenuItem>
+                                            <MenuItem value="Albert Sans">
+                                                Albert Sans
+                                            </MenuItem>
+                                            <MenuItem value="Georgia">
+                                                Georgia
+                                            </MenuItem>
+                                            <MenuItem value="Arial">
+                                                Arial
+                                            </MenuItem>
+                                            <MenuItem value="Times New Roman">
+                                                Times New Roman
+                                            </MenuItem>
                                         </Select>
                                     </FormControl>
-                                    <TextField
-                                        type="number"
-                                        size="small"
-                                        label="Font size"
-                                        value={selected.styles?.fontSize || 16}
-                                        onChange={(event) =>
-                                            updateSelectedStyle(
-                                                "fontSize",
-                                                Math.max(6, Number(event.target.value)),
-                                            )
-                                        }
-                                    />
+                                    <Box
+                                        sx={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                                "repeat(3, minmax(0, 1fr))",
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Font"
+                                            value={
+                                                selected.styles?.fontSize || 16
+                                            }
+                                            inputProps={{ min: 6, max: 160 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "fontSize",
+                                                    Math.max(
+                                                        6,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Minimum"
+                                            value={
+                                                selected.styles?.minFontSize ||
+                                                Math.min(
+                                                    12,
+                                                    selected.styles?.fontSize ||
+                                                        16,
+                                                )
+                                            }
+                                            inputProps={{ min: 6, max: 160 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "minFontSize",
+                                                    Math.max(
+                                                        6,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Maximum"
+                                            value={
+                                                selected.styles?.maxFontSize ||
+                                                selected.styles?.fontSize ||
+                                                16
+                                            }
+                                            inputProps={{ min: 6, max: 160 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "maxFontSize",
+                                                    Math.max(
+                                                        6,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </Box>
                                     <TextField
                                         type="number"
                                         size="small"
                                         label="Font weight"
-                                        value={selected.styles?.fontWeight || 400}
-                                        inputProps={{ min: 300, max: 900, step: 100 }}
+                                        value={
+                                            selected.styles?.fontWeight || 400
+                                        }
+                                        inputProps={{
+                                            min: 300,
+                                            max: 900,
+                                            step: 100,
+                                        }}
                                         onChange={(event) =>
                                             updateSelectedStyle(
                                                 "fontWeight",
@@ -851,13 +1617,162 @@ export default function CertificateTemplateBuilder({ template }) {
                                             )
                                         }
                                     />
+                                    <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        useFlexGap
+                                        flexWrap="wrap"
+                                    >
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    size="small"
+                                                    checked={
+                                                        selected.styles
+                                                            ?.autoShrink ??
+                                                        selected.type ===
+                                                            "dynamic_text"
+                                                    }
+                                                    onChange={(event) =>
+                                                        updateSelectedStyle(
+                                                            "autoShrink",
+                                                            event.target
+                                                                .checked,
+                                                        )
+                                                    }
+                                                />
+                                            }
+                                            label="Auto-shrink"
+                                        />
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    size="small"
+                                                    checked={Boolean(
+                                                        selected.styles
+                                                            ?.singleLine,
+                                                    )}
+                                                    onChange={(event) =>
+                                                        updateSelectedStyle(
+                                                            "singleLine",
+                                                            event.target
+                                                                .checked,
+                                                        )
+                                                    }
+                                                />
+                                            }
+                                            label="One line"
+                                        />
+                                    </Stack>
+                                    <Stack direction="row" spacing={1}>
+                                        <FormControl size="small" fullWidth>
+                                            <InputLabel>Case</InputLabel>
+                                            <Select
+                                                label="Case"
+                                                value={
+                                                    selected.styles
+                                                        ?.textTransform ||
+                                                    "none"
+                                                }
+                                                onChange={(event) =>
+                                                    updateSelectedStyle(
+                                                        "textTransform",
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            >
+                                                <MenuItem value="none">
+                                                    As entered
+                                                </MenuItem>
+                                                <MenuItem value="uppercase">
+                                                    UPPERCASE
+                                                </MenuItem>
+                                                <MenuItem value="lowercase">
+                                                    lowercase
+                                                </MenuItem>
+                                                <MenuItem value="capitalize">
+                                                    Capitalise
+                                                </MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                        <FormControl size="small" fullWidth>
+                                            <InputLabel>Overflow</InputLabel>
+                                            <Select
+                                                label="Overflow"
+                                                value={
+                                                    selected.styles
+                                                        ?.textOverflow ||
+                                                    "ellipsis"
+                                                }
+                                                onChange={(event) =>
+                                                    updateSelectedStyle(
+                                                        "textOverflow",
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            >
+                                                <MenuItem value="ellipsis">
+                                                    Ellipsis
+                                                </MenuItem>
+                                                <MenuItem value="clip">
+                                                    Clip
+                                                </MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                    </Stack>
+                                    <ToggleButtonGroup
+                                        size="small"
+                                        value={[
+                                            selected.styles?.fontStyle ===
+                                            "italic"
+                                                ? "italic"
+                                                : null,
+                                            selected.styles?.textDecoration ===
+                                            "underline"
+                                                ? "underline"
+                                                : null,
+                                        ].filter(Boolean)}
+                                        onChange={(_, values) => {
+                                            updateSelected({
+                                                styles: {
+                                                    ...(selected.styles || {}),
+                                                    fontStyle: values.includes(
+                                                        "italic",
+                                                    )
+                                                        ? "italic"
+                                                        : "normal",
+                                                    textDecoration:
+                                                        values.includes(
+                                                            "underline",
+                                                        )
+                                                            ? "underline"
+                                                            : "none",
+                                                },
+                                            });
+                                        }}
+                                        fullWidth
+                                    >
+                                        <ToggleButton value="italic">
+                                            Italic
+                                        </ToggleButton>
+                                        <ToggleButton value="underline">
+                                            Underline
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
                                     <Stack direction="row" spacing={1}>
                                         <TextField
                                             type="number"
                                             size="small"
                                             label="Line height"
-                                            value={selected.styles?.lineHeight || 1.2}
-                                            inputProps={{ min: 0.8, max: 3, step: 0.1 }}
+                                            value={
+                                                selected.styles?.lineHeight ||
+                                                1.2
+                                            }
+                                            inputProps={{
+                                                min: 0.8,
+                                                max: 3,
+                                                step: 0.1,
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "lineHeight",
@@ -869,8 +1784,15 @@ export default function CertificateTemplateBuilder({ template }) {
                                             type="number"
                                             size="small"
                                             label="Letter spacing"
-                                            value={selected.styles?.letterSpacing || 0}
-                                            inputProps={{ min: -5, max: 20, step: 0.5 }}
+                                            value={
+                                                selected.styles
+                                                    ?.letterSpacing || 0
+                                            }
+                                            inputProps={{
+                                                min: -5,
+                                                max: 20,
+                                                step: 0.5,
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "letterSpacing",
@@ -883,45 +1805,441 @@ export default function CertificateTemplateBuilder({ template }) {
                                         type="color"
                                         size="small"
                                         label="Text colour"
-                                        value={selected.styles?.color || "#172033"}
+                                        value={
+                                            selected.styles?.color || "#172033"
+                                        }
                                         onChange={(event) =>
-                                            updateSelectedStyle("color", event.target.value)
+                                            updateSelectedStyle(
+                                                "color",
+                                                event.target.value,
+                                            )
                                         }
                                         InputLabelProps={{ shrink: true }}
+                                    />
+                                    <Stack direction="row" spacing={1}>
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Opacity"
+                                            value={
+                                                selected.styles?.opacity ?? 1
+                                            }
+                                            inputProps={{
+                                                min: 0,
+                                                max: 1,
+                                                step: 0.05,
+                                            }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "opacity",
+                                                    Math.max(
+                                                        0,
+                                                        Math.min(
+                                                            1,
+                                                            Number(
+                                                                event.target
+                                                                    .value,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        <FormControl size="small" fullWidth>
+                                            <InputLabel>Vertical</InputLabel>
+                                            <Select
+                                                label="Vertical"
+                                                value={
+                                                    selected.styles
+                                                        ?.verticalAlign ||
+                                                    "center"
+                                                }
+                                                onChange={(event) =>
+                                                    updateSelectedStyle(
+                                                        "verticalAlign",
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            >
+                                                <MenuItem value="top">
+                                                    Top
+                                                </MenuItem>
+                                                <MenuItem value="center">
+                                                    Centre
+                                                </MenuItem>
+                                                <MenuItem value="bottom">
+                                                    Bottom
+                                                </MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                    </Stack>
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                size="small"
+                                                checked={Boolean(
+                                                    selected.styles?.textShadow,
+                                                )}
+                                                onChange={(event) =>
+                                                    updateSelectedStyle(
+                                                        "textShadow",
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                            />
+                                        }
+                                        label="Text shadow"
                                     />
                                     <ToggleButtonGroup
                                         exclusive
                                         size="small"
-                                        value={selected.styles?.textAlign || "center"}
+                                        value={
+                                            selected.styles?.textAlign ||
+                                            "center"
+                                        }
                                         onChange={(_, value) =>
-                                            value && updateSelectedStyle("textAlign", value)
+                                            value &&
+                                            updateSelectedStyle(
+                                                "textAlign",
+                                                value,
+                                            )
                                         }
                                         fullWidth
                                     >
-                                        <ToggleButton value="left">Left</ToggleButton>
-                                        <ToggleButton value="center">Centre</ToggleButton>
-                                        <ToggleButton value="right">Right</ToggleButton>
+                                        <ToggleButton value="left">
+                                            Left
+                                        </ToggleButton>
+                                        <ToggleButton value="center">
+                                            Centre
+                                        </ToggleButton>
+                                        <ToggleButton value="right">
+                                            Right
+                                        </ToggleButton>
                                     </ToggleButtonGroup>
                                 </>
                             )}
+                            {selectedIsAsset && (
+                                <Stack spacing={1.5}>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<ImageOutlinedIcon />}
+                                        onClick={() => {
+                                            uploadModeRef.current =
+                                                selected.type;
+                                            uploadLayerNameRef.current =
+                                                selected.name || "Image / logo";
+                                            replaceAssetIdRef.current =
+                                                selected.id;
+                                            assetInputRef.current?.click();
+                                        }}
+                                    >
+                                        Replace image
+                                    </Button>
+                                    <FormControl size="small" fullWidth>
+                                        <InputLabel>Image fit</InputLabel>
+                                        <Select
+                                            label="Image fit"
+                                            value={
+                                                selected.styles?.objectFit ||
+                                                "contain"
+                                            }
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "objectFit",
+                                                    event.target.value,
+                                                )
+                                            }
+                                        >
+                                            <MenuItem value="contain">
+                                                Fit inside
+                                            </MenuItem>
+                                            <MenuItem value="cover">
+                                                Crop to fill
+                                            </MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    <Box
+                                        sx={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                                "repeat(2, minmax(0, 1fr))",
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Opacity"
+                                            value={
+                                                selected.styles?.opacity ?? 1
+                                            }
+                                            inputProps={{
+                                                min: 0,
+                                                max: 1,
+                                                step: 0.05,
+                                            }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "opacity",
+                                                    Math.max(
+                                                        0,
+                                                        Math.min(
+                                                            1,
+                                                            Number(
+                                                                event.target
+                                                                    .value,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Corner radius"
+                                            value={
+                                                selected.styles?.borderRadius ||
+                                                0
+                                            }
+                                            inputProps={{ min: 0, max: 100 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "borderRadius",
+                                                    Math.max(
+                                                        0,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Border width"
+                                            value={
+                                                selected.styles?.borderWidth ||
+                                                0
+                                            }
+                                            inputProps={{ min: 0, max: 20 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "borderWidth",
+                                                    Math.max(
+                                                        0,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        <TextField
+                                            type="color"
+                                            size="small"
+                                            label="Border colour"
+                                            value={
+                                                selected.styles?.borderColor ===
+                                                "transparent"
+                                                    ? "#ffffff"
+                                                    : selected.styles
+                                                          ?.borderColor ||
+                                                      "#ffffff"
+                                            }
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "borderColor",
+                                                    event.target.value,
+                                                )
+                                            }
+                                            InputLabelProps={{ shrink: true }}
+                                        />
+                                    </Box>
+                                </Stack>
+                            )}
+                            {selected.type === "qr_code" && (
+                                <Stack spacing={1.5}>
+                                    <FormControl size="small" fullWidth>
+                                        <InputLabel>
+                                            Error correction
+                                        </InputLabel>
+                                        <Select
+                                            label="Error correction"
+                                            value={
+                                                selected.styles
+                                                    ?.errorCorrection || "M"
+                                            }
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "errorCorrection",
+                                                    event.target.value,
+                                                )
+                                            }
+                                        >
+                                            <MenuItem value="L">Low</MenuItem>
+                                            <MenuItem value="M">
+                                                Medium
+                                            </MenuItem>
+                                            <MenuItem value="Q">
+                                                Quartile
+                                            </MenuItem>
+                                            <MenuItem value="H">High</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                    <Box
+                                        sx={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                                "repeat(2, minmax(0, 1fr))",
+                                            gap: 1,
+                                        }}
+                                    >
+                                        <TextField
+                                            type="color"
+                                            size="small"
+                                            label="Foreground"
+                                            value={
+                                                selected.styles?.foreground ||
+                                                "#172033"
+                                            }
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "foreground",
+                                                    event.target.value,
+                                                )
+                                            }
+                                            InputLabelProps={{ shrink: true }}
+                                        />
+                                        <TextField
+                                            type="color"
+                                            size="small"
+                                            label="Background"
+                                            value={
+                                                selected.styles?.background ||
+                                                "#ffffff"
+                                            }
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "background",
+                                                    event.target.value,
+                                                )
+                                            }
+                                            InputLabelProps={{ shrink: true }}
+                                        />
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Padding (mm)"
+                                            value={
+                                                selected.styles?.padding ?? 1.5
+                                            }
+                                            inputProps={{
+                                                min: 0,
+                                                max: 10,
+                                                step: 0.5,
+                                            }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "padding",
+                                                    Math.max(
+                                                        0,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label="Border width"
+                                            value={
+                                                selected.styles?.borderWidth ||
+                                                0
+                                            }
+                                            inputProps={{ min: 0, max: 20 }}
+                                            onChange={(event) =>
+                                                updateSelectedStyle(
+                                                    "borderWidth",
+                                                    Math.max(
+                                                        0,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    </Box>
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                    >
+                                        The QR code always uses this
+                                        certificate&apos;s public verification
+                                        URL.
+                                    </Typography>
+                                </Stack>
+                            )}
                             {selected.type === "shape" && (
-                                <TextField
-                                    type="color"
-                                    size="small"
-                                    label="Fill colour"
-                                    value={selected.styles?.fill || "#3157d5"}
-                                    onChange={(event) =>
-                                        updateSelectedStyle("fill", event.target.value)
-                                    }
-                                    InputLabelProps={{ shrink: true }}
-                                />
+                                <Stack direction="row" spacing={1}>
+                                    <TextField
+                                        type="color"
+                                        size="small"
+                                        label="Fill colour"
+                                        value={
+                                            selected.styles?.fill ===
+                                            "transparent"
+                                                ? "#ffffff"
+                                                : selected.styles?.fill ||
+                                                  "#3157d5"
+                                        }
+                                        onChange={(event) =>
+                                            updateSelectedStyle(
+                                                "fill",
+                                                event.target.value,
+                                            )
+                                        }
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                    <TextField
+                                        type="number"
+                                        size="small"
+                                        label="Opacity"
+                                        value={selected.styles?.opacity ?? 1}
+                                        inputProps={{
+                                            min: 0,
+                                            max: 1,
+                                            step: 0.05,
+                                        }}
+                                        onChange={(event) =>
+                                            updateSelectedStyle(
+                                                "opacity",
+                                                Math.max(
+                                                    0,
+                                                    Math.min(
+                                                        1,
+                                                        Number(
+                                                            event.target.value,
+                                                        ),
+                                                    ),
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </Stack>
                             )}
                             <Divider />
                             <Stack direction="row" spacing={1} flexWrap="wrap">
                                 <Button
                                     size="small"
                                     onClick={() =>
-                                        updateSelected({ locked: !selected.locked })
+                                        updateSelected({
+                                            locked: !selected.locked,
+                                        })
                                     }
                                 >
                                     {selected.locked ? "Unlock" : "Lock"}
@@ -929,15 +2247,23 @@ export default function CertificateTemplateBuilder({ template }) {
                                 <Button
                                     size="small"
                                     onClick={() =>
-                                        updateSelected({ hidden: !selected.hidden })
+                                        updateSelected({
+                                            hidden: !selected.hidden,
+                                        })
                                     }
                                 >
                                     {selected.hidden ? "Show" : "Hide"}
                                 </Button>
-                                <Button size="small" onClick={() => moveSelectedLayer(1)}>
+                                <Button
+                                    size="small"
+                                    onClick={() => moveSelectedLayer(1)}
+                                >
                                     Forward
                                 </Button>
-                                <Button size="small" onClick={() => moveSelectedLayer(-1)}>
+                                <Button
+                                    size="small"
+                                    onClick={() => moveSelectedLayer(-1)}
+                                >
                                     Back
                                 </Button>
                             </Stack>
@@ -962,11 +2288,70 @@ export default function CertificateTemplateBuilder({ template }) {
                     ) : (
                         <Stack spacing={2} sx={{ py: 2 }}>
                             <Typography fontWeight={700}>Page</Typography>
+                            <Stack direction="row" spacing={1}>
+                                <Chip
+                                    size="small"
+                                    label="A4"
+                                    variant="outlined"
+                                />
+                                <Chip
+                                    size="small"
+                                    label={template.orientation}
+                                    variant="outlined"
+                                    sx={{ textTransform: "capitalize" }}
+                                />
+                            </Stack>
+                            <TextField
+                                type="number"
+                                size="small"
+                                label="Safe margin (mm)"
+                                value={layout.safeAreaMm ?? 10}
+                                inputProps={{
+                                    min: 0,
+                                    max: Math.min(widthMm, heightMm) / 3,
+                                    step: 1,
+                                }}
+                                onChange={(event) =>
+                                    commitLayout({
+                                        ...layout,
+                                        safeAreaMm: Math.max(
+                                            0,
+                                            Math.min(
+                                                Math.min(widthMm, heightMm) / 3,
+                                                Number(event.target.value),
+                                            ),
+                                        ),
+                                    })
+                                }
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        size="small"
+                                        checked={Boolean(
+                                            layout.background?.locked,
+                                        )}
+                                        onChange={(event) =>
+                                            commitLayout({
+                                                ...layout,
+                                                background: {
+                                                    ...(layout.background ||
+                                                        {}),
+                                                    locked: event.target
+                                                        .checked,
+                                                },
+                                            })
+                                        }
+                                    />
+                                }
+                                label="Lock background"
+                            />
                             <TextField
                                 type="color"
                                 size="small"
                                 label="Background colour"
                                 value={layout.background?.color || "#ffffff"}
+                                disabled={Boolean(layout.background?.locked)}
                                 onChange={(event) =>
                                     commitLayout({
                                         ...layout,
@@ -983,14 +2368,19 @@ export default function CertificateTemplateBuilder({ template }) {
                                 startIcon={<ImageOutlinedIcon />}
                                 onClick={() => {
                                     uploadModeRef.current = "background";
+                                    replaceAssetIdRef.current = null;
                                     assetInputRef.current?.click();
                                 }}
+                                disabled={Boolean(layout.background?.locked)}
                             >
                                 Background image
                             </Button>
                             {layout.background?.image && (
                                 <Button
                                     color="error"
+                                    disabled={Boolean(
+                                        layout.background?.locked,
+                                    )}
                                     onClick={() =>
                                         commitLayout({
                                             ...layout,
@@ -1005,13 +2395,25 @@ export default function CertificateTemplateBuilder({ template }) {
                                 </Button>
                             )}
                             <Divider />
-                            <Stack spacing={1.5} alignItems="center" sx={{ textAlign: "center" }}>
-                            <ArticleIcon color="disabled" sx={{ fontSize: 42 }} />
-                            <Typography fontWeight={700}>Select an element</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Click an item on the certificate to edit its content,
-                                position and style.
-                            </Typography>
+                            <Stack
+                                spacing={1.5}
+                                alignItems="center"
+                                sx={{ textAlign: "center" }}
+                            >
+                                <ArticleIcon
+                                    color="disabled"
+                                    sx={{ fontSize: 42 }}
+                                />
+                                <Typography fontWeight={700}>
+                                    Select an element
+                                </Typography>
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    Click an item on the certificate to edit its
+                                    content, position and style.
+                                </Typography>
                             </Stack>
                         </Stack>
                     )}
@@ -1030,15 +2432,30 @@ export default function CertificateTemplateBuilder({ template }) {
                         layout={layout}
                         widthMm={widthMm}
                         heightMm={heightMm}
+                        sampleProfile={sampleProfile}
+                        showSafeArea={false}
                         sx={{
-                            width: template.orientation === "portrait" ? "54%" : "100%",
+                            width:
+                                template.orientation === "portrait"
+                                    ? "54%"
+                                    : "100%",
                             mx: "auto",
                         }}
                     />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={openPdfPreview} disabled={processing}>
+                    <Button
+                        onClick={() => openPdfPreview(false)}
+                        disabled={processing}
+                    >
                         Open PDF preview
+                    </Button>
+                    <Button
+                        startIcon={<DownloadOutlinedIcon />}
+                        onClick={() => openPdfPreview(true)}
+                        disabled={processing}
+                    >
+                        Download test PDF
                     </Button>
                     <Button onClick={() => setPreviewOpen(false)}>Close</Button>
                 </DialogActions>
@@ -1048,12 +2465,15 @@ export default function CertificateTemplateBuilder({ template }) {
                 <DialogTitle>Publish this certificate?</DialogTitle>
                 <DialogContent>
                     <Typography color="text.secondary">
-                        Publishing freezes version {template.version}. Later edits will
-                        begin a new draft so issued certificates remain unchanged.
+                        Publishing freezes version {template.version}. Later
+                        edits will begin a new draft so issued certificates
+                        remain unchanged.
                     </Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setPublishOpen(false)}>Cancel</Button>
+                    <Button onClick={() => setPublishOpen(false)}>
+                        Cancel
+                    </Button>
                     <Button
                         variant="contained"
                         startIcon={<PublishIcon />}

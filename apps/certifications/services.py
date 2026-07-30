@@ -350,14 +350,78 @@ class CertificationEngine:
         if enrollment.completed_at:
             completion_date = enrollment.completed_at.date()
 
+        instructors = list(enrollment.program.instructors.order_by("id")[:2])
+        primary_instructor = (
+            instructors[0].get_full_name() or instructors[0].email
+            if instructors
+            else "Course instructor"
+        )
+        co_instructor = (
+            instructors[1].get_full_name() or instructors[1].email
+            if len(instructors) > 1
+            else ""
+        )
+        platform_settings = self._platform_settings()
+        public_content = (
+            platform_settings.public_content
+            if isinstance(platform_settings.public_content, dict)
+            else {}
+        )
+        eligibility = CertificateEligibilityService().compute_eligibility(enrollment)
+        score = eligibility.get("overallScore")
+        formatted_score = (
+            f"{float(score):g}%" if score is not None else ""
+        )
+        course_duration = (
+            f"{enrollment.program.duration_hours} hours"
+            if enrollment.program.duration_hours
+            else ""
+        )
+        enrolled_at = enrollment.enrolled_at
+        course_start_date = (
+            timezone.localtime(enrolled_at).date().strftime("%B %d, %Y")
+            if enrolled_at
+            else ""
+        )
         data = {
             'student_name': enrollment.user.get_full_name() or enrollment.user.email,
+            'student_number': f"STU-{enrollment.user_id:06d}",
+            'admission_number': str(
+                getattr(enrollment.user, "admission_number", "") or ""
+            ),
+            'examination_number': str(
+                getattr(enrollment.user, "examination_number", "") or ""
+            ),
             'program_title': enrollment.program.name,
+            'course_level': (
+                enrollment.program.level
+                or enrollment.program.qualification_family
+                or enrollment.program.award_type
+                or ""
+            ),
+            'department': enrollment.program.category or "",
+            'campus': str(
+                public_content.get("campusName")
+                or public_content.get("campus")
+                or ""
+            ),
+            'grade': eligibility.get("gradeStatus") or "",
+            'score': formatted_score,
+            'progress': "100%" if eligibility.get("progressSatisfied") else "",
+            'course_duration': course_duration,
+            'course_start_date': course_start_date,
             'completion_date': completion_date.strftime('%B %d, %Y'),
             'issue_date': timezone.now().date().strftime('%B %d, %Y'),
             'serial_number': serial,
-            'instructor_name': self._instructor_name(enrollment),
-            'organization_name': self._organization_name(),
+            'verification_code': serial,
+            'instructor_name': primary_instructor,
+            'co_instructor_name': co_instructor,
+            'principal_name': str(
+                public_content.get("principalName")
+                or public_content.get("directorName")
+                or ""
+            ),
+            'organization_name': platform_settings.institution_name,
             'verification_url': self._verification_url(serial),
         }
 
@@ -392,9 +456,13 @@ class CertificationEngine:
 
     @staticmethod
     def _organization_name() -> str:
+        return CertificationEngine._platform_settings().institution_name
+
+    @staticmethod
+    def _platform_settings():
         from apps.platform.models import PlatformSettings
 
-        return PlatformSettings.get_settings().institution_name
+        return PlatformSettings.get_settings()
 
     @staticmethod
     def _verification_url(serial: str) -> str:

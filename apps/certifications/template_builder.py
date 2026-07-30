@@ -187,6 +187,18 @@ def _normalize_styles(element_type, raw_styles):
                 minimum=0,
                 maximum=20,
             ),
+            "borderRadius": _number(
+                styles.get("borderRadius", 0),
+                "borderRadius",
+                minimum=0,
+                maximum=100,
+            ),
+            "opacity": _number(
+                styles.get("opacity", 1),
+                "opacity",
+                minimum=0,
+                maximum=1,
+            ),
         }
     if element_type == "line":
         return {
@@ -197,18 +209,105 @@ def _normalize_styles(element_type, raw_styles):
                 minimum=0.1,
                 maximum=20,
             ),
+            "opacity": _number(
+                styles.get("opacity", 1),
+                "opacity",
+                minimum=0,
+                maximum=1,
+            ),
+        }
+    if element_type in {"image", "signature"}:
+        object_fit = str(styles.get("objectFit") or "contain")
+        return {
+            "objectFit": object_fit if object_fit in {"contain", "cover"} else "contain",
+            "opacity": _number(
+                styles.get("opacity", 1),
+                "opacity",
+                minimum=0,
+                maximum=1,
+            ),
+            "borderColor": _color(
+                styles.get("borderColor"),
+                "transparent",
+                transparent=True,
+            ),
+            "borderWidth": _number(
+                styles.get("borderWidth", 0),
+                "borderWidth",
+                minimum=0,
+                maximum=20,
+            ),
+            "borderRadius": _number(
+                styles.get("borderRadius", 0),
+                "borderRadius",
+                minimum=0,
+                maximum=100,
+            ),
+        }
+    if element_type == "qr_code":
+        correction = str(styles.get("errorCorrection") or "M").upper()
+        return {
+            "foreground": _color(styles.get("foreground"), "#172033"),
+            "background": _color(styles.get("background"), "#ffffff"),
+            "errorCorrection": (
+                correction if correction in {"L", "M", "Q", "H"} else "M"
+            ),
+            "padding": _number(
+                styles.get("padding", 1.5),
+                "padding",
+                minimum=0,
+                maximum=10,
+            ),
+            "borderColor": _color(
+                styles.get("borderColor"),
+                "transparent",
+                transparent=True,
+            ),
+            "borderWidth": _number(
+                styles.get("borderWidth", 0),
+                "borderWidth",
+                minimum=0,
+                maximum=20,
+            ),
         }
     if element_type in {"text", "dynamic_text"}:
         font = str(styles.get("fontFamily") or "Albert Sans")
         align = str(styles.get("textAlign") or "center")
         vertical = str(styles.get("verticalAlign") or "center")
+        font_size = _number(
+            styles.get("fontSize", 16),
+            "fontSize",
+            minimum=6,
+            maximum=160,
+        )
+        minimum_font_size = _number(
+            styles.get("minFontSize", min(12, font_size)),
+            "minFontSize",
+            minimum=6,
+            maximum=160,
+        )
+        maximum_font_size = _number(
+            styles.get("maxFontSize", font_size),
+            "maxFontSize",
+            minimum=6,
+            maximum=160,
+        )
+        minimum_font_size = min(minimum_font_size, maximum_font_size)
+        transform = str(styles.get("textTransform") or "none")
+        font_style = str(styles.get("fontStyle") or "normal")
+        decoration = str(styles.get("textDecoration") or "none")
+        overflow = str(styles.get("textOverflow") or "ellipsis")
         return {
             "fontFamily": font if font in ALLOWED_FONTS else "Albert Sans",
-            "fontSize": _number(
-                styles.get("fontSize", 16),
-                "fontSize",
-                minimum=6,
-                maximum=160,
+            "fontSize": font_size,
+            "minFontSize": minimum_font_size,
+            "maxFontSize": maximum_font_size,
+            "autoShrink": bool(
+                styles.get("autoShrink", element_type == "dynamic_text")
+            ),
+            "singleLine": bool(styles.get("singleLine", False)),
+            "textOverflow": (
+                overflow if overflow in {"clip", "ellipsis"} else "ellipsis"
             ),
             "fontWeight": int(
                 _number(
@@ -225,6 +324,15 @@ def _normalize_styles(element_type, raw_styles):
             "verticalAlign": (
                 vertical if vertical in {"top", "center", "bottom"} else "center"
             ),
+            "fontStyle": font_style if font_style in {"normal", "italic"} else "normal",
+            "textDecoration": (
+                decoration if decoration in {"none", "underline"} else "none"
+            ),
+            "textTransform": (
+                transform
+                if transform in {"none", "uppercase", "lowercase", "capitalize"}
+                else "none"
+            ),
             "lineHeight": _number(
                 styles.get("lineHeight", 1.2),
                 "lineHeight",
@@ -236,6 +344,32 @@ def _normalize_styles(element_type, raw_styles):
                 "letterSpacing",
                 minimum=-5,
                 maximum=20,
+            ),
+            "opacity": _number(
+                styles.get("opacity", 1),
+                "opacity",
+                minimum=0,
+                maximum=1,
+            ),
+            "textShadow": bool(styles.get("textShadow", False)),
+            "shadowColor": _color(styles.get("shadowColor"), "#000000"),
+            "shadowOffsetX": _number(
+                styles.get("shadowOffsetX", 1),
+                "shadowOffsetX",
+                minimum=-20,
+                maximum=20,
+            ),
+            "shadowOffsetY": _number(
+                styles.get("shadowOffsetY", 1),
+                "shadowOffsetY",
+                minimum=-20,
+                maximum=20,
+            ),
+            "shadowBlur": _number(
+                styles.get("shadowBlur", 2),
+                "shadowBlur",
+                minimum=0,
+                maximum=30,
             ),
         }
     return {}
@@ -286,6 +420,7 @@ def validate_layout(layout: dict, *, width_mm, height_mm) -> dict:
         normalized.update(
             {
                 "id": element_id,
+                "name": str(raw.get("name") or "")[:100],
                 "type": element_type,
                 "x": x,
                 "y": y,
@@ -312,6 +447,7 @@ def validate_layout(layout: dict, *, width_mm, height_mm) -> dict:
             "background": {
                 "color": str(background.get("color") or "#ffffff")[:50],
                 "image": background.get("image"),
+                "locked": bool(background.get("locked", False)),
             },
             "safeAreaMm": _number(
                 layout.get("safeAreaMm", 10),

@@ -6,6 +6,7 @@ from apps.certifications.models import (
     CertificateTemplate,
     CertificateTemplateVersion,
 )
+from apps.certifications.rendering import fit_text_font_size, layout_to_html
 from apps.certifications.template_builder import (
     clone_template,
     create_blank_template,
@@ -170,6 +171,121 @@ def test_layout_validation_rejects_element_outside_printable_page():
             width_mm=297,
             height_mm=210,
         )
+
+
+def test_layout_validation_preserves_bounded_text_fitting_and_asset_styles():
+    layout = validate_layout(
+        {
+            "elements": [
+                {
+                    "id": "long-student-name",
+                    "name": "Learner name",
+                    "type": "dynamic_text",
+                    "x": 20,
+                    "y": 40,
+                    "width": 90,
+                    "height": 18,
+                    "content": "{{student_name}}",
+                    "styles": {
+                        "fontSize": 30,
+                        "minFontSize": 11,
+                        "maxFontSize": 34,
+                        "autoShrink": True,
+                        "singleLine": True,
+                        "textOverflow": "ellipsis",
+                        "fontStyle": "italic",
+                        "textDecoration": "underline",
+                        "textTransform": "uppercase",
+                        "opacity": 0.8,
+                    },
+                },
+                {
+                    "id": "logo",
+                    "name": "Institution logo",
+                    "type": "image",
+                    "x": 20,
+                    "y": 70,
+                    "width": 30,
+                    "height": 20,
+                    "content": "",
+                    "styles": {
+                        "objectFit": "cover",
+                        "opacity": 0.75,
+                        "borderWidth": 2,
+                        "borderColor": "#123456",
+                        "borderRadius": 8,
+                    },
+                },
+            ]
+        },
+        width_mm=297,
+        height_mm=210,
+    )
+
+    text = layout["elements"][0]
+    assert text["name"] == "Learner name"
+    assert text["styles"]["minFontSize"] == 11
+    assert text["styles"]["maxFontSize"] == 34
+    assert text["styles"]["autoShrink"] is True
+    assert text["styles"]["singleLine"] is True
+    assert text["styles"]["fontStyle"] == "italic"
+    assert text["styles"]["textDecoration"] == "underline"
+    assert text["styles"]["textTransform"] == "uppercase"
+
+    image = layout["elements"][1]
+    assert image["styles"] == {
+        "objectFit": "cover",
+        "opacity": 0.75,
+        "borderColor": "#123456",
+        "borderWidth": 2,
+        "borderRadius": 8,
+    }
+
+
+def test_long_multilingual_text_shrinks_and_renders_with_matching_font_size():
+    element = {
+        "id": "student",
+        "type": "dynamic_text",
+        "x": 20,
+        "y": 40,
+        "width": 85,
+        "height": 18,
+        "content": "{{student_name}}",
+        "styles": {
+            "fontFamily": "Albert Sans",
+            "fontSize": 30,
+            "minFontSize": 10,
+            "maxFontSize": 30,
+            "autoShrink": True,
+            "singleLine": True,
+            "lineHeight": 1.2,
+            "letterSpacing": 0,
+        },
+    }
+    learner_name = "José-María 王小明 Abdulrahman Abdullahi-Wanyonyi"
+
+    fit = fit_text_font_size(
+        text=learner_name,
+        element=element,
+        page_width_mm=297,
+        page_height_mm=210,
+    )
+    document = layout_to_html(
+        layout={"elements": [element]},
+        width_mm=297,
+        height_mm=210,
+        data={"student_name": learner_name},
+    )
+
+    assert 10 <= fit["font_size"] < 30
+    assert learner_name in document
+    assert f"font-size:{fit['font_size']}px" in document
+    assert "white-space:nowrap" in document
+    assert "text-overflow:ellipsis" in document
+    assert (
+        '<div style="width:100%;overflow:hidden;white-space:nowrap;'
+        'text-overflow:ellipsis;">'
+    ) in document
 
 
 def test_non_staff_user_cannot_open_template_gallery(client):

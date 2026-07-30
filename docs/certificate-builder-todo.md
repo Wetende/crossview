@@ -49,7 +49,9 @@
   - [x] fixed-ratio page canvas;
   - [x] right properties panel for the selected element.
 - [x] Support drag-to-position, keyboard movement, numeric resize and rotation.
-- [ ] Add snap guides, alignment tools and canvas boundaries.
+- [x] Add page/element snapping, safe-area alignment tools and canvas
+      boundaries.
+- [ ] Add live visual snap guide lines while dragging.
 - [x] Support duplicate, lock, hide, layer ordering and delete.
 - [x] Add unsaved-change protection.
 - [x] Add undo/redo history.
@@ -60,7 +62,7 @@
 - [x] A user can add an element, drag it, resize it and edit its properties.
 - [x] Saving and reopening restores the same layout.
 - [x] Undo/redo works for element and styling changes.
-- [ ] Elements cannot be accidentally dragged outside the printable page.
+- [x] Elements cannot be accidentally dragged outside the printable page.
 
 ## Milestone 3 — Certificate elements and styling
 
@@ -82,6 +84,11 @@
   - [x] background image or color.
 - [x] Add typography controls including family, size, weight, alignment,
       colour, line height and letter spacing.
+- [x] Add robust dynamic-text controls: auto-shrink, min/max font sizes,
+      wrapping, one-line mode, ellipsis and overflow warnings.
+- [x] Add a long-name and multilingual stress-preview profile.
+- [x] Expand course, learner, instructor and institutional placeholders.
+- [x] Add image replacement/crop-fit controls and QR styling/error correction.
 - [x] Add safe image asset upload.
 - [x] Provide meaningful sample data while editing.
 - [x] Define graceful fallback values for missing dynamic data.

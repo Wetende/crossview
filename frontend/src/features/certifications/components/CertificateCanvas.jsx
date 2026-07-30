@@ -2,33 +2,30 @@ import { forwardRef } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Box, Typography } from "@mui/material";
 
-const SAMPLE_VALUES = {
-    "{{student_name}}": "Alex Morgan",
-    "{{program_title}}": "Foundations of Professional Practice",
-    "{{completion_date}}": "24 July 2026",
-    "{{issue_date}}": "30 July 2026",
-    "{{serial_number}}": "CERT-2026-00142",
-    "{{instructor_name}}": "Dr Taylor Reed",
-    "{{organization_name}}": "Learning Academy",
-    "{{verification_url}}": "verify.example/c/CERT-2026-00142",
-};
+import {
+    certificateSampleContent,
+    fitCertificateText,
+} from "@/features/certifications/certificateContent";
 
-function sampleContent(value = "") {
-    return Object.entries(SAMPLE_VALUES).reduce(
-        (content, [placeholder, sample]) => content.replaceAll(placeholder, sample),
-        value,
-    );
-}
-
-function elementStyles(element, referenceWidth) {
+function elementStyles(element, referenceWidth, fit) {
     const styles = element.styles || {};
+    const shadow = styles.textShadow
+        ? `${styles.shadowOffsetX ?? 1}px ${styles.shadowOffsetY ?? 1}px ${
+              styles.shadowBlur ?? 2
+          }px ${styles.shadowColor || "#000000"}`
+        : "none";
     return {
         fontFamily: styles.fontFamily || "Albert Sans",
-        fontSize: `${((styles.fontSize || 16) / referenceWidth) * 100}cqw`,
+        fontSize: `${((fit?.fontSize || styles.fontSize || 16) / referenceWidth) * 100}cqw`,
         fontWeight: styles.fontWeight || 400,
+        fontStyle: styles.fontStyle || "normal",
+        textDecoration: styles.textDecoration || "none",
+        textTransform: styles.textTransform || "none",
+        textShadow: shadow,
         color: styles.color || "#172033",
         textAlign: styles.textAlign || "center",
         lineHeight: styles.lineHeight || 1.2,
+        opacity: styles.opacity ?? 1,
         letterSpacing: `${
             ((styles.letterSpacing || 0) / referenceWidth) * 100
         }cqw`,
@@ -41,11 +38,25 @@ function CanvasElement({
     interactive,
     onSelect,
     referenceWidth,
+    pageWidth,
+    pageHeight,
+    sampleProfile,
 }) {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-        id: element.id,
-        disabled: !interactive || element.locked,
-    });
+    const content = certificateSampleContent(element.content, sampleProfile);
+    const isText = ["text", "dynamic_text"].includes(element.type);
+    const textFit = isText
+        ? fitCertificateText({
+              text: content,
+              element,
+              pageWidthMm: pageWidth,
+              pageHeightMm: pageHeight,
+          })
+        : null;
+    const { attributes, listeners, setNodeRef, transform, isDragging } =
+        useDraggable({
+            id: element.id,
+            disabled: !interactive || element.locked,
+        });
     const translate = transform
         ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
         : undefined;
@@ -64,19 +75,25 @@ function CanvasElement({
             : {}),
         sx: {
             position: "absolute",
-            left: `${(element.x / 297) * 100}%`,
-            top: `${(element.y / 210) * 100}%`,
-            width: `${(element.width / 297) * 100}%`,
-            height: `${(element.height / 210) * 100}%`,
+            left: `${(element.x / pageWidth) * 100}%`,
+            top: `${(element.y / pageHeight) * 100}%`,
+            width: `${(element.width / pageWidth) * 100}%`,
+            height: `${(element.height / pageHeight) * 100}%`,
             transform: `${translate || ""} rotate(${element.rotation || 0}deg)`,
             transformOrigin: "center",
             display: element.hidden ? "none" : "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: element.zIndex || 1,
-            cursor: interactive ? (element.locked ? "not-allowed" : "grab") : "default",
+            cursor: interactive
+                ? element.locked
+                    ? "not-allowed"
+                    : "grab"
+                : "default",
             opacity: isDragging ? 0.74 : 1,
-            outline: selected ? "2px solid #3157d5" : "1px solid transparent",
+            outline: selected
+                ? `2px solid ${textFit?.overflows ? "#d97706" : "#3157d5"}`
+                : "1px solid transparent",
             outlineOffset: 2,
             touchAction: "none",
             userSelect: "none",
@@ -97,7 +114,11 @@ function CanvasElement({
                     border: `${shapeStyles.strokeWidth || 1}px solid ${
                         shapeStyles.stroke || "transparent"
                     }`,
-                    borderRadius: element.shape === "circle" ? "50%" : 0,
+                    borderRadius:
+                        element.shape === "circle"
+                            ? "50%"
+                            : `${shapeStyles.borderRadius || 0}px`,
+                    opacity: shapeStyles.opacity ?? 1,
                 }}
             />
         );
@@ -112,6 +133,7 @@ function CanvasElement({
                         borderTop: `${element.styles?.strokeWidth || 1}px solid ${
                             element.styles?.stroke || "#172033"
                         }`,
+                        opacity: element.styles?.opacity ?? 1,
                     }}
                 />
             </Box>
@@ -124,9 +146,17 @@ function CanvasElement({
                 {...common}
                 sx={{
                     ...common.sx,
-                    background:
-                        "repeating-conic-gradient(#172033 0 25%, transparent 0 50%) 50% / 8px 8px",
-                    border: "5px solid white",
+                    background: `repeating-conic-gradient(${
+                        element.styles?.foreground || "#172033"
+                    } 0 25%, ${
+                        element.styles?.background || "#ffffff"
+                    } 0 50%) 50% / 8px 8px`,
+                    border: `${element.styles?.borderWidth || 0}px solid ${
+                        element.styles?.borderColor || "transparent"
+                    }`,
+                    boxShadow: `inset 0 0 0 ${
+                        element.styles?.padding ?? 1.5
+                    }mm ${element.styles?.background || "#ffffff"}`,
                 }}
             />
         );
@@ -143,7 +173,13 @@ function CanvasElement({
                     sx={{
                         width: "100%",
                         height: "100%",
-                        objectFit: "contain",
+                        objectFit: element.styles?.objectFit || "contain",
+                        opacity: element.styles?.opacity ?? 1,
+                        border: `${element.styles?.borderWidth || 0}px solid ${
+                            element.styles?.borderColor || "transparent"
+                        }`,
+                        borderRadius: `${element.styles?.borderRadius || 0}px`,
+                        boxSizing: "border-box",
                         pointerEvents: "none",
                     }}
                 />
@@ -156,13 +192,21 @@ function CanvasElement({
             <Typography
                 component="span"
                 sx={{
-                    ...elementStyles(element, referenceWidth),
+                    ...elementStyles(element, referenceWidth, textFit),
                     width: "100%",
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "anywhere",
+                    whiteSpace: element.styles?.singleLine
+                        ? "nowrap"
+                        : "pre-wrap",
+                    overflowWrap: element.styles?.singleLine
+                        ? "normal"
+                        : "anywhere",
+                    overflow: "hidden",
+                    textOverflow: element.styles?.singleLine
+                        ? element.styles?.textOverflow || "ellipsis"
+                        : "clip",
                 }}
             >
-                {sampleContent(element.content)}
+                {content}
             </Typography>
         </Box>
     );
@@ -176,14 +220,15 @@ const CertificateCanvas = forwardRef(function CertificateCanvas(
         selectedId = null,
         interactive = false,
         onSelect,
+        sampleProfile = "standard",
+        showSafeArea = false,
         sx = {},
     },
     ref,
 ) {
     const landscapeWidth = Number(widthMm) || 297;
     const landscapeHeight = Number(heightMm) || 210;
-    const referenceWidth =
-        landscapeWidth >= landscapeHeight ? 960 : 620;
+    const referenceWidth = landscapeWidth >= landscapeHeight ? 960 : 620;
     const elements = layout?.elements || [];
 
     return (
@@ -213,19 +258,32 @@ const CertificateCanvas = forwardRef(function CertificateCanvas(
             {elements.map((element) => (
                 <CanvasElement
                     key={element.id}
-                    element={{
-                        ...element,
-                        x: (Number(element.x) / landscapeWidth) * 297,
-                        y: (Number(element.y) / landscapeHeight) * 210,
-                        width: (Number(element.width) / landscapeWidth) * 297,
-                        height: (Number(element.height) / landscapeHeight) * 210,
-                    }}
+                    element={element}
                     selected={selectedId === element.id}
                     interactive={interactive}
                     onSelect={onSelect}
                     referenceWidth={referenceWidth}
+                    pageWidth={landscapeWidth}
+                    pageHeight={landscapeHeight}
+                    sampleProfile={sampleProfile}
                 />
             ))}
+            {showSafeArea && (
+                <Box
+                    aria-hidden="true"
+                    sx={{
+                        pointerEvents: "none",
+                        position: "absolute",
+                        zIndex: 10_000,
+                        left: `${((layout?.safeAreaMm || 0) / landscapeWidth) * 100}%`,
+                        right: `${((layout?.safeAreaMm || 0) / landscapeWidth) * 100}%`,
+                        top: `${((layout?.safeAreaMm || 0) / landscapeHeight) * 100}%`,
+                        bottom: `${((layout?.safeAreaMm || 0) / landscapeHeight) * 100}%`,
+                        border: "1px dashed rgba(217, 119, 6, .75)",
+                        boxShadow: "0 0 0 1px rgba(255,255,255,.7)",
+                    }}
+                />
+            )}
         </Box>
     );
 });

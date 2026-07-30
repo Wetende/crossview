@@ -540,22 +540,67 @@ def admin_certificate_template_preview(request, template_id: int):
             width_mm=version.width_mm,
             height_mm=version.height_mm,
         )
+        sample_data = {
+            "student_name": "Alex Morgan",
+            "student_number": "STU-10482",
+            "admission_number": "ADM-2026-184",
+            "examination_number": "KNEC-042781",
+            "program_title": "Foundations of Professional Practice",
+            "course_level": "Professional certificate",
+            "department": "Business and Leadership",
+            "campus": "Main campus",
+            "grade": "Distinction",
+            "score": "87%",
+            "progress": "100%",
+            "course_duration": "40 hours",
+            "course_start_date": "5 May 2026",
+            "completion_date": "24 July 2026",
+            "issue_date": "30 July 2026",
+            "serial_number": "CERT-2026-00142",
+            "verification_code": "CERT-2026-00142",
+            "instructor_name": "Dr Taylor Reed",
+            "co_instructor_name": "Prof. Casey Okafor",
+            "principal_name": "Dr Jordan Kamau",
+            "organization_name": PlatformSettings.get_settings().institution_name,
+            "verification_url": "https://example.test/certificates/verify/CERT-2026-00142/",
+        }
+        if data.get("sampleProfile") == "stress":
+            sample_data.update(
+                {
+                    "student_name": (
+                        "Abdulrahman Mohammed Abdullahi-Wanyonyi"
+                    ),
+                    "student_number": "STUDENT-INTERNATIONAL-2026-10482",
+                    "admission_number": "ADMISSION/PROFESSIONAL/2026/00184",
+                    "examination_number": "NATIONAL-EXAMINATION-042781-KE",
+                    "program_title": (
+                        "Advanced International Professional Certificate in "
+                        "Sustainable Community Leadership"
+                    ),
+                    "course_level": (
+                        "Higher Professional Diploma — Niveau supérieur"
+                    ),
+                    "department": (
+                        "Technology, Engineering and Digital Transformation"
+                    ),
+                    "campus": "München International Learning Campus",
+                    "grade": "Distinction / Compétent avec excellence",
+                    "instructor_name": "Dr Mary-Jane Atieno O’Dwyer",
+                    "co_instructor_name": "Prof. José-María N’Guessan",
+                    "principal_name": "Prof. Christopher Barasa Wanyonyi",
+                    "organization_name": (
+                        "International Academy for Professional and "
+                        "Technical Education"
+                    ),
+                }
+            )
         with NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
             temp_path = temp_file.name
         render_layout_pdf(
             layout=layout,
             width_mm=version.width_mm,
             height_mm=version.height_mm,
-            data={
-                "student_name": "Alex Morgan",
-                "program_title": "Foundations of Professional Practice",
-                "completion_date": "24 July 2026",
-                "issue_date": "30 July 2026",
-                "serial_number": "CERT-2026-00142",
-                "instructor_name": "Dr Taylor Reed",
-                "organization_name": PlatformSettings.get_settings().institution_name,
-                "verification_url": "https://example.test/certificates/verify/CERT-2026-00142/",
-            },
+            data=sample_data,
             target=temp_path,
         )
         pdf_bytes = Path(temp_path).read_bytes()

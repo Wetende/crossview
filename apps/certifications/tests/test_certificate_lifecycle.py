@@ -181,6 +181,58 @@ def test_issued_pdf_uses_published_version_and_keeps_layout_snapshot(
     assert certificate.layout_snapshot["background"]["color"] != "#000000"
 
 
+def test_issuance_populates_extended_course_and_student_fields(
+    staff_user,
+    learner,
+    program,
+):
+    class RecordingGenerator:
+        def __init__(self):
+            self.data = None
+
+        def generate(self, template, data, version=None, layout_snapshot=None):
+            self.data = data
+            return "certificates/recorded.pdf"
+
+    program.level = "Professional Diploma"
+    program.duration_hours = 40
+    program.save(update_fields=["level", "duration_hours", "updated_at"])
+    instructor = User.objects.create_user(
+        username="certificate-instructor",
+        email="instructor@example.com",
+        first_name="Mary-Jane",
+        last_name="O’Dwyer",
+    )
+    program.instructors.add(instructor)
+    set_default_assignment(
+        version=published_version("Classic Formal"),
+        user=staff_user,
+    )
+    enrollment = Enrollment.objects.create(
+        user=learner,
+        program=program,
+        status="completed",
+    )
+    generator = RecordingGenerator()
+
+    certificate = CertificationEngine(template_generator=generator).generate_certificate(
+        enrollment
+    )
+
+    assert certificate.pdf_path == "certificates/recorded.pdf"
+    assert generator.data["student_name"] == "Alex Morgan"
+    assert generator.data["student_number"] == f"STU-{learner.id:06d}"
+    assert generator.data["program_title"] == "Professional Practice"
+    assert generator.data["course_level"] == "Professional Diploma"
+    assert generator.data["department"] == "Business"
+    assert generator.data["course_duration"] == "40 hours"
+    assert generator.data["instructor_name"] == "Mary-Jane O’Dwyer"
+    assert generator.data["verification_code"] == generator.data["serial_number"]
+    assert generator.data["verification_url"].endswith(
+        f"/verify/{generator.data['serial_number']}/"
+    )
+
+
 def test_signed_download_is_restricted_to_certificate_owner(
     tmp_path,
     client,
