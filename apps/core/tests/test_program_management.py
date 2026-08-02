@@ -113,6 +113,23 @@ class TestProgramManagement(TestCase):
         assert new_program.blueprint == self.blueprint
         assert new_program.slug == "new-program"
 
+    def test_create_form_uses_configured_levels_when_catalog_is_empty(self):
+        settings = PlatformSettings.get_settings()
+        settings.course_levels = [
+            {"value": "Beginner", "label": "Beginner"},
+            {"value": "Intermediate", "label": "Intermediate"},
+            {"value": "Advanced", "label": "Advanced"},
+        ]
+        settings.save(update_fields=["course_levels", "updated_at"])
+
+        response = self.client.get(
+            reverse("core:admin.program.create"),
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["props"]["courseLevels"] == settings.course_levels
+
     def test_create_program_persists_configured_category(self):
         settings = PlatformSettings.get_settings()
         settings.program_categories = ["Engineering & ICT", "Business Management"]

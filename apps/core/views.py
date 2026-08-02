@@ -3013,14 +3013,14 @@ def _get_program_setup_form_props(
     from apps.platform.models import PlatformSettings
 
     platform_settings = PlatformSettings.get_settings()
+    configured_course_levels = platform_settings.get_course_levels()
 
     return {
         "mode": mode,
         "program": _serialize_program(program) if program else None,
         "instructors": _get_instructors_for_form() if show_instructor_assignment else [],
-        "courseLevels": _build_level_options(
-            list(Program.objects.values("level").order_by("level"))
-        ),
+        "courseLevels": configured_course_levels
+        or _build_level_options(list(Program.objects.values("level").order_by("level"))),
         "programCategories": platform_settings.get_program_categories(),
         "currentInstructorIds": current_instructor_ids or [],
         "examBodyRegistry": get_registry_for_frontend(),
