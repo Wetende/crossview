@@ -30,6 +30,7 @@ POLICY_FIELD_MAP = {
     "primary_color": "primary_color",
     "secondary_color": "secondary_color",
     "deployment_mode": "deployment_mode",
+    "course_levels": "course_levels",
     "setup_complete": "is_setup_complete",
 }
 

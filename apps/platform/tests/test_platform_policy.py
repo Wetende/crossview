@@ -20,6 +20,10 @@ LOCKED_POLICY = {
     "secondary_color": "#F0A500",
     "deployment_mode": "online",
     "blueprint_mode": "online",
+    "course_levels": [
+        {"value": "Beginner", "label": "Beginner"},
+        {"value": "Advanced", "label": "Advanced"},
+    ],
     "setup_complete": True,
     "feature_overrides": {
         "practicum": False,
@@ -70,6 +74,7 @@ def test_model_save_and_shared_payload_enforce_locked_product_decisions():
         primary_color="#000000",
         secondary_color="#FFFFFF",
         features={"practicum": True, "payments": False},
+        course_levels=[{"value": "Other", "label": "Other"}],
         is_setup_complete=False,
     )
     settings.save()
@@ -81,6 +86,7 @@ def test_model_save_and_shared_payload_enforce_locked_product_decisions():
     assert settings.active_blueprint.name == "Online Self-Paced"
     assert settings.primary_color == "#112233"
     assert settings.secondary_color == "#F0A500"
+    assert settings.course_levels == LOCKED_POLICY["course_levels"]
     assert settings.is_setup_complete is True
     assert settings.features["practicum"] is False
     assert settings.features["self_registration"] is True
@@ -90,12 +96,14 @@ def test_model_save_and_shared_payload_enforce_locked_product_decisions():
     settings.deployment_mode = "theology"
     settings.active_blueprint = wrong_blueprint
     settings.features = {"practicum": True}
+    settings.course_levels = [{"value": "Bypass", "label": "Bypass"}]
     settings.save(
         update_fields=[
             "institution_name",
             "deployment_mode",
             "active_blueprint",
             "features",
+            "course_levels",
         ]
     )
     settings.refresh_from_db()
@@ -104,6 +112,7 @@ def test_model_save_and_shared_payload_enforce_locked_product_decisions():
     assert settings.deployment_mode == "online"
     assert settings.active_blueprint.name == "Online Self-Paced"
     assert settings.features["practicum"] is False
+    assert settings.course_levels == LOCKED_POLICY["course_levels"]
 
     payload = PlatformSettings.get_cached_platform_payload()
     assert payload["institutionName"] == "Locked Academy"
