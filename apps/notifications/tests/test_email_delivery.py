@@ -14,8 +14,11 @@ pytestmark = pytest.mark.django_db
 
 @override_settings(
     DEFAULT_FROM_EMAIL="notifications@example.test",
+    EMAIL_FROM_NAME="",
+    DEFAULT_REPLY_TO_EMAIL="",
     PLATFORM_PUBLIC_BASE_URL="https://academy.example.test",
     EMAIL_LAYOUT_TEMPLATE="emails/platform_message.html",
+    EMAIL_LOGO_URL="",
 )
 def test_dynamic_email_uses_platform_identity_logo_and_colors():
     platform = PlatformSettings.get_settings()
@@ -48,8 +51,11 @@ def test_dynamic_email_uses_platform_identity_logo_and_colors():
 
 @override_settings(
     DEFAULT_FROM_EMAIL="notifications@example.test",
+    EMAIL_FROM_NAME="",
+    DEFAULT_REPLY_TO_EMAIL="",
     PLATFORM_PUBLIC_BASE_URL="https://college.example.test",
     EMAIL_LAYOUT_TEMPLATE="emails/platform_message.html",
+    EMAIL_LOGO_URL="",
 )
 def test_dynamic_email_falls_back_to_name_when_logo_is_missing():
     platform = PlatformSettings.get_settings()
@@ -67,6 +73,8 @@ def test_dynamic_email_falls_back_to_name_when_logo_is_missing():
 
 @override_settings(
     DEFAULT_FROM_EMAIL="notifications@example.test",
+    EMAIL_FROM_NAME="",
+    DEFAULT_REPLY_TO_EMAIL="",
     PLATFORM_PUBLIC_BASE_URL="https://product.example.test",
     EMAIL_LAYOUT_TEMPLATE="emails/platform_message.html",
     EMAIL_LOGO_URL="/static/branding/product-email-logo.png",
@@ -88,8 +96,11 @@ def test_product_email_logo_override_uses_stable_absolute_url():
 
 @override_settings(
     DEFAULT_FROM_EMAIL="notifications@example.test",
+    EMAIL_FROM_NAME="",
+    DEFAULT_REPLY_TO_EMAIL="",
     PLATFORM_PUBLIC_BASE_URL="https://academy.example.test",
     EMAIL_LAYOUT_TEMPLATE="emails/platform_message.html",
+    EMAIL_LOGO_URL="",
 )
 def test_send_branded_email_includes_plain_and_html_parts():
     PlatformSettings.objects.update_or_create(
