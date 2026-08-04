@@ -6,7 +6,8 @@ Date: 2026-08-04
 
 - Classification: mixed rollout, split into shared-engine and product-owned work
 - Canonical LMS base: `201b5d34`
-- Accepted shared commit: `fa200f98`
+- Accepted shared commits: `fa200f98`, followed by test-contract correction
+  `01915a47`
 - LMS integration branch: `feature/branded-email-framework`
 - DigikaTech destination base: `3b32d2c7`
 - Airads: explicitly excluded from this rollout
@@ -64,7 +65,17 @@ factory_boy post-generation notices, and the isolated worktree's absent
 
 ## Promotion decision
 
-Treat `fa200f98` as the authoritative shared implementation. Promote it to
-DigikaTech, resolve only its settings/public-view boundary differences, then
-add the DigikaTech layout, sender defaults, and stable logo in a separate
-product-owned commit. Do not propagate this rollout to Airads.
+Treat `fa200f98` as the authoritative shared implementation and `01915a47` as
+its downstream portability test contract. Promote both to DigikaTech, resolve
+only its settings/public-view boundary differences, then add the DigikaTech
+layout, sender defaults, and stable logo in a separate product-owned commit.
+Do not propagate this rollout to Airads.
+
+## Downstream compatibility follow-up
+
+DigikaTech verification showed that three generic renderer tests inherited the
+fork's intended fixed sender, reply-to, and logo settings. The runtime output
+was correct, but the tests were not isolated from product configuration.
+Canonical correction `01915a47` explicitly clears product overrides in those
+generic test cases; all four LMS renderer tests passed before the correction
+was synchronized downstream as DigikaTech commit `b1198eb9`.
