@@ -34,3 +34,6 @@ python-dotenv>=1.0.0
 
 # Utilities
 python-dateutil>=2.8.2
+
+# Transactional email
+django-anymail[brevo]>=10.3

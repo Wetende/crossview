@@ -308,6 +308,7 @@ class NotificationService:
             notification_type="system",
             subject=f"Welcome to {institution_name}",
             message="\n".join(message_lines),
+            metadata={"action_url": "/login/", "action_label": "Sign in"},
         )
 
     @staticmethod
@@ -318,6 +319,9 @@ class NotificationService:
         student_name = (
             enrollment_request.user.get_full_name() or enrollment_request.user.email
         )
+        review_url = action_url or (
+            f"/instructor/programs/{enrollment_request.program.id}/enrollment-requests/"
+        )
         notifications = NotificationService.bulk_create(
             recipients=reviewers,
             notification_type="system",
@@ -326,8 +330,7 @@ class NotificationService:
                 f"{student_name} requested enrollment in "
                 f'"{enrollment_request.program.name}".'
             ),
-            action_url=action_url
-            or f"/instructor/programs/{enrollment_request.program.id}/enrollment-requests/",
+            action_url=review_url,
             related_program_id=enrollment_request.program.id,
         )
 
@@ -342,6 +345,10 @@ class NotificationService:
                     f'"{enrollment_request.program.name}".\n'
                     "Please review the request in your dashboard."
                 ),
+                metadata={
+                    "action_url": review_url,
+                    "action_label": "Review request",
+                },
             )
 
         return notifications
@@ -405,6 +412,10 @@ class NotificationService:
                     f'{actor_name} asked a new question on "{lesson_title}".\n'
                     "Open your course builder Q&A tab to reply."
                 ),
+                metadata={
+                    "action_url": action_url,
+                    "action_label": "Open discussion",
+                },
             )
 
         return notifications
@@ -466,6 +477,8 @@ class NotificationService:
                 f'{replier_name} replied to your lesson discussion on "{lesson_title}".\n'
                 "Open the lesson to continue the conversation."
             ),
+            notification=notification,
+            metadata={"action_label": "Open lesson"},
         )
 
         return notification
@@ -497,6 +510,8 @@ class NotificationService:
                 "You can now access the program from your student dashboard.\n\n"
                 "If you did not expect this enrollment, please contact support."
             ),
+            notification=notification,
+            metadata={"action_label": "Open course"},
         )
 
         return notification
@@ -524,6 +539,8 @@ class NotificationService:
                 "You can now access the program from your student dashboard.\n\n"
                 "If you did not request this enrollment, please contact support."
             ),
+            notification=notification,
+            metadata={"action_label": "Open course"},
         )
 
         return notification
@@ -554,6 +571,8 @@ class NotificationService:
                 f'Your enrollment status for "{enrollment.program.name}" is now '
                 f'"{status_label}".'
             ),
+            notification=notification,
+            metadata={"action_label": "View enrollment"},
         )
         return notification
 
@@ -585,6 +604,7 @@ class NotificationService:
                 + (f"Reason: {reason}\n" if reason else "")
                 + "\nYou can contact your instructor or administrator for details."
             ),
+            notification=notification,
         )
         return notification
 
@@ -610,6 +630,8 @@ class NotificationService:
                 f"Hello {enrollment.user.get_full_name() or enrollment.user.email},\n\n"
                 f'Your grades for "{enrollment.program.name}" are now available.'
             ),
+            notification=notification,
+            metadata={"action_label": "View grades"},
         )
         return notification
 
@@ -633,6 +655,8 @@ class NotificationService:
                 f"Hello {submission.enrollment.user.get_full_name() or submission.enrollment.user.email},\n\n"
                 "Your assignment has been graded. Log in to view feedback."
             ),
+            notification=notification,
+            metadata={"action_label": "View feedback"},
         )
         return notification
 
@@ -656,6 +680,8 @@ class NotificationService:
                 f"Hello {attempt.enrollment.user.get_full_name() or attempt.enrollment.user.email},\n\n"
                 "Your quiz results are now available. Log in to review them."
             ),
+            notification=notification,
+            metadata={"action_label": "View results"},
         )
         return notification
 
@@ -684,5 +710,9 @@ class NotificationService:
                 notification_type="announcement",
                 subject=f"New Announcement: {announcement.title}",
                 message=announcement.content[:500],
+                metadata={
+                    "action_url": f"/student/programs/{announcement.program.id}/",
+                    "action_label": "Open course",
+                },
             )
         return notifications

@@ -16,7 +16,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.db.models import Count, Q
 from django.db import transaction
 from django.http import Http404, JsonResponse
@@ -61,6 +60,7 @@ from apps.core.learning_outcomes import (
     resolve_learning_outcomes_html,
 )
 from apps.core.models import Program, User
+from apps.notifications.email_delivery import send_branded_email
 from apps.core.services.pricing import (
     get_program_pricing,
     normalize_custom_pricing as normalize_custom_pricing_policy,
@@ -1409,11 +1409,12 @@ def forgot_password_page(request):
 
                 # Send reset email (simplified - would use proper email template)
                 reset_url = f"{request.scheme}://{request.get_host()}/reset-password/{uid}/{token}/"
-                send_mail(
+                send_branded_email(
                     subject="Password Reset Request",
                     message=f"Click here to reset your password: {reset_url}",
-                    from_email=None,  # Uses DEFAULT_FROM_EMAIL
                     recipient_list=[email],
+                    action_url=reset_url,
+                    action_label="Reset password",
                     fail_silently=True,
                 )
 
@@ -2917,7 +2918,6 @@ def admin_user_reset_password(request, pk: int):
     if request.method != "POST":
         return redirect("core:admin.users")
 
-    from django.core.mail import send_mail
     from django.shortcuts import get_object_or_404
 
     user = get_object_or_404(User, pk=pk)
@@ -2928,11 +2928,12 @@ def admin_user_reset_password(request, pk: int):
 
     # Send reset email
     reset_url = f"{request.scheme}://{request.get_host()}/reset-password/{uid}/{token}/"
-    send_mail(
+    send_branded_email(
         subject="Password Reset Request",
         message=f"Click here to reset your password: {reset_url}",
-        from_email=None,
         recipient_list=[user.email],
+        action_url=reset_url,
+        action_label="Reset password",
         fail_silently=True,
     )
 
@@ -3758,33 +3759,6 @@ def instructor_announcement_create(request):
             content=raw_message,
         )
 
-        # Notify all actively enrolled students in-app
-        from apps.notifications.services import NotificationService
-        from apps.progression.models import Enrollment
-
-        enrolled_users = User.objects.filter(
-            id__in=Enrollment.objects.filter(
-                program=program,
-                status="active",
-            ).values_list("user_id", flat=True)
-        )
-        if enrolled_users.exists():
-            NotificationService.bulk_create(
-                recipients=enrolled_users,
-                notification_type="announcement",
-                title=announcement.title,
-                message=message_text[:200] + ("..." if len(message_text) > 200 else ""),
-                action_url=f"/student/programs/{program.id}/",
-                related_program_id=program.id,
-            )
-            for enrolled_user in enrolled_users:
-                NotificationService.send_email_notification(
-                    recipient=enrolled_user,
-                    notification_type="announcement",
-                    subject=f"New Announcement: {program.name}",
-                    message=message_text[:500],
-                )
-
         messages.success(request, "Announcement created successfully")
         return redirect("core:instructor.announcements")
 
@@ -3898,33 +3872,6 @@ def admin_announcement_create(request):
             title=title or "Announcement",
             content=raw_message,
         )
-
-        # Notify enrolled students
-        from apps.notifications.services import NotificationService
-        from apps.progression.models import Enrollment
-
-        enrolled_users = User.objects.filter(
-            id__in=Enrollment.objects.filter(
-                program=program,
-                status="active",
-            ).values_list("user_id", flat=True)
-        )
-        if enrolled_users.exists():
-            NotificationService.bulk_create(
-                recipients=enrolled_users,
-                notification_type="announcement",
-                title=announcement.title,
-                message=message_text[:200] + ("..." if len(message_text) > 200 else ""),
-                action_url=f"/student/programs/{program.id}/",
-                related_program_id=program.id,
-            )
-            for enrolled_user in enrolled_users:
-                NotificationService.send_email_notification(
-                    recipient=enrolled_user,
-                    notification_type="announcement",
-                    subject=f"New Announcement: {program.name}",
-                    message=message_text[:500],
-                )
 
         messages.success(request, "Announcement created successfully")
         return redirect("core:admin.announcements")

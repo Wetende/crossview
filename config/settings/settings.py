@@ -11,6 +11,8 @@ import importlib.util
 from pathlib import Path
 from dotenv import load_dotenv
 
+from config.email import build_email_settings
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,6 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # DEBUG mode - controls development vs production behavior
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+globals().update(build_email_settings(debug=DEBUG, environment=os.environ))
 
 # Security
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
@@ -51,6 +54,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "inertia",
+    "anymail",
     # Local apps
     "apps.core",
     "apps.platform",
@@ -341,8 +345,6 @@ GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY = os.getenv(
     GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY,
 ).strip()
 LIVE_SESSION_ENCRYPTION_KEY = os.getenv("LIVE_SESSION_ENCRYPTION_KEY", "").strip()
-PLATFORM_PUBLIC_BASE_URL = os.getenv("PLATFORM_PUBLIC_BASE_URL", "").strip().rstrip("/")
-
 # =============================================================================
 # Logging (Environment-controlled verbosity)
 # =============================================================================
