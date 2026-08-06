@@ -30,25 +30,82 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                     borderBottom: '1px solid rgba(255,255,255,0.1)',
                 }}
             >
-                <Toolbar sx={{ minHeight: 48, justifyContent: 'space-between' }}>
-                    <Stack direction="row" alignItems="center" spacing={2}>
+                <Toolbar
+                    sx={{
+                        minHeight: { xs: 112, lg: 64 },
+                        px: { xs: 1, sm: 2 },
+                        display: 'grid',
+                        gridTemplateColumns: {
+                            xs: 'minmax(0, 1fr) minmax(0, 65vw)',
+                            lg: 'minmax(0, 1fr) minmax(0, 1.5fr) auto',
+                        },
+                        gridTemplateRows: { xs: '64px 48px', lg: '64px' },
+                        gridTemplateAreas: {
+                            xs: '"identity actions" "tabs tabs"',
+                            lg: '"identity tabs actions"',
+                        },
+                        columnGap: { xs: 1, sm: 2 },
+                    }}
+                >
+                    <Box
+                        sx={{
+                            gridArea: 'identity',
+                            display: 'flex',
+                            alignItems: 'center',
+                            minWidth: 0,
+                            overflow: 'hidden',
+                        }}
+                    >
                         <Button
                             component={Link}
                             href="/instructor/programs/"
                             startIcon={<IconArrowLeft size={20} />}
-                            sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: '#fff' } }}
+                            aria-label="Back to programs"
+                            sx={{
+                                color: 'rgba(255,255,255,0.7)',
+                                flexShrink: 0,
+                                minWidth: { xs: 40, md: 'auto' },
+                                px: { xs: 1, md: 2 },
+                                '& .MuiButton-startIcon': {
+                                    m: { xs: 0, md: '0 8px 0 -4px' },
+                                },
+                                '&:hover': { color: '#fff' },
+                            }}
                         >
-                            Back to programs
+                            <Box component="span" sx={{ display: { xs: 'none', md: 'inline' } }}>
+                                Back to programs
+                            </Box>
                         </Button>
-                        <Box sx={{ borderLeft: '1px solid rgba(255,255,255,0.2)', pl: 2, ml: 2 }}>
-                            <Typography variant="h6" fontWeight={600}>
+                        <Box
+                            sx={{
+                                borderLeft: '1px solid rgba(255,255,255,0.2)',
+                                pl: { xs: 1, sm: 2 },
+                                ml: { xs: 1, sm: 2 },
+                                minWidth: 0,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <Typography
+                                variant="h6"
+                                fontWeight={600}
+                                noWrap
+                                title={program.name}
+                                sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                            >
                                 {program.name}
                             </Typography>
                         </Box>
-                    </Stack>
+                    </Box>
 
                     {/* Center Tabs - Support both URL and Client-side switching */}
-                    <Box sx={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', maxWidth: '70%', overflow: 'hidden' }}>
+                    <Box
+                        sx={{
+                            gridArea: 'tabs',
+                            width: '100%',
+                            minWidth: 0,
+                            overflow: 'hidden',
+                        }}
+                    >
                         <Tabs
                             value={selectedTab}
                             onChange={(e, newVal) => {
@@ -62,10 +119,12 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                             textColor="inherit"
                             indicatorColor="primary"
                             sx={{
+                                minHeight: 48,
                                 '& .MuiTab-root': {
                                     textTransform: 'none',
                                     fontWeight: 500,
                                     fontSize: '0.95rem',
+                                    minHeight: 48,
                                     minWidth: 'auto',
                                     px: 2,
                                     color: 'rgba(255,255,255,0.6)',
@@ -97,9 +156,21 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                         </Tabs>
                     </Box>
 
-                    <Stack direction="row" spacing={2} alignItems="center">
+                    <Box
+                        sx={{
+                            gridArea: 'actions',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            minWidth: 0,
+                            maxWidth: '100%',
+                            overflowX: 'auto',
+                            scrollbarWidth: 'none',
+                            '&::-webkit-scrollbar': { display: 'none' },
+                        }}
+                    >
                         {props.appBarActions}
-                    </Stack>
+                    </Box>
                 </Toolbar>
             </AppBar>
 
@@ -116,7 +187,14 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
             )}
 
             {/* Main Content Area */}
-            <Box sx={{ display: 'flex', flexGrow: 1, mt: '48px', overflow: 'hidden' }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexGrow: 1,
+                    mt: { xs: '112px', lg: '64px' },
+                    overflow: 'hidden',
+                }}
+            >
                 {children}
             </Box>
         </Box>

@@ -393,8 +393,11 @@ export default function InstructorProgramBuilder({
                         "& .MuiDrawer-paper": {
                             width: RIGHT_DRAWER_WIDTH,
                             boxSizing: "border-box",
-                            mt: 8, // Below AppBar (assuming AppBar height is 64px)
-                            height: "calc(100% - 64px)",
+                            top: { xs: 112, lg: 64 },
+                            height: {
+                                xs: "calc(100% - 112px)",
+                                lg: "calc(100% - 64px)",
+                            },
                             borderLeft: "1px solid rgba(0, 0, 0, 0.12)",
                         },
                     }}
