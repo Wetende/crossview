@@ -14,6 +14,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from apps.platform.policy import get_allowed_payment_methods
+
 
 PAYMENT_COLLECTION_NONE = "none"
 PAYMENT_COLLECTION_ONLINE = "online"
@@ -224,6 +226,18 @@ def resolve_pricing_recommendation(
         qualification_family=qualification_family,
         platform_features=platform_features,
     )
+    allowed_methods = set(get_allowed_payment_methods())
+    online_allowed = PAYSTACK_PAYMENT_METHOD in allowed_methods
+    offline_allowed = OFFLINE_PAYMENT_METHOD in allowed_methods
+
+    if online_supported and online_allowed and offline_allowed:
+        paid_collection = PAYMENT_COLLECTION_BOTH
+    elif online_supported and online_allowed:
+        paid_collection = PAYMENT_COLLECTION_ONLINE
+    elif offline_allowed:
+        paid_collection = PAYMENT_COLLECTION_OFFLINE
+    else:
+        paid_collection = PAYMENT_COLLECTION_NONE
 
     def policy(
         *,
@@ -249,7 +263,7 @@ def resolve_pricing_recommendation(
     if body_key == "INTERNAL":
         return policy(
             payment_collection=(
-                PAYMENT_COLLECTION_BOTH if has_price else PAYMENT_COLLECTION_NONE
+                paid_collection if has_price else PAYMENT_COLLECTION_NONE
             ),
             card_display=CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
             reason=(
@@ -278,7 +292,7 @@ def resolve_pricing_recommendation(
     if mode in {"online", "theology"}:
         return policy(
             payment_collection=(
-                PAYMENT_COLLECTION_BOTH if has_price else PAYMENT_COLLECTION_NONE
+                paid_collection if has_price else PAYMENT_COLLECTION_NONE
             ),
             card_display=CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
             reason=(
@@ -288,13 +302,7 @@ def resolve_pricing_recommendation(
         )
 
     return policy(
-        payment_collection=(
-            PAYMENT_COLLECTION_BOTH
-            if has_price and online_supported
-            else PAYMENT_COLLECTION_OFFLINE
-            if has_price
-            else PAYMENT_COLLECTION_NONE
-        ),
+        payment_collection=paid_collection if has_price else PAYMENT_COLLECTION_NONE,
         card_display=CARD_DISPLAY_PRICE if has_price else CARD_DISPLAY_FREE,
         reason="Custom deployments start simple and can be overridden per course.",
     )
@@ -369,6 +377,35 @@ def normalize_custom_pricing(
         payment_collection = (
             PAYMENT_COLLECTION_OFFLINE
             if configured_chargeable_price > 0
+            else PAYMENT_COLLECTION_NONE
+        )
+
+    allowed_methods = set(get_allowed_payment_methods())
+    online_allowed = PAYSTACK_PAYMENT_METHOD in allowed_methods
+    offline_allowed = OFFLINE_PAYMENT_METHOD in allowed_methods
+    if payment_collection == PAYMENT_COLLECTION_BOTH:
+        if online_allowed and not offline_allowed:
+            payment_collection = PAYMENT_COLLECTION_ONLINE
+        elif offline_allowed and not online_allowed:
+            payment_collection = PAYMENT_COLLECTION_OFFLINE
+        elif not online_allowed and not offline_allowed:
+            payment_collection = PAYMENT_COLLECTION_NONE
+    elif payment_collection == PAYMENT_COLLECTION_ONLINE and not online_allowed:
+        payment_collection = (
+            PAYMENT_COLLECTION_OFFLINE
+            if offline_allowed and configured_chargeable_price > 0
+            else PAYMENT_COLLECTION_NONE
+        )
+    elif payment_collection == PAYMENT_COLLECTION_OFFLINE and not offline_allowed:
+        payment_collection = (
+            PAYMENT_COLLECTION_ONLINE
+            if online_allowed and online_payment_selectable(
+                deployment_mode=deployment_mode,
+                exam_body=exam_body,
+                qualification_family=qualification_family,
+                platform_features=platform_features,
+            )
+            and configured_chargeable_price > 0
             else PAYMENT_COLLECTION_NONE
         )
 
@@ -538,7 +575,8 @@ def get_available_payment_methods(pricing: dict) -> list[str]:
         methods.append(PAYSTACK_PAYMENT_METHOD)
     if payment_collection in {PAYMENT_COLLECTION_OFFLINE, PAYMENT_COLLECTION_BOTH}:
         methods.append(OFFLINE_PAYMENT_METHOD)
-    return methods
+    allowed_methods = set(get_allowed_payment_methods())
+    return [method for method in methods if method in allowed_methods]
 
 
 def payment_method_allowed(pricing: dict, payment_method: str) -> bool:

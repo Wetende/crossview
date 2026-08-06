@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Badge, Enrollment, LearningStreak, NodeCompletion, StudentBadge, StudentXP
+from .models import (
+    Badge,
+    Enrollment,
+    EnrollmentIntent,
+    LearningStreak,
+    NodeCompletion,
+    StudentBadge,
+    StudentXP,
+)
 
 
 @admin.register(Enrollment)
@@ -10,6 +18,14 @@ class EnrollmentAdmin(admin.ModelAdmin):
     ordering = ["-enrolled_at"]
     date_hierarchy = "enrolled_at"
     raw_id_fields = ["user", "program"]
+
+
+@admin.register(EnrollmentIntent)
+class EnrollmentIntentAdmin(admin.ModelAdmin):
+    list_display = ["name", "email", "program", "status", "created_at"]
+    list_filter = ["status", "program", "created_at"]
+    search_fields = ["name", "email", "phone", "program__name"]
+    raw_id_fields = ["user", "program", "order", "enrollment"]
 
 
 @admin.register(NodeCompletion)

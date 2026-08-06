@@ -164,6 +164,11 @@ urlpatterns = [
         views.admin_enrollment_withdraw,
         name="admin.enrollment.withdraw",
     ),
+    path(
+        "admin/enrollment-leads/",
+        views.admin_enrollment_intents,
+        name="admin.enrollment_intents",
+    ),
     # ==========================================================================
     # Self-Enrollment Routes
     # ==========================================================================
@@ -171,6 +176,16 @@ urlpatterns = [
         "programs/<int:pk>/enroll/",
         views.student_enroll_request,
         name="enroll_request",
+    ),
+    path(
+        "programs/<int:pk>/enrollment-intent/",
+        views.enrollment_intent_capture,
+        name="enrollment_intent.capture",
+    ),
+    path(
+        "programs/enrollment/resume/",
+        views.enrollment_intent_resume,
+        name="enrollment_intent.resume",
     ),
     path(
         "instructor/programs/<int:pk>/enrollment-requests/",

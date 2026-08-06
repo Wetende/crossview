@@ -36,6 +36,11 @@ POLICY_FIELD_MAP = {
 
 _MISSING = object()
 
+DEFAULT_ALLOWED_PAYMENT_METHODS = (
+    "paystack",
+    "offline_bank_transfer",
+)
+
 
 def get_platform_policy() -> dict:
     """Return a defensive copy of the configured deployment policy."""
@@ -79,6 +84,34 @@ def get_feature_overrides() -> dict:
     """Return immutable feature decisions configured by a fork."""
     overrides = get_platform_policy().get("feature_overrides", {})
     return deepcopy(overrides) if isinstance(overrides, dict) else {}
+
+
+def get_commerce_policy() -> dict:
+    """Return deployment-level commerce constraints."""
+    configured = get_platform_policy().get("commerce", {})
+    return deepcopy(configured) if isinstance(configured, dict) else {}
+
+
+def get_allowed_payment_methods() -> tuple[str, ...]:
+    """Return payment providers permitted by the deployment policy."""
+    configured = get_commerce_policy().get("allowed_payment_methods")
+    if not isinstance(configured, (list, tuple)):
+        return DEFAULT_ALLOWED_PAYMENT_METHODS
+
+    allowed = []
+    for method in configured:
+        normalized = str(method or "").strip().lower()
+        if normalized in DEFAULT_ALLOWED_PAYMENT_METHODS and normalized not in allowed:
+            allowed.append(normalized)
+    return tuple(allowed)
+
+
+def serialize_commerce_policy() -> dict:
+    policy = get_commerce_policy()
+    return {
+        "allowedPaymentMethods": list(get_allowed_payment_methods()),
+        "paymentMethodsLocked": bool(policy.get("lock_payment_methods", False)),
+    }
 
 
 def get_locked_blueprint_mode() -> str | None:

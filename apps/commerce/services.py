@@ -1508,6 +1508,10 @@ class CheckoutService:
                 RevenueLedgerService.record_payment_share_for_order_item(item)
                 updated_items.append(item.id)
 
+            from apps.progression.enrollment_intents import EnrollmentIntentService
+
+            EnrollmentIntentService.complete_paid_order(locked_order)
+
             write_order_event(
                 locked_order,
                 "order_paid",

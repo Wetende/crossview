@@ -4,6 +4,7 @@ Requirements: 1.1-1.6, 2.1-2.5, 3.1-3.7, 4.1-4.7
 """
 
 from typing import Optional
+from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
@@ -4179,6 +4180,161 @@ def _get_students_for_enrollment() -> list:
         }
         for u in students
     ]
+
+
+def enrollment_intent_capture(request, pk: int):
+    """Capture enrollment details before authentication or checkout."""
+    if request.method != "POST":
+        return redirect("core:program_detail", slug=get_object_or_404(Program, pk=pk).slug)
+
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    from apps.progression.enrollment_intents import EnrollmentIntentService
+
+    program = get_object_or_404(Program, pk=pk, is_published=True)
+    data = _get_post_data(request)
+    authenticated = request.user.is_authenticated
+    email = request.user.email if authenticated else str(data.get("email") or "")
+    name = (
+        request.user.get_full_name()
+        if authenticated and request.user.get_full_name()
+        else str(data.get("name") or data.get("fullName") or "")
+    )
+    phone = str(data.get("phone") or (request.user.phone if authenticated else "") or "")
+
+    try:
+        validate_email(email)
+        intent = EnrollmentIntentService.capture(
+            program=program,
+            name=name,
+            email=email,
+            phone=phone,
+            user=request.user if authenticated else None,
+        )
+    except ValidationError as error:
+        messages.error(request, "; ".join(error.messages))
+        return redirect(f"/programs/{program.slug}/")
+
+    if not authenticated:
+        resume_url = EnrollmentIntentService.resume_url(intent)
+        messages.success(request, "Your details are saved. Sign in to continue enrollment.")
+        return redirect(f"/login/?{urlencode({'next': resume_url})}")
+
+    try:
+        outcome, destination = EnrollmentIntentService.continue_for_user(
+            intent,
+            request.user,
+        )
+    except ValidationError as error:
+        messages.error(request, "; ".join(error.messages))
+        return redirect(f"/programs/{program.slug}/")
+
+    if outcome == "payment":
+        messages.info(request, "Your details are saved. Complete payment to activate access.")
+    elif outcome == "approval":
+        messages.success(request, "Your enrollment request is awaiting review.")
+    else:
+        messages.success(request, f"You are now enrolled in {program.name}.")
+    return redirect(destination)
+
+
+@login_required
+def enrollment_intent_resume(request):
+    """Continue a captured enrollment after the learner authenticates."""
+    from django.core.exceptions import ValidationError
+
+    from apps.progression.enrollment_intents import EnrollmentIntentService
+
+    try:
+        intent = EnrollmentIntentService.from_token(request.GET.get("intent") or "")
+        outcome, destination = EnrollmentIntentService.continue_for_user(
+            intent,
+            request.user,
+        )
+    except ValidationError as error:
+        messages.error(request, "; ".join(error.messages))
+        return redirect("core:programs")
+
+    if outcome == "payment":
+        messages.info(request, "Complete payment to activate your course access.")
+    elif outcome == "approval":
+        messages.success(request, "Your enrollment request is awaiting review.")
+    else:
+        messages.success(request, f"You are now enrolled in {intent.program.name}.")
+    return redirect(destination)
+
+
+@login_required
+def admin_enrollment_intents(request):
+    """Inertia-first staff queue for captured enrollment leads."""
+    if not _require_admin(request.user):
+        return redirect("/dashboard/")
+
+    from apps.progression.models import EnrollmentIntent
+
+    status = str(request.GET.get("status") or "")
+    program_id = str(request.GET.get("program") or "")
+    search = str(request.GET.get("search") or "").strip()
+    try:
+        page = max(int(request.GET.get("page", 1)), 1)
+    except (TypeError, ValueError):
+        page = 1
+    per_page = 20
+
+    queryset = EnrollmentIntent.objects.select_related(
+        "program", "user", "order", "enrollment"
+    )
+    if status:
+        queryset = queryset.filter(status=status)
+    if program_id.isdigit():
+        queryset = queryset.filter(program_id=int(program_id))
+    if search:
+        queryset = queryset.filter(
+            Q(name__icontains=search)
+            | Q(email__icontains=search)
+            | Q(phone__icontains=search)
+            | Q(program__name__icontains=search)
+        )
+
+    total = queryset.count()
+    intents = queryset[(page - 1) * per_page : page * per_page]
+    return render(
+        request,
+        "Admin/EnrollmentLeads/Index",
+        {
+            "leads": [
+                {
+                    "id": intent.id,
+                    "name": intent.name,
+                    "email": intent.email,
+                    "phone": intent.phone,
+                    "status": intent.status,
+                    "statusLabel": intent.get_status_display(),
+                    "programId": intent.program_id,
+                    "programName": intent.program.name if intent.program else "Course removed",
+                    "userId": intent.user_id,
+                    "orderId": intent.order_id,
+                    "enrollmentId": intent.enrollment_id,
+                    "createdAt": intent.created_at.isoformat(),
+                    "convertedAt": intent.converted_at.isoformat() if intent.converted_at else None,
+                }
+                for intent in intents
+            ],
+            "programs": list(Program.objects.order_by("name").values("id", "name")),
+            "statusChoices": [
+                {"value": value, "label": label}
+                for value, label in EnrollmentIntent.STATUS_CHOICES
+            ],
+            "filters": {"status": status, "program": program_id, "search": search},
+            "pagination": {
+                "page": page,
+                "perPage": per_page,
+                "total": total,
+                "totalPages": (total + per_page - 1) // per_page,
+            },
+        },
+    )
 
 
 # =============================================================================

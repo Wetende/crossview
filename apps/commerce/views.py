@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
@@ -321,6 +322,9 @@ def commerce_orders(request):
             or Order.PROVIDER_PAYSTACK
         )
         raw_program_ids = data.get("programIds") or data.get("program_ids")
+        enrollment_intent_id = data.get("enrollmentIntentId") or data.get(
+            "enrollment_intent_id"
+        )
         if raw_program_ids is not None:
             raw_values = raw_program_ids if isinstance(raw_program_ids, list) else [raw_program_ids]
             try:
@@ -336,6 +340,31 @@ def commerce_orders(request):
                 payment_method,
                 metadata={"source": "direct_checkout"},
             )
+            if enrollment_intent_id:
+                from apps.progression.enrollment_intents import EnrollmentIntentService
+                from apps.progression.models import EnrollmentIntent
+
+                intent = EnrollmentIntent.objects.filter(
+                    pk=enrollment_intent_id,
+                    user=request.user,
+                ).first()
+                if not intent:
+                    raise CommerceError(
+                        "Enrollment request not found.",
+                        code="enrollment_intent_not_found",
+                        status_code=404,
+                    )
+                try:
+                    EnrollmentIntentService.attach_order(
+                        intent=intent,
+                        order=order,
+                        user=request.user,
+                    )
+                except ValidationError as error:
+                    raise CommerceError(
+                        "; ".join(error.messages),
+                        code="invalid_enrollment_intent",
+                    ) from error
         else:
             order = CheckoutService.create_order_from_cart(request.user, payment_method)
         payload = {"order": serialize_order(order)}
@@ -574,6 +603,14 @@ def admin_mark_order_paid(request, order_id: int):
         return admin_response
 
     try:
+        from apps.platform.policy import get_allowed_payment_methods
+
+        if Order.PROVIDER_OFFLINE_BANK_TRANSFER not in get_allowed_payment_methods():
+            raise CommerceError(
+                "Manual payment processing is disabled for this deployment.",
+                code="manual_payments_disabled",
+                status_code=403,
+            )
         order = CheckoutService.get_order(order_id)
         if order.provider != Order.PROVIDER_OFFLINE_BANK_TRANSFER:
             raise CommerceError(
@@ -750,6 +787,7 @@ def checkout_page(request):
             "checkout": {
                 "mode": request.GET.get("mode") or "cart",
                 "programId": request.GET.get("programId"),
+                "enrollmentIntentId": request.GET.get("enrollmentIntentId"),
             },
         },
     )

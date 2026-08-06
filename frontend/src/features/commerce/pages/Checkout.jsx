@@ -64,6 +64,9 @@ export default function Checkout({ paystack }) {
     const [phoneNumber, setPhoneNumber] = useState("");
     const isDirectMode = checkout?.mode === "direct" && !!checkout?.programId;
     const directProgramId = isDirectMode ? Number(checkout.programId) : null;
+    const enrollmentIntentId = checkout?.enrollmentIntentId
+        ? Number(checkout.enrollmentIntentId)
+        : null;
 
     const handlePaid = useCallback((paidOrder) => {
         if (!paidOrder) {
@@ -185,6 +188,7 @@ export default function Checkout({ paystack }) {
         const orderRes = await commerceApi.createOrder(
             provider,
             isDirectMode ? [directProgramId] : null,
+            isDirectMode ? enrollmentIntentId : null,
         );
         if (!orderRes.ok) {
             setError(orderRes.message || "Failed to create order.");
@@ -293,6 +297,7 @@ export default function Checkout({ paystack }) {
         getOrderPageUrl,
         handlePaid,
         isDirectMode,
+        enrollmentIntentId,
         directProgramId,
         paystack,
         refreshCart,

@@ -203,6 +203,77 @@ class EnrollmentRequest(TimeStampedModel):
         return f"{self.user} - {self.program} ({self.status})"
 
 
+class EnrollmentIntent(TimeStampedModel):
+    """Pre-enrollment record captured before identity or payment completion."""
+
+    STATUS_AWAITING_IDENTITY = "awaiting_identity"
+    STATUS_AWAITING_PAYMENT = "awaiting_payment"
+    STATUS_AWAITING_APPROVAL = "awaiting_approval"
+    STATUS_ENROLLED = "enrolled"
+    STATUS_EXPIRED = "expired"
+    STATUS_CANCELLED = "cancelled"
+
+    STATUS_CHOICES = [
+        (STATUS_AWAITING_IDENTITY, "Awaiting identity"),
+        (STATUS_AWAITING_PAYMENT, "Awaiting payment"),
+        (STATUS_AWAITING_APPROVAL, "Awaiting approval"),
+        (STATUS_ENROLLED, "Enrolled"),
+        (STATUS_EXPIRED, "Expired"),
+        (STATUS_CANCELLED, "Cancelled"),
+    ]
+
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(max_length=50)
+    program = models.ForeignKey(
+        "core.Program",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_intents",
+    )
+    user = models.ForeignKey(
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_intents",
+    )
+    order = models.ForeignKey(
+        "commerce.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_intents",
+    )
+    enrollment = models.ForeignKey(
+        "Enrollment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="enrollment_intents",
+    )
+    status = models.CharField(
+        max_length=24,
+        choices=STATUS_CHOICES,
+        default=STATUS_AWAITING_IDENTITY,
+    )
+    source = models.CharField(max_length=80, blank=True, default="program_detail")
+    converted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "enrollment_intents"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "-created_at"], name="enroll_intent_status_idx"),
+            models.Index(fields=["program", "-created_at"], name="enroll_intent_program_idx"),
+            models.Index(fields=["email", "-created_at"], name="enroll_intent_email_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.name} — {self.program or 'Course'} ({self.status})"
+
+
 # =============================================================================
 # Gamification Models (Feature 4C)
 # =============================================================================

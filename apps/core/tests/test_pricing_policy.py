@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.test import override_settings
 
 from apps.core.services.pricing import (
     normalize_custom_pricing,
@@ -23,6 +24,27 @@ def test_legacy_paid_pricing_normalizes_to_price_display_and_checkout_defaults()
     assert pricing["payment_collection"] == "both"
     assert pricing["card_display"] == "price"
     assert serialize_price_display(pricing)["allowsOnlineCheckout"] is True
+
+
+@override_settings(
+    LMS_PLATFORM_POLICY={
+        "commerce": {
+            "allowed_payment_methods": ["paystack"],
+            "lock_payment_methods": True,
+        }
+    }
+)
+def test_online_only_policy_coerces_manual_pricing_to_online():
+    pricing = normalize_custom_pricing(
+        {"price": 100, "payment_collection": "both"},
+        deployment_mode="online",
+        platform_features={"payments": True},
+    )
+
+    assert pricing["payment_collection"] == "online"
+    display = serialize_price_display(pricing)
+    assert display["allowsOnlineCheckout"] is True
+    assert display["allowsOfflinePayment"] is False
 
 
 @pytest.mark.parametrize("exam_body", ["KASNEB", "CDACC", "KNEC", "NITA", "ICM"])

@@ -36,4 +36,26 @@ describe("PricingEditor", () => {
             expect.objectContaining({ price_info: "Includes certificate" }),
         );
     });
+
+    test("hides manual payment choices when the deployment is online-only", () => {
+        render(
+            <PricingEditor
+                data={{ price: 80, payment_collection: "online" }}
+                onChange={vi.fn()}
+                recommendation={{ online_payment_supported: true }}
+                recommendations={{ paid: { payment_collection: "online" } }}
+                platformFeatures={{ payments: true }}
+                commercePolicy={{
+                    allowedPaymentMethods: ["paystack"],
+                    paymentMethodsLocked: true,
+                }}
+            />,
+        );
+
+        fireEvent.mouseDown(screen.getByLabelText("Payment"));
+
+        expect(screen.getByRole("option", { name: "Online payment" })).toBeInTheDocument();
+        expect(screen.queryByRole("option", { name: "Manual payment" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("option", { name: "Online or manual payment" })).not.toBeInTheDocument();
+    });
 });

@@ -81,6 +81,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
 ) {
     const { props } = usePage();
     const authUser = props.auth?.user || {};
+    const commercePolicy = props.commercePolicy || {};
     const canManageFeatured = getUserIsStaff(authUser);
     const availablePrerequisites = props.availablePrerequisites || [];
     const availableCoInstructors = props.availableCoInstructors || [];
@@ -1387,6 +1388,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             recommendation={program.pricingRecommendation || {}}
                             recommendations={program.pricingRecommendations || {}}
                             platformFeatures={platformFeatures}
+                            commercePolicy={commercePolicy}
                             platformTimezone={props.platformTimezone || "UTC"}
                             deploymentMode={deploymentMode}
                             examBody={formData.examBody || program.examBody}

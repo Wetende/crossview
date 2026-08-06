@@ -203,6 +203,11 @@ export const ROLE_NAVIGATION = {
             items: [
                 { label: "Users", href: "/admin/users/", icon: PeopleIcon },
                 {
+                    label: "Enrollment Leads",
+                    href: "/admin/enrollment-leads/",
+                    icon: AssignmentIcon,
+                },
+                {
                     label: "Enrollments",
                     href: "/admin/enrollments/",
                     icon: AssignmentIcon,

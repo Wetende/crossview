@@ -43,11 +43,17 @@ export const PricingEditor = ({
     recommendation = {},
     recommendations = {},
     platformFeatures = {},
+    commercePolicy = {},
     platformTimezone = 'UTC',
 }) => {
     const currency = data.currency || 'KES';
     const originalPrice = data.original_price ?? data.sale_price ?? '';
     const paymentsEnabled = Boolean(platformFeatures.payments);
+    const allowedPaymentMethods = Array.isArray(commercePolicy.allowedPaymentMethods)
+        ? commercePolicy.allowedPaymentMethods
+        : ['paystack', 'offline_bank_transfer'];
+    const allowsOnlinePolicy = allowedPaymentMethods.includes('paystack');
+    const allowsOfflinePolicy = allowedPaymentMethods.includes('offline_bank_transfer');
     const activeRecommendation =
         (hasPositivePrice(data.price) ? recommendations.paid : recommendations.free) ||
         recommendation;
@@ -56,8 +62,19 @@ export const PricingEditor = ({
             activeRecommendation.onlinePaymentSupported ??
             paymentsEnabled,
     );
-    const paymentCollection =
+    const requestedPaymentCollection =
         data.payment_collection || activeRecommendation.payment_collection || 'none';
+    const paymentCollection = (() => {
+        if (requestedPaymentCollection === 'both' && !allowsOfflinePolicy) return 'online';
+        if (requestedPaymentCollection === 'both' && !allowsOnlinePolicy) return 'offline';
+        if (requestedPaymentCollection === 'offline' && !allowsOfflinePolicy) {
+            return allowsOnlinePolicy ? 'online' : 'none';
+        }
+        if (requestedPaymentCollection === 'online' && !allowsOnlinePolicy) {
+            return allowsOfflinePolicy ? 'offline' : 'none';
+        }
+        return requestedPaymentCollection;
+    })();
     const cardDisplay = data.card_display || activeRecommendation.card_display || 'free';
     const publicCardDisplay = cardDisplay === 'hidden' ? 'hidden' : 'show';
 
@@ -72,7 +89,9 @@ export const PricingEditor = ({
         if (recommended && recommended !== 'none') {
             return recommended;
         }
-        return onlinePaymentSupported ? 'both' : 'offline';
+        if (onlinePaymentSupported && allowsOnlinePolicy && allowsOfflinePolicy) return 'both';
+        if (onlinePaymentSupported && allowsOnlinePolicy) return 'online';
+        return allowsOfflinePolicy ? 'offline' : 'none';
     };
 
     const handlePriceChange = (value) => {
@@ -187,26 +206,34 @@ export const PricingEditor = ({
             />
 
             <FormControl fullWidth>
-                <InputLabel>Payment</InputLabel>
+                <InputLabel id="pricing-payment-label">Payment</InputLabel>
                 <Select
+                    labelId="pricing-payment-label"
                     label="Payment"
                     value={paymentCollection}
                     onChange={e => handlePaymentCollectionChange(e.target.value)}
                 >
                     <MenuItem value="none">Free</MenuItem>
-                    <MenuItem value="offline">Manual payment</MenuItem>
-                    <MenuItem value="online" disabled={!onlinePaymentSupported}>
-                        Online payment
-                    </MenuItem>
-                    <MenuItem value="both" disabled={!onlinePaymentSupported}>
-                        Online or manual payment
-                    </MenuItem>
+                    {allowsOfflinePolicy && (
+                        <MenuItem value="offline">Manual payment</MenuItem>
+                    )}
+                    {allowsOnlinePolicy && (
+                        <MenuItem value="online" disabled={!onlinePaymentSupported}>
+                            Online payment
+                        </MenuItem>
+                    )}
+                    {allowsOnlinePolicy && allowsOfflinePolicy && (
+                        <MenuItem value="both" disabled={!onlinePaymentSupported}>
+                            Online or manual payment
+                        </MenuItem>
+                    )}
                 </Select>
             </FormControl>
 
             <FormControl fullWidth>
-                <InputLabel>Public card display</InputLabel>
+                <InputLabel id="pricing-card-display-label">Public card display</InputLabel>
                 <Select
+                    labelId="pricing-card-display-label"
                     label="Public card display"
                     value={publicCardDisplay}
                     onChange={e => handlePublicCardDisplayChange(e.target.value)}
