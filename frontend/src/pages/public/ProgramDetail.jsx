@@ -1,4 +1,4 @@
-import { Head, Link, usePage, router } from "@inertiajs/react";
+import { Head, Link, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -41,6 +41,7 @@ import { truncatePlainText } from "@/utils/htmlText";
 import { resolvePriceDisplay } from "@/utils/priceDisplay";
 import CourseContentTabs from "@/features/programs/components/CourseContentTabs";
 import CourseDetailsPanel from "@/features/programs/components/CourseDetailsPanel";
+import EnrollmentIntentDialog from "@/features/enrollment-intents/components/EnrollmentIntentDialog";
 
 // --- Helper Components ---
 
@@ -355,9 +356,7 @@ function CourseDetailsSidebar({
                             </>
                         ) : (
                             <Button
-                                component={Link}
-                                href={`/programs/${program.id}/enroll/`}
-                                method="post"
+                                onClick={() => onBuyNow && onBuyNow(program.id)}
                                 variant="contained"
                                 fullWidth
                                 size="large"
@@ -403,8 +402,7 @@ function CourseDetailsSidebar({
                 ) : (
                     <>
                         <Button
-                            component={Link}
-                            href={`/login/?next=${encodeURIComponent(program.publicUrl)}`}
+                            onClick={() => onBuyNow && onBuyNow(program.id)}
                             variant="contained"
                             fullWidth
                             size="large"
@@ -415,7 +413,7 @@ function CourseDetailsSidebar({
                                 bgcolor: theme.palette.primary.main,
                             }}
                         >
-                            LOGIN TO ENROLL
+                            {getCtaText()}
                         </Button>
                         <Stack
                             direction="row"
@@ -529,6 +527,7 @@ export default function ProgramDetail({
     const { addToCart } = useCart();
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
     const shortDescription = truncatePlainText(program.description, 200);
 
@@ -537,9 +536,7 @@ export default function ProgramDetail({
 
     const isWishlisted = (wishlist?.items || []).some((item) => item.program?.id === program.id);
 
-    const handleBuyNow = (programId) => {
-        router.visit(`/checkout/?mode=direct&programId=${programId}`);
-    };
+    const handleBuyNow = () => setEnrollmentDialogOpen(true);
 
     const handleAddToCart = async (programId) => {
         const res = await addToCart(programId);
@@ -795,6 +792,12 @@ export default function ProgramDetail({
                 onClose={handleCloseDetails}
                 program={program}
                 enrollmentData={enrollmentData}
+            />
+            <EnrollmentIntentDialog
+                open={enrollmentDialogOpen}
+                onClose={() => setEnrollmentDialogOpen(false)}
+                program={program}
+                user={auth?.user || null}
             />
 
             {/* Cart Snackbar */}
