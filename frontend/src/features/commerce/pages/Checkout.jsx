@@ -1,5 +1,5 @@
 /**
- * Checkout Page — Custom flow with native M-Pesa STK push and popup Card.
+ * Checkout Page — M-Pesa and card payment flow.
  */
 import { useState, useEffect, useCallback } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
@@ -312,7 +312,7 @@ export default function Checkout({ paystack }) {
 
     return (
         <DashboardLayout role="student" breadcrumbs={[{ label: "Programs", href: "/programs/" }, { label: "Checkout" }]}>
-            <Container maxWidth="sm" sx={{ py: 4 }}>
+            <Container maxWidth="md" sx={{ py: { xs: 2.5, md: 5 } }}>
                 <Head title="Checkout" />
 
                 {/* Back to programs */}
@@ -326,6 +326,22 @@ export default function Checkout({ paystack }) {
                     >
                         {isDirectMode ? "Back to Program" : "Browse More Programs"}
                     </Button>
+                )}
+
+                {step === STEP_REVIEW && (
+                    <Box sx={{ mb: 3 }}>
+                        <Typography
+                            component="h1"
+                            variant="h4"
+                            fontWeight={750}
+                            letterSpacing="-0.025em"
+                        >
+                            Complete your enrollment
+                        </Typography>
+                        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                            Choose how you would like to pay. Your payment is processed securely by Paystack.
+                        </Typography>
+                    </Box>
                 )}
 
                 {error && (
@@ -379,17 +395,21 @@ export default function Checkout({ paystack }) {
                     />
                 )}
 
-                {/* M-Pesa STK Pending wait screen */}
+                {/* M-Pesa confirmation wait screen */}
                 {step === STEP_MPESA_PENDING && order && (
                     <Card sx={{ borderRadius: 2, textAlign: "center", py: 4 }}>
                         <CardContent>
-                            <IconDeviceMobile size={48} color="#10B981" style={{ marginBottom: 16 }} />
-                            <Typography variant="h5" fontWeight={700} gutterBottom>
-                                Action Required
-                            </Typography>
-                            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-                                {statusText}
-                            </Typography>
+                            {order.status !== "paid" && (
+                                <>
+                                    <IconDeviceMobile size={48} color="#10B981" style={{ marginBottom: 16 }} />
+                                    <Typography variant="h5" fontWeight={700} gutterBottom>
+                                        Check your phone
+                                    </Typography>
+                                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+                                        {statusText}
+                                    </Typography>
+                                </>
+                            )}
                             
                             <PaymentPending
                                 orderId={order.id}
@@ -412,11 +432,30 @@ export default function Checkout({ paystack }) {
 
                 {/* Review step */}
                 {step === STEP_REVIEW && (
-                    <Stack spacing={3}>
+                    <Box
+                        sx={{
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.45fr) minmax(280px, 0.8fr)" },
+                            gap: 3,
+                            alignItems: "start",
+                        }}
+                    >
                         {/* Order summary */}
-                        <Card sx={{ borderRadius: 2 }}>
+                        <Card
+                            variant="outlined"
+                            sx={{
+                                order: { xs: 0, md: 1 },
+                                borderRadius: 3,
+                                position: { md: "sticky" },
+                                top: { md: 24 },
+                                boxShadow: "0 16px 40px rgba(15, 23, 42, 0.06)",
+                            }}
+                        >
                             <CardContent>
-                                <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                                <Typography variant="overline" color="text.secondary" fontWeight={700}>
+                                    Your order
+                                </Typography>
+                                <Typography variant="h6" fontWeight={700} sx={{ mb: 2.25 }}>
                                     Order Summary
                                 </Typography>
 
@@ -441,12 +480,13 @@ export default function Checkout({ paystack }) {
                                                 key={item.id}
                                                 direction="row"
                                                 justifyContent="space-between"
+                                                spacing={2}
                                                 sx={{ py: 1 }}
                                             >
-                                                <Typography variant="body2">
-                                                     {item.program?.name}
-                                                </Typography>
                                                 <Typography variant="body2" fontWeight={600}>
+                                                    {item.program?.name}
+                                                </Typography>
+                                                <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: "nowrap" }}>
                                                     {formatMinorCurrency(item.amountMinor)}
                                                 </Typography>
                                             </Stack>
@@ -456,8 +496,14 @@ export default function Checkout({ paystack }) {
                                             <Typography variant="subtitle1" fontWeight={700}>
                                                 Total
                                             </Typography>
-                                            <Typography variant="subtitle1" fontWeight={700}>
-                                                 {formatMinorCurrency(totalMinor)}
+                                            <Typography variant="h6" fontWeight={800} color="primary.main">
+                                                {formatMinorCurrency(totalMinor)}
+                                            </Typography>
+                                        </Stack>
+                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2.5 }}>
+                                            <IconLock size={15} />
+                                            <Typography variant="caption" color="text.secondary">
+                                                Secure payment powered by Paystack
                                             </Typography>
                                         </Stack>
                                     </>
@@ -467,10 +513,20 @@ export default function Checkout({ paystack }) {
 
                         {/* Payment Method Selector */}
                         {!isEmpty && (
-                            <Card sx={{ borderRadius: 2 }}>
-                                <CardContent>
-                                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-                                        Payment Method
+                            <Card
+                                variant="outlined"
+                                sx={{
+                                    order: { xs: 1, md: 0 },
+                                    borderRadius: 3,
+                                    boxShadow: "0 16px 40px rgba(15, 23, 42, 0.06)",
+                                }}
+                            >
+                                <CardContent sx={{ p: { xs: 2.5, sm: 3.5 }, "&:last-child": { pb: { xs: 2.5, sm: 3.5 } } }}>
+                                    <Typography variant="h5" fontWeight={750} letterSpacing="-0.015em">
+                                        Choose a payment method
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2.5 }}>
+                                        Select one of the secure payment options below.
                                     </Typography>
                                     {availablePaymentMethods.length === 0 && (
                                         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -481,103 +537,170 @@ export default function Checkout({ paystack }) {
                                         <RadioGroup
                                             value={paymentMethod}
                                             onChange={(e) => setPaymentMethod(e.target.value)}
+                                            sx={{ gap: 1.5 }}
                                         >
                                             {allowsPaystack && (
                                                 <>
-                                                    <FormControlLabel
-                                                        value="mpesa"
-                                                        control={<Radio />}
-                                                        label={
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                                <IconDeviceMobile size={20} />
-                                                                <Typography fontWeight={600}>M-Pesa (Send Money)</Typography>
-                                                            </Box>
-                                                        }
-                                                        sx={{ mb: paymentMethod === "mpesa" ? 1 : 2 }}
-                                                    />
-                                                    {paymentMethod === "mpesa" && (
-                                                        <Box sx={{ ml: 4, mb: 3 }}>
+                                                    <Box
+                                                        sx={{
+                                                            border: "1px solid",
+                                                            borderColor: paymentMethod === "mpesa" ? "primary.main" : "divider",
+                                                            borderRadius: 2.5,
+                                                            bgcolor: paymentMethod === "mpesa" ? "action.hover" : "background.paper",
+                                                            transition: "border-color 180ms ease, background-color 180ms ease",
+                                                        }}
+                                                    >
+                                                        <FormControlLabel
+                                                            value="mpesa"
+                                                            control={<Radio inputProps={{ "aria-label": "M-Pesa" }} />}
+                                                            label={(
+                                                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                                                    <Box
+                                                                        sx={{
+                                                                            width: 38,
+                                                                            height: 38,
+                                                                            borderRadius: 1.5,
+                                                                            bgcolor: "#E9F8EF",
+                                                                            color: "#087A3E",
+                                                                            display: "grid",
+                                                                            placeItems: "center",
+                                                                        }}
+                                                                    >
+                                                                        <IconDeviceMobile size={20} />
+                                                                    </Box>
+                                                                    <Box>
+                                                                        <Typography fontWeight={700}>M-Pesa</Typography>
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            Receive a payment prompt on your phone
+                                                                        </Typography>
+                                                                    </Box>
+                                                                </Stack>
+                                                            )}
+                                                            sx={{ m: 0, px: 1.5, py: 1.25, width: "100%" }}
+                                                        />
+                                                        {paymentMethod === "mpesa" && (
+                                                            <Box sx={{ px: 2, pb: 2 }}>
                                                             <TextField
                                                                 fullWidth
-                                                                size="small"
-                                                                label="M-Pesa Phone Number"
-                                                                placeholder="e.g. 0712345678"
+                                                                id="mpesa-phone-number"
+                                                                label="M-Pesa phone number"
+                                                                placeholder="0712 345 678"
                                                                 value={phoneNumber}
                                                                 onChange={(e) => setPhoneNumber(e.target.value)}
-                                                                helperText="We will send a payment prompt to this number."
+                                                                helperText="Use the Safaricom number that will approve this payment."
+                                                                slotProps={{
+                                                                    htmlInput: {
+                                                                        inputMode: "tel",
+                                                                        autoComplete: "tel",
+                                                                    },
+                                                                }}
                                                             />
-                                                        </Box>
-                                                    )}
-
-                                                    <FormControlLabel
-                                                        value="card"
-                                                        control={<Radio />}
-                                                        label={
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                                <IconCreditCard size={20} />
-                                                                <Typography fontWeight={600}>Credit / Debit Card</Typography>
                                                             </Box>
-                                                        }
-                                                    />
-                                                    {paymentMethod === "card" && (
-                                                        <Box sx={{ ml: 4, mt: 1, mb: allowsOffline ? 2 : 0 }}>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                You will be redirected to securely enter your card details.
-                                                            </Typography>
-                                                        </Box>
-                                                    )}
+                                                        )}
+                                                    </Box>
+
+                                                    <Box
+                                                        sx={{
+                                                            border: "1px solid",
+                                                            borderColor: paymentMethod === "card" ? "primary.main" : "divider",
+                                                            borderRadius: 2.5,
+                                                            bgcolor: paymentMethod === "card" ? "action.hover" : "background.paper",
+                                                            transition: "border-color 180ms ease, background-color 180ms ease",
+                                                        }}
+                                                    >
+                                                        <FormControlLabel
+                                                            value="card"
+                                                            control={<Radio inputProps={{ "aria-label": "Credit or debit card" }} />}
+                                                            label={(
+                                                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                                                    <Box
+                                                                        sx={{
+                                                                            width: 38,
+                                                                            height: 38,
+                                                                            borderRadius: 1.5,
+                                                                            bgcolor: "primary.50",
+                                                                            color: "primary.main",
+                                                                            display: "grid",
+                                                                            placeItems: "center",
+                                                                        }}
+                                                                    >
+                                                                        <IconCreditCard size={20} />
+                                                                    </Box>
+                                                                    <Box>
+                                                                        <Typography fontWeight={700}>Credit or debit card</Typography>
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            Pay securely using your bank card
+                                                                        </Typography>
+                                                                    </Box>
+                                                                </Stack>
+                                                            )}
+                                                            sx={{ m: 0, px: 1.5, py: 1.25, width: "100%" }}
+                                                        />
+                                                    </Box>
                                                 </>
                                             )}
 
                                             {allowsOffline && (
-                                                <FormControlLabel
-                                                    value="offline_bank_transfer"
-                                                    control={<Radio />}
-                                                    label={
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                            <IconBuildingBank size={20} />
-                                                            <Typography fontWeight={600}>Offline bank transfer</Typography>
-                                                        </Box>
-                                                    }
-                                                />
-                                            )}
-                                            {paymentMethod === "offline_bank_transfer" && (
-                                                <Box sx={{ ml: 4, mt: 1 }}>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        Place the order now, then follow the bank transfer instructions.
-                                                    </Typography>
+                                                <Box
+                                                    sx={{
+                                                        border: "1px solid",
+                                                        borderColor: paymentMethod === "offline_bank_transfer" ? "primary.main" : "divider",
+                                                        borderRadius: 2.5,
+                                                        bgcolor: paymentMethod === "offline_bank_transfer" ? "action.hover" : "background.paper",
+                                                    }}
+                                                >
+                                                    <FormControlLabel
+                                                        value="offline_bank_transfer"
+                                                        control={<Radio inputProps={{ "aria-label": "Bank transfer" }} />}
+                                                        label={(
+                                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                                <IconBuildingBank size={22} />
+                                                                <Box>
+                                                                    <Typography fontWeight={700}>Bank transfer</Typography>
+                                                                    <Typography variant="body2" color="text.secondary">
+                                                                        Receive instructions after placing your order
+                                                                    </Typography>
+                                                                </Box>
+                                                            </Stack>
+                                                        )}
+                                                        sx={{ m: 0, px: 1.5, py: 1.25, width: "100%" }}
+                                                    />
                                                 </Box>
                                             )}
                                         </RadioGroup>
                                     </FormControl>
+
+                                    <Button
+                                        variant="contained"
+                                        fullWidth
+                                        size="large"
+                                        onClick={handlePlaceOrder}
+                                        disabled={
+                                            availablePaymentMethods.length === 0 ||
+                                            requiresPriceConfirmation ||
+                                            Boolean(pricingError)
+                                        }
+                                        sx={{ mt: 3, py: 1.5, fontWeight: 750, borderRadius: 2 }}
+                                    >
+                                        {paymentMethod === "mpesa"
+                                            ? "Pay with M-Pesa"
+                                            : paymentMethod === "offline_bank_transfer"
+                                              ? "Continue with bank transfer"
+                                              : "Pay with card"}
+                                    </Button>
+                                    {paymentMethod === "mpesa" && (
+                                        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 1.5 }}>
+                                            <IconLock size={15} style={{ marginTop: 2, flexShrink: 0 }} />
+                                            <Typography variant="caption" color="text.secondary">
+                                                You will receive a prompt on your phone to confirm
+                                                {` ${formatMinorCurrency(totalMinor)}`}.
+                                            </Typography>
+                                        </Stack>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}
-
-                        {/* Place order */}
-                        {!isEmpty && (
-                            <Button
-                                variant="contained"
-                                fullWidth
-                                size="large"
-                                onClick={handlePlaceOrder}
-                                disabled={
-                                    availablePaymentMethods.length === 0 ||
-                                    requiresPriceConfirmation ||
-                                    Boolean(pricingError)
-                                }
-                                startIcon={<IconLock size={18} />}
-                                sx={{ py: 1.5, fontWeight: 700 }}
-                            >
-                                {paymentMethod === "mpesa" 
-                                     ? `Send STK Push • ${formatMinorCurrency(totalMinor)}`
-                                     : paymentMethod === "offline_bank_transfer"
-                                       ? `Place offline order • ${formatMinorCurrency(totalMinor)}`
-                                     : `Pay securely • ${formatMinorCurrency(totalMinor)}`
-                                 }
-                            </Button>
-                        )}
-                    </Stack>
+                    </Box>
                 )}
             </Container>
         </DashboardLayout>
