@@ -552,6 +552,101 @@ def test_paystack_verify_endpoint_marks_order_paid(monkeypatch):
     assert Enrollment.objects.filter(user=user, program=program, status="active").exists()
 
 
+def test_order_status_reconciles_successful_pending_paystack_payment(monkeypatch):
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-STATUS-RECONCILE-001", price=5)
+    order = CheckoutService.create_order_from_programs(
+        user,
+        [program],
+        Order.PROVIDER_PAYSTACK,
+    )
+    order.status = Order.STATUS_PENDING_PAYMENT
+    order.provider_reference = order.reference
+    order.save(update_fields=["status", "provider_reference", "updated_at"])
+
+    def fake_request(method, url, payload=None):
+        return {
+            "status": True,
+            "message": "Verification successful",
+            "data": {
+                "reference": order.reference,
+                "status": "success",
+                "amount": order.total_minor,
+                "currency": order.currency,
+                "paid_at": "2026-08-07T10:02:00Z",
+            },
+        }
+
+    monkeypatch.setattr(
+        "apps.commerce.services.PaystackGatewayService._request",
+        fake_request,
+    )
+
+    response = client.get(reverse("commerce:order_status", args=[order.id]))
+
+    order.refresh_from_db()
+
+    assert response.status_code == 200
+    assert response.json()["order"]["status"] == "paid"
+    assert order.status == Order.STATUS_PAID
+    assert PaymentAttempt.objects.filter(
+        order=order,
+        state="status_reconcile",
+    ).count() == 1
+    assert Enrollment.objects.filter(
+        user=user,
+        program=program,
+        status="active",
+    ).exists()
+
+
+def test_order_status_throttles_pending_paystack_verification(monkeypatch):
+    user = UserFactory()
+    client = _login_client(user)
+    program = _create_program("PAY-STATUS-RECONCILE-002", price=5)
+    order = CheckoutService.create_order_from_programs(
+        user,
+        [program],
+        Order.PROVIDER_PAYSTACK,
+    )
+    order.status = Order.STATUS_PENDING_PAYMENT
+    order.provider_reference = order.reference
+    order.save(update_fields=["status", "provider_reference", "updated_at"])
+    calls = []
+
+    def fake_request(method, url, payload=None):
+        calls.append((method, url))
+        return {
+            "status": True,
+            "message": "Verification successful",
+            "data": {
+                "reference": order.reference,
+                "status": "pending",
+                "amount": order.total_minor,
+                "currency": order.currency,
+            },
+        }
+
+    monkeypatch.setattr(
+        "apps.commerce.services.PaystackGatewayService._request",
+        fake_request,
+    )
+
+    first_response = client.get(reverse("commerce:order_status", args=[order.id]))
+    second_response = client.get(reverse("commerce:order_status", args=[order.id]))
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert first_response.json()["order"]["status"] == "pending_payment"
+    assert second_response.json()["order"]["status"] == "pending_payment"
+    assert len(calls) == 1
+    assert PaymentAttempt.objects.filter(
+        order=order,
+        state="status_reconcile",
+    ).count() == 1
+
+
 def test_paystack_verify_endpoint_rejects_amount_mismatch(monkeypatch):
     user = UserFactory()
     client = _login_client(user)

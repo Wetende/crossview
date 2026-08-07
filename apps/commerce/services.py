@@ -53,6 +53,7 @@ PAYSTACK_REFUND_RETRY_URL = (
 PAYSTACK_TRANSFER_RECIPIENT_URL = "https://api.paystack.co/transferrecipient"
 PAYSTACK_TRANSFER_URL = "https://api.paystack.co/transfer"
 PAYSTACK_CHARGE_URL = "https://api.paystack.co/charge"
+PAYSTACK_STATUS_RECONCILE_INTERVAL_SECONDS = 15
 
 PAYSTACK_POPUP_CHANNELS = ["card", "mobile_money"]
 PAYSTACK_PAYOUT_HOLD_STATUSES = {
@@ -1874,6 +1875,36 @@ class PaystackGatewayService:
 
         refreshed_order = CheckoutService.get_order(order.id)
         return refreshed_order, response, finalized
+
+    @staticmethod
+    def reconcile_pending_order(order: Order) -> Order:
+        """Verify a pending Paystack order while avoiding excessive API calls."""
+        if (
+            order.provider != Order.PROVIDER_PAYSTACK
+            or order.status != Order.STATUS_PENDING_PAYMENT
+        ):
+            return order
+
+        cutoff = timezone.now() - timedelta(
+            seconds=PAYSTACK_STATUS_RECONCILE_INTERVAL_SECONDS
+        )
+        recently_checked = PaymentAttempt.objects.filter(
+            order=order,
+            provider=Order.PROVIDER_PAYSTACK,
+            state="status_reconcile",
+            created_at__gte=cutoff,
+        ).exists()
+        if recently_checked:
+            return order
+
+        reference = order.provider_reference or order.reference
+        reconciled_order, _, _ = PaystackGatewayService.verify_and_finalize_order(
+            order,
+            reference,
+            state="status_reconcile",
+            payload_source="status_reconcile",
+        )
+        return reconciled_order
 
     @staticmethod
     def _verify_signature(raw_body: bytes, signature: str) -> bool:

@@ -25,7 +25,6 @@ import {
 import { IconArrowLeft, IconCreditCard, IconBuildingBank } from "@tabler/icons-react";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import PaymentPending from "@/features/commerce/components/PaymentPending";
-import { resumePaystackTransaction } from "@/features/commerce/utils/paystackPopup";
 import * as commerceApi from "@/services/commerceApi";
 import {
     ORDER_STATUS_LABELS,
@@ -33,7 +32,7 @@ import {
 } from "@/services/commerceApi";
 import { useCurrency } from "@/hooks/useCurrency";
 
-export default function OrderDetail({ orderId: propOrderId, paystack }) {
+export default function OrderDetail({ orderId: propOrderId }) {
     const initialError =
         typeof window !== "undefined"
             ? new URLSearchParams(window.location.search).get("paymentError") || ""
@@ -41,8 +40,7 @@ export default function OrderDetail({ orderId: propOrderId, paystack }) {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(initialError);
-    const [retrying, setRetrying] = useState(false);
-    const [showPending, setShowPending] = useState(false);
+    const [checkingPayment, setCheckingPayment] = useState(false);
     const { formatMinorCurrency } = useCurrency();
 
     // orderId comes from Inertia props or URL param
@@ -65,63 +63,31 @@ export default function OrderDetail({ orderId: propOrderId, paystack }) {
         })();
     }, [orderId]);
 
-    const handleRetryPaystack = async () => {
+    const handleCheckPaystack = async () => {
         if (!order) return;
-        setRetrying(true);
+        setCheckingPayment(true);
         setError("");
-        const res = await commerceApi.initializePaystack(order.id);
-        if (!res.ok || !res.accessCode) {
-            setError(res.message || "Failed to initialize payment.");
-            setRetrying(false);
-            return;
+        const reference = order.providerReference || order.reference;
+        const res = await commerceApi.verifyPaystack(order.id, reference);
+        if (res.ok && res.order) {
+            setOrder(res.order);
+        } else {
+            setError(res.message || "Unable to verify payment yet.");
         }
-
-        try {
-            await resumePaystackTransaction({
-                accessCode: res.accessCode,
-                publicKey: paystack?.publicKey,
-                onSuccess: async (transaction) => {
-                    const transactionReference =
-                        transaction?.reference || transaction?.trxref || res.reference;
-                    setShowPending(true);
-                    const verifyRes = await commerceApi.verifyPaystack(order.id, transactionReference);
-                    if (verifyRes.ok) {
-                        setOrder(verifyRes.order);
-                        if (verifyRes.order?.status === "paid") {
-                            setShowPending(false);
-                        }
-                    } else {
-                        setError(verifyRes.message || "Unable to verify payment yet.");
-                    }
-                    setRetrying(false);
-                },
-                onCancel: () => {
-                    setRetrying(false);
-                },
-                onError: () => {
-                    setError("Unable to open Paystack checkout.");
-                    setRetrying(false);
-                },
-            });
-        } catch (popupError) {
-            setError(popupError.message || "Unable to open Paystack checkout.");
-            setRetrying(false);
-        }
+        setCheckingPayment(false);
     };
 
     const handlePaid = (paidOrder) => {
         if (!paidOrder) {
             return;
         }
-        setShowPending(false);
         setOrder((prev) => ({ ...(prev || {}), ...paidOrder }));
     };
 
     // Show polling UI if order is pending_payment and provider is paystack
     const showPolling = order &&
         order.status === "pending_payment" &&
-        order.provider === "paystack" &&
-        (showPending || new URLSearchParams(window.location.search).has("verify"));
+        order.provider === "paystack";
 
     const primaryProgramId = order?.items?.[0]?.program?.id || null;
 
@@ -250,16 +216,27 @@ export default function OrderDetail({ orderId: propOrderId, paystack }) {
                                     )}
                                 </Stack>
 
-                                {/* Retry payment for pending orders */}
-                                {(order.status === "pending_payment" || order.status === "failed") &&
+                                {order.status === "pending_payment" &&
                                     order.provider === "paystack" && (
                                         <Button
                                             variant="contained"
-                                            onClick={handleRetryPaystack}
-                                            disabled={retrying}
+                                            onClick={handleCheckPaystack}
+                                            disabled={checkingPayment}
                                             sx={{ mt: 2 }}
                                         >
-                                            {retrying ? "Redirecting…" : "Retry Payment"}
+                                            {checkingPayment ? "Checking…" : "Check Payment Status"}
+                                        </Button>
+                                    )}
+                                {order.status === "failed" &&
+                                    order.provider === "paystack" &&
+                                    primaryProgramId && (
+                                        <Button
+                                            component={Link}
+                                            href={`/checkout/?mode=direct&programId=${primaryProgramId}`}
+                                            variant="contained"
+                                            sx={{ mt: 2 }}
+                                        >
+                                            Start a New Payment
                                         </Button>
                                     )}
                             </CardContent>

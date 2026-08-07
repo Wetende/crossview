@@ -390,6 +390,7 @@ def commerce_order_detail(request, order_id: int):
 def commerce_order_status(request, order_id: int):
     try:
         order = CheckoutService.get_user_order(request.user, order_id)
+        order = PaystackGatewayService.reconcile_pending_order(order)
         return _json_ok(
             {
                 "order": {

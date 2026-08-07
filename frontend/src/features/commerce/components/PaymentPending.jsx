@@ -17,7 +17,7 @@ import { Link } from "@inertiajs/react";
 import * as commerceApi from "@/services/commerceApi";
 
 const POLL_INTERVAL_MS = 3000;
-const MAX_ATTEMPTS = 12; // ~36 seconds total
+const MAX_ATTEMPTS = 60; // Paystack mobile-money confirmation window is about 180 seconds
 
 export default function PaymentPending({ orderId, onPaid, programId }) {
     const [status, setStatus] = useState("polling"); // polling | paid | failed | timeout
@@ -162,8 +162,8 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
         return (
             <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
                 <Alert severity="info" sx={{ maxWidth: 480 }}>
-                    Payment is still being processed. This can take a few minutes.
-                    Check your orders page shortly for an update.
+                    Paystack still reports this payment as pending. Your order has
+                    not been charged again. Check your orders page shortly for an update.
                 </Alert>
                 <Button component={Link} href="/student/orders/" variant="contained">
                     View Orders
