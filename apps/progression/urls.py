@@ -183,7 +183,7 @@ urlpatterns = [
         name="enrollment_intent.capture",
     ),
     path(
-        "programs/enrollment/resume/",
+        "enrollment-intents/resume/",
         views.enrollment_intent_resume,
         name="enrollment_intent.resume",
     ),

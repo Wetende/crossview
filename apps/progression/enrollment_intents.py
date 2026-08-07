@@ -148,7 +148,7 @@ class EnrollmentIntentService:
 
     @classmethod
     def resume_url(cls, intent: EnrollmentIntent) -> str:
-        return "/programs/enrollment/resume/?" + urlencode(
+        return "/enrollment-intents/resume/?" + urlencode(
             {"intent": cls.resume_token(intent)}
         )
 

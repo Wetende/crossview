@@ -133,6 +133,9 @@ def test_new_learner_can_sign_in_and_resume_an_already_created_free_enrollment()
 
     assert response.status_code == 302
     assert response.url == f"/student/programs/{program.id}/"
+    assert EnrollmentIntentService.resume_url(intent).startswith(
+        "/enrollment-intents/resume/?"
+    )
 
 
 def test_authenticated_free_capture_auto_enrolls():
