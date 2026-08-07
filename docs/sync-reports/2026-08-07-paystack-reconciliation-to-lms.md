@@ -6,10 +6,11 @@
 - Incident source: DigikaTech live M-Pesa order `ord-5cf87013db854ff3818a`
   remained `pending_payment` after Paystack recorded a successful KES 5 charge.
 - Canonical base: `09ee8de1`.
-- Canonical accepted head: `0c8352b2`.
+- Canonical accepted head: `a6d37ff2`.
 - Accepted commits:
   - `64c9955b` — reconcile pending Paystack orders and replace duplicate-reference retry behavior.
   - `0c8352b2` — refine the learner checkout and use plain-language payment actions.
+  - `a6d37ff2` — use the modern MUI radio input slot API for downstream compatibility.
 
 ## Decisions
 
