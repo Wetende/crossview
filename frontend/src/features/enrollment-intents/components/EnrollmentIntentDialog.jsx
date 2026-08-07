@@ -12,7 +12,13 @@ import {
     Typography,
 } from "@mui/material";
 
-const EnrollmentIntentDialog = ({ open, onClose, program, user = null }) => {
+const EnrollmentIntentDialog = ({
+    open,
+    onClose,
+    program,
+    user = null,
+    success = null,
+}) => {
     const { data, setData, post, processing, errors, clearErrors } = useForm({
         name: user?.fullName || "",
         email: user?.email || "",
@@ -35,6 +41,40 @@ const EnrollmentIntentDialog = ({ open, onClose, program, user = null }) => {
             preserveScroll: true,
         });
     };
+
+    if (success) {
+        return (
+            <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+                <DialogTitle>{success.title}</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2.5} sx={{ pt: 1 }}>
+                        <Alert severity="success">{success.message}</Alert>
+                        <Typography color="text.secondary">
+                            Your sign-in details were sent to <strong>{success.email}</strong>.
+                            Use those details to continue securely.
+                        </Typography>
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button onClick={onClose}>Close</Button>
+                    {success.emailInboxUrl && (
+                        <Button
+                            component="a"
+                            href={success.emailInboxUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            variant="outlined"
+                        >
+                            Open email
+                        </Button>
+                    )}
+                    <Button component="a" href={success.loginUrl} variant="contained">
+                        Sign in and continue
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        );
+    }
 
     return (
         <Dialog open={open} onClose={processing ? undefined : onClose} fullWidth maxWidth="sm">

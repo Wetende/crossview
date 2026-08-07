@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     Box,
     Container,
@@ -185,7 +185,7 @@ function CourseDetailsSidebar({
                                 bgcolor: theme.palette.primary.main,
                             }}
                         >
-                            CONTINUE
+                            CONTINUE STUDYING
                         </Button>
 
                         {/* Quick Actions for enrolled */}
@@ -522,12 +522,15 @@ export default function ProgramDetail({
     prerequisiteStatus = null,
     isPreview = false,
     builderUrl = null,
+    enrollmentAccess = null,
 }) {
     const { auth, platform } = usePage().props;
     const { addToCart } = useCart();
     const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-    const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
+    const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(
+        Boolean(enrollmentAccess),
+    );
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
     const shortDescription = truncatePlainText(program.description, 200);
 
@@ -536,7 +539,17 @@ export default function ProgramDetail({
 
     const isWishlisted = (wishlist?.items || []).some((item) => item.program?.id === program.id);
 
-    const handleBuyNow = () => setEnrollmentDialogOpen(true);
+    const handleBuyNow = () => {
+        if (!auth?.user?.phone) {
+            setEnrollmentDialogOpen(true);
+            return;
+        }
+        router.post(`/programs/${program.id}/enrollment-intent/`, {
+            name: auth.user.fullName || auth.user.name || auth.user.email,
+            email: auth.user.email,
+            phone: auth.user.phone,
+        });
+    };
 
     const handleAddToCart = async (programId) => {
         const res = await addToCart(programId);
@@ -798,6 +811,7 @@ export default function ProgramDetail({
                 onClose={() => setEnrollmentDialogOpen(false)}
                 program={program}
                 user={auth?.user || null}
+                success={enrollmentAccess}
             />
 
             {/* Cart Snackbar */}

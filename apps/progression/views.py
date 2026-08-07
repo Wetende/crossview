@@ -3,15 +3,20 @@ Student Portal views - Dashboard, Programs, Sessions, and Progress.
 Requirements: 1.1-1.6, 2.1-2.5, 3.1-3.7, 4.1-4.7
 """
 
+import logging
 from typing import Optional
 from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.http import Http404
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from inertia import render
 
 from apps.core.models import Program, User
@@ -51,6 +56,9 @@ from apps.google_classroom.services import (
     serialize_student_classroom_publication,
     serialize_student_companion,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _redirect_if_course_prerequisites_unmet(request, enrollment: Enrollment):
@@ -4217,9 +4225,51 @@ def enrollment_intent_capture(request, pk: int):
         return redirect(f"/programs/{program.slug}/")
 
     if not authenticated:
-        resume_url = EnrollmentIntentService.resume_url(intent)
-        messages.success(request, "Your details are saved. Sign in to continue enrollment.")
-        return redirect(f"/login/?{urlencode({'next': resume_url})}")
+        user, account_state, temporary_password = (
+            EnrollmentIntentService.provision_user(intent)
+        )
+        try:
+            outcome, _ = EnrollmentIntentService.continue_for_user(intent, user)
+        except ValidationError as error:
+            messages.error(request, "; ".join(error.messages))
+            return redirect(f"/programs/{program.slug}/")
+
+        login_url = EnrollmentIntentService.login_url(intent)
+        reset_url = request.build_absolute_uri(
+            reverse(
+                "core:reset_password",
+                kwargs={
+                    "uidb64": urlsafe_base64_encode(force_bytes(user.pk)),
+                    "token": default_token_generator.make_token(user),
+                },
+            )
+        )
+        try:
+            NotificationService.notify_enrollment_access(
+                user=user,
+                intent=intent,
+                outcome=outcome,
+                account_state=account_state,
+                temporary_password=temporary_password,
+                login_url=request.build_absolute_uri(login_url),
+                reset_url=reset_url,
+            )
+        except Exception:
+            logger.exception(
+                "Could not send enrollment access details for intent %s.",
+                intent.id,
+            )
+
+        EnrollmentIntentService.store_access_payload(
+            request,
+            EnrollmentIntentService.access_payload(
+                intent,
+                account_state=account_state,
+                outcome=outcome,
+            ),
+        )
+        messages.success(request, "Your account details have been sent by email.")
+        return redirect(f"/programs/{program.slug}/")
 
     try:
         outcome, destination = EnrollmentIntentService.continue_for_user(

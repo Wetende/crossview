@@ -851,6 +851,8 @@ def public_program_detail(
             "prerequisites": prerequisite_status,
         }
 
+    from apps.progression.enrollment_intents import EnrollmentIntentService
+
     return render(
         request,
         "Public/ProgramDetail",
@@ -866,6 +868,10 @@ def public_program_detail(
             "prerequisiteStatus": prerequisite_status,
             "isPreview": is_preview,
             "builderUrl": builder_url,
+            "enrollmentAccess": EnrollmentIntentService.pop_access_payload(
+                request,
+                program,
+            ),
         },
     )
 

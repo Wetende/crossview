@@ -311,6 +311,91 @@ class NotificationService:
         )
 
     @staticmethod
+    def notify_enrollment_access(
+        *,
+        user,
+        intent,
+        outcome,
+        account_state,
+        login_url,
+        reset_url="",
+        temporary_password=None,
+    ):
+        """Send a captured learner the account details and next enrollment step."""
+        from apps.platform.models import PlatformSettings
+
+        try:
+            platform = PlatformSettings.get_settings()
+            institution_name = platform.institution_name or "Learning Platform"
+        except Exception:
+            institution_name = "Learning Platform"
+
+        course_name = intent.program.name
+        if outcome == "payment":
+            subject = f"Complete enrollment in {course_name}"
+            next_step = (
+                "Sign in, then complete payment to activate your course access."
+            )
+        elif outcome == "approval":
+            subject = f"Enrollment request received for {course_name}"
+            next_step = (
+                "Your request is awaiting review. We will notify you when it is approved."
+            )
+        else:
+            subject = f"You are enrolled in {course_name}"
+            next_step = "Sign in to open the course and start studying."
+
+        display_name = user.first_name or user.email.split("@", 1)[0]
+        message_lines = [
+            f"Hello {display_name},",
+            "",
+            f"We received your enrollment details for {course_name}.",
+            next_step,
+            "",
+            f"Account email: {user.email}",
+        ]
+        if temporary_password:
+            message_lines.extend(
+                [
+                    f"Temporary password: {temporary_password}",
+                    "For your security, change this password after signing in.",
+                ]
+            )
+        elif account_state == "existing":
+            message_lines.append("Use your existing password to sign in.")
+        if reset_url:
+            message_lines.append(f"Set or change your password: {reset_url}")
+        message_lines.extend(
+            [
+                f"Sign in: {login_url}",
+                "",
+                f"Regards,\n{institution_name}",
+            ]
+        )
+        message = "\n".join(message_lines)
+
+        notification = NotificationService.create(
+            recipient=user,
+            notification_type="system",
+            title=subject,
+            message=next_step,
+            action_url=login_url,
+            related_program_id=intent.program_id,
+            related_enrollment_id=intent.enrollment_id,
+            idempotency_key=f"enrollment-access:{intent.id}",
+        )
+        NotificationService.send_email_notification(
+            recipient=user,
+            notification_type="system",
+            subject=subject,
+            message=message,
+            notification=notification,
+            idempotency_key=f"enrollment-access:{intent.id}",
+            metadata={"action_url": login_url, "action_label": "Sign in and continue"},
+        )
+        return notification
+
+    @staticmethod
     def notify_enrollment_requested(enrollment_request, reviewers, action_url=None):
         """
         Notify reviewers (instructors/admins) that a student requested enrollment.
