@@ -37,25 +37,51 @@ const stateLabel = {
 
 export default function LiveClassesDashboard({ program }) {
     const [classes, setClasses] = useState([]);
+    const [connection, setConnection] = useState(null);
     const [error, setError] = useState("");
     const [busyId, setBusyId] = useState(null);
+    const [connectionBusy, setConnectionBusy] = useState(false);
     const [review, setReview] = useState(null);
     const [mapping, setMapping] = useState({});
     const [overrides, setOverrides] = useState({});
 
     const load = useCallback(async () => {
         try {
-            const result = await workspaceApi.liveClasses();
+            const [result, workspaceConnection] = await Promise.all([
+                workspaceApi.liveClasses(),
+                workspaceApi.connection(),
+            ]);
             setClasses(
                 (result.results || []).filter(
                     (item) => Number(item.courseId) === Number(program.id),
                 ),
             );
+            setConnection(workspaceConnection);
             setError("");
         } catch (loadError) {
             setError(loadError.message);
         }
     }, [program.id]);
+
+    const calendarAuthorized =
+        connection?.grantedCapabilities?.includes("calendar_events");
+    const attendanceAuthorized =
+        connection?.grantedCapabilities?.includes("meet_attendance");
+
+    const connect = async (capabilities) => {
+        setConnectionBusy(true);
+        setError("");
+        try {
+            const result = await workspaceApi.connect({
+                capabilities,
+                returnTo: window.location.pathname + window.location.search,
+            });
+            window.location.assign(result.authorizationUrl);
+        } catch (connectError) {
+            setError(connectError.message);
+            setConnectionBusy(false);
+        }
+    };
 
     useEffect(() => {
         void load();
@@ -103,6 +129,54 @@ export default function LiveClassesDashboard({ program }) {
                 <Typography variant="h5" fontWeight={700}>Live Classes</Typography>
                 <Typography color="text.secondary">Create and manage course-linked Google Meet lessons.</Typography>
             </Box>
+            {connection && !connection.available && (
+                <Alert severity="info">
+                    Google Workspace is not configured for this deployment.
+                </Alert>
+            )}
+            {connection?.available && !calendarAuthorized && (
+                <Alert
+                    severity="info"
+                    action={
+                        <Button
+                            color="inherit"
+                            disabled={connectionBusy}
+                            onClick={() => connect(["calendar_events"])}
+                        >
+                            Connect Google Calendar
+                        </Button>
+                    }
+                >
+                    Connect once before creating Google Meet lessons.
+                </Alert>
+            )}
+            {calendarAuthorized && (
+                <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                >
+                    <Chip
+                        size="small"
+                        color="success"
+                        label="Google Calendar connected"
+                    />
+                    {!attendanceAuthorized && (
+                        <Button
+                            size="small"
+                            disabled={connectionBusy}
+                            onClick={() =>
+                                connect([
+                                    "calendar_events",
+                                    "meet_attendance",
+                                ])
+                            }
+                        >
+                            Enable attendance (optional)
+                        </Button>
+                    )}
+                </Stack>
+            )}
             {error && <Alert severity="error">{error}</Alert>}
             {classes.length === 0 && <Alert severity="info">Add a Google Meet lesson in Curriculum to see it here.</Alert>}
             {Object.entries(grouped).map(([state, items]) => items.length > 0 && (

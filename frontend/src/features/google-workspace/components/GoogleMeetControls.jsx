@@ -171,6 +171,10 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
         }
     };
 
+    if (automaticCreation) {
+        return null;
+    }
+
     return (
         <Stack spacing={1.25}>
             {message && (

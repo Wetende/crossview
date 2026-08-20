@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { workspaceApi } from "../api/workspaceApi";
@@ -28,7 +28,7 @@ describe("GoogleMeetControls", () => {
         );
     });
 
-    test("automatically provisions a connected Google Meet lesson without a second create button", async () => {
+    test("automatically provisions a connected Google Meet lesson without rendering editor controls", async () => {
         workspaceApi.createMeet.mockResolvedValue({
             created: true,
             session: {
@@ -38,7 +38,7 @@ describe("GoogleMeetControls", () => {
         });
         const controlsRef = createRef();
 
-        render(
+        const { container } = render(
             <GoogleMeetControls
                 ref={controlsRef}
                 nodeId={77}
@@ -47,12 +47,7 @@ describe("GoogleMeetControls", () => {
             />,
         );
 
-        await screen.findByText(
-            "The Meet link will be created automatically when you create this lesson.",
-        );
-        expect(
-            screen.queryByRole("button", { name: "Save & create Google Meet" }),
-        ).not.toBeInTheDocument();
+        expect(container).toBeEmptyDOMElement();
 
         let result;
         await act(async () => {
@@ -64,9 +59,6 @@ describe("GoogleMeetControls", () => {
             77,
             expect.objectContaining({ inviteLearners: false }),
         );
-        await waitFor(() =>
-            expect(screen.getByText(/Google Meet ready/)).toBeInTheDocument(),
-        );
     });
 
     test("does not call Meet creation until Calendar access is connected", async () => {
@@ -77,7 +69,7 @@ describe("GoogleMeetControls", () => {
         });
         const controlsRef = createRef();
 
-        render(
+        const { container } = render(
             <GoogleMeetControls
                 ref={controlsRef}
                 nodeId={88}
@@ -86,7 +78,7 @@ describe("GoogleMeetControls", () => {
             />,
         );
 
-        await screen.findByRole("button", { name: "Connect Google Calendar" });
+        expect(container).toBeEmptyDOMElement();
         let result;
         await act(async () => {
             result = await controlsRef.current.provision();
@@ -94,10 +86,8 @@ describe("GoogleMeetControls", () => {
 
         expect(result.ok).toBe(false);
         expect(workspaceApi.createMeet).not.toHaveBeenCalled();
-        expect(
-            screen.getByText(
-                "Connect Google Calendar before creating this lesson.",
-            ),
-        ).toBeInTheDocument();
+        expect(result.error.message).toBe(
+            "Connect Google Calendar before creating this lesson.",
+        );
     });
 });

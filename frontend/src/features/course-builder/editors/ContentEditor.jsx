@@ -833,11 +833,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                     sx={{ ml: 2 }}
                     disabled={!isFormValid()}
                 >
-                    {lessonType === "google_meet" && isNew
-                        ? "Create Google Meet lesson"
-                        : isNew
-                          ? "Create"
-                          : "Save"}
+                    {isNew ? "Create" : "Save"}
                 </Button>
             </Box>
 
@@ -1138,17 +1134,21 @@ const ContentEditor = forwardRef(function ContentEditor(
                             }
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
-                            {isScheduledLesson
-                                ? "Summary (optional)"
-                                : "Short description of the lesson *"}
+                            {lessonType === "google_meet"
+                                ? "Meeting summary"
+                                : isScheduledLesson
+                                  ? "Summary (optional)"
+                                  : "Short description of the lesson *"}
                         </Typography>
                         <RichTextEditor
                             value={description}
                             onChange={setDescription}
                             placeholder={
-                                isScheduledLesson
-                                    ? "Optional class summary"
-                                    : "Enter a brief description of the lesson (min 50 characters)..."
+                                lessonType === "google_meet"
+                                    ? "Describe what learners will cover (optional)..."
+                                    : isScheduledLesson
+                                      ? "Optional class summary"
+                                      : "Enter a brief description of the lesson (min 50 characters)..."
                             }
                             minHeight={100}
                             imageUploadUrl={inlineImageUploadUrl}
@@ -1223,46 +1223,54 @@ const ContentEditor = forwardRef(function ContentEditor(
                     )}
 
                     {/* Rich Text Editor - Lesson Content */}
-                    <Box sx={{ mt: 2 }} onBlur={() => handleBlur("content")}>
-                        <Typography
-                            variant="body2"
-                            color={
-                                requiresLessonContent && contentErrorMessage
-                                    ? "error"
-                                    : "text.secondary"
-                            }
-                            sx={{ mb: 1, fontWeight: "bold" }}
+                    {lessonType !== "google_meet" && (
+                        <Box
+                            sx={{ mt: 2 }}
+                            onBlur={() => handleBlur("content")}
                         >
-                            {lessonType === "document" ||
-                            lessonType === "video" ||
-                            isScheduledLesson
-                                ? "Lesson content (optional)"
-                                : "Lesson content *"}
-                        </Typography>
-                        <RichTextEditor
-                            value={content}
-                            onChange={setContent}
-                            placeholder={
-                                lessonType === "document"
-                                    ? "Optional notes for this document lesson..."
-                                    : lessonType === "video"
-                                      ? "Optional notes for this video lesson..."
-                                      : isScheduledLesson
-                                        ? "Optional pre-class notes and learning materials..."
-                                        : "Write your lesson content here (min 200 characters)..."
-                            }
-                            minHeight={250}
-                            imageUploadUrl={inlineImageUploadUrl}
-                        />
-                        {requiresLessonContent && contentErrorMessage && (
-                            <FormHelperText error>
-                                {contentErrorMessage}
-                            </FormHelperText>
-                        )}
-                        <Typography variant="caption" color="text.secondary">
-                            {contentTextLength} characters
-                        </Typography>
-                    </Box>
+                            <Typography
+                                variant="body2"
+                                color={
+                                    requiresLessonContent && contentErrorMessage
+                                        ? "error"
+                                        : "text.secondary"
+                                }
+                                sx={{ mb: 1, fontWeight: "bold" }}
+                            >
+                                {lessonType === "document" ||
+                                lessonType === "video" ||
+                                isScheduledLesson
+                                    ? "Lesson content (optional)"
+                                    : "Lesson content *"}
+                            </Typography>
+                            <RichTextEditor
+                                value={content}
+                                onChange={setContent}
+                                placeholder={
+                                    lessonType === "document"
+                                        ? "Optional notes for this document lesson..."
+                                        : lessonType === "video"
+                                          ? "Optional notes for this video lesson..."
+                                          : isScheduledLesson
+                                            ? "Optional pre-class notes and learning materials..."
+                                            : "Write your lesson content here (min 200 characters)..."
+                                }
+                                minHeight={250}
+                                imageUploadUrl={inlineImageUploadUrl}
+                            />
+                            {requiresLessonContent && contentErrorMessage && (
+                                <FormHelperText error>
+                                    {contentErrorMessage}
+                                </FormHelperText>
+                            )}
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                            >
+                                {contentTextLength} characters
+                            </Typography>
+                        </Box>
+                    )}
 
                     {/* Lesson Materials */}
                     <Box sx={{ mt: 3 }}>

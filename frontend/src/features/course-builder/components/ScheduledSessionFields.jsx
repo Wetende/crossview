@@ -305,6 +305,19 @@ export default function ScheduledSessionFields({
                         error={Boolean(errors.startDate)}
                     />
                 </LabeledField>
+                <LabeledField label="End date" required error={errors.endDate}>
+                    <TextField
+                        type="date"
+                        fullWidth
+                        size="small"
+                        value={values.endDate}
+                        onChange={(event) =>
+                            onChange({ endDate: event.target.value })
+                        }
+                        onBlur={() => onBlur("endDate")}
+                        error={Boolean(errors.endDate)}
+                    />
+                </LabeledField>
                 <LabeledField
                     label="Start time"
                     required
@@ -322,19 +335,6 @@ export default function ScheduledSessionFields({
                         error={Boolean(errors.startTime)}
                     />
                 </LabeledField>
-                <LabeledField label="End date" required error={errors.endDate}>
-                    <TextField
-                        type="date"
-                        fullWidth
-                        size="small"
-                        value={values.endDate}
-                        onChange={(event) =>
-                            onChange({ endDate: event.target.value })
-                        }
-                        onBlur={() => onBlur("endDate")}
-                        error={Boolean(errors.endDate)}
-                    />
-                </LabeledField>
                 <LabeledField label="End time" required error={errors.endTime}>
                     <TextField
                         type="time"
@@ -350,7 +350,16 @@ export default function ScheduledSessionFields({
                 </LabeledField>
             </Box>
 
-            <Box>
+            <Box
+                sx={{
+                    display: "grid",
+                    gap: 2,
+                    gridTemplateColumns: {
+                        xs: "1fr",
+                        md: isNativeGoogleMeet ? "1fr 1fr" : "1fr",
+                    },
+                }}
+            >
                 <LabeledField label="Timezone" required error={errors.timezone}>
                     <Autocomplete
                         options={TIMEZONES}
@@ -369,35 +378,40 @@ export default function ScheduledSessionFields({
                         )}
                     />
                 </LabeledField>
+                {isNativeGoogleMeet && (
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Event visibility</InputLabel>
+                        <Select
+                            label="Event visibility"
+                            value={values.sessionVisibility}
+                            onChange={(event) =>
+                                onChange({
+                                    sessionVisibility: event.target.value,
+                                })
+                            }
+                        >
+                            <MenuItem value="private">Private</MenuItem>
+                            <MenuItem value="default">
+                                Calendar default
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
+                )}
             </Box>
 
             {isNativeGoogleMeet && (
                 <>
-                    <Box
-                        sx={{
-                            display: "grid",
-                            gap: 2,
-                            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                        }}
-                    >
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Calendar visibility</InputLabel>
-                            <Select
-                                label="Calendar visibility"
-                                value={values.sessionVisibility}
-                                onChange={(event) =>
-                                    onChange({
-                                        sessionVisibility: event.target.value,
-                                    })
-                                }
-                            >
-                                <MenuItem value="private">Private</MenuItem>
-                                <MenuItem value="default">
-                                    Calendar default
-                                </MenuItem>
-                            </Select>
-                        </FormControl>
-                        {!isDedicatedGoogleMeet && (
+                    {!isDedicatedGoogleMeet && (
+                        <Box
+                            sx={{
+                                display: "grid",
+                                gap: 2,
+                                gridTemplateColumns: {
+                                    xs: "1fr",
+                                    md: "1fr 1fr",
+                                },
+                            }}
+                        >
                             <LabeledField label="Reminder minutes">
                                 <TextField
                                     fullWidth
@@ -412,8 +426,6 @@ export default function ScheduledSessionFields({
                                     inputProps={{ min: 0, max: 10080 }}
                                 />
                             </LabeledField>
-                        )}
-                        {!isDedicatedGoogleMeet && (
                             <LabeledField label="Attendance threshold (%)">
                                 <TextField
                                     fullWidth
@@ -431,8 +443,6 @@ export default function ScheduledSessionFields({
                                     inputProps={{ min: 1, max: 100 }}
                                 />
                             </LabeledField>
-                        )}
-                        {!isDedicatedGoogleMeet && (
                             <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                                 <LabeledField label="Pre-class notes">
                                     <TextField
@@ -450,8 +460,8 @@ export default function ScheduledSessionFields({
                                     />
                                 </LabeledField>
                             </Box>
-                        )}
-                    </Box>
+                        </Box>
+                    )}
                     <GoogleMeetControls
                         ref={googleMeetControlsRef}
                         nodeId={nodeId}
