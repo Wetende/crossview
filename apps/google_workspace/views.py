@@ -10,7 +10,14 @@ from rest_framework.views import APIView
 
 from apps.core.api_permissions import IsInstructorOrStaff
 from .models import GoogleMeetSettings
-from .oauth import build_authorization_url, complete_authorization, disconnect_workspace
+from .oauth import (
+    CALLBACK_DIAGNOSTIC_SESSION_KEY,
+    SESSION_KEY,
+    GoogleWorkspaceOAuthCallbackError,
+    build_authorization_url,
+    complete_authorization,
+    disconnect_workspace,
+)
 from .serializers import GoogleMeetSettingsSerializer, OAuthConnectSerializer
 from .services import (
     require_connected_credential,
@@ -29,7 +36,11 @@ def _error(exc):
 class GoogleWorkspaceConnectionView(APIView):
     permission_classes = [IsInstructorOrStaff]
     def get(self, request):
-        return Response(serialize_connection(request.user))
+        connection = serialize_connection(request.user)
+        connection["oauthCallback"] = request.session.get(
+            CALLBACK_DIAGNOSTIC_SESSION_KEY
+        )
+        return Response(connection)
     def post(self, request):
         serializer = OAuthConnectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -88,18 +99,60 @@ def _serialize_settings(settings):
 
 @login_required
 def oauth_callback(request):
+    pending = request.session.get(SESSION_KEY) or {}
+    return_to = pending.get("returnTo") or "/instructor/programs/"
     if request.GET.get("error"):
+        request.session[CALLBACK_DIAGNOSTIC_SESSION_KEY] = {
+            "status": "error",
+            "category": "authorization_cancelled",
+            "stage": "provider_consent",
+            "message": "Google Workspace authorization was cancelled.",
+        }
         messages.error(request, "Google Workspace authorization was cancelled.")
-        return redirect("/instructor/programs/")
+        return redirect(return_to)
     try:
-        _, return_to = complete_authorization(request, state=request.GET.get("state", ""), code=request.GET.get("code", ""))
+        credential, return_to = complete_authorization(request, state=request.GET.get("state", ""), code=request.GET.get("code", ""))
+    except GoogleWorkspaceOAuthCallbackError as exc:
+        logger.exception(
+            "Google Workspace OAuth callback failed user_id=%s stage=%s category=%s",
+            request.user.id,
+            exc.stage,
+            exc.category,
+        )
+        request.session[CALLBACK_DIAGNOSTIC_SESSION_KEY] = {
+            "status": "error",
+            "category": exc.category,
+            "stage": exc.stage,
+            "message": str(exc),
+        }
+        messages.error(request, str(exc))
+        return redirect(return_to)
     except (PermissionDenied, ValidationError, ImproperlyConfigured, ValueError) as exc:
         logger.warning("Google Workspace authorization failed: %s", exc)
+        request.session[CALLBACK_DIAGNOSTIC_SESSION_KEY] = {
+            "status": "error",
+            "category": "callback_validation_failed",
+            "stage": "callback_validation",
+            "message": str(exc),
+        }
         messages.error(request, str(exc))
-        return redirect("/instructor/programs/")
+        return redirect(return_to)
     except Exception:
         logger.exception("Unexpected Google Workspace OAuth callback failure")
+        request.session[CALLBACK_DIAGNOSTIC_SESSION_KEY] = {
+            "status": "error",
+            "category": "unexpected_callback_failure",
+            "stage": "callback",
+            "message": "Google Workspace authorization could not be completed.",
+        }
         messages.error(request, "Google Workspace authorization could not be completed. Check the configured callback URL and server log.")
-        return redirect("/instructor/programs/")
+        return redirect(return_to)
+    request.session[CALLBACK_DIAGNOSTIC_SESSION_KEY] = {
+        "status": "success",
+        "category": "connected",
+        "stage": "complete",
+        "message": "Google Calendar connected successfully.",
+        "googleEmail": credential.google_email,
+    }
     messages.success(request, "Google Calendar connected. You can now create Google Meet lessons.")
     return redirect(return_to)

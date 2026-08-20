@@ -21,6 +21,7 @@ const safeConnectionSnapshot = (connection) => ({
     grantedCapabilities: connection?.grantedCapabilities || [],
     lastError: connection?.lastError || "",
     calendarAccess: connection?.diagnostics?.calendarAccess || null,
+    oauthCallback: connection?.oauthCallback || null,
 });
 
 export default function GoogleWorkspaceConnectionCard() {
@@ -36,7 +37,12 @@ export default function GoogleWorkspaceConnectionCard() {
             const result = await workspaceApi.connection();
             setConnection(result);
             const snapshot = safeConnectionSnapshot(result);
-            if (!result.available) {
+            if (result.oauthCallback?.status === "error") {
+                console.error(
+                    "[Google Workspace dashboard] OAuth callback failed",
+                    snapshot,
+                );
+            } else if (!result.available) {
                 console.warn(
                     "[Google Workspace dashboard] Integration is not configured",
                     snapshot,
@@ -221,6 +227,27 @@ export default function GoogleWorkspaceConnectionCard() {
                 </Stack>
 
                 {error && <Alert severity="error">{error}</Alert>}
+                {connection?.oauthCallback?.status === "error" && (
+                    <Alert severity="error">
+                        {connection.oauthCallback.message}
+                        <Typography
+                            component="span"
+                            variant="caption"
+                            sx={{ display: "block", mt: 0.5 }}
+                        >
+                            Callback diagnostic:{" "}
+                            {connection.oauthCallback.stage}
+                            {connection.oauthCallback.category
+                                ? ` · ${connection.oauthCallback.category}`
+                                : ""}
+                        </Typography>
+                    </Alert>
+                )}
+                {connection?.oauthCallback?.status === "success" && (
+                    <Alert severity="success">
+                        {connection.oauthCallback.message}
+                    </Alert>
+                )}
                 {connection && !connection.available && (
                     <Alert severity="warning">
                         Google Workspace is not configured on this deployment.

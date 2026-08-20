@@ -74,4 +74,38 @@ describe("GoogleWorkspaceConnectionCard", () => {
         expect(workspaceApi.testConnection).toHaveBeenCalledOnce();
         expect(screen.getByText(/Diagnostic: confirmed/)).toBeInTheDocument();
     });
+
+    test("surfaces the safe OAuth callback failure stage", async () => {
+        workspaceApi.connection.mockResolvedValue({
+            available: true,
+            connected: false,
+            status: "disconnected",
+            grantedCapabilities: [],
+            diagnostics: { calendarAccess: { status: "not_connected" } },
+            oauthCallback: {
+                status: "error",
+                stage: "refresh_token",
+                category: "refresh_token_missing",
+                message:
+                    "Google did not return the offline access token Airads requires.",
+            },
+        });
+
+        render(<GoogleWorkspaceConnectionCard />);
+
+        expect(
+            await screen.findByText(
+                /Google did not return the offline access token/,
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                /Callback diagnostic: refresh_token · refresh_token_missing/,
+            ),
+        ).toBeInTheDocument();
+        expect(console.error).toHaveBeenCalledWith(
+            "[Google Workspace dashboard] OAuth callback failed",
+            expect.objectContaining({ connected: false }),
+        );
+    });
 });

@@ -19,6 +19,14 @@ from .models import GoogleWorkspaceCredential
 
 STATE_SALT = "google-workspace-oauth-state"
 SESSION_KEY = "google_workspace_oauth"
+CALLBACK_DIAGNOSTIC_SESSION_KEY = "google_workspace_oauth_callback_diagnostic"
+
+
+class GoogleWorkspaceOAuthCallbackError(RuntimeError):
+    def __init__(self, message, *, category, stage):
+        super().__init__(message)
+        self.category = category
+        self.stage = stage
 
 
 def _client_config(configuration):
@@ -57,6 +65,7 @@ def build_authorization_url(request, capabilities, return_to=""):
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
     state = signing.dumps({"userId": request.user.id, "capabilities": sorted(set(capabilities or ["calendar_events"])), "nonce": secrets.token_urlsafe(24)}, salt=STATE_SALT, compress=True)
     safe_return_to = return_to if return_to.startswith("/") and not return_to.startswith("//") else "/instructor/programs/"
+    request.session.pop(CALLBACK_DIAGNOSTIC_SESSION_KEY, None)
     request.session[SESSION_KEY] = {"state": state, "verifier": verifier, "returnTo": safe_return_to}
     flow = Flow.from_client_config(_client_config(configuration), scopes=scopes)
     flow.redirect_uri = configuration["redirect_uri"]
@@ -93,12 +102,43 @@ def complete_authorization(request, *, state, code):
         code_verifier=session_state.get("verifier"),
     )
     flow.redirect_uri = configuration["redirect_uri"]
-    flow.fetch_token(code=code)
+    try:
+        flow.fetch_token(code=code)
+    except Warning as exc:
+        raise GoogleWorkspaceOAuthCallbackError(
+            "Google returned a different permission set during authorization.",
+            category="scope_mismatch",
+            stage="token_exchange",
+        ) from exc
+    except Exception as exc:
+        raise GoogleWorkspaceOAuthCallbackError(
+            "Google did not complete the authorization-code exchange.",
+            category="token_exchange_failed",
+            stage="token_exchange",
+        ) from exc
     refresh_token = flow.credentials.refresh_token
     if not refresh_token and existing:
         from .configuration import decrypt_refresh_token
         refresh_token = decrypt_refresh_token(existing.refresh_token_ciphertext)
-    identity = build("oauth2", "v2", credentials=flow.credentials, cache_discovery=False).userinfo().get().execute()
+    if not refresh_token:
+        raise GoogleWorkspaceOAuthCallbackError(
+            "Google did not return the offline access token Airads requires.",
+            category="refresh_token_missing",
+            stage="refresh_token",
+        )
+    try:
+        identity = build(
+            "oauth2",
+            "v2",
+            credentials=flow.credentials,
+            cache_discovery=False,
+        ).userinfo().get().execute()
+    except Exception as exc:
+        raise GoogleWorkspaceOAuthCallbackError(
+            "Airads could not read the authorized Google account identity.",
+            category="identity_lookup_failed",
+            stage="identity_lookup",
+        ) from exc
     granted_scopes = normalize_scopes(existing.granted_scopes if existing else None)
     granted_scopes.update(
         granted_scopes_from_credentials(
@@ -106,18 +146,33 @@ def complete_authorization(request, *, state, code):
             token_exchange_scopes,
         )
     )
-    credential, _ = GoogleWorkspaceCredential.objects.update_or_create(
-        user=request.user,
-        defaults={
-            "google_user_id": identity.get("id", ""),
-            "google_email": identity.get("email", ""),
-            "refresh_token_ciphertext": encrypt_refresh_token(refresh_token),
-            "granted_scopes": sorted(granted_scopes),
-            "status": GoogleWorkspaceCredential.Status.CONNECTED,
-            "last_error": "",
-            "revoked_at": None,
-        },
-    )
+    try:
+        encrypted_refresh_token = encrypt_refresh_token(refresh_token)
+    except Exception as exc:
+        raise GoogleWorkspaceOAuthCallbackError(
+            "Airads could not encrypt the Google offline access token.",
+            category="token_encryption_failed",
+            stage="token_encryption",
+        ) from exc
+    try:
+        credential, _ = GoogleWorkspaceCredential.objects.update_or_create(
+            user=request.user,
+            defaults={
+                "google_user_id": identity.get("id", ""),
+                "google_email": identity.get("email", ""),
+                "refresh_token_ciphertext": encrypted_refresh_token,
+                "granted_scopes": sorted(granted_scopes),
+                "status": GoogleWorkspaceCredential.Status.CONNECTED,
+                "last_error": "",
+                "revoked_at": None,
+            },
+        )
+    except Exception as exc:
+        raise GoogleWorkspaceOAuthCallbackError(
+            "Airads could not save the authorized Google account.",
+            category="credential_storage_failed",
+            stage="credential_storage",
+        ) from exc
     if credential.google_user_id:
         from .models import GoogleParticipantIdentity
         GoogleParticipantIdentity.objects.update_or_create(

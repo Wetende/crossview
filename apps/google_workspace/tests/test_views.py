@@ -6,6 +6,11 @@ from django.urls import reverse
 from apps.core.tests.factories import UserFactory
 from apps.google_workspace.adapter import GoogleWorkspaceAPIError
 from apps.google_workspace.models import GoogleWorkspaceCredential
+from apps.google_workspace.oauth import (
+    CALLBACK_DIAGNOSTIC_SESSION_KEY,
+    SESSION_KEY,
+    GoogleWorkspaceOAuthCallbackError,
+)
 
 
 class GoogleWorkspaceConnectionTestViewTests(TestCase):
@@ -88,3 +93,50 @@ class GoogleWorkspaceConnectionTestViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Connect", response.json()["detail"])
+
+    @patch(
+        "apps.google_workspace.views.complete_authorization",
+        side_effect=GoogleWorkspaceOAuthCallbackError(
+            "Google did not return the offline access token Airads requires.",
+            category="refresh_token_missing",
+            stage="refresh_token",
+        ),
+    )
+    def test_oauth_callback_failure_is_returned_as_safe_dashboard_diagnostic(
+        self,
+        _complete_authorization,
+    ):
+        session = self.client.session
+        session[SESSION_KEY] = {
+            "returnTo": "/dashboard/",
+            "state": "signed-state",
+            "verifier": "verifier",
+        }
+        session.save()
+
+        with self.assertLogs("apps.google_workspace.views", level="ERROR"):
+            callback = self.client.get(
+                reverse("google_workspace:oauth-callback"),
+                {"state": "signed-state", "code": "authorization-code"},
+            )
+
+        self.assertRedirects(
+            callback,
+            "/dashboard/",
+            fetch_redirect_response=False,
+        )
+        diagnostic = self.client.session[CALLBACK_DIAGNOSTIC_SESSION_KEY]
+        self.assertEqual(
+            diagnostic,
+            {
+                "status": "error",
+                "category": "refresh_token_missing",
+                "stage": "refresh_token",
+                "message": "Google did not return the offline access token Airads requires.",
+            },
+        )
+
+        connection = self.client.get(reverse("google_workspace:connection"))
+
+        self.assertEqual(connection.status_code, 200)
+        self.assertEqual(connection.json()["oauthCallback"], diagnostic)
