@@ -10,6 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.progression.models import Enrollment
+from apps.progression.services import ProgressionEngine
 
 from .crypto import decrypt_session_secret, encrypt_session_secret
 from .models import ScheduledLearningSession, SessionAttendance, SessionAttendanceAudit
@@ -256,6 +257,23 @@ def _calendar_url(session):
 def serialize_session_for_author(session):
     if not session:
         return None
+    latest_create_job = session.sync_jobs.filter(
+        job_type="google_meet_create"
+    ).order_by("-created_at").first()
+    if session.join_url:
+        creation_state = "ready"
+    elif latest_create_job and latest_create_job.status in {
+        "pending",
+        "processing",
+        "failed",
+    }:
+        creation_state = (
+            "failed" if latest_create_job.status == "failed" else "creating"
+        )
+    elif latest_create_job and latest_create_job.status == "dead":
+        creation_state = "failed"
+    else:
+        creation_state = "not_created"
     return {
         "id": session.id,
         "kind": session.kind,
@@ -276,6 +294,7 @@ def serialize_session_for_author(session):
         "attendanceThresholdPercent": session.attendance_threshold_percent,
         "status": session.status,
         "providerEventId": session.provider_event_id,
+        "creationState": creation_state,
         "calendarVisibility": (session.provider_metadata or {}).get(
             "calendarVisibility", session.calendar_visibility
         ),
@@ -489,4 +508,14 @@ def override_attendance(*, session, enrollment, status, reason, actor):
         resulting_status=status,
         reason=str(reason).strip(),
     )
+    # A deliberate, audited instructor decision is authoritative. Provider
+    # synchronization never calls this path, so Google evidence alone cannot
+    # complete a lesson.
+    if status == SessionAttendance.Status.PRESENT:
+        ProgressionEngine().mark_complete(
+            enrollment=enrollment,
+            node=session.node,
+            completion_type="manual",
+            metadata={"source": "attendance_override", "sessionId": session.id},
+        )
     return attendance

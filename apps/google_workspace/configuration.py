@@ -4,7 +4,10 @@ from django.core.exceptions import ImproperlyConfigured, ValidationError
 
 SCOPES_BY_CAPABILITY = {
     "calendar_events": {"https://www.googleapis.com/auth/calendar.events"},
-    "meet_attendance": {"https://www.googleapis.com/auth/meetings.space.created"},
+    # Calendar creates the conference entry points, so these meetings are not
+    # Meet spaces created by this OAuth client. Read-only access is required to
+    # retrieve their conference records, participants, and recordings.
+    "meet_attendance": {"https://www.googleapis.com/auth/meetings.space.readonly"},
 }
 WORKSPACE_IDENTITY_SCOPES = {"openid", "https://www.googleapis.com/auth/userinfo.email"}
 

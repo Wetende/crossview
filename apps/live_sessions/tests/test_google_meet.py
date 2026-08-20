@@ -22,9 +22,9 @@ class GoogleMeetLessonTests(TestCase):
         settings.GOOGLE_WORKSPACE_ENABLED = True
         settings.GOOGLE_WORKSPACE_CLIENT_ID = "workspace-client"
         settings.GOOGLE_WORKSPACE_CLIENT_SECRET = "workspace-secret"
-        settings.GOOGLE_WORKSPACE_REDIRECT_URI = "https://virtual.airads.ac.ke/api/google-workspace/oauth/callback/"
+        settings.GOOGLE_WORKSPACE_REDIRECT_URI = "https://lms.example.test/api/google-workspace/oauth/callback/"
         settings.GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY = Fernet.generate_key().decode()
-        settings.PLATFORM_PUBLIC_BASE_URL = "https://virtual.airads.ac.ke"
+        settings.PLATFORM_PUBLIC_BASE_URL = "https://lms.example.test"
         self.instructor, self.student = UserFactory(admin=True, email="teacher@example.test"), UserFactory(email="learner@example.test")
         self.program = Program.objects.create(name="Live course", code="LIVE-COURSE", level="beginner")
         self.enrollment = Enrollment.objects.create(user=self.student, program=self.program, status="active")
@@ -50,6 +50,63 @@ class GoogleMeetLessonTests(TestCase):
         self.session.refresh_from_db()
         self.assertTrue(self.session.invite_learners)
         self.assertEqual(self.session.send_updates, "all")
+
+    def test_manual_retry_reuses_a_stable_calendar_request_id(self):
+        self.client.force_login(self.instructor)
+        adapter = Mock()
+        adapter.create_event.return_value = {
+            "id": "event",
+            "hangoutLink": "https://meet.google.com/abc-defg-hij",
+            "conferenceData": {},
+        }
+        with patch("apps.google_workspace.meet.GoogleMeetAdapter", return_value=adapter):
+            first = self.client.post(
+                reverse("live_sessions:google-meet-create", args=[self.node.id]),
+                {"operationId": "0f159ea5-ed69-42b6-bef2-638750218b65"},
+                content_type="application/json",
+            )
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(
+            adapter.create_event.call_args.kwargs["request_id"],
+            f"lms-meet-session-{self.session.id}",
+        )
+
+    def test_sync_and_manual_participant_mapping_are_distinct_endpoints(self):
+        self.client.force_login(self.instructor)
+        self.session.provider_event_id = "event"
+        self.session.join_url = "https://meet.google.com/abc-defg-hij"
+        self.session.save(update_fields=["provider_event_id", "join_url", "updated_at"])
+
+        mapped = self.client.post(
+            reverse("live_sessions:google-meet-participant-map", args=[self.node.id]),
+            {"externalUserId": "users/learner", "enrollmentId": self.enrollment.id},
+            content_type="application/json",
+        )
+        self.assertEqual(mapped.status_code, 200)
+        self.assertTrue(
+            GoogleParticipantIdentity.objects.filter(
+                google_user_id="learner", user=self.student
+            ).exists()
+        )
+
+        self.credential.granted_scopes.append(
+            "https://www.googleapis.com/auth/meetings.space.readonly"
+        )
+        self.credential.save(update_fields=["granted_scopes", "updated_at"])
+        adapter = Mock()
+        adapter.collect_conference.return_value = {
+            "record": {"name": "conferenceRecords/1"},
+            "attendance": [],
+            "recordingUrl": "",
+        }
+        with patch("apps.google_workspace.meet.GoogleMeetAdapter", return_value=adapter):
+            synced = self.client.post(
+                reverse("live_sessions:google-meet-sync", args=[self.node.id]),
+                {},
+                content_type="application/json",
+            )
+        self.assertEqual(synced.status_code, 200)
+        self.assertEqual(synced.json()["job"]["status"], "succeeded")
 
     def test_attendance_requires_identity_mapping_and_never_completes_lesson(self):
         self.session.starts_at = timezone.now() - timedelta(hours=2); self.session.ends_at = self.session.starts_at + timedelta(hours=1); self.session.save()

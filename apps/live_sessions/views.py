@@ -268,37 +268,6 @@ class GoogleMeetSyncView(APIView):
             }
         )
 
-
-class LiveClassesDashboardView(APIView):
-    """Course-linked central instructor/staff view; standalone meetings are excluded."""
-    permission_classes = [IsInstructorOrStaff]
-
-    def get(self, request):
-        sessions = scope_queryset_to_instructor_programs(
-            ScheduledLearningSession.objects.filter(provider=ScheduledLearningSession.Provider.GOOGLE_MEET),
-            request.user,
-            "node__program_id",
-        ).select_related("node", "node__program").order_by("starts_at")
-        return Response({"results": [{**serialize_session_for_author(item), "courseId": item.node.program_id, "courseTitle": item.node.program.name, "nodeId": item.node_id} for item in sessions]})
-
-
-class GoogleParticipantMappingView(APIView):
-    permission_classes = [IsInstructorOrStaff]
-
-    def post(self, request, node_id):
-        from apps.google_workspace.models import GoogleParticipantIdentity
-        session = _google_meet_session(request, node_id)
-        external_id = str(request.data.get("externalUserId") or "").removeprefix("users/").strip()
-        enrollment_id = request.data.get("enrollmentId")
-        if not external_id:
-            return Response({"detail": "Only signed-in Google participants can be mapped."}, status=status.HTTP_400_BAD_REQUEST)
-        enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program=session.node.program)
-        GoogleParticipantIdentity.objects.update_or_create(
-            google_user_id=external_id,
-            defaults={"user": enrollment.user, "source": "manual_mapping", "verified_by": request.user},
-        )
-        return Response({"mapped": True, "externalUserId": external_id, "enrollmentId": enrollment.id})
-
     def post(self, request, node_id):
         import uuid
 
@@ -329,3 +298,47 @@ class GoogleParticipantMappingView(APIView):
                 "delivery": delivery,
             }
         )
+
+
+class LiveClassesDashboardView(APIView):
+    """Course-linked central instructor/staff view; standalone meetings are excluded."""
+    permission_classes = [IsInstructorOrStaff]
+
+    def get(self, request):
+        sessions = scope_queryset_to_instructor_programs(
+            ScheduledLearningSession.objects.filter(provider=ScheduledLearningSession.Provider.GOOGLE_MEET),
+            request.user,
+            "node__program_id",
+        ).select_related("node", "node__program").order_by("starts_at")
+        return Response(
+            {
+                "results": [
+                    {
+                        **serialize_session_for_author(item),
+                        "courseId": item.node.program_id,
+                        "courseTitle": item.node.program.name,
+                        "sectionTitle": item.node.parent.title if item.node.parent_id else "",
+                        "nodeId": item.node_id,
+                    }
+                    for item in sessions.select_related("node__parent")
+                ]
+            }
+        )
+
+
+class GoogleParticipantMappingView(APIView):
+    permission_classes = [IsInstructorOrStaff]
+
+    def post(self, request, node_id):
+        from apps.google_workspace.models import GoogleParticipantIdentity
+        session = _google_meet_session(request, node_id)
+        external_id = str(request.data.get("externalUserId") or "").removeprefix("users/").strip()
+        enrollment_id = request.data.get("enrollmentId")
+        if not external_id:
+            return Response({"detail": "Only signed-in Google participants can be mapped."}, status=status.HTTP_400_BAD_REQUEST)
+        enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program=session.node.program)
+        GoogleParticipantIdentity.objects.update_or_create(
+            google_user_id=external_id,
+            defaults={"user": enrollment.user, "source": "manual_mapping", "verified_by": request.user},
+        )
+        return Response({"mapped": True, "externalUserId": external_id, "enrollmentId": enrollment.id})

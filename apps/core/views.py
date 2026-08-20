@@ -7393,9 +7393,12 @@ def instructor_node_update(request, node_id: int):
         "live_stream",
         "in_person_session",
     }:
+        from apps.live_sessions.jobs import enqueue_session_job
         from apps.live_sessions.services import sync_scheduled_session_from_node
 
-        sync_scheduled_session_from_node(node, actor=request.user)
+        session = sync_scheduled_session_from_node(node, actor=request.user)
+        if session.provider_event_id:
+            enqueue_session_job(session, "update", actor=request.user)
 
     # Sync quiz questions to proper database tables if this is a quiz node
     node_type = (node.node_type or "").lower()

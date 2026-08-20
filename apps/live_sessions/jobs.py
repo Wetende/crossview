@@ -100,7 +100,9 @@ def _run_job(job):
         remote = adapter.create_event(
             session,
             attendee_emails=emails,
-            request_id=job.idempotency_key,
+            # Calendar event IDs must stay stable across both automatic and
+            # instructor-triggered retries to prevent duplicate meetings.
+            request_id=f"lms-meet-session-{session.id}",
         )
         store_created_event(
             session,

@@ -1,9 +1,11 @@
 import json
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
 from django.contrib.auth.models import Group
 from apps.blueprints.models import AcademicBlueprint
 from apps.core.models import Program
@@ -13,6 +15,7 @@ from apps.platform.models import PlatformSettings
 from apps.progression.tests.factories import ProgramFactory
 from apps.curriculum.models import CurriculumNode
 from apps.learning_operations.models import CourseDeliveryProfile
+from apps.live_sessions.models import LiveSessionSyncJob, ScheduledLearningSession
 from apps.progression.models import InstructorAssignment
 from apps.core.views import serialize_program_data
 from apps.assessments.models import QuestionOption, Quiz
@@ -504,6 +507,62 @@ class TestInstructorCourseBuilder:
         node.refresh_from_db()
         assert node.title == 'New Title'
         assert node.description == 'Updated desc'
+
+    def test_update_existing_google_meet_enqueues_calendar_reschedule(
+        self, client, instructor, program, assignment
+    ):
+        starts_at = timezone.now() + timedelta(days=2)
+        ends_at = starts_at + timedelta(hours=1)
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Weekly Meet",
+            node_type="Session",
+            properties={
+                "lesson_type": "live_meeting",
+                "provider": "google_meet",
+                "starts_at": starts_at.isoformat(),
+                "ends_at": ends_at.isoformat(),
+                "timezone": "Africa/Nairobi",
+            },
+        )
+        session = ScheduledLearningSession.objects.create(
+            node=node,
+            kind="live_meeting",
+            provider="google_meet",
+            title=node.title,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            source_timezone="Africa/Nairobi",
+            provider_event_id="calendar-event-123",
+            join_url="https://meet.google.com/abc-defg-hij",
+            created_by=instructor,
+        )
+        changed_start = starts_at + timedelta(hours=2)
+        changed_end = changed_start + timedelta(minutes=45)
+
+        client.force_login(instructor)
+        response = client.post(
+            reverse("core:instructor.node_update", kwargs={"node_id": node.id}),
+            {
+                "title": node.title,
+                "properties": {
+                    **node.properties,
+                    "starts_at": changed_start.isoformat(),
+                    "ends_at": changed_end.isoformat(),
+                },
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        session.refresh_from_db()
+        assert session.starts_at == changed_start
+        assert session.ends_at == changed_end
+        assert LiveSessionSyncJob.objects.filter(
+            session=session,
+            job_type="update",
+            status=LiveSessionSyncJob.Status.PENDING,
+        ).exists()
 
     def test_update_quiz_node_preserves_multi_select_correct_answers(
         self, client, instructor, program, assignment
