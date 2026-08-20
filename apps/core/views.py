@@ -1193,10 +1193,14 @@ def google_one_tap_login(request):
     try:
         payload = _verify_google_one_tap_credential(credential)
         user, created = _get_or_create_google_one_tap_user(payload)
-        # Google Meet exposes the signed-in Google user identifier, not a name.
-        # Preserve the verified OIDC subject so attendance matching is explicit.
-        google_subject = str(payload.get("sub") or "").strip()
-        if google_subject:
+    except Exception:
+        messages.error(request, "Google sign-in failed. Please try again.")
+        return redirect(_login_url_with_next(request))
+
+    # Attendance identity enrichment is useful, but it must never block login.
+    google_subject = str(payload.get("sub") or "").strip()
+    if google_subject:
+        try:
             from apps.google_workspace.models import GoogleParticipantIdentity
 
             GoogleParticipantIdentity.objects.update_or_create(
@@ -1208,9 +1212,10 @@ def google_one_tap_login(request):
                     "verified_by": None,
                 },
             )
-    except Exception:
-        messages.error(request, "Google sign-in failed. Please try again.")
-        return redirect(_login_url_with_next(request))
+        except Exception:
+            logger.exception(
+                "Google sign-in succeeded but participant identity enrichment failed"
+            )
 
     if not user.is_active:
         messages.error(
@@ -7373,6 +7378,7 @@ def instructor_node_update(request, node_id: int):
 
     if updated_lesson_type in {
         "live_class",
+        "google_meet",
         "live_meeting",
         "live_stream",
         "in_person_session",
@@ -7389,6 +7395,7 @@ def instructor_node_update(request, node_id: int):
 
     if updated_lesson_type in {
         "live_class",
+        "google_meet",
         "live_meeting",
         "live_stream",
         "in_person_session",

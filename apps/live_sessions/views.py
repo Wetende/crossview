@@ -56,7 +56,12 @@ class ScheduledLearningSessionView(APIView):
         properties = dict(node.properties or {})
         properties.update(
             {
-                "lesson_type": data["kind"],
+                "lesson_type": (
+                    "google_meet"
+                    if data["kind"] == ScheduledLearningSession.Kind.LIVE_MEETING
+                    and data["provider"] == ScheduledLearningSession.Provider.GOOGLE_MEET
+                    else data["kind"]
+                ),
                 "session_kind": data["kind"],
                 "provider": data["provider"],
                 "starts_at": data["startsAt"].isoformat(),

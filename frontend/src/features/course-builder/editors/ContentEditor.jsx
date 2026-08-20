@@ -4,6 +4,7 @@ import {
     useEffect,
     useImperativeHandle,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import { router } from "@inertiajs/react";
@@ -60,26 +61,47 @@ import {
 
 const SCHEDULED_LESSON_TYPES = [
     "live_class",
+    "google_meet",
     "live_meeting",
     "live_stream",
     "in_person_session",
 ];
 
 const inferSessionKind = (properties = {}) => {
-    const configured = (properties.session_kind || properties.lesson_type || "").toLowerCase();
+    const configured = (
+        properties.session_kind ||
+        properties.lesson_type ||
+        ""
+    ).toLowerCase();
+    if ((properties.lesson_type || "").toLowerCase() === "google_meet") {
+        return "live_meeting";
+    }
     if (configured && configured !== "live_class") return configured;
-    const url = (properties.session_url || properties.video_url || "").toLowerCase();
-    return url.includes("youtube") || url.includes("youtu.be") || url.includes("vimeo")
+    const url = (
+        properties.session_url ||
+        properties.video_url ||
+        ""
+    ).toLowerCase();
+    return url.includes("youtube") ||
+        url.includes("youtu.be") ||
+        url.includes("vimeo")
         ? "live_stream"
         : "live_meeting";
 };
 
 const inferSessionProvider = (properties = {}, sessionKind) => {
+    if ((properties.lesson_type || "").toLowerCase() === "google_meet") {
+        return "google_meet";
+    }
     if (sessionKind === "in_person_session") return "physical";
     if (properties.provider || properties.session_provider) {
         return properties.provider || properties.session_provider;
     }
-    const url = (properties.session_url || properties.video_url || "").toLowerCase();
+    const url = (
+        properties.session_url ||
+        properties.video_url ||
+        ""
+    ).toLowerCase();
     if (url.includes("meet.google")) return "google_meet";
     if (url.includes("zoom.")) return "zoom";
     if (url.includes("teams.microsoft")) return "teams";
@@ -96,7 +118,10 @@ const deriveSessionDuration = (startDate, startTime, endDate, endTime) => {
     if (!Number.isFinite(minutes) || minutes <= 0) return "";
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
-    return [hours ? `${hours}h` : "", remainingMinutes ? `${remainingMinutes}m` : ""]
+    return [
+        hours ? `${hours}h` : "",
+        remainingMinutes ? `${remainingMinutes}m` : "",
+    ]
         .filter(Boolean)
         .join(" ");
 };
@@ -171,9 +196,8 @@ const ContentEditor = forwardRef(function ContentEditor(
     const [reminderMinutes, setReminderMinutes] = useState(
         node.properties?.reminder_minutes ?? 10,
     );
-    const [attendanceThresholdPercent, setAttendanceThresholdPercent] = useState(
-        node.properties?.attendance_threshold_percent ?? 50,
-    );
+    const [attendanceThresholdPercent, setAttendanceThresholdPercent] =
+        useState(node.properties?.attendance_threshold_percent ?? 50);
 
     // Gamification settings (only used when featureFlags.gamification is true)
     const [gamificationSettings, setGamificationSettings] = useState(
@@ -187,6 +211,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         message: "",
         severity: "success",
     });
+    const googleMeetControlsRef = useRef(null);
 
     // Touched state - track which fields have been interacted with
     const [touched, setTouched] = useState({});
@@ -260,7 +285,8 @@ const ContentEditor = forwardRef(function ContentEditor(
         // Strip HTML for character count
         const descText = description.replace(/<[^>]*>/g, "");
         if (!isScheduledLesson && (!descText || descText.length < 50)) {
-            newErrors.description = "Description must be at least 50 characters";
+            newErrors.description =
+                "Description must be at least 50 characters";
         }
 
         const contentText = content.replace(/<[^>]*>/g, "");
@@ -269,7 +295,10 @@ const ContentEditor = forwardRef(function ContentEditor(
             "video",
             ...SCHEDULED_LESSON_TYPES,
         ].includes(lessonType);
-        if (requiresLessonContent && (!contentText || contentText.length < 200)) {
+        if (
+            requiresLessonContent &&
+            (!contentText || contentText.length < 200)
+        ) {
             newErrors.content = "Content must be at least 200 characters";
         }
 
@@ -322,7 +351,11 @@ const ContentEditor = forwardRef(function ContentEditor(
             if (startDate && startTime && endDate && endTime) {
                 const start = new Date(`${startDate}T${startTime}:00`);
                 const end = new Date(`${endDate}T${endTime}:00`);
-                if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end <= start) {
+                if (
+                    !Number.isNaN(start.getTime()) &&
+                    !Number.isNaN(end.getTime()) &&
+                    end <= start
+                ) {
                     newErrors.endTime = "End time must be after start time";
                 }
             }
@@ -375,7 +408,8 @@ const ContentEditor = forwardRef(function ContentEditor(
             title.length > TITLE_MAX_LENGTH
         )
             return false;
-        if (!isScheduledLesson && (!duration || duration.trim() === "")) return false;
+        if (!isScheduledLesson && (!duration || duration.trim() === ""))
+            return false;
         if (!isScheduledLesson && descText.length < 50) return false;
         if (requiresLessonContent && contentText.length < 200) return false;
 
@@ -392,21 +426,31 @@ const ContentEditor = forwardRef(function ContentEditor(
             )
                 return false;
             if (meetingPassword && meetingPassword.length < 6) return false;
-            if (recordingUrl && !/^https:\/\/.+/.test(recordingUrl)) return false;
-            if (sessionKind === "in_person_session" && (!venue.trim() || !address.trim()))
+            if (recordingUrl && !/^https:\/\/.+/.test(recordingUrl))
+                return false;
+            if (
+                sessionKind === "in_person_session" &&
+                (!venue.trim() || !address.trim())
+            )
                 return false;
             if (!startDate || !startTime || !endDate || !endTime || !timezone)
                 return false;
             const start = new Date(`${startDate}T${startTime}:00`);
             const end = new Date(`${endDate}T${endTime}:00`);
-            if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end <= start)
+            if (
+                !Number.isNaN(start.getTime()) &&
+                !Number.isNaN(end.getTime()) &&
+                end <= start
+            )
                 return false;
         }
 
         if (lessonType === "document") {
             if (!documentData?.original_url) return false;
             if (strictCompletion) {
-                const status = (documentData?.conversion_status || "").toLowerCase();
+                const status = (
+                    documentData?.conversion_status || ""
+                ).toLowerCase();
                 const pageCount = Number(documentData?.page_count || 0);
                 if (
                     status !== "ready" ||
@@ -449,13 +493,21 @@ const ContentEditor = forwardRef(function ContentEditor(
                 ...baseProperties,
                 content,
                 duration: isScheduledLesson
-                    ? deriveSessionDuration(startDate, startTime, endDate, endTime)
+                    ? deriveSessionDuration(
+                          startDate,
+                          startTime,
+                          endDate,
+                          endTime,
+                      )
                     : duration,
                 is_preview: isPreview,
                 video_source: videoSource,
                 video_url: sessionKind === "in_person_session" ? "" : videoUrl,
                 ...(isScheduledLesson && {
-                    lesson_type: sessionKind,
+                    lesson_type:
+                        lessonType === "google_meet"
+                            ? "google_meet"
+                            : sessionKind,
                     session_kind: sessionKind,
                     provider: sessionProvider,
                     session_provider: sessionProvider,
@@ -464,7 +516,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                     attendance_threshold_percent: Number(
                         attendanceThresholdPercent || 50,
                     ),
-                    session_url: sessionKind === "in_person_session" ? "" : videoUrl,
+                    session_url:
+                        sessionKind === "in_person_session" ? "" : videoUrl,
                     meeting_password:
                         sessionKind === "live_meeting" ? meetingPassword : "",
                     recording_url: recordingUrl,
@@ -609,7 +662,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         [autosave.flush],
     );
 
-    const handleSave = () => {
+    const handleSave = async () => {
         touchAllFields();
         if (!validate()) {
             setSnackbar({
@@ -620,22 +673,55 @@ const ContentEditor = forwardRef(function ContentEditor(
             return;
         }
 
-        void autosave.flush({
-            force: true,
-            onSuccess: () => {
+        const saveResult = await autosave.flush({ force: true });
+        if (saveResult?.ok === false) {
+            setSnackbar({
+                open: true,
+                message: "Could not save the lesson. Please try again.",
+                severity: "error",
+            });
+            return;
+        }
+
+        let meetResult = null;
+        if (lessonType === "google_meet") {
+            const googleMeetController = googleMeetControlsRef.current;
+            if (!googleMeetController) {
                 setSnackbar({
                     open: true,
-                    message: "Lesson saved successfully!",
-                    severity: "success",
-                });
-            },
-            onError: () => {
-                setSnackbar({
-                    open: true,
-                    message: "Could not save the lesson. Please try again.",
+                    message:
+                        "The lesson was saved, but Google Meet controls are unavailable. Reload and retry.",
                     severity: "error",
                 });
-            },
+                return;
+            }
+            meetResult = await googleMeetController.provision();
+            if (meetResult?.ok === false) {
+                setSnackbar({
+                    open: true,
+                    message:
+                        meetResult.error?.message ||
+                        "The lesson was saved, but Google Meet could not be created.",
+                    severity: "error",
+                });
+                return;
+            }
+        }
+
+        setSnackbar({
+            open: true,
+            message:
+                lessonType === "google_meet"
+                    ? meetResult.created || meetResult.skipped
+                        ? "Google Meet lesson is ready!"
+                        : "Lesson saved. Google is creating the Meet link."
+                    : "Lesson saved successfully!",
+            severity:
+                lessonType === "google_meet" &&
+                !meetResult.created &&
+                !meetResult.skipped
+                    ? "info"
+                    : "success",
         });
     };
 
@@ -653,6 +739,8 @@ const ContentEditor = forwardRef(function ContentEditor(
             case "live_class":
             case "live_meeting":
                 return { icon: <ZoomIcon />, label: "Live meeting" };
+            case "google_meet":
+                return { icon: <ZoomIcon />, label: "Google Meet lesson" };
             case "live_stream":
                 return { icon: <ZoomIcon />, label: "Live stream" };
             case "in_person_session":
@@ -684,16 +772,21 @@ const ContentEditor = forwardRef(function ContentEditor(
     const titleErrorMessage =
         getFieldError("title") || titleMinLengthError || titleMaxLengthError;
     const descriptionMinLengthError =
-        !isScheduledLesson && descriptionTextLength > 0 && descriptionTextLength < 50
+        !isScheduledLesson &&
+        descriptionTextLength > 0 &&
+        descriptionTextLength < 50
             ? "Enter at least 50 characters."
             : undefined;
     const contentMinLengthError =
-        requiresLessonContent && contentTextLength > 0 && contentTextLength < 200
+        requiresLessonContent &&
+        contentTextLength > 0 &&
+        contentTextLength < 200
             ? "Enter at least 200 characters."
             : undefined;
     const descriptionErrorMessage =
         getFieldError("description") || descriptionMinLengthError;
-    const contentErrorMessage = getFieldError("content") || contentMinLengthError;
+    const contentErrorMessage =
+        getFieldError("content") || contentMinLengthError;
 
     return (
         <Box>
@@ -740,7 +833,11 @@ const ContentEditor = forwardRef(function ContentEditor(
                     sx={{ ml: 2 }}
                     disabled={!isFormValid()}
                 >
-                    {isNew ? "Create" : "Save"}
+                    {lessonType === "google_meet" && isNew
+                        ? "Create Google Meet lesson"
+                        : isNew
+                          ? "Create"
+                          : "Save"}
                 </Button>
             </Box>
 
@@ -843,6 +940,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                     {/* --- Scheduled learning session specifics --- */}
                     {isScheduledLesson && (
                         <ScheduledSessionFields
+                            lessonType={lessonType}
                             values={{
                                 sessionKind,
                                 sessionProvider,
@@ -865,7 +963,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                             }}
                             errors={{
                                 videoUrl: getFieldError("videoUrl"),
-                                meetingPassword: getFieldError("meetingPassword"),
+                                meetingPassword:
+                                    getFieldError("meetingPassword"),
                                 recordingUrl: getFieldError("recordingUrl"),
                                 startDate: getFieldError("startDate"),
                                 startTime: getFieldError("startTime"),
@@ -877,30 +976,64 @@ const ContentEditor = forwardRef(function ContentEditor(
                             }}
                             nodeId={node.id}
                             persisted={hasPersistedNodeId}
+                            googleMeetControlsRef={googleMeetControlsRef}
                             onBlur={handleBlur}
                             onSaveBeforeMeet={() =>
                                 autosave.flush({ force: true })
                             }
                             onChange={(changes) => {
-                                if (Object.hasOwn(changes, "sessionKind")) setSessionKind(changes.sessionKind);
-                                if (Object.hasOwn(changes, "sessionProvider")) setSessionProvider(changes.sessionProvider);
-                                if (Object.hasOwn(changes, "sessionVisibility")) setSessionVisibility(changes.sessionVisibility);
-                                if (Object.hasOwn(changes, "reminderMinutes")) setReminderMinutes(changes.reminderMinutes);
-                                if (Object.hasOwn(changes, "attendanceThresholdPercent")) setAttendanceThresholdPercent(changes.attendanceThresholdPercent);
-                                if (Object.hasOwn(changes, "videoUrl")) setVideoUrl(changes.videoUrl);
-                                if (Object.hasOwn(changes, "meetingPassword")) setMeetingPassword(changes.meetingPassword);
-                                if (Object.hasOwn(changes, "recordingUrl")) setRecordingUrl(changes.recordingUrl);
-                                if (Object.hasOwn(changes, "startDate")) setStartDate(changes.startDate);
-                                if (Object.hasOwn(changes, "startTime")) setStartTime(changes.startTime);
-                                if (Object.hasOwn(changes, "endDate")) setEndDate(changes.endDate);
-                                if (Object.hasOwn(changes, "endTime")) setEndTime(changes.endTime);
-                                if (Object.hasOwn(changes, "timezone")) setTimezone(changes.timezone);
-                                if (Object.hasOwn(changes, "venue")) setVenue(changes.venue);
-                                if (Object.hasOwn(changes, "room")) setRoom(changes.room);
-                                if (Object.hasOwn(changes, "address")) setAddress(changes.address);
-                                if (Object.hasOwn(changes, "directions")) setDirections(changes.directions);
-                                if (Object.hasOwn(changes, "attendanceInstructions")) {
-                                    setAttendanceInstructions(changes.attendanceInstructions);
+                                if (Object.hasOwn(changes, "sessionKind"))
+                                    setSessionKind(changes.sessionKind);
+                                if (Object.hasOwn(changes, "sessionProvider"))
+                                    setSessionProvider(changes.sessionProvider);
+                                if (Object.hasOwn(changes, "sessionVisibility"))
+                                    setSessionVisibility(
+                                        changes.sessionVisibility,
+                                    );
+                                if (Object.hasOwn(changes, "reminderMinutes"))
+                                    setReminderMinutes(changes.reminderMinutes);
+                                if (
+                                    Object.hasOwn(
+                                        changes,
+                                        "attendanceThresholdPercent",
+                                    )
+                                )
+                                    setAttendanceThresholdPercent(
+                                        changes.attendanceThresholdPercent,
+                                    );
+                                if (Object.hasOwn(changes, "videoUrl"))
+                                    setVideoUrl(changes.videoUrl);
+                                if (Object.hasOwn(changes, "meetingPassword"))
+                                    setMeetingPassword(changes.meetingPassword);
+                                if (Object.hasOwn(changes, "recordingUrl"))
+                                    setRecordingUrl(changes.recordingUrl);
+                                if (Object.hasOwn(changes, "startDate"))
+                                    setStartDate(changes.startDate);
+                                if (Object.hasOwn(changes, "startTime"))
+                                    setStartTime(changes.startTime);
+                                if (Object.hasOwn(changes, "endDate"))
+                                    setEndDate(changes.endDate);
+                                if (Object.hasOwn(changes, "endTime"))
+                                    setEndTime(changes.endTime);
+                                if (Object.hasOwn(changes, "timezone"))
+                                    setTimezone(changes.timezone);
+                                if (Object.hasOwn(changes, "venue"))
+                                    setVenue(changes.venue);
+                                if (Object.hasOwn(changes, "room"))
+                                    setRoom(changes.room);
+                                if (Object.hasOwn(changes, "address"))
+                                    setAddress(changes.address);
+                                if (Object.hasOwn(changes, "directions"))
+                                    setDirections(changes.directions);
+                                if (
+                                    Object.hasOwn(
+                                        changes,
+                                        "attendanceInstructions",
+                                    )
+                                ) {
+                                    setAttendanceInstructions(
+                                        changes.attendanceInstructions,
+                                    );
                                 }
                             }}
                         />
@@ -931,7 +1064,9 @@ const ContentEditor = forwardRef(function ContentEditor(
                                     size="small"
                                     fullWidth
                                     value={duration}
-                                    onChange={(e) => setDuration(e.target.value)}
+                                    onChange={(e) =>
+                                        setDuration(e.target.value)
+                                    }
                                     onBlur={() => handleBlur("duration")}
                                     error={!!getFieldError("duration")}
                                     helperText={getFieldError("duration")}
@@ -942,50 +1077,52 @@ const ContentEditor = forwardRef(function ContentEditor(
                     )}
 
                     {/* Common Toggles */}
-                    {!isScheduledLesson && <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 1,
-                        }}
-                    >
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={isPreview}
-                                    onChange={(e) =>
-                                        setIsPreview(e.target.checked)
-                                    }
-                                />
-                            }
-                            label={
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                    }}
-                                >
-                                    <Typography variant="body2">
-                                        Lesson preview
-                                    </Typography>
-                                    <Tooltip
-                                        title="Enable this to allow non-enrolled users to preview this lesson for free"
-                                        arrow
+                    {!isScheduledLesson && (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                            }}
+                        >
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={isPreview}
+                                        onChange={(e) =>
+                                            setIsPreview(e.target.checked)
+                                        }
+                                    />
+                                }
+                                label={
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                        }}
                                     >
-                                        <InfoIcon
-                                            fontSize="small"
-                                            sx={{
-                                                ml: 1,
-                                                color: "primary.main",
-                                                fontSize: 16,
-                                                cursor: "help",
-                                            }}
-                                        />
-                                    </Tooltip>
-                                </Box>
-                            }
-                        />
-                    </Box>}
+                                        <Typography variant="body2">
+                                            Lesson preview
+                                        </Typography>
+                                        <Tooltip
+                                            title="Enable this to allow non-enrolled users to preview this lesson for free"
+                                            arrow
+                                        >
+                                            <InfoIcon
+                                                fontSize="small"
+                                                sx={{
+                                                    ml: 1,
+                                                    color: "primary.main",
+                                                    fontSize: 16,
+                                                    cursor: "help",
+                                                }}
+                                            />
+                                        </Tooltip>
+                                    </Box>
+                                }
+                            />
+                        </Box>
+                    )}
 
                     {/* Rich Text Editor - Short Description */}
                     <Box
@@ -1090,14 +1227,15 @@ const ContentEditor = forwardRef(function ContentEditor(
                         <Typography
                             variant="body2"
                             color={
-                                requiresLessonContent &&
-                                contentErrorMessage
+                                requiresLessonContent && contentErrorMessage
                                     ? "error"
                                     : "text.secondary"
                             }
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
-                            {lessonType === "document" || lessonType === "video"
+                            {lessonType === "document" ||
+                            lessonType === "video" ||
+                            isScheduledLesson
                                 ? "Lesson content (optional)"
                                 : "Lesson content *"}
                         </Typography>
@@ -1109,17 +1247,18 @@ const ContentEditor = forwardRef(function ContentEditor(
                                     ? "Optional notes for this document lesson..."
                                     : lessonType === "video"
                                       ? "Optional notes for this video lesson..."
-                                      : "Write your lesson content here (min 200 characters)..."
+                                      : isScheduledLesson
+                                        ? "Optional pre-class notes and learning materials..."
+                                        : "Write your lesson content here (min 200 characters)..."
                             }
                             minHeight={250}
                             imageUploadUrl={inlineImageUploadUrl}
                         />
-                        {requiresLessonContent &&
-                            contentErrorMessage && (
+                        {requiresLessonContent && contentErrorMessage && (
                             <FormHelperText error>
                                 {contentErrorMessage}
                             </FormHelperText>
-                            )}
+                        )}
                         <Typography variant="caption" color="text.secondary">
                             {contentTextLength} characters
                         </Typography>
@@ -1222,17 +1361,22 @@ function QATab({ nodeId, discussions: initialDiscussions = [] }) {
         setError(null);
 
         try {
-            const response = await fetch(`/instructor/nodes/${nodeId}/discussions/`, {
-                credentials: "same-origin",
-                headers: {
-                    Accept: "application/json",
+            const response = await fetch(
+                `/instructor/nodes/${nodeId}/discussions/`,
+                {
+                    credentials: "same-origin",
+                    headers: {
+                        Accept: "application/json",
+                    },
                 },
-            });
+            );
             if (!response.ok) {
                 throw new Error("Failed to load discussions");
             }
             const data = await response.json();
-            setDiscussions(Array.isArray(data.discussions) ? data.discussions : []);
+            setDiscussions(
+                Array.isArray(data.discussions) ? data.discussions : [],
+            );
         } catch (err) {
             setError(err?.message || "Failed to load discussions");
         } finally {
@@ -1310,7 +1454,10 @@ function QATab({ nodeId, discussions: initialDiscussions = [] }) {
                     loadDiscussions();
                 },
                 onFinish: () => {
-                    setReplyingById((prev) => ({ ...prev, [discussionId]: false }));
+                    setReplyingById((prev) => ({
+                        ...prev,
+                        [discussionId]: false,
+                    }));
                 },
             },
         );
@@ -1454,7 +1601,10 @@ function QATab({ nodeId, discussions: initialDiscussions = [] }) {
                                         fullWidth
                                         placeholder="Write a reply..."
                                         value={replyDrafts[d.id] || ""}
-                                        disabled={!!d.is_locked || !!replyingById[d.id]}
+                                        disabled={
+                                            !!d.is_locked ||
+                                            !!replyingById[d.id]
+                                        }
                                         onChange={(event) =>
                                             setReplyDrafts((prev) => ({
                                                 ...prev,

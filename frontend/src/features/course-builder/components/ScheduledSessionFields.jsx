@@ -59,17 +59,21 @@ function LabeledField({ label, error, required = false, children }) {
 export default function ScheduledSessionFields({
     values,
     errors,
+    lessonType,
     nodeId,
     persisted,
+    googleMeetControlsRef,
     onBlur,
     onChange,
     onSaveBeforeMeet,
 }) {
+    const isDedicatedGoogleMeet = lessonType === "google_meet";
     const providers = PROVIDERS[values.sessionKind] || PROVIDERS.live_meeting;
     const isInPerson = values.sessionKind === "in_person_session";
     const isNativeGoogleMeet =
-        values.sessionKind === "live_meeting" &&
-        values.sessionProvider === "google_meet";
+        isDedicatedGoogleMeet ||
+        (values.sessionKind === "live_meeting" &&
+            values.sessionProvider === "google_meet");
 
     const changeKind = (sessionKind) => {
         const nextProvider = PROVIDERS[sessionKind][0].value;
@@ -78,52 +82,60 @@ export default function ScheduledSessionFields({
 
     return (
         <Stack spacing={2}>
-            <Box
-                sx={{
-                    display: "grid",
-                    gap: 2,
-                    gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                }}
-            >
-                <FormControl fullWidth size="small">
-                    <InputLabel>Activity</InputLabel>
-                    <Select
-                        label="Activity"
-                        value={values.sessionKind}
-                        onChange={(event) => changeKind(event.target.value)}
-                    >
-                        {SESSION_KIND_OPTIONS.map((option) => (
-                            <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+            {!isDedicatedGoogleMeet && (
+                <Box
+                    sx={{
+                        display: "grid",
+                        gap: 2,
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                    }}
+                >
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Activity</InputLabel>
+                        <Select
+                            label="Activity"
+                            value={values.sessionKind}
+                            onChange={(event) => changeKind(event.target.value)}
+                        >
+                            {SESSION_KIND_OPTIONS.map((option) => (
+                                <MenuItem
+                                    key={option.value}
+                                    value={option.value}
+                                >
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
 
-                <FormControl fullWidth size="small">
-                    <InputLabel>Provider</InputLabel>
-                    <Select
-                        label="Provider"
-                        value={values.sessionProvider}
-                        onChange={(event) => {
-                            const sessionProvider = event.target.value;
-                            onChange({
-                                sessionProvider,
-                                ...(sessionProvider === "google_meet"
-                                    ? { videoUrl: "", meetingPassword: "" }
-                                    : {}),
-                            });
-                        }}
-                        disabled={isInPerson}
-                    >
-                        {providers.map((option) => (
-                            <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </Box>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Provider</InputLabel>
+                        <Select
+                            label="Provider"
+                            value={values.sessionProvider}
+                            onChange={(event) => {
+                                const sessionProvider = event.target.value;
+                                onChange({
+                                    sessionProvider,
+                                    ...(sessionProvider === "google_meet"
+                                        ? { videoUrl: "", meetingPassword: "" }
+                                        : {}),
+                                });
+                            }}
+                            disabled={isInPerson}
+                        >
+                            {providers.map((option) => (
+                                <MenuItem
+                                    key={option.value}
+                                    value={option.value}
+                                >
+                                    {option.label}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+            )}
 
             {!isInPerson && !isNativeGoogleMeet && (
                 <>
@@ -189,48 +201,6 @@ export default function ScheduledSessionFields({
                             inputProps={{ inputMode: "url" }}
                         />
                     </LabeledField>
-                </>
-            )}
-
-            {isNativeGoogleMeet && (
-                <>
-                    <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Calendar visibility</InputLabel>
-                            <Select label="Calendar visibility" value={values.sessionVisibility} onChange={(event) => onChange({ sessionVisibility: event.target.value })}>
-                                <MenuItem value="private">Private</MenuItem>
-                                <MenuItem value="default">Calendar default</MenuItem>
-                            </Select>
-                        </FormControl>
-                        <LabeledField label="Reminder minutes">
-                            <TextField fullWidth size="small" type="number" value={values.reminderMinutes ?? 10} onChange={(event) => onChange({ reminderMinutes: event.target.value })} inputProps={{ min: 0, max: 10080 }} />
-                        </LabeledField>
-                        <LabeledField label="Attendance threshold (%)">
-                            <TextField
-                                fullWidth
-                                size="small"
-                                type="number"
-                                value={values.attendanceThresholdPercent ?? 50}
-                                onChange={(event) =>
-                                    onChange({
-                                        attendanceThresholdPercent:
-                                            event.target.value,
-                                    })
-                                }
-                                inputProps={{ min: 1, max: 100 }}
-                            />
-                        </LabeledField>
-                        <Box sx={{ gridColumn: { md: "1 / -1" } }}>
-                            <LabeledField label="Pre-class notes">
-                                <TextField fullWidth size="small" multiline minRows={2} value={values.attendanceInstructions} onChange={(event) => onChange({ attendanceInstructions: event.target.value })} />
-                            </LabeledField>
-                        </Box>
-                    </Box>
-                    <GoogleMeetControls
-                        nodeId={nodeId}
-                        persisted={persisted}
-                        beforeCreate={onSaveBeforeMeet}
-                    />
                 </>
             )}
 
@@ -400,6 +370,97 @@ export default function ScheduledSessionFields({
                     />
                 </LabeledField>
             </Box>
+
+            {isNativeGoogleMeet && (
+                <>
+                    <Box
+                        sx={{
+                            display: "grid",
+                            gap: 2,
+                            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                        }}
+                    >
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Calendar visibility</InputLabel>
+                            <Select
+                                label="Calendar visibility"
+                                value={values.sessionVisibility}
+                                onChange={(event) =>
+                                    onChange({
+                                        sessionVisibility: event.target.value,
+                                    })
+                                }
+                            >
+                                <MenuItem value="private">Private</MenuItem>
+                                <MenuItem value="default">
+                                    Calendar default
+                                </MenuItem>
+                            </Select>
+                        </FormControl>
+                        {!isDedicatedGoogleMeet && (
+                            <LabeledField label="Reminder minutes">
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    type="number"
+                                    value={values.reminderMinutes ?? 10}
+                                    onChange={(event) =>
+                                        onChange({
+                                            reminderMinutes: event.target.value,
+                                        })
+                                    }
+                                    inputProps={{ min: 0, max: 10080 }}
+                                />
+                            </LabeledField>
+                        )}
+                        {!isDedicatedGoogleMeet && (
+                            <LabeledField label="Attendance threshold (%)">
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    type="number"
+                                    value={
+                                        values.attendanceThresholdPercent ?? 50
+                                    }
+                                    onChange={(event) =>
+                                        onChange({
+                                            attendanceThresholdPercent:
+                                                event.target.value,
+                                        })
+                                    }
+                                    inputProps={{ min: 1, max: 100 }}
+                                />
+                            </LabeledField>
+                        )}
+                        {!isDedicatedGoogleMeet && (
+                            <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                                <LabeledField label="Pre-class notes">
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        multiline
+                                        minRows={2}
+                                        value={values.attendanceInstructions}
+                                        onChange={(event) =>
+                                            onChange({
+                                                attendanceInstructions:
+                                                    event.target.value,
+                                            })
+                                        }
+                                    />
+                                </LabeledField>
+                            </Box>
+                        )}
+                    </Box>
+                    <GoogleMeetControls
+                        ref={googleMeetControlsRef}
+                        nodeId={nodeId}
+                        persisted={persisted}
+                        beforeCreate={onSaveBeforeMeet}
+                        automaticCreation={isDedicatedGoogleMeet}
+                    />
+                </>
+            )}
         </Stack>
     );
 }

@@ -18,6 +18,7 @@ from .models import ScheduledLearningSession, SessionAttendance, SessionAttendan
 
 SCHEDULED_ACTIVITY_TYPES = {
     "live_class",
+    "google_meet",
     ScheduledLearningSession.Kind.LIVE_MEETING,
     ScheduledLearningSession.Kind.LIVE_STREAM,
     ScheduledLearningSession.Kind.IN_PERSON,
@@ -48,6 +49,8 @@ def normalize_source_timezone(value):
 
 def infer_session_kind(properties):
     lesson_type = str(properties.get("lesson_type") or "").strip().lower()
+    if lesson_type == "google_meet":
+        return ScheduledLearningSession.Kind.LIVE_MEETING
     if lesson_type != "live_class":
         return lesson_type
     explicit = str(properties.get("session_kind") or "").strip().lower()
@@ -415,6 +418,7 @@ def build_player_delivery_context(program, enrollment):
     has_independent_content = any(
         normalize_activity_type(node_type, properties)
         not in {
+            "google_meet",
             "live_meeting",
             "live_stream",
             "in_person_session",

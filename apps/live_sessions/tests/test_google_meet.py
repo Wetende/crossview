@@ -28,7 +28,7 @@ class GoogleMeetLessonTests(TestCase):
         self.instructor, self.student = UserFactory(admin=True, email="teacher@example.test"), UserFactory(email="learner@example.test")
         self.program = Program.objects.create(name="Live course", code="LIVE-COURSE", level="beginner")
         self.enrollment = Enrollment.objects.create(user=self.student, program=self.program, status="active")
-        self.node = CurriculumNode.objects.create(program=self.program, title="Weekly Meet", node_type="Lesson", properties={"lesson_type": "live_meeting"})
+        self.node = CurriculumNode.objects.create(program=self.program, title="Weekly Meet", node_type="Lesson", properties={"lesson_type": "google_meet", "session_kind": "live_meeting", "provider": "google_meet"})
         start = timezone.now() + timedelta(days=1)
         self.session = ScheduledLearningSession.objects.create(node=self.node, kind="live_meeting", provider="google_meet", title="Weekly Meet", starts_at=start, ends_at=start + timedelta(hours=1), source_timezone="Africa/Nairobi", created_by=self.instructor)
         self.credential = GoogleWorkspaceCredential.objects.create(user=self.instructor, google_email=self.instructor.email, refresh_token_ciphertext=encrypt_refresh_token("refresh-token"), granted_scopes=["https://www.googleapis.com/auth/calendar.events"])

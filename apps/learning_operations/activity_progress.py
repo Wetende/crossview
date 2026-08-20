@@ -13,6 +13,7 @@ from apps.curriculum.activity_types import (
     AUDIO,
     CODE,
     DOCUMENT,
+    GOOGLE_MEET,
     IN_PERSON_SESSION,
     LIVE_MEETING,
     LIVE_STREAM,
@@ -28,7 +29,12 @@ from .services import record_learning_activity
 
 TRACKED_PLAYBACK_TYPES = {VIDEO, AUDIO}
 TRACKED_ACTIVITY_TYPES = {*TRACKED_PLAYBACK_TYPES, DOCUMENT, CODE}
-SCHEDULED_ATTENDANCE_TYPES = {LIVE_MEETING, LIVE_STREAM, IN_PERSON_SESSION}
+SCHEDULED_ATTENDANCE_TYPES = {
+    GOOGLE_MEET,
+    LIVE_MEETING,
+    LIVE_STREAM,
+    IN_PERSON_SESSION,
+}
 SERVER_EVIDENCE_ACTIVITY_TYPES = TRACKED_ACTIVITY_TYPES | SCHEDULED_ATTENDANCE_TYPES
 BROWSER_CODE_LANGUAGES = {"html_css_js", "javascript"}
 LEGACY_BLOCK_ACTIVITY_TYPES = {
@@ -91,7 +97,7 @@ def get_completion_policy(node):
         }
     if activity_type == CODE:
         return {"kind": "code_submission", "automatic": True}
-    if activity_type == LIVE_MEETING:
+    if activity_type in {GOOGLE_MEET, LIVE_MEETING}:
         return {
             "kind": "verified_attendance",
             "requiredPercent": 50,

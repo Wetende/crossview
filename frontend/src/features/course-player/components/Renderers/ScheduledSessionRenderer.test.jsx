@@ -31,6 +31,7 @@ describe("ScheduledSessionRenderer", () => {
         expect(
             screen.queryByRole("link", { name: /join meeting/i }),
         ).not.toBeInTheDocument();
+        expect(screen.getByText("Google Meet")).toBeInTheDocument();
         expect(
             screen.getByRole("link", { name: /add to calendar/i }),
         ).toBeInTheDocument();
