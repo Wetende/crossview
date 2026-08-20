@@ -12,7 +12,7 @@ cryptography>=43.0.0
 requests>=2.31.0
 
 # Inertia.js for Django
-inertia-django @ git+https://github.com/inertiajs/inertia-django.git@main
+inertia-django==1.2.0
 
 # Database
 pymysql>=1.1.0
