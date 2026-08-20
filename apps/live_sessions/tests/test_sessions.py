@@ -142,6 +142,28 @@ class ScheduledLearningSessionTests(TestCase):
         self.assertIsNone(payload["scheduledSession"]["joinUrl"])
         self.assertIsNone(payload["scheduledSession"]["passcode"])
 
+    def test_course_resume_hydrates_google_meet_renderer_payload(self):
+        node = self._meeting_node(start_delta=timedelta(hours=2))
+        sync_scheduled_session_from_node(node, actor=self.instructor)
+        self.client.force_login(self.student)
+
+        response = self.client.get(
+            reverse("progression:student.program.resume", args=[self.program.id]),
+            HTTP_X_INERTIA="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["props"]["node"]
+        self.assertEqual(payload["activityType"], "google_meet")
+        self.assertEqual(payload["scheduledSession"]["provider"], "google_meet")
+        self.assertTrue(payload["scheduledSession"]["hasJoinDetails"])
+        self.assertIsNone(payload["scheduledSession"]["joinUrl"])
+        self.assertEqual(
+            payload["completionPolicy"]["kind"],
+            "verified_attendance",
+        )
+        self.assertFalse(payload["completionPolicy"]["learnerCanComplete"])
+
     def test_learner_cannot_self_complete_a_scheduled_session(self):
         node = self._meeting_node(start_delta=timedelta(hours=2))
         sync_scheduled_session_from_node(node, actor=self.instructor)
