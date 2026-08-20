@@ -27,6 +27,21 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
 
     const refresh = useCallback(async () => {
         const connection = await workspaceApi.connection();
+        if (
+            connection?.available &&
+            connection?.connected &&
+            !connection?.grantedCapabilities?.includes("calendar_events")
+        ) {
+            console.error(
+                "[Google Workspace] Connected account failed the Calendar access check",
+                {
+                    status: connection.status,
+                    grantedScopes: connection.grantedScopes,
+                    lastError: connection.lastError,
+                    diagnostics: connection.diagnostics,
+                },
+            );
+        }
         let session = null;
         if (persisted) {
             try {
@@ -187,13 +202,20 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
             )}
             {connection?.available &&
                 (!connection.connected || !calendarAuthorized) && (
-                    <Button
-                        variant="outlined"
-                        disabled={busy}
-                        onClick={() => connect(["calendar_events"])}
-                    >
-                        Connect Google Calendar
-                    </Button>
+                    <>
+                        {connection.connected && connection.lastError && (
+                            <Alert severity="warning">
+                                {connection.lastError}
+                            </Alert>
+                        )}
+                        <Button
+                            variant="outlined"
+                            disabled={busy}
+                            onClick={() => connect(["calendar_events"])}
+                        >
+                            Connect Google Calendar
+                        </Button>
+                    </>
                 )}
             {connection?.available &&
                 calendarAuthorized &&

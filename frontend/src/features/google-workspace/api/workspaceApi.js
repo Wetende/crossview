@@ -11,7 +11,15 @@ const request = async (url, options = {}) => {
         }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail || "Google Workspace request failed.");
+    if (!response.ok) {
+        console.error("[Google Workspace API] Request failed", {
+            url,
+            method: options.method || "GET",
+            status: response.status,
+            detail: data.detail || "Google Workspace request failed.",
+        });
+        throw new Error(data.detail || "Google Workspace request failed.");
+    }
     return data;
 };
 

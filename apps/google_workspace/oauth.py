@@ -34,6 +34,20 @@ def granted_scopes_from_credentials(credentials, requested_scopes):
     return sorted(fallback or normalize_scopes(requested_scopes))
 
 
+def scopes_for_token_exchange(requested_scopes, callback_scope):
+    """Include scopes Google reports after incremental authorization.
+
+    Google can return previously granted scopes in addition to the scopes in
+    the current request. OAuthlib treats that legitimate expansion as a scope
+    mismatch unless the token-exchange client knows about the returned set.
+    The signed OAuth state still controls which Airads capabilities were
+    requested; these values only describe grants reported by Google.
+    """
+    return sorted(
+        normalize_scopes(requested_scopes) | normalize_scopes(callback_scope)
+    )
+
+
 def build_authorization_url(request, capabilities, return_to=""):
     from google_auth_oauthlib.flow import Flow
     configuration = require_workspace_configuration()
@@ -64,8 +78,20 @@ def complete_authorization(request, *, state, code):
     if state_data.get("userId") != request.user.id:
         raise PermissionDenied("Google Workspace authorization belongs to another user.")
     existing = GoogleWorkspaceCredential.objects.filter(user=request.user).first()
-    scopes = scopes_for_capabilities(state_data.get("capabilities"), existing.granted_scopes if existing else None)
-    flow = Flow.from_client_config(_client_config(configuration), scopes=scopes, state=state, code_verifier=session_state.get("verifier"))
+    requested_scopes = scopes_for_capabilities(
+        state_data.get("capabilities"),
+        existing.granted_scopes if existing else None,
+    )
+    token_exchange_scopes = scopes_for_token_exchange(
+        requested_scopes,
+        request.GET.get("scope", ""),
+    )
+    flow = Flow.from_client_config(
+        _client_config(configuration),
+        scopes=token_exchange_scopes,
+        state=state,
+        code_verifier=session_state.get("verifier"),
+    )
     flow.redirect_uri = configuration["redirect_uri"]
     flow.fetch_token(code=code)
     refresh_token = flow.credentials.refresh_token
@@ -74,7 +100,12 @@ def complete_authorization(request, *, state, code):
         refresh_token = decrypt_refresh_token(existing.refresh_token_ciphertext)
     identity = build("oauth2", "v2", credentials=flow.credentials, cache_discovery=False).userinfo().get().execute()
     granted_scopes = normalize_scopes(existing.granted_scopes if existing else None)
-    granted_scopes.update(granted_scopes_from_credentials(flow.credentials, scopes))
+    granted_scopes.update(
+        granted_scopes_from_credentials(
+            flow.credentials,
+            token_exchange_scopes,
+        )
+    )
     credential, _ = GoogleWorkspaceCredential.objects.update_or_create(
         user=request.user,
         defaults={
