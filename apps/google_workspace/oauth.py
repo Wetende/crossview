@@ -42,18 +42,30 @@ def granted_scopes_from_credentials(credentials, requested_scopes):
     return sorted(fallback or normalize_scopes(requested_scopes))
 
 
-def scopes_for_token_exchange(requested_scopes, callback_scope):
-    """Include scopes Google reports after incremental authorization.
+def fetch_token_with_incremental_grants(flow, *, code, required_scopes):
+    """Complete Google's exchange while validating its authoritative scopes.
 
-    Google can return previously granted scopes in addition to the scopes in
-    the current request. OAuthlib treats that legitimate expansion as a scope
-    mismatch unless the token-exchange client knows about the returned set.
-    The signed OAuth state still controls which Airads capabilities were
-    requested; these values only describe grants reported by Google.
+    OAuthlib raises ``Warning`` whenever the token response scopes are not an
+    exact match for the request. Google incremental authorization can validly
+    add grants from earlier consent. Recover that already-parsed token only
+    when it still contains every scope Airads required for this request.
     """
-    return sorted(
-        normalize_scopes(requested_scopes) | normalize_scopes(callback_scope)
-    )
+    try:
+        return flow.fetch_token(code=code)
+    except Warning as exc:
+        token = getattr(exc, "token", None)
+        granted_scopes = normalize_scopes(getattr(exc, "new_scope", None))
+        if not granted_scopes and token:
+            granted_scopes = normalize_scopes(token.get("scope"))
+        missing_scopes = normalize_scopes(required_scopes) - granted_scopes
+        if not token or missing_scopes:
+            raise GoogleWorkspaceOAuthCallbackError(
+                "Google did not grant every permission Airads requested.",
+                category="scope_mismatch",
+                stage="token_exchange",
+            ) from exc
+        flow.oauth2session.token = dict(token)
+        return flow.oauth2session.token
 
 
 def build_authorization_url(request, capabilities, return_to=""):
@@ -91,25 +103,21 @@ def complete_authorization(request, *, state, code):
         state_data.get("capabilities"),
         existing.granted_scopes if existing else None,
     )
-    token_exchange_scopes = scopes_for_token_exchange(
-        requested_scopes,
-        request.GET.get("scope", ""),
-    )
     flow = Flow.from_client_config(
         _client_config(configuration),
-        scopes=token_exchange_scopes,
+        scopes=requested_scopes,
         state=state,
         code_verifier=session_state.get("verifier"),
     )
     flow.redirect_uri = configuration["redirect_uri"]
     try:
-        flow.fetch_token(code=code)
-    except Warning as exc:
-        raise GoogleWorkspaceOAuthCallbackError(
-            "Google returned a different permission set during authorization.",
-            category="scope_mismatch",
-            stage="token_exchange",
-        ) from exc
+        fetch_token_with_incremental_grants(
+            flow,
+            code=code,
+            required_scopes=requested_scopes,
+        )
+    except GoogleWorkspaceOAuthCallbackError:
+        raise
     except Exception as exc:
         raise GoogleWorkspaceOAuthCallbackError(
             "Google did not complete the authorization-code exchange.",
@@ -143,7 +151,7 @@ def complete_authorization(request, *, state, code):
     granted_scopes.update(
         granted_scopes_from_credentials(
             flow.credentials,
-            token_exchange_scopes,
+            requested_scopes,
         )
     )
     try:
