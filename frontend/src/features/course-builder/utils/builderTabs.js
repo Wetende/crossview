@@ -9,7 +9,6 @@ const CORE_BUILDER_TABS = [
 ];
 
 const PRACTICUM_BUILDER_TAB = { label: "Practicum", value: "practicum" };
-const CLASSROOM_BUILDER_TAB = { label: "Classroom", value: "classroom" };
 export const SETTINGS_SECTIONS = [
     { label: "Main", value: "main" },
     { label: "Academic Details", value: "academic" },
@@ -27,19 +26,12 @@ const SETTINGS_SECTION_VALUES = new Set(
 const BUILDER_TAB_VALUES = new Set([
     ...CORE_BUILDER_TABS.map((tab) => tab.value),
     PRACTICUM_BUILDER_TAB.value,
-    CLASSROOM_BUILDER_TAB.value,
 ]);
 
 export const isPracticumTabEnabled = (program) => {
     const blueprintFlags = program?.blueprint?.featureFlags || {};
     return Boolean(blueprintFlags.practicum || blueprintFlags.portfolio);
 };
-
-export const isClassroomTabEnabled = (program) =>
-    Boolean(
-        program?.googleClassroom?.available ||
-            program?.googleClassroom?.link?.connected,
-    );
 
 export const getBuilderTabUrl = (programId, tabValue) => {
     const manageUrl = `/instructor/programs/${programId}/manage/`;
@@ -56,9 +48,6 @@ export const getAvailableBuilderTabs = (program) => {
     if (isPracticumTabEnabled(program)) {
         tabs.push(PRACTICUM_BUILDER_TAB);
     }
-    if (isClassroomTabEnabled(program)) {
-        tabs.push(CLASSROOM_BUILDER_TAB);
-    }
 
     return tabs.map((tab) => ({
         ...tab,
@@ -72,9 +61,6 @@ export const normalizeBuilderTab = (program, requestedTab) => {
         return "curriculum";
     }
     if (tabValue === "practicum" && !isPracticumTabEnabled(program)) {
-        return "curriculum";
-    }
-    if (tabValue === "classroom" && !isClassroomTabEnabled(program)) {
         return "curriculum";
     }
     return tabValue;

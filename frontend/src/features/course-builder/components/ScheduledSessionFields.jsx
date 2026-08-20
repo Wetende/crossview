@@ -9,7 +9,7 @@ import {
     Stack,
     TextField,
 } from "@mui/material";
-import GoogleMeetControls from "@/features/google-classroom/components/GoogleMeetControls";
+import GoogleMeetControls from "@/features/google-workspace/components/GoogleMeetControls";
 
 const SESSION_KIND_OPTIONS = [
     { value: "live_meeting", label: "Live meeting" },
@@ -193,23 +193,23 @@ export default function ScheduledSessionFields({
 
             {isNativeGoogleMeet && (
                 <>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Calendar visibility</InputLabel>
-                        <Select
-                            label="Calendar visibility"
-                            value={values.sessionVisibility}
-                            onChange={(event) =>
-                                onChange({
-                                    sessionVisibility: event.target.value,
-                                })
-                            }
-                        >
-                            <MenuItem value="private">Private</MenuItem>
-                            <MenuItem value="default">
-                                Calendar default
-                            </MenuItem>
-                        </Select>
-                    </FormControl>
+                    <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Calendar visibility</InputLabel>
+                            <Select label="Calendar visibility" value={values.sessionVisibility} onChange={(event) => onChange({ sessionVisibility: event.target.value })}>
+                                <MenuItem value="private">Private</MenuItem>
+                                <MenuItem value="default">Calendar default</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <LabeledField label="Reminder minutes">
+                            <TextField fullWidth size="small" type="number" value={values.reminderMinutes ?? 10} onChange={(event) => onChange({ reminderMinutes: event.target.value })} inputProps={{ min: 0, max: 10080 }} />
+                        </LabeledField>
+                        <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                            <LabeledField label="Pre-class notes">
+                                <TextField fullWidth size="small" multiline minRows={2} value={values.attendanceInstructions} onChange={(event) => onChange({ attendanceInstructions: event.target.value })} />
+                            </LabeledField>
+                        </Box>
+                    </Box>
                     <GoogleMeetControls nodeId={nodeId} persisted={persisted} />
                 </>
             )}

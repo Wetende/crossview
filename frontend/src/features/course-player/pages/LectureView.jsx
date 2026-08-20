@@ -104,7 +104,6 @@ const LectureView = ({
 
             <PlayerSupportStrip
                 gamification={enrollment?.gamification}
-                classroom={enrollment?.googleClassroom}
             />
 
             {/* Main Stage */}

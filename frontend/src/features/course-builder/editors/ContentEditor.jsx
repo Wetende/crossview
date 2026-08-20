@@ -155,6 +155,9 @@ const ContentEditor = forwardRef(function ContentEditor(
     const [sessionVisibility, setSessionVisibility] = useState(
         node.properties?.session_visibility || "private",
     );
+    const [reminderMinutes, setReminderMinutes] = useState(
+        node.properties?.reminder_minutes ?? 10,
+    );
 
     // Gamification settings (only used when featureFlags.gamification is true)
     const [gamificationSettings, setGamificationSettings] = useState(
@@ -234,13 +237,13 @@ const ContentEditor = forwardRef(function ContentEditor(
             newErrors.title = `Title must be ${TITLE_MAX_LENGTH} characters or less`;
         }
 
-        if (!duration || duration.trim() === "") {
+        if (!isScheduledLesson && (!duration || duration.trim() === "")) {
             newErrors.duration = "Duration is required";
         }
 
         // Strip HTML for character count
         const descText = description.replace(/<[^>]*>/g, "");
-        if (!descText || descText.length < 50) {
+        if (!isScheduledLesson && (!descText || descText.length < 50)) {
             newErrors.description = "Description must be at least 50 characters";
         }
 
@@ -356,8 +359,8 @@ const ContentEditor = forwardRef(function ContentEditor(
             title.length > TITLE_MAX_LENGTH
         )
             return false;
-        if (!duration || duration.trim() === "") return false;
-        if (descText.length < 50) return false;
+        if (!isScheduledLesson && (!duration || duration.trim() === "")) return false;
+        if (!isScheduledLesson && descText.length < 50) return false;
         if (requiresLessonContent && contentText.length < 200) return false;
 
         if (lessonType === "video") {
@@ -439,6 +442,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                     provider: sessionProvider,
                     session_provider: sessionProvider,
                     session_visibility: sessionVisibility,
+                    reminder_minutes: Number(reminderMinutes || 10),
                     session_url: sessionKind === "in_person_session" ? "" : videoUrl,
                     meeting_password:
                         sessionKind === "live_meeting" ? meetingPassword : "",
@@ -480,6 +484,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         meetingPassword,
         node.properties,
         recordingUrl,
+        reminderMinutes,
         room,
         sessionKind,
         sessionProvider,
@@ -517,6 +522,7 @@ const ContentEditor = forwardRef(function ContentEditor(
             lessonType,
             meetingPassword,
             recordingUrl,
+            reminderMinutes,
             room,
             sessionKind,
             sessionProvider,
@@ -545,6 +551,7 @@ const ContentEditor = forwardRef(function ContentEditor(
             lessonType,
             meetingPassword,
             recordingUrl,
+            reminderMinutes,
             room,
             sessionKind,
             sessionProvider,
@@ -816,6 +823,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 sessionKind,
                                 sessionProvider,
                                 sessionVisibility,
+                                reminderMinutes,
                                 videoUrl,
                                 meetingPassword,
                                 recordingUrl,
@@ -851,6 +859,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 if (Object.hasOwn(changes, "sessionKind")) setSessionKind(changes.sessionKind);
                                 if (Object.hasOwn(changes, "sessionProvider")) setSessionProvider(changes.sessionProvider);
                                 if (Object.hasOwn(changes, "sessionVisibility")) setSessionVisibility(changes.sessionVisibility);
+                                if (Object.hasOwn(changes, "reminderMinutes")) setReminderMinutes(changes.reminderMinutes);
                                 if (Object.hasOwn(changes, "videoUrl")) setVideoUrl(changes.videoUrl);
                                 if (Object.hasOwn(changes, "meetingPassword")) setMeetingPassword(changes.meetingPassword);
                                 if (Object.hasOwn(changes, "recordingUrl")) setRecordingUrl(changes.recordingUrl);

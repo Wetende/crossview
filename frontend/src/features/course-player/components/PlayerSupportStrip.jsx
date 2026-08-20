@@ -1,16 +1,13 @@
-import { Button, Chip, Paper, Stack } from "@mui/material";
+import { Chip, Paper, Stack } from "@mui/material";
 import {
     EmojiEvents as BadgeIcon,
     LocalFireDepartment as StreakIcon,
-    OpenInNew as OpenIcon,
-    School as ClassroomIcon,
     Stars as XpIcon,
 } from "@mui/icons-material";
 
-export default function PlayerSupportStrip({ gamification, classroom }) {
+export default function PlayerSupportStrip({ gamification }) {
     const showMomentum = gamification?.enabled;
-    const showClassroom = classroom?.connected;
-    if (!showMomentum && !showClassroom) return null;
+    if (!showMomentum) return null;
 
     return (
         <Paper variant="outlined" sx={{ p: 1, mb: 2, borderRadius: 2 }}>
@@ -40,32 +37,6 @@ export default function PlayerSupportStrip({ gamification, classroom }) {
                             />
                         )}
                     </>
-                )}
-                {showClassroom && (
-                    <Chip
-                        size="small"
-                        icon={<ClassroomIcon />}
-                        label={`Classroom: ${(classroom.membershipStatus || "not joined").replaceAll("_", " ")}`}
-                    />
-                )}
-                {showClassroom && classroom.classCode && (
-                    <Chip
-                        size="small"
-                        label={`Class code: ${classroom.classCode}`}
-                    />
-                )}
-                {showClassroom && classroom.alternateLink && (
-                    <Button
-                        size="small"
-                        component="a"
-                        href={classroom.alternateLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        endIcon={<OpenIcon />}
-                        sx={{ ml: { sm: "auto" } }}
-                    >
-                        Google Classroom
-                    </Button>
                 )}
             </Stack>
         </Paper>
