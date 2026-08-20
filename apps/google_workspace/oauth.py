@@ -9,7 +9,12 @@ from django.core import signing
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
-from .configuration import encrypt_refresh_token, require_workspace_configuration, scopes_for_capabilities
+from .configuration import (
+    encrypt_refresh_token,
+    normalize_scopes,
+    require_workspace_configuration,
+    scopes_for_capabilities,
+)
 from .models import GoogleWorkspaceCredential
 
 STATE_SALT = "google-workspace-oauth-state"
@@ -18,6 +23,15 @@ SESSION_KEY = "google_workspace_oauth"
 
 def _client_config(configuration):
     return {"web": {"client_id": configuration["client_id"], "client_secret": configuration["client_secret"], "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [configuration["redirect_uri"]]}}
+
+
+def granted_scopes_from_credentials(credentials, requested_scopes):
+    """Prefer Google's token response over the OAuth session request."""
+    granted = normalize_scopes(getattr(credentials, "granted_scopes", None))
+    if granted:
+        return sorted(granted)
+    fallback = normalize_scopes(getattr(credentials, "scopes", None))
+    return sorted(fallback or normalize_scopes(requested_scopes))
 
 
 def build_authorization_url(request, capabilities, return_to=""):
@@ -59,9 +73,19 @@ def complete_authorization(request, *, state, code):
         from .configuration import decrypt_refresh_token
         refresh_token = decrypt_refresh_token(existing.refresh_token_ciphertext)
     identity = build("oauth2", "v2", credentials=flow.credentials, cache_discovery=False).userinfo().get().execute()
+    granted_scopes = normalize_scopes(existing.granted_scopes if existing else None)
+    granted_scopes.update(granted_scopes_from_credentials(flow.credentials, scopes))
     credential, _ = GoogleWorkspaceCredential.objects.update_or_create(
         user=request.user,
-        defaults={"google_user_id": identity.get("id", ""), "google_email": identity.get("email", ""), "refresh_token_ciphertext": encrypt_refresh_token(refresh_token), "granted_scopes": sorted(set(flow.credentials.scopes or scopes)), "status": GoogleWorkspaceCredential.Status.CONNECTED, "last_error": "", "revoked_at": None},
+        defaults={
+            "google_user_id": identity.get("id", ""),
+            "google_email": identity.get("email", ""),
+            "refresh_token_ciphertext": encrypt_refresh_token(refresh_token),
+            "granted_scopes": sorted(granted_scopes),
+            "status": GoogleWorkspaceCredential.Status.CONNECTED,
+            "last_error": "",
+            "revoked_at": None,
+        },
     )
     if credential.google_user_id:
         from .models import GoogleParticipantIdentity

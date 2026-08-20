@@ -9,15 +9,35 @@ from django.utils import timezone
 
 from apps.progression.models import Enrollment
 from .adapter import GoogleWorkspaceAPIError, categorize_google_error
-from .configuration import decrypt_refresh_token, require_capabilities, require_workspace_configuration, workspace_public_base_url
+from .configuration import (
+    decrypt_refresh_token,
+    normalize_scopes,
+    require_capabilities,
+    require_workspace_configuration,
+    scopes_for_capabilities,
+    workspace_public_base_url,
+)
 from .models import GoogleParticipantIdentity, GoogleWorkspaceCredential
 from .services import require_connected_credential
 
 
-def _credentials(credential):
+def _credentials(credential, *, scopes=None):
     from google.oauth2.credentials import Credentials
+
     configuration = require_workspace_configuration()
-    return Credentials(token=None, refresh_token=decrypt_refresh_token(credential.refresh_token_ciphertext), token_uri="https://oauth2.googleapis.com/token", client_id=configuration["client_id"], client_secret=configuration["client_secret"], scopes=credential.granted_scopes)
+    effective_scopes = normalize_scopes(
+        credential.granted_scopes if scopes is None else scopes
+    )
+    return Credentials(
+        token=None,
+        refresh_token=decrypt_refresh_token(
+            credential.refresh_token_ciphertext
+        ),
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=configuration["client_id"],
+        client_secret=configuration["client_secret"],
+        scopes=sorted(effective_scopes),
+    )
 
 
 def _execute(credential, request):
@@ -46,6 +66,27 @@ def _list_all(credential, method, key, **kwargs):
 def _meeting_code(url):
     parsed = urlparse(str(url or ""))
     return parsed.path.strip("/").split("/")[0] if parsed.hostname == "meet.google.com" else ""
+
+
+def confirm_calendar_access(credential):
+    """Verify a legacy/stale local scope record against Google's API."""
+    from googleapiclient.discovery import build
+
+    requested_scopes = scopes_for_capabilities(
+        ["calendar_events"],
+        existing_scopes=credential.granted_scopes,
+    )
+    calendar = build(
+        "calendar",
+        "v3",
+        credentials=_credentials(credential, scopes=requested_scopes),
+        cache_discovery=False,
+    )
+    _execute(
+        credential,
+        calendar.events().list(calendarId="primary", maxResults=1),
+    )
+    return True
 
 
 class GoogleMeetAdapter:
