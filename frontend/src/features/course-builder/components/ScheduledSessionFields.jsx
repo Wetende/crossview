@@ -63,6 +63,7 @@ export default function ScheduledSessionFields({
     persisted,
     onBlur,
     onChange,
+    onSaveBeforeMeet,
 }) {
     const providers = PROVIDERS[values.sessionKind] || PROVIDERS.live_meeting;
     const isInPerson = values.sessionKind === "in_person_session";
@@ -204,13 +205,32 @@ export default function ScheduledSessionFields({
                         <LabeledField label="Reminder minutes">
                             <TextField fullWidth size="small" type="number" value={values.reminderMinutes ?? 10} onChange={(event) => onChange({ reminderMinutes: event.target.value })} inputProps={{ min: 0, max: 10080 }} />
                         </LabeledField>
+                        <LabeledField label="Attendance threshold (%)">
+                            <TextField
+                                fullWidth
+                                size="small"
+                                type="number"
+                                value={values.attendanceThresholdPercent ?? 50}
+                                onChange={(event) =>
+                                    onChange({
+                                        attendanceThresholdPercent:
+                                            event.target.value,
+                                    })
+                                }
+                                inputProps={{ min: 1, max: 100 }}
+                            />
+                        </LabeledField>
                         <Box sx={{ gridColumn: { md: "1 / -1" } }}>
                             <LabeledField label="Pre-class notes">
                                 <TextField fullWidth size="small" multiline minRows={2} value={values.attendanceInstructions} onChange={(event) => onChange({ attendanceInstructions: event.target.value })} />
                             </LabeledField>
                         </Box>
                     </Box>
-                    <GoogleMeetControls nodeId={nodeId} persisted={persisted} />
+                    <GoogleMeetControls
+                        nodeId={nodeId}
+                        persisted={persisted}
+                        beforeCreate={onSaveBeforeMeet}
+                    />
                 </>
             )}
 
@@ -360,30 +380,7 @@ export default function ScheduledSessionFields({
                 </LabeledField>
             </Box>
 
-            <Box
-                sx={{
-                    display: "grid",
-                    gap: 2,
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                }}
-            >
-                <LabeledField
-                    label="Lesson duration"
-                    required
-                    error={errors.duration}
-                >
-                    <TextField
-                        fullWidth
-                        size="small"
-                        value={values.duration}
-                        onChange={(event) =>
-                            onChange({ duration: event.target.value })
-                        }
-                        onBlur={() => onBlur("duration")}
-                        error={Boolean(errors.duration)}
-                        placeholder="Example: 2h 45m"
-                    />
-                </LabeledField>
+            <Box>
                 <LabeledField label="Timezone" required error={errors.timezone}>
                     <Autocomplete
                         options={TIMEZONES}

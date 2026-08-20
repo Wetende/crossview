@@ -27,6 +27,7 @@ import CurriculumTree, { flattenNodes } from "../components/CurriculumTree";
 import EditorContainer from "../editors/EditorContainer";
 import SettingsPanel from "../components/SettingsPanel";
 import CoursePublicationControls from "../components/CoursePublicationControls";
+import LiveClassesDashboard from "@/features/google-workspace/components/LiveClassesDashboard";
 import {
     getBuilderTabUrl,
     getRequestedSettingsSection,
@@ -368,6 +369,11 @@ export default function InstructorProgramBuilder({
                                     />
                                 </CardContent>
                             </Card>
+                        </Box>
+                    )}
+                    {activeTab === "live-classes" && (
+                        <Box sx={{ maxWidth: 960, mx: "auto", pt: 2, pb: 4 }}>
+                            <LiveClassesDashboard program={program} />
                         </Box>
                     )}
                 </Box>

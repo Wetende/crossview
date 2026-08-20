@@ -88,6 +88,19 @@ const inferSessionProvider = (properties = {}, sessionKind) => {
     return "custom";
 };
 
+const deriveSessionDuration = (startDate, startTime, endDate, endTime) => {
+    if (!startDate || !startTime || !endDate || !endTime) return "";
+    const start = new Date(`${startDate}T${startTime}:00`);
+    const end = new Date(`${endDate}T${endTime}:00`);
+    const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+    if (!Number.isFinite(minutes) || minutes <= 0) return "";
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return [hours ? `${hours}h` : "", remainingMinutes ? `${remainingMinutes}m` : ""]
+        .filter(Boolean)
+        .join(" ");
+};
+
 const ContentEditor = forwardRef(function ContentEditor(
     { node, onSave, blueprint },
     ref,
@@ -157,6 +170,9 @@ const ContentEditor = forwardRef(function ContentEditor(
     );
     const [reminderMinutes, setReminderMinutes] = useState(
         node.properties?.reminder_minutes ?? 10,
+    );
+    const [attendanceThresholdPercent, setAttendanceThresholdPercent] = useState(
+        node.properties?.attendance_threshold_percent ?? 50,
     );
 
     // Gamification settings (only used when featureFlags.gamification is true)
@@ -432,7 +448,9 @@ const ContentEditor = forwardRef(function ContentEditor(
             properties: {
                 ...baseProperties,
                 content,
-                duration,
+                duration: isScheduledLesson
+                    ? deriveSessionDuration(startDate, startTime, endDate, endTime)
+                    : duration,
                 is_preview: isPreview,
                 video_source: videoSource,
                 video_url: sessionKind === "in_person_session" ? "" : videoUrl,
@@ -443,6 +461,9 @@ const ContentEditor = forwardRef(function ContentEditor(
                     session_provider: sessionProvider,
                     session_visibility: sessionVisibility,
                     reminder_minutes: Number(reminderMinutes || 10),
+                    attendance_threshold_percent: Number(
+                        attendanceThresholdPercent || 50,
+                    ),
                     session_url: sessionKind === "in_person_session" ? "" : videoUrl,
                     meeting_password:
                         sessionKind === "live_meeting" ? meetingPassword : "",
@@ -470,6 +491,7 @@ const ContentEditor = forwardRef(function ContentEditor(
     }, [
         address,
         attendanceInstructions,
+        attendanceThresholdPercent,
         content,
         description,
         documentData,
@@ -511,6 +533,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         () => ({
             address,
             attendanceInstructions,
+            attendanceThresholdPercent,
             content,
             description,
             documentData,
@@ -540,6 +563,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         [
             address,
             attendanceInstructions,
+            attendanceThresholdPercent,
             content,
             description,
             documentData,
@@ -660,7 +684,7 @@ const ContentEditor = forwardRef(function ContentEditor(
     const titleErrorMessage =
         getFieldError("title") || titleMinLengthError || titleMaxLengthError;
     const descriptionMinLengthError =
-        descriptionTextLength > 0 && descriptionTextLength < 50
+        !isScheduledLesson && descriptionTextLength > 0 && descriptionTextLength < 50
             ? "Enter at least 50 characters."
             : undefined;
     const contentMinLengthError =
@@ -824,6 +848,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 sessionProvider,
                                 sessionVisibility,
                                 reminderMinutes,
+                                attendanceThresholdPercent,
                                 videoUrl,
                                 meetingPassword,
                                 recordingUrl,
@@ -831,7 +856,6 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 startTime,
                                 endDate,
                                 endTime,
-                                duration,
                                 timezone,
                                 venue,
                                 room,
@@ -847,7 +871,6 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 startTime: getFieldError("startTime"),
                                 endDate: getFieldError("endDate"),
                                 endTime: getFieldError("endTime"),
-                                duration: getFieldError("duration"),
                                 timezone: getFieldError("timezone"),
                                 venue: getFieldError("venue"),
                                 address: getFieldError("address"),
@@ -855,11 +878,15 @@ const ContentEditor = forwardRef(function ContentEditor(
                             nodeId={node.id}
                             persisted={hasPersistedNodeId}
                             onBlur={handleBlur}
+                            onSaveBeforeMeet={() =>
+                                autosave.flush({ force: true })
+                            }
                             onChange={(changes) => {
                                 if (Object.hasOwn(changes, "sessionKind")) setSessionKind(changes.sessionKind);
                                 if (Object.hasOwn(changes, "sessionProvider")) setSessionProvider(changes.sessionProvider);
                                 if (Object.hasOwn(changes, "sessionVisibility")) setSessionVisibility(changes.sessionVisibility);
                                 if (Object.hasOwn(changes, "reminderMinutes")) setReminderMinutes(changes.reminderMinutes);
+                                if (Object.hasOwn(changes, "attendanceThresholdPercent")) setAttendanceThresholdPercent(changes.attendanceThresholdPercent);
                                 if (Object.hasOwn(changes, "videoUrl")) setVideoUrl(changes.videoUrl);
                                 if (Object.hasOwn(changes, "meetingPassword")) setMeetingPassword(changes.meetingPassword);
                                 if (Object.hasOwn(changes, "recordingUrl")) setRecordingUrl(changes.recordingUrl);
@@ -867,7 +894,6 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 if (Object.hasOwn(changes, "startTime")) setStartTime(changes.startTime);
                                 if (Object.hasOwn(changes, "endDate")) setEndDate(changes.endDate);
                                 if (Object.hasOwn(changes, "endTime")) setEndTime(changes.endTime);
-                                if (Object.hasOwn(changes, "duration")) setDuration(changes.duration);
                                 if (Object.hasOwn(changes, "timezone")) setTimezone(changes.timezone);
                                 if (Object.hasOwn(changes, "venue")) setVenue(changes.venue);
                                 if (Object.hasOwn(changes, "room")) setRoom(changes.room);
@@ -916,7 +942,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                     )}
 
                     {/* Common Toggles */}
-                    <Box
+                    {!isScheduledLesson && <Box
                         sx={{
                             display: "flex",
                             flexDirection: "column",
@@ -959,7 +985,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 </Box>
                             }
                         />
-                    </Box>
+                    </Box>}
 
                     {/* Rich Text Editor - Short Description */}
                     <Box
@@ -975,12 +1001,18 @@ const ContentEditor = forwardRef(function ContentEditor(
                             }
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
-                            Short description of the lesson *
+                            {isScheduledLesson
+                                ? "Summary (optional)"
+                                : "Short description of the lesson *"}
                         </Typography>
                         <RichTextEditor
                             value={description}
                             onChange={setDescription}
-                            placeholder="Enter a brief description of the lesson (min 50 characters)..."
+                            placeholder={
+                                isScheduledLesson
+                                    ? "Optional class summary"
+                                    : "Enter a brief description of the lesson (min 50 characters)..."
+                            }
                             minHeight={100}
                             imageUploadUrl={inlineImageUploadUrl}
                         />

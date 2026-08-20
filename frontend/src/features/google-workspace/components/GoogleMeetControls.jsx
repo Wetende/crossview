@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Button, Checkbox, FormControlLabel, Link, Stack } from "@mui/material";
 import { workspaceApi } from "../api/workspaceApi";
 
-export default function GoogleMeetControls({ nodeId, persisted }) {
+export default function GoogleMeetControls({ nodeId, persisted, beforeCreate }) {
     const [state, setState] = useState(null);
     const [inviteLearners, setInviteLearners] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -25,7 +25,13 @@ export default function GoogleMeetControls({ nodeId, persisted }) {
     };
     const create = async () => {
         setBusy(true); setMessage(null);
-        try { const result = await workspaceApi.createMeet(nodeId, { inviteLearners, operationId: crypto.randomUUID() }); setState((current) => ({ ...current, session: result.session })); setMessage({ severity: result.created ? "success" : "info", text: result.created ? "Google Meet is ready." : "Google is generating the Meet link. It will retry automatically." }); }
+        try {
+            const saveResult = await beforeCreate?.();
+            if (saveResult?.ok === false) {
+                throw saveResult.error || new Error("Save the lesson schedule before creating the Meet.");
+            }
+            const result = await workspaceApi.createMeet(nodeId, { inviteLearners, operationId: crypto.randomUUID() }); setState((current) => ({ ...current, session: result.session })); setMessage({ severity: result.created ? "success" : "info", text: result.created ? "Google Meet is ready." : "Google is generating the Meet link. It will retry automatically." });
+        }
         catch (error) { setMessage({ severity: "error", text: error.message }); }
         finally { setBusy(false); }
     };
@@ -34,6 +40,6 @@ export default function GoogleMeetControls({ nodeId, persisted }) {
         {connection && !connection.available && <Alert severity="info">Google Workspace is not configured for this deployment.</Alert>}
         {connection?.available && (!connection.connected || !calendarAuthorized) && <Button variant="outlined" disabled={busy} onClick={() => connect(["calendar_events"])}>Connect Google Calendar</Button>}
         {connection?.available && calendarAuthorized && !attendanceAuthorized && <Button variant="text" disabled={busy} onClick={() => connect(["calendar_events", "meet_attendance"])}>Enable attendance and recordings (optional)</Button>}
-        {session?.joinUrl ? <Stack spacing={1}><Alert severity="success">Google Meet ready. {session.calendarHtmlLink && <Link href={session.calendarHtmlLink} target="_blank" rel="noreferrer">Open Calendar event</Link>}</Alert>{attendanceAuthorized && <Button variant="outlined" disabled={busy} onClick={async () => { setBusy(true); try { const result = await workspaceApi.syncMeet(nodeId); setState((current) => ({ ...current, session: result.session })); } catch (error) { setMessage({ severity: "error", text: error.message }); } finally { setBusy(false); } }}>Synchronize attendance</Button>}</Stack> : calendarAuthorized && <><FormControlLabel control={<Checkbox checked={inviteLearners} onChange={(event) => setInviteLearners(event.target.checked)} />} label="Invite enrolled learners" /><Button variant="contained" disabled={busy} onClick={create}>Save & create Google Meet</Button></>}
+        {session?.joinUrl ? <Stack spacing={1}><Alert severity="success">Google Meet ready. {session.calendarHtmlLink && <Link href={session.calendarHtmlLink} target="_blank" rel="noreferrer">Open Calendar event</Link>}</Alert>{attendanceAuthorized && <Button variant="outlined" disabled={busy} onClick={async () => { setBusy(true); try { const result = await workspaceApi.syncMeet(nodeId); setState((current) => ({ ...current, session: result.session })); } catch (error) { setMessage({ severity: "error", text: error.message }); } finally { setBusy(false); } }}>Synchronize attendance</Button>}</Stack> : calendarAuthorized && <><Alert severity={session?.creationState === "failed" ? "warning" : "info"}>{session?.creationState === "creating" ? "Google is creating this Meet link." : session?.creationState === "failed" ? session.lastSyncError || "Meet creation failed. Save and retry." : "Google Meet has not been created."}</Alert><FormControlLabel control={<Checkbox checked={inviteLearners} onChange={(event) => setInviteLearners(event.target.checked)} />} label="Invite enrolled learners" /><Button variant="contained" disabled={busy} onClick={create}>{session?.creationState === "failed" ? "Save & retry Google Meet" : "Save & create Google Meet"}</Button></>}
     </Stack>;
 }

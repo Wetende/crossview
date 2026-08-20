@@ -31,6 +31,7 @@ describe("builderTabs", () => {
                 "faq",
                 "notice",
                 "engagement",
+                "live-classes",
             ],
         );
         expect(normalizeBuilderTab(baseProgram, "drip")).toBe("drip");
@@ -56,6 +57,20 @@ describe("builderTabs", () => {
 
     it("rejects retired Classroom routes", () => {
         expect(normalizeBuilderTab(baseProgram, "classroom")).toBe("curriculum");
+    });
+
+    it("hides Live Classes for a locked self-paced product", () => {
+        const lockedSelfPaced = {
+            ...baseProgram,
+            deliveryMode: "self_paced",
+            deliveryModeLocked: true,
+        };
+        expect(
+            getAvailableBuilderTabs(lockedSelfPaced).map((tab) => tab.value),
+        ).not.toContain("live-classes");
+        expect(normalizeBuilderTab(lockedSelfPaced, "live-classes")).toBe(
+            "curriculum",
+        );
     });
 
     it("uses the base manage URL for curriculum and query params for other tabs", () => {
