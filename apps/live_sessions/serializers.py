@@ -20,6 +20,10 @@ class ScheduledLearningSessionWriteSerializer(serializers.Serializer):
     calendarVisibility = serializers.ChoiceField(
         choices=["private", "default"], required=False, default="private"
     )
+    reminderMinutes = serializers.IntegerField(required=False, min_value=0, max_value=10080)
+    inviteLearners = serializers.BooleanField(required=False, default=False)
+    sendUpdates = serializers.ChoiceField(required=False, choices=["all", "externalOnly", "none"])
+    attendanceThresholdPercent = serializers.IntegerField(required=False, min_value=1, max_value=100)
     venue = serializers.CharField(required=False, allow_blank=True, max_length=255)
     room = serializers.CharField(required=False, allow_blank=True, max_length=255)
     address = serializers.CharField(required=False, allow_blank=True, max_length=2000)

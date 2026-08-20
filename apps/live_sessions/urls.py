@@ -5,6 +5,7 @@ from . import views
 app_name = "live_sessions"
 
 urlpatterns = [
+    path("classes/", views.LiveClassesDashboardView.as_view(), name="classes-dashboard"),
     path(
         "nodes/<int:node_id>/",
         views.ScheduledLearningSessionView.as_view(),
@@ -35,4 +36,5 @@ urlpatterns = [
         views.GoogleMeetSyncView.as_view(),
         name="google-meet-sync",
     ),
+    path("nodes/<int:node_id>/google-meet/participants/map/", views.GoogleParticipantMappingView.as_view(), name="google-meet-participant-map"),
 ]

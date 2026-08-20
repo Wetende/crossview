@@ -71,8 +71,8 @@ def _claim_jobs(limit, now, job_ids=None):
 
 
 def _run_job(job):
-    from apps.google_classroom.adapter import ClassroomAPIError
-    from apps.google_classroom.meet import (
+    from apps.google_workspace.adapter import GoogleWorkspaceAPIError
+    from apps.google_workspace.meet import (
         GoogleMeetAdapter,
         apply_meet_conference,
         credential_for_session,
@@ -84,10 +84,13 @@ def _run_job(job):
     if session.provider != ScheduledLearningSession.Provider.GOOGLE_MEET:
         return {"skipped": "External provider has no native synchronization."}
 
-    credential = credential_for_session(session, job.actor)
+    credential = credential_for_session(
+        session, job.actor,
+        capability="meet_attendance" if job.job_type == "google_meet_attendance" else "calendar_events",
+    )
     adapter = GoogleMeetAdapter(credential)
     if job.job_type == "google_meet_create":
-        enrollment_ids = job.payload.get("inviteEnrollmentIds", [])
+        enrollment_ids = job.payload.get("inviteEnrollmentIds", []) if session.invite_learners else []
         enrollments = Enrollment.objects.filter(
             id__in=enrollment_ids,
             program=session.node.program,
@@ -105,13 +108,10 @@ def _run_job(job):
             invited_enrollment_ids=[row.id for row in enrollments if row.user.email],
             credential=credential,
         )
-        enqueue_session_job(
-            session,
-            "google_meet_attendance",
-            actor=job.actor,
-            operation_id=f"conference:{session.id}",
-            available_at=session.ends_at + timedelta(minutes=5),
-        )
+        # Meet REST scope is optional. Calendar-only teachers can still create classes.
+        from apps.google_workspace.configuration import granted_capabilities
+        if "meet_attendance" in granted_capabilities(credential):
+            enqueue_session_job(session, "google_meet_attendance", actor=job.actor, operation_id=f"conference:{session.id}", available_at=session.ends_at + timedelta(minutes=5))
         return {
             "eventId": session.provider_event_id,
             "joinUrlCreated": bool(session.join_url),
@@ -153,14 +153,14 @@ def _run_job(job):
         return {"eventId": session.provider_event_id, "cancelled": True}
     if job.job_type == "google_meet_attendance":
         return apply_meet_conference(session, adapter.collect_conference(session))
-    raise ClassroomAPIError(
+    raise GoogleWorkspaceAPIError(
         "Unsupported live-session synchronization job.",
         category="invalid_job",
     )
 
 
 def process_live_session_jobs(*, limit=100, now=None, job_ids=None):
-    from apps.google_classroom.adapter import ClassroomAPIError
+    from apps.google_workspace.adapter import GoogleWorkspaceAPIError
 
     now = now or timezone.now()
     jobs = _claim_jobs(limit, now, job_ids=job_ids)
@@ -170,8 +170,8 @@ def process_live_session_jobs(*, limit=100, now=None, job_ids=None):
         try:
             result = _run_job(job)
         except Exception as exc:
-            if not isinstance(exc, ClassroomAPIError):
-                exc = ClassroomAPIError(
+            if not isinstance(exc, GoogleWorkspaceAPIError):
+                exc = GoogleWorkspaceAPIError(
                     "Live-session synchronization failed unexpectedly.",
                     category="remote_error",
                 )

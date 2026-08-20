@@ -10,7 +10,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.progression.models import Enrollment
-from apps.progression.services import ProgressionEngine
 
 from .crypto import decrypt_session_secret, encrypt_session_secret
 from .models import ScheduledLearningSession, SessionAttendance, SessionAttendanceAudit
@@ -199,18 +198,16 @@ def sync_scheduled_session_from_node(node, *, actor=None):
         "address": str(properties.get("address") or "").strip(),
         "directions": str(properties.get("directions") or "").strip(),
         "attendance_instructions": str(properties.get("attendance_instructions") or "").strip(),
+        "calendar_visibility": str(properties.get("session_visibility") or "private"),
+        "reminder_minutes": int(properties.get("reminder_minutes") or 10),
+        "invite_learners": bool(properties.get("invite_learners", False)),
+        "send_updates": str(properties.get("send_updates") or "none"),
+        "attendance_threshold_percent": int(properties.get("attendance_threshold_percent") or 50),
     }
     session, created = ScheduledLearningSession.objects.update_or_create(
         node=node,
         defaults={**defaults, **({"created_by": actor} if actor and not hasattr(node, "scheduled_session") else {})},
     )
-    provider_metadata = dict(session.provider_metadata or {})
-    provider_metadata["calendarVisibility"] = str(
-        properties.get("session_visibility") or "private"
-    )
-    if provider_metadata != session.provider_metadata:
-        session.provider_metadata = provider_metadata
-        session.save(update_fields=["provider_metadata", "updated_at"])
     passcode = str(properties.get("meeting_password") or "")
     if passcode:
         session.passcode_ciphertext = encrypt_session_secret(passcode)
@@ -280,8 +277,11 @@ def serialize_session_for_author(session):
         "status": session.status,
         "providerEventId": session.provider_event_id,
         "calendarVisibility": (session.provider_metadata or {}).get(
-            "calendarVisibility", "private"
+            "calendarVisibility", session.calendar_visibility
         ),
+        "reminderMinutes": session.reminder_minutes,
+        "inviteLearners": session.invite_learners,
+        "sendUpdates": session.send_updates,
         "calendarHtmlLink": (session.provider_metadata or {}).get(
             "calendarHtmlLink", ""
         ),
@@ -489,11 +489,4 @@ def override_attendance(*, session, enrollment, status, reason, actor):
         resulting_status=status,
         reason=str(reason).strip(),
     )
-    if status == SessionAttendance.Status.PRESENT:
-        ProgressionEngine().mark_complete(
-            enrollment=enrollment,
-            node=session.node,
-            completion_type="manual",
-            metadata={"source": "attendance_override", "sessionId": session.id},
-        )
     return attendance

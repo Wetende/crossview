@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.api_permissions import IsInstructorOrStaff, get_object_in_instructor_scope
+from apps.core.api_permissions import IsInstructorOrStaff, get_object_in_instructor_scope, scope_queryset_to_instructor_programs
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment
 
@@ -65,6 +65,10 @@ class ScheduledLearningSessionView(APIView):
                 "session_url": data.get("joinUrl", ""),
                 "recording_url": data.get("recordingUrl", ""),
                 "session_visibility": data.get("calendarVisibility", "private"),
+                "reminder_minutes": data.get("reminderMinutes", 10),
+                "invite_learners": data.get("inviteLearners", False),
+                "send_updates": data.get("sendUpdates", "none"),
+                "attendance_threshold_percent": data.get("attendanceThresholdPercent", 50),
                 "venue": data.get("venue", ""),
                 "room": data.get("room", ""),
                 "address": data.get("address", ""),
@@ -154,8 +158,8 @@ class GoogleMeetPreviewView(APIView):
     permission_classes = [IsInstructorOrStaff]
 
     def get(self, request, node_id):
-        from apps.google_classroom.meet import eligible_attendee_preview
-        from apps.google_classroom.services import serialize_connection
+        from apps.google_workspace.meet import eligible_attendee_preview
+        from apps.google_workspace.services import serialize_connection
 
         session = _google_meet_session(request, node_id)
         return Response(
@@ -171,10 +175,10 @@ class GoogleMeetCreateView(APIView):
     permission_classes = [IsInstructorOrStaff]
 
     def post(self, request, node_id):
-        from apps.google_classroom.adapter import ClassroomAPIError
-        from apps.google_classroom.configuration import require_capabilities
-        from apps.google_classroom.meet import eligible_attendee_preview
-        from apps.google_classroom.services import require_connected_credential
+        from apps.google_workspace.adapter import GoogleWorkspaceAPIError
+        from apps.google_workspace.configuration import require_capabilities
+        from apps.google_workspace.meet import eligible_attendee_preview
+        from apps.google_workspace.services import require_connected_credential
 
         session = _google_meet_session(request, node_id)
         serializer = GoogleMeetCreateSerializer(data=request.data)
@@ -185,11 +189,15 @@ class GoogleMeetCreateView(APIView):
             )
         try:
             credential = require_connected_credential(request.user)
-            require_capabilities(
-                credential, ["calendar_events", "meet_attendance"]
-            )
-        except (DjangoValidationError, ClassroomAPIError) as exc:
+            require_capabilities(credential, ["calendar_events"])
+        except (DjangoValidationError, GoogleWorkspaceAPIError) as exc:
             return _error(exc)
+        if serializer.validated_data["inviteLearners"]:
+            session.invite_learners = True
+            # An explicit invitation must be delivered; Calendar's default is no email.
+            if session.send_updates == "none":
+                session.send_updates = "all"
+            session.save(update_fields=["invite_learners", "send_updates", "updated_at"])
         preview = eligible_attendee_preview(session)
         enrollment_ids = (
             [
@@ -259,6 +267,37 @@ class GoogleMeetSyncView(APIView):
                 ],
             }
         )
+
+
+class LiveClassesDashboardView(APIView):
+    """Course-linked central instructor/staff view; standalone meetings are excluded."""
+    permission_classes = [IsInstructorOrStaff]
+
+    def get(self, request):
+        sessions = scope_queryset_to_instructor_programs(
+            ScheduledLearningSession.objects.filter(provider=ScheduledLearningSession.Provider.GOOGLE_MEET),
+            request.user,
+            "node__program_id",
+        ).select_related("node", "node__program").order_by("starts_at")
+        return Response({"results": [{**serialize_session_for_author(item), "courseId": item.node.program_id, "courseTitle": item.node.program.name, "nodeId": item.node_id} for item in sessions]})
+
+
+class GoogleParticipantMappingView(APIView):
+    permission_classes = [IsInstructorOrStaff]
+
+    def post(self, request, node_id):
+        from apps.google_workspace.models import GoogleParticipantIdentity
+        session = _google_meet_session(request, node_id)
+        external_id = str(request.data.get("externalUserId") or "").removeprefix("users/").strip()
+        enrollment_id = request.data.get("enrollmentId")
+        if not external_id:
+            return Response({"detail": "Only signed-in Google participants can be mapped."}, status=status.HTTP_400_BAD_REQUEST)
+        enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program=session.node.program)
+        GoogleParticipantIdentity.objects.update_or_create(
+            google_user_id=external_id,
+            defaults={"user": enrollment.user, "source": "manual_mapping", "verified_by": request.user},
+        )
+        return Response({"mapped": True, "externalUserId": external_id, "enrollmentId": enrollment.id})
 
     def post(self, request, node_id):
         import uuid

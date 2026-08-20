@@ -51,6 +51,14 @@ class ScheduledLearningSession(TimeStampedModel):
         default=50,
         validators=[MinValueValidator(1), MaxValueValidator(100)],
     )
+    calendar_visibility = models.CharField(
+        max_length=16, choices=[("private", "Private"), ("default", "Calendar default")], default="private"
+    )
+    reminder_minutes = models.PositiveSmallIntegerField(default=10)
+    send_updates = models.CharField(
+        max_length=16, choices=[("all", "All invitees"), ("externalOnly", "External invitees"), ("none", "No invitations")], default="none"
+    )
+    invite_learners = models.BooleanField(default=False)
     status = models.CharField(
         max_length=16, choices=Status.choices, default=Status.SCHEDULED
     )
