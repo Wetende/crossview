@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from cryptography.fernet import Fernet
 from django.conf import settings
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -118,6 +119,11 @@ class GoogleMeetLessonTests(TestCase):
             "missing_google_meet",
             {error["type"] for error in publish_validation["errors"]},
         )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.instructor.email])
+        self.assertIn("Google Meet created", mail.outbox[0].subject)
+        self.assertIn("Weekly Meet", mail.outbox[0].body)
+        self.assertIn("https://meet.google.com/auto-meet-link", mail.outbox[0].body)
         learner_session = serialize_session_for_student(
             self.session,
             enrollment=self.enrollment,
