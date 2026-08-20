@@ -193,6 +193,15 @@ def sync_scheduled_session_from_node(node, *, actor=None):
     if lesson_type not in SCHEDULED_ACTIVITY_TYPES:
         return None
     schedule = validate_session_properties(properties)
+    existing_session = ScheduledLearningSession.objects.filter(node=node).first()
+    if (
+        existing_session
+        and schedule["provider"] == ScheduledLearningSession.Provider.GOOGLE_MEET
+        and not schedule["join_url"]
+    ):
+        # Google owns this URL. A lesson edit may omit session_url, but must not
+        # erase a Meet that has already been provisioned for the class.
+        schedule["join_url"] = existing_session.join_url
     defaults = {
         **schedule,
         "title": node.title,
@@ -210,7 +219,10 @@ def sync_scheduled_session_from_node(node, *, actor=None):
     }
     session, created = ScheduledLearningSession.objects.update_or_create(
         node=node,
-        defaults={**defaults, **({"created_by": actor} if actor and not hasattr(node, "scheduled_session") else {})},
+        defaults={
+            **defaults,
+            **({"created_by": actor} if actor and not existing_session else {}),
+        },
     )
     passcode = str(properties.get("meeting_password") or "")
     if passcode:

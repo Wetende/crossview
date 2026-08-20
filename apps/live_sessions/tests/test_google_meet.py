@@ -10,11 +10,13 @@ from django.utils import timezone
 from apps.core.models import Program
 from apps.core.tests.factories import UserFactory
 from apps.curriculum.models import CurriculumNode
+from apps.curriculum.services import CoursePublishValidationService
 from apps.google_workspace.configuration import encrypt_refresh_token
 from apps.google_workspace.meet import GoogleMeetAdapter, apply_meet_conference
 from apps.google_workspace.models import GoogleParticipantIdentity, GoogleWorkspaceCredential
 from apps.progression.models import Enrollment, NodeCompletion
 from apps.live_sessions.models import LiveSessionSyncJob, ScheduledLearningSession
+from apps.live_sessions.services import serialize_session_for_student
 
 
 class GoogleMeetLessonTests(TestCase):
@@ -50,6 +52,82 @@ class GoogleMeetLessonTests(TestCase):
         self.session.refresh_from_db()
         self.assertTrue(self.session.invite_learners)
         self.assertEqual(self.session.send_updates, "all")
+
+    def test_saving_google_meet_lesson_automatically_creates_calendar_event(self):
+        self.client.force_login(self.instructor)
+        adapter = Mock()
+        adapter.create_event.return_value = {
+            "id": "automatic-calendar-event",
+            "hangoutLink": "https://meet.google.com/auto-meet-link",
+            "conferenceData": {
+                "conferenceId": "auto-meet-link",
+                "entryPoints": [
+                    {
+                        "entryPointType": "video",
+                        "uri": "https://meet.google.com/auto-meet-link",
+                    }
+                ],
+            },
+        }
+
+        with patch(
+            "apps.google_workspace.meet.GoogleMeetAdapter",
+            return_value=adapter,
+        ):
+            response = self.client.post(
+                reverse("core:instructor.node_update", args=[self.node.id]),
+                {
+                    "title": "Weekly Meet",
+                    "description": "A scheduled class for enrolled learners.",
+                    "properties": {
+                        "lesson_type": "google_meet",
+                        "session_kind": "live_meeting",
+                        "provider": "google_meet",
+                        "start_date": self.session.starts_at.date().isoformat(),
+                        "start_time": self.session.starts_at.strftime("%H:%M"),
+                        "end_date": self.session.ends_at.date().isoformat(),
+                        "end_time": self.session.ends_at.strftime("%H:%M"),
+                        "timezone": "Africa/Nairobi",
+                    },
+                },
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.session.refresh_from_db()
+        self.node.refresh_from_db()
+        self.assertEqual(
+            self.session.join_url,
+            "https://meet.google.com/auto-meet-link",
+        )
+        self.assertEqual(
+            self.node.properties["session_url"],
+            "https://meet.google.com/auto-meet-link",
+        )
+        self.assertTrue(
+            LiveSessionSyncJob.objects.filter(
+                session=self.session,
+                job_type="google_meet_create",
+                status=LiveSessionSyncJob.Status.SUCCEEDED,
+            ).exists()
+        )
+        publish_validation = CoursePublishValidationService().validate_for_publish(
+            self.program
+        )
+        self.assertNotIn(
+            "missing_google_meet",
+            {error["type"] for error in publish_validation["errors"]},
+        )
+        learner_session = serialize_session_for_student(
+            self.session,
+            enrollment=self.enrollment,
+            now=self.session.starts_at - timedelta(minutes=5),
+        )
+        self.assertTrue(learner_session["hasJoinDetails"])
+        self.assertEqual(
+            learner_session["joinUrl"],
+            "https://meet.google.com/auto-meet-link",
+        )
 
     def test_manual_retry_reuses_a_stable_calendar_request_id(self):
         self.client.force_login(self.instructor)

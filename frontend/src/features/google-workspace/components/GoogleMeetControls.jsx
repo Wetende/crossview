@@ -142,17 +142,19 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
                     inviteLearners,
                     operationId: crypto.randomUUID(),
                 });
+                const ready = Boolean(result.session?.joinUrl);
+                const skipped = !result.created && ready;
                 setState((current) => ({
                     ...current,
                     session: result.session,
                 }));
                 setMessage({
-                    severity: result.created ? "success" : "info",
-                    text: result.created
+                    severity: ready ? "success" : "info",
+                    text: ready
                         ? "Google Meet is ready."
                         : "Google is generating the Meet link. It will retry automatically.",
                 });
-                return { ok: true, ...result };
+                return { ok: true, skipped, ...result };
             } catch (error) {
                 setMessage({ severity: "error", text: error.message });
                 return { ok: false, error };

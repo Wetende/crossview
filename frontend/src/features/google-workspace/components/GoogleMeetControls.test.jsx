@@ -90,4 +90,33 @@ describe("GoogleMeetControls", () => {
             "Connect Google Calendar before creating this lesson.",
         );
     });
+
+    test("treats a Meet created by the lesson save as ready", async () => {
+        workspaceApi.createMeet.mockResolvedValue({
+            created: false,
+            session: {
+                joinUrl: "https://meet.google.com/already-created",
+                creationState: "ready",
+            },
+        });
+        const controlsRef = createRef();
+
+        render(
+            <GoogleMeetControls
+                ref={controlsRef}
+                nodeId={99}
+                persisted
+                automaticCreation
+            />,
+        );
+
+        let result;
+        await act(async () => {
+            result = await controlsRef.current.provision();
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.skipped).toBe(true);
+        expect(result.session.creationState).toBe("ready");
+    });
 });

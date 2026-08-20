@@ -7400,11 +7400,28 @@ def instructor_node_update(request, node_id: int):
         "live_stream",
         "in_person_session",
     }:
-        from apps.live_sessions.jobs import enqueue_session_job
+        from apps.live_sessions.jobs import (
+            enqueue_session_job,
+            process_live_session_jobs,
+        )
+        from apps.live_sessions.models import ScheduledLearningSession
         from apps.live_sessions.services import sync_scheduled_session_from_node
 
         session = sync_scheduled_session_from_node(node, actor=request.user)
-        if session.provider_event_id:
+        if (
+            session.provider == ScheduledLearningSession.Provider.GOOGLE_MEET
+            and not session.join_url
+        ):
+            create_job = enqueue_session_job(
+                session,
+                "google_meet_create",
+                actor=request.user,
+                operation_id=(
+                    f"automatic-node-save:{node.id}:{node.updated_at.isoformat()}"
+                ),
+            )
+            process_live_session_jobs(job_ids=[create_job.id])
+        elif session.provider_event_id:
             enqueue_session_job(session, "update", actor=request.user)
 
     # Sync quiz questions to proper database tables if this is a quiz node
