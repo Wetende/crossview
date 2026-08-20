@@ -25,26 +25,50 @@ const request = async (url, options = {}) => {
 
 export const workspaceApi = {
     connection: () => request("/api/google-workspace/connection/"),
-    connect: (payload) => request("/api/google-workspace/connection/", { method: "POST", body: JSON.stringify(payload) }),
+    connect: (payload) =>
+        request("/api/google-workspace/connection/", {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }),
+    testConnection: () =>
+        request("/api/google-workspace/connection/test/", {
+            method: "POST",
+            body: "{}",
+        }),
     meetSettings: () => request("/api/google-workspace/meet-settings/"),
     liveClasses: () => request("/api/live-sessions/classes/"),
-    meetPreview: (nodeId) => request(`/api/live-sessions/nodes/${nodeId}/google-meet/preview/`),
-    createMeet: (nodeId, payload) => request(`/api/live-sessions/nodes/${nodeId}/google-meet/`, { method: "POST", body: JSON.stringify(payload) }),
-    syncMeet: (nodeId) => request(`/api/live-sessions/nodes/${nodeId}/google-meet/sync/`, { method: "POST", body: "{}" }),
+    meetPreview: (nodeId) =>
+        request(`/api/live-sessions/nodes/${nodeId}/google-meet/preview/`),
+    createMeet: (nodeId, payload) =>
+        request(`/api/live-sessions/nodes/${nodeId}/google-meet/`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }),
+    syncMeet: (nodeId) =>
+        request(`/api/live-sessions/nodes/${nodeId}/google-meet/sync/`, {
+            method: "POST",
+            body: "{}",
+        }),
     meetStatus: (nodeId) =>
         request(`/api/live-sessions/nodes/${nodeId}/google-meet/sync/`),
     attendance: (nodeId) =>
         request(`/api/live-sessions/nodes/${nodeId}/attendance/`),
     overrideAttendance: (nodeId, enrollmentId, payload) =>
-        request(`/api/live-sessions/nodes/${nodeId}/attendance/${enrollmentId}/`, {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-        }),
+        request(
+            `/api/live-sessions/nodes/${nodeId}/attendance/${enrollmentId}/`,
+            {
+                method: "PATCH",
+                body: JSON.stringify(payload),
+            },
+        ),
     cancelSession: (nodeId) =>
         request(`/api/live-sessions/nodes/${nodeId}/`, { method: "DELETE" }),
     mapParticipant: (nodeId, payload) =>
-        request(`/api/live-sessions/nodes/${nodeId}/google-meet/participants/map/`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-        }),
+        request(
+            `/api/live-sessions/nodes/${nodeId}/google-meet/participants/map/`,
+            {
+                method: "POST",
+                body: JSON.stringify(payload),
+            },
+        ),
 };

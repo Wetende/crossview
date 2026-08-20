@@ -12,7 +12,11 @@ from apps.core.api_permissions import IsInstructorOrStaff
 from .models import GoogleMeetSettings
 from .oauth import build_authorization_url, complete_authorization, disconnect_workspace
 from .serializers import GoogleMeetSettingsSerializer, OAuthConnectSerializer
-from .services import require_connected_credential, serialize_connection
+from .services import (
+    require_connected_credential,
+    serialize_connection,
+    verify_calendar_connection,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +43,26 @@ class GoogleWorkspaceConnectionView(APIView):
         except (ValidationError, ValueError, RuntimeError) as exc:
             return _error(exc)
         return Response({"disconnected": True})
+
+
+class GoogleWorkspaceConnectionTestView(APIView):
+    permission_classes = [IsInstructorOrStaff]
+
+    def post(self, request):
+        try:
+            credential = require_connected_credential(request.user)
+            diagnostic = verify_calendar_connection(credential)
+        except (ValidationError, ImproperlyConfigured) as exc:
+            return _error(exc)
+        connection = serialize_connection(request.user, reconcile=False)
+        connection["diagnostics"]["calendarAccess"] = diagnostic
+        return Response(
+            {
+                "ok": diagnostic.get("status") == "confirmed",
+                "diagnostic": diagnostic,
+                "connection": connection,
+            }
+        )
 
 
 class GoogleMeetSettingsView(APIView):

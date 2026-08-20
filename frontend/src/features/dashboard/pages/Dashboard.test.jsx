@@ -21,6 +21,13 @@ vi.mock("@/layouts/DashboardLayout", () => ({
     ),
 }));
 
+vi.mock(
+    "@/features/google-workspace/components/GoogleWorkspaceConnectionCard",
+    () => ({
+        default: () => <div>Google Calendar connection diagnostics</div>,
+    }),
+);
+
 describe("Student dashboard", () => {
     beforeEach(() => {
         mockUsePage.mockReturnValue({
@@ -131,6 +138,9 @@ describe("Role dashboard variants", () => {
         expect(screen.getByText("Recent submissions")).toBeInTheDocument();
         expect(screen.getByText("4 items")).toBeInTheDocument();
         expect(screen.getByText("No pending requests")).toBeInTheDocument();
+        expect(
+            screen.getByText("Google Calendar connection diagnostics"),
+        ).toBeInTheDocument();
     });
 
     test("renders admin metrics, actions, and activity", () => {

@@ -32,16 +32,8 @@ def require_connected_credential(user):
     return credential
 
 
-def _reconcile_calendar_capability(credential):
-    if not credential:
-        return {"status": "not_connected"}
-    if credential.status != GoogleWorkspaceCredential.Status.CONNECTED:
-        return {"status": credential.status}
-    if "calendar_events" in granted_capabilities(credential):
-        return {"status": "granted"}
-    if not credential.refresh_token_ciphertext:
-        return {"status": "missing_refresh_token"}
-
+def verify_calendar_connection(credential):
+    """Run a live, read-only Calendar request and return safe diagnostics."""
     from .adapter import GoogleWorkspaceAPIError
     from .meet import confirm_calendar_access
 
@@ -93,11 +85,25 @@ def _reconcile_calendar_capability(credential):
     return {"status": "confirmed"}
 
 
-def serialize_connection(user):
+def _reconcile_calendar_capability(credential):
+    if not credential:
+        return {"status": "not_connected"}
+    if credential.status != GoogleWorkspaceCredential.Status.CONNECTED:
+        return {"status": credential.status}
+    if "calendar_events" in granted_capabilities(credential):
+        return {"status": "granted"}
+    if not credential.refresh_token_ciphertext:
+        return {"status": "missing_refresh_token"}
+    return verify_calendar_connection(credential)
+
+
+def serialize_connection(user, *, reconcile=True):
     credential = GoogleWorkspaceCredential.objects.filter(user=user).first()
     configuration = workspace_configuration()
-    calendar_access = {"status": "not_configured"}
-    if configuration["available"]:
+    calendar_access = {
+        "status": "not_configured" if not configuration["available"] else "not_checked"
+    }
+    if configuration["available"] and reconcile:
         calendar_access = _reconcile_calendar_capability(credential)
     return {
         "available": configuration["available"],
