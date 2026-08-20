@@ -9,7 +9,7 @@ describe("GoogleSignInButton", () => {
         vi.restoreAllMocks();
     });
 
-    test("renders the Google button and preserves the resume next URL", async () => {
+    test("uses the redirect button without FedCM or an automatic prompt", async () => {
         const initialize = vi.fn();
         const prompt = vi.fn();
         const renderButton = vi.fn((element) => {
@@ -30,7 +30,6 @@ describe("GoogleSignInButton", () => {
                 clientId="google-client-id"
                 loginUri="https://crossview.test/auth/google/onetap/"
                 nextUrl="/programs/enrollment/resume/?intent=signed-intent"
-                autoPrompt
             />,
         );
 
@@ -42,6 +41,9 @@ describe("GoogleSignInButton", () => {
                 login_uri: "https://crossview.test/auth/google/onetap/",
             }),
         );
+        const configuration = initialize.mock.calls[0][0];
+        expect(configuration).not.toHaveProperty("use_fedcm_for_prompt");
+        expect(configuration).not.toHaveProperty("use_fedcm_for_button");
         expect(renderButton).toHaveBeenCalledWith(
             expect.any(HTMLDivElement),
             expect.objectContaining({
@@ -50,6 +52,6 @@ describe("GoogleSignInButton", () => {
                 width: 320,
             }),
         );
-        expect(prompt).toHaveBeenCalled();
+        expect(prompt).not.toHaveBeenCalled();
     });
 });

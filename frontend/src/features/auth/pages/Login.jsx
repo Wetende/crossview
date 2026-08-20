@@ -115,7 +115,6 @@ export default function Login({
                                             nextUrl={nextUrl}
                                             context="signin"
                                             text="continue_with"
-                                            autoPrompt={!nextUrl}
                                         />
                                     </Box>
                                     <Divider sx={{ mb: 2 }}>
