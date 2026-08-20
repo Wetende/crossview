@@ -52,10 +52,6 @@ from apps.progression.services import ProgressionEngine
 from apps.progression.gamification import serialize_gamification
 from apps.core.utils import serialize_user, should_render_inertia_prop
 from apps.notifications.services import NotificationService
-from apps.google_classroom.services import (
-    serialize_student_classroom_publication,
-    serialize_student_companion,
-)
 
 
 logger = logging.getLogger(__name__)
@@ -807,9 +803,6 @@ def _render_course_player(request, enrollment, node, completions, status_map):
                     "properties": node_properties,
                 },
                 "supplements": blocks_data,
-                "classroomPublication": serialize_student_classroom_publication(
-                    program, node
-                ),
             },
             "program": _build_program_player_payload(program, enrollment),
             "instructor": primary_instructor,
@@ -1162,9 +1155,6 @@ def session_viewer(request, pk: int, node_id: int):
                 "completionPolicy": completion_policy,
                 "activityProgress": activity_progress,
                 "scheduledSession": scheduled_session_payload,
-                "classroomPublication": serialize_student_classroom_publication(
-                    enrollment.program, node
-                ),
             },
             "program": _build_program_player_payload(enrollment.program, enrollment),
             "instructor": primary_instructor,
@@ -1459,9 +1449,6 @@ def _build_enrollment_player_payload(enrollment, progress):
         "id": enrollment.id,
         "progressPercent": round(progress, 1),
         "gamification": serialize_gamification(enrollment),
-        "googleClassroom": serialize_student_companion(
-            enrollment.program, enrollment
-        ),
         "upcomingDeadlines": get_upcoming_deadlines_for_enrollments([enrollment]),
         **operations,
     }

@@ -71,6 +71,8 @@ INSTALLED_APPS = [
     "apps.inquiries",
     "apps.learning_operations",
     "apps.live_sessions",
+    "apps.google_workspace",
+    # Historical migration owner only. The Classroom runtime has been removed.
     "apps.google_classroom",
 ]
 
@@ -310,36 +312,12 @@ CURRICULUM_NODE_REQUIRED_PROPERTIES = {
 # contact email stored in PlatformSettings.
 INQUIRY_NOTIFICATION_EMAIL = os.getenv("INQUIRY_NOTIFICATION_EMAIL", "").strip()
 
-# Google Classroom authorization is separate from Google One Tap sign-in.
-GOOGLE_CLASSROOM_ENABLED = os.getenv("GOOGLE_CLASSROOM_ENABLED", "False").lower() == "true"
-GOOGLE_CLASSROOM_CLIENT_ID = os.getenv("GOOGLE_CLASSROOM_CLIENT_ID", "").strip()
-GOOGLE_CLASSROOM_CLIENT_SECRET = os.getenv("GOOGLE_CLASSROOM_CLIENT_SECRET", "").strip()
-GOOGLE_CLASSROOM_REDIRECT_URI = os.getenv("GOOGLE_CLASSROOM_REDIRECT_URI", "").strip()
-GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY = os.getenv(
-    "GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY", ""
-).strip()
-# Neutral Workspace settings allow the same teacher authorization to serve
-# Classroom, Calendar and Meet. Existing Classroom deployments keep working.
-GOOGLE_WORKSPACE_ENABLED = (
-    os.getenv(
-        "GOOGLE_WORKSPACE_ENABLED",
-        os.getenv("GOOGLE_CLASSROOM_ENABLED", "False"),
-    ).lower()
-    == "true"
-)
-GOOGLE_WORKSPACE_CLIENT_ID = os.getenv(
-    "GOOGLE_WORKSPACE_CLIENT_ID", GOOGLE_CLASSROOM_CLIENT_ID
-).strip()
-GOOGLE_WORKSPACE_CLIENT_SECRET = os.getenv(
-    "GOOGLE_WORKSPACE_CLIENT_SECRET", GOOGLE_CLASSROOM_CLIENT_SECRET
-).strip()
-GOOGLE_WORKSPACE_REDIRECT_URI = os.getenv(
-    "GOOGLE_WORKSPACE_REDIRECT_URI", GOOGLE_CLASSROOM_REDIRECT_URI
-).strip()
-GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY = os.getenv(
-    "GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY",
-    GOOGLE_CLASSROOM_TOKEN_ENCRYPTION_KEY,
-).strip()
+# Google Workspace teacher authorization is separate from Google One Tap sign-in.
+GOOGLE_WORKSPACE_ENABLED = os.getenv("GOOGLE_WORKSPACE_ENABLED", "False").lower() == "true"
+GOOGLE_WORKSPACE_CLIENT_ID = os.getenv("GOOGLE_WORKSPACE_CLIENT_ID", "").strip()
+GOOGLE_WORKSPACE_CLIENT_SECRET = os.getenv("GOOGLE_WORKSPACE_CLIENT_SECRET", "").strip()
+GOOGLE_WORKSPACE_REDIRECT_URI = os.getenv("GOOGLE_WORKSPACE_REDIRECT_URI", "").strip()
+GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY = os.getenv("GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY", "").strip()
 LIVE_SESSION_ENCRYPTION_KEY = os.getenv("LIVE_SESSION_ENCRYPTION_KEY", "").strip()
 PLATFORM_PUBLIC_BASE_URL = os.getenv("PLATFORM_PUBLIC_BASE_URL", "").strip().rstrip("/")
 

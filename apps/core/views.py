@@ -1193,6 +1193,21 @@ def google_one_tap_login(request):
     try:
         payload = _verify_google_one_tap_credential(credential)
         user, created = _get_or_create_google_one_tap_user(payload)
+        # Google Meet exposes the signed-in Google user identifier, not a name.
+        # Preserve the verified OIDC subject so attendance matching is explicit.
+        google_subject = str(payload.get("sub") or "").strip()
+        if google_subject:
+            from apps.google_workspace.models import GoogleParticipantIdentity
+
+            GoogleParticipantIdentity.objects.update_or_create(
+                google_user_id=google_subject,
+                defaults={
+                    "user": user,
+                    "verified_email": str(payload.get("email") or "").strip(),
+                    "source": "google_one_tap",
+                    "verified_by": None,
+                },
+            )
     except Exception:
         messages.error(request, "Google sign-in failed. Please try again.")
         return redirect(_login_url_with_next(request))
@@ -5980,12 +5995,6 @@ def serialize_program_data(program):
         get_course_engagement_policy,
         serialize_engagement_policy,
     )
-    from apps.google_classroom.configuration import classroom_configuration
-    from apps.google_classroom.services import (
-        course_link_for,
-        serialize_course_link,
-        serialize_publishable_resources,
-    )
 
     platform_settings = PlatformSettings.get_settings()
     platform_features = platform_settings.get_default_features_for_mode()
@@ -6203,11 +6212,6 @@ def serialize_program_data(program):
             "engagementPolicy": serialize_engagement_policy(
                 get_course_engagement_policy(program)
             ),
-            "googleClassroom": {
-                "available": classroom_configuration()["available"],
-                "link": serialize_course_link(course_link_for(program)),
-                "publishableResources": serialize_publishable_resources(program),
-            },
             "taxonomy": {
                 "level": level,
                 "builderHierarchy": builder_hierarchy,
