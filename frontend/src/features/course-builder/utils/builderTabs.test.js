@@ -16,26 +16,29 @@ const baseProgram = {
 
 describe("builderTabs", () => {
     it("normalizes unsupported or unknown tabs to curriculum", () => {
-        expect(normalizeBuilderTab(baseProgram, "practicum")).toBe("curriculum");
+        expect(normalizeBuilderTab(baseProgram, "practicum")).toBe(
+            "curriculum",
+        );
         expect(normalizeBuilderTab(baseProgram, "missing")).toBe("curriculum");
         expect(normalizeBuilderTab(baseProgram, null)).toBe("curriculum");
     });
 
     it("shows drip as an available builder tab", () => {
-        expect(getAvailableBuilderTabs(baseProgram).map((tab) => tab.value)).toEqual(
-            [
-                "curriculum",
-                "drip",
-                "settings",
-                "pricing",
-                "faq",
-                "notice",
-                "engagement",
-                "live-classes",
-            ],
-        );
+        expect(
+            getAvailableBuilderTabs(baseProgram).map((tab) => tab.value),
+        ).toEqual([
+            "curriculum",
+            "drip",
+            "settings",
+            "pricing",
+            "faq",
+            "notice",
+            "engagement",
+        ]);
         expect(normalizeBuilderTab(baseProgram, "drip")).toBe("drip");
-        expect(normalizeBuilderTab(baseProgram, "engagement")).toBe("engagement");
+        expect(normalizeBuilderTab(baseProgram, "engagement")).toBe(
+            "engagement",
+        );
     });
 
     it("includes practicum only when the program blueprint enables it", () => {
@@ -46,29 +49,28 @@ describe("builderTabs", () => {
             },
         };
 
-        expect(getAvailableBuilderTabs(baseProgram).map((tab) => tab.value)).not.toContain(
+        expect(
+            getAvailableBuilderTabs(baseProgram).map((tab) => tab.value),
+        ).not.toContain("practicum");
+        expect(
+            getAvailableBuilderTabs(practicumProgram).map((tab) => tab.value),
+        ).toContain("practicum");
+        expect(normalizeBuilderTab(practicumProgram, "practicum")).toBe(
             "practicum",
         );
-        expect(getAvailableBuilderTabs(practicumProgram).map((tab) => tab.value)).toContain(
-            "practicum",
-        );
-        expect(normalizeBuilderTab(practicumProgram, "practicum")).toBe("practicum");
     });
 
     it("rejects retired Classroom routes", () => {
-        expect(normalizeBuilderTab(baseProgram, "classroom")).toBe("curriculum");
+        expect(normalizeBuilderTab(baseProgram, "classroom")).toBe(
+            "curriculum",
+        );
     });
 
-    it("hides Live Classes for a locked self-paced product", () => {
-        const lockedSelfPaced = {
-            ...baseProgram,
-            deliveryMode: "self_paced",
-            deliveryModeLocked: true,
-        };
+    it("rejects the retired Live Classes route", () => {
         expect(
-            getAvailableBuilderTabs(lockedSelfPaced).map((tab) => tab.value),
+            getAvailableBuilderTabs(baseProgram).map((tab) => tab.value),
         ).not.toContain("live-classes");
-        expect(normalizeBuilderTab(lockedSelfPaced, "live-classes")).toBe(
+        expect(normalizeBuilderTab(baseProgram, "live-classes")).toBe(
             "curriculum",
         );
     });
@@ -93,7 +95,9 @@ describe("builderTabs", () => {
 
     it("normalizes settings sections without accepting removed top-level tabs", () => {
         expect(normalizeBuilderTab(baseProgram, "access")).toBe("curriculum");
-        expect(normalizeBuilderTab(baseProgram, "prerequisites")).toBe("curriculum");
+        expect(normalizeBuilderTab(baseProgram, "prerequisites")).toBe(
+            "curriculum",
+        );
         expect(normalizeSettingsSection("academic")).toBe("academic");
         expect(normalizeSettingsSection("access")).toBe("access");
         expect(normalizeSettingsSection("reviews")).toBe("reviews");

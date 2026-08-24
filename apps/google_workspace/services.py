@@ -97,7 +97,7 @@ def _reconcile_calendar_capability(credential):
     return verify_calendar_connection(credential)
 
 
-def serialize_connection(user, *, reconcile=True):
+def serialize_connection(user, *, reconcile=True, include_diagnostics=False):
     credential = GoogleWorkspaceCredential.objects.filter(user=user).first()
     configuration = workspace_configuration()
     calendar_access = {
@@ -105,7 +105,7 @@ def serialize_connection(user, *, reconcile=True):
     }
     if configuration["available"] and reconcile:
         calendar_access = _reconcile_calendar_capability(credential)
-    return {
+    connection = {
         "available": configuration["available"],
         "connected": bool(
             credential
@@ -113,10 +113,11 @@ def serialize_connection(user, *, reconcile=True):
         ),
         "status": credential.status if credential else "disconnected",
         "googleEmail": credential.google_email if credential else "",
-        "grantedScopes": credential.granted_scopes if credential else [],
         "grantedCapabilities": (
             sorted(granted_capabilities(credential)) if credential else []
         ),
         "lastError": credential.last_error if credential else "",
-        "diagnostics": {"calendarAccess": calendar_access},
     }
+    if include_diagnostics:
+        connection["diagnostics"] = {"calendarAccess": calendar_access}
+    return connection

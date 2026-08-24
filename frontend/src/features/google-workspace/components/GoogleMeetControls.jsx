@@ -27,21 +27,6 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
 
     const refresh = useCallback(async () => {
         const connection = await workspaceApi.connection();
-        if (
-            connection?.available &&
-            connection?.connected &&
-            !connection?.grantedCapabilities?.includes("calendar_events")
-        ) {
-            console.error(
-                "[Google Workspace] Connected account failed the Calendar access check",
-                {
-                    status: connection.status,
-                    grantedScopes: connection.grantedScopes,
-                    lastError: connection.lastError,
-                    diagnostics: connection.diagnostics,
-                },
-            );
-        }
         let session = null;
         if (persisted) {
             try {
@@ -66,8 +51,6 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
     const session = state.session;
     const calendarAuthorized =
         connection?.grantedCapabilities?.includes("calendar_events");
-    const attendanceAuthorized =
-        connection?.grantedCapabilities?.includes("meet_attendance");
 
     const connect = async (capabilities) => {
         setBusy(true);
@@ -175,12 +158,15 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
 
     useImperativeHandle(ref, () => ({ provision }), [provision]);
 
-    const synchronizeAttendance = async () => {
+    const cancelMeeting = async () => {
         setBusy(true);
         setMessage(null);
         try {
-            const result = await workspaceApi.syncMeet(nodeId);
-            setState((current) => ({ ...current, session: result.session }));
+            const result = await workspaceApi.cancelMeet(nodeId);
+            setState((current) => ({
+                ...current,
+                session: result.session,
+            }));
         } catch (error) {
             setMessage({ severity: "error", text: error.message });
         } finally {
@@ -189,7 +175,107 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
     };
 
     if (automaticCreation) {
-        return null;
+        const attendanceUrl = session?.courseId
+            ? `/instructor/programs/${session.courseId}/gradebook/?view=attendance&session=${session.nodeId}`
+            : null;
+        return (
+            <Stack spacing={1.25}>
+                {message && (
+                    <Alert severity={message.severity}>{message.text}</Alert>
+                )}
+                {connection && !connection.available && (
+                    <Alert severity="info">
+                        Google Calendar is not available for this deployment.
+                    </Alert>
+                )}
+                {connection?.available && !calendarAuthorized && (
+                    <Button
+                        variant="outlined"
+                        disabled={busy}
+                        onClick={() => connect(["calendar_events"])}
+                    >
+                        Connect Google Calendar
+                    </Button>
+                )}
+                {calendarAuthorized && session?.status === "cancelled" && (
+                    <Alert severity="warning">Google Meet cancelled.</Alert>
+                )}
+                {calendarAuthorized &&
+                    session?.joinUrl &&
+                    session.status !== "cancelled" && (
+                        <Alert severity="success">
+                            <Stack
+                                direction={{ xs: "column", sm: "row" }}
+                                spacing={1}
+                                alignItems={{ xs: "flex-start", sm: "center" }}
+                            >
+                                <span>Google Meet ready.</span>
+                                {session.calendarHtmlLink && (
+                                    <Link
+                                        href={session.calendarHtmlLink}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Open Calendar event
+                                    </Link>
+                                )}
+                                {session.recordingUrl && (
+                                    <Link
+                                        href={session.recordingUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Open recording
+                                    </Link>
+                                )}
+                                {session.hasEnded && attendanceUrl && (
+                                    <Link href={attendanceUrl}>
+                                        Review attendance
+                                    </Link>
+                                )}
+                                {!session.hasEnded && (
+                                    <Button
+                                        size="small"
+                                        color="error"
+                                        disabled={busy}
+                                        onClick={cancelMeeting}
+                                    >
+                                        Cancel meeting
+                                    </Button>
+                                )}
+                            </Stack>
+                        </Alert>
+                    )}
+                {calendarAuthorized && !session?.joinUrl && persisted && (
+                    <Alert
+                        severity={
+                            session?.creationState === "failed"
+                                ? "warning"
+                                : "info"
+                        }
+                        action={
+                            session?.creationState === "failed" ? (
+                                <Button
+                                    color="inherit"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        provision({ saveFirst: true })
+                                    }
+                                >
+                                    Retry
+                                </Button>
+                            ) : null
+                        }
+                    >
+                        {session?.creationState === "creating"
+                            ? "Google is creating the Meet link."
+                            : session?.creationState === "failed"
+                              ? "Google Meet creation failed. Save and retry."
+                              : "The Meet link will be created when this lesson is saved."}
+                    </Alert>
+                )}
+            </Stack>
+        );
     }
 
     return (
@@ -219,19 +305,6 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
                         </Button>
                     </>
                 )}
-            {connection?.available &&
-                calendarAuthorized &&
-                !attendanceAuthorized && (
-                    <Button
-                        variant="text"
-                        disabled={busy}
-                        onClick={() =>
-                            connect(["calendar_events", "meet_attendance"])
-                        }
-                    >
-                        Enable attendance and recordings (optional)
-                    </Button>
-                )}
             {calendarAuthorized && !session?.joinUrl && (
                 <FormControlLabel
                     control={
@@ -259,15 +332,6 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
                             </Link>
                         )}
                     </Alert>
-                    {attendanceAuthorized && (
-                        <Button
-                            variant="outlined"
-                            disabled={busy}
-                            onClick={synchronizeAttendance}
-                        >
-                            Synchronize attendance
-                        </Button>
-                    )}
                 </Stack>
             ) : calendarAuthorized ? (
                 <>

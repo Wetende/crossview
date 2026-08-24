@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Count, Prefetch
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from apps.curriculum.models import CurriculumNode
 from apps.progression.models import Enrollment
 
 from .jobs import enqueue_session_job, process_live_session_jobs
-from .models import ScheduledLearningSession
+from .models import ScheduledLearningSession, SessionAttendance
 from .serializers import (
     AttendanceOverrideSerializer,
     GoogleMeetCreateSerializer,
@@ -115,7 +116,19 @@ class SessionAttendanceView(APIView):
     def get(self, request, node_id):
         node = _node(request, node_id)
         session = get_object_or_404(ScheduledLearningSession, node=node)
-        return Response({"results": serialize_attendance_roster(session)})
+        roster = serialize_attendance_roster(session)
+        return Response(
+            {
+                "results": roster,
+                "session": serialize_session_for_author(
+                    session,
+                    enrollment_total=len(roster),
+                ),
+                "unmatchedParticipants": (
+                    session.provider_metadata or {}
+                ).get("unmatchedParticipants", []),
+            }
+        )
 
 
 class SessionAttendanceOverrideView(APIView):
@@ -314,18 +327,55 @@ class LiveClassesDashboardView(APIView):
             ScheduledLearningSession.objects.filter(provider=ScheduledLearningSession.Provider.GOOGLE_MEET),
             request.user,
             "node__program_id",
-        ).select_related("node", "node__program").order_by("starts_at")
+        )
+        program_id = request.query_params.get("programId")
+        if program_id:
+            try:
+                sessions = sessions.filter(node__program_id=int(program_id))
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "Select a valid course."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        sessions = list(
+            sessions.select_related("node", "node__program", "node__parent")
+            .prefetch_related(
+                Prefetch(
+                    "attendance_records",
+                    queryset=SessionAttendance.objects.filter(
+                        enrollment__status__in=["active", "completed"]
+                    ),
+                    to_attr="active_attendance_records",
+                )
+            )
+            .order_by("starts_at")
+        )
+        enrollment_totals = {
+            row["program_id"]: row["total"]
+            for row in Enrollment.objects.filter(
+                program_id__in={item.node.program_id for item in sessions},
+                status__in=["active", "completed"],
+            )
+            .values("program_id")
+            .annotate(total=Count("id"))
+        }
         return Response(
             {
                 "results": [
                     {
-                        **serialize_session_for_author(item),
+                        **serialize_session_for_author(
+                            item,
+                            enrollment_total=enrollment_totals.get(
+                                item.node.program_id,
+                                0,
+                            ),
+                        ),
                         "courseId": item.node.program_id,
                         "courseTitle": item.node.program.name,
                         "sectionTitle": item.node.parent.title if item.node.parent_id else "",
                         "nodeId": item.node_id,
                     }
-                    for item in sessions.select_related("node__parent")
+                    for item in sessions
                 ]
             }
         )

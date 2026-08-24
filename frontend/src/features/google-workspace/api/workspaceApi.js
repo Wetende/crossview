@@ -12,12 +12,6 @@ const request = async (url, options = {}) => {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        console.error("[Google Workspace API] Request failed", {
-            url,
-            method: options.method || "GET",
-            status: response.status,
-            detail: data.detail || "Google Workspace request failed.",
-        });
         throw new Error(data.detail || "Google Workspace request failed.");
     }
     return data;
@@ -30,13 +24,13 @@ export const workspaceApi = {
             method: "POST",
             body: JSON.stringify(payload),
         }),
-    testConnection: () =>
-        request("/api/google-workspace/connection/test/", {
-            method: "POST",
-            body: "{}",
-        }),
     meetSettings: () => request("/api/google-workspace/meet-settings/"),
-    liveClasses: () => request("/api/live-sessions/classes/"),
+    attendanceSessions: (programId) =>
+        request(
+            `/api/live-sessions/classes/${
+                programId ? `?programId=${encodeURIComponent(programId)}` : ""
+            }`,
+        ),
     meetPreview: (nodeId) =>
         request(`/api/live-sessions/nodes/${nodeId}/google-meet/preview/`),
     createMeet: (nodeId, payload) =>
@@ -49,8 +43,8 @@ export const workspaceApi = {
             method: "POST",
             body: "{}",
         }),
-    meetStatus: (nodeId) =>
-        request(`/api/live-sessions/nodes/${nodeId}/google-meet/sync/`),
+    cancelMeet: (nodeId) =>
+        request(`/api/live-sessions/nodes/${nodeId}/`, { method: "DELETE" }),
     attendance: (nodeId) =>
         request(`/api/live-sessions/nodes/${nodeId}/attendance/`),
     overrideAttendance: (nodeId, enrollmentId, payload) =>
@@ -61,8 +55,6 @@ export const workspaceApi = {
                 body: JSON.stringify(payload),
             },
         ),
-    cancelSession: (nodeId) =>
-        request(`/api/live-sessions/nodes/${nodeId}/`, { method: "DELETE" }),
     mapParticipant: (nodeId, payload) =>
         request(
             `/api/live-sessions/nodes/${nodeId}/google-meet/participants/map/`,

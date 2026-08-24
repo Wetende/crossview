@@ -1,5 +1,11 @@
 import { createRef } from "react";
-import { act, render } from "@testing-library/react";
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { workspaceApi } from "../api/workspaceApi";
@@ -12,6 +18,7 @@ vi.mock("../api/workspaceApi", () => ({
         createMeet: vi.fn(),
         connect: vi.fn(),
         syncMeet: vi.fn(),
+        cancelMeet: vi.fn(),
     },
 }));
 
@@ -28,7 +35,7 @@ describe("GoogleMeetControls", () => {
         );
     });
 
-    test("automatically provisions a connected Google Meet lesson without rendering editor controls", async () => {
+    test("automatically provisions a connected Google Meet lesson with a compact state", async () => {
         workspaceApi.createMeet.mockResolvedValue({
             created: true,
             session: {
@@ -38,7 +45,7 @@ describe("GoogleMeetControls", () => {
         });
         const controlsRef = createRef();
 
-        const { container } = render(
+        render(
             <GoogleMeetControls
                 ref={controlsRef}
                 nodeId={77}
@@ -47,7 +54,11 @@ describe("GoogleMeetControls", () => {
             />,
         );
 
-        expect(container).toBeEmptyDOMElement();
+        expect(
+            await screen.findByText(
+                "The Meet link will be created when this lesson is saved.",
+            ),
+        ).toBeInTheDocument();
 
         let result;
         await act(async () => {
@@ -69,7 +80,7 @@ describe("GoogleMeetControls", () => {
         });
         const controlsRef = createRef();
 
-        const { container } = render(
+        render(
             <GoogleMeetControls
                 ref={controlsRef}
                 nodeId={88}
@@ -78,7 +89,11 @@ describe("GoogleMeetControls", () => {
             />,
         );
 
-        expect(container).toBeEmptyDOMElement();
+        expect(
+            await screen.findByRole("button", {
+                name: "Connect Google Calendar",
+            }),
+        ).toBeInTheDocument();
         let result;
         await act(async () => {
             result = await controlsRef.current.provision();
@@ -118,5 +133,60 @@ describe("GoogleMeetControls", () => {
         expect(result.ok).toBe(true);
         expect(result.skipped).toBe(true);
         expect(result.session.creationState).toBe("ready");
+    });
+
+    test("links a completed Meet lesson to Gradebook attendance", async () => {
+        workspaceApi.meetPreview.mockResolvedValue({
+            session: {
+                nodeId: 99,
+                courseId: 5,
+                joinUrl: "https://meet.google.com/already-created",
+                creationState: "ready",
+                hasEnded: true,
+            },
+        });
+
+        render(<GoogleMeetControls nodeId={99} persisted automaticCreation />);
+
+        expect(
+            await screen.findByRole("link", { name: "Review attendance" }),
+        ).toHaveAttribute(
+            "href",
+            "/instructor/programs/5/gradebook/?view=attendance&session=99",
+        );
+    });
+
+    test("keeps cancellation in the Google Meet lesson editor", async () => {
+        workspaceApi.meetPreview.mockResolvedValue({
+            session: {
+                nodeId: 99,
+                courseId: 5,
+                joinUrl: "https://meet.google.com/already-created",
+                creationState: "ready",
+                status: "scheduled",
+                hasEnded: false,
+            },
+        });
+        workspaceApi.cancelMeet.mockResolvedValue({
+            session: {
+                nodeId: 99,
+                courseId: 5,
+                status: "cancelled",
+                joinUrl: "https://meet.google.com/already-created",
+            },
+        });
+
+        render(<GoogleMeetControls nodeId={99} persisted automaticCreation />);
+
+        fireEvent.click(
+            await screen.findByRole("button", { name: "Cancel meeting" }),
+        );
+
+        await waitFor(() =>
+            expect(workspaceApi.cancelMeet).toHaveBeenCalledWith(99),
+        );
+        expect(
+            await screen.findAllByText("Google Meet cancelled."),
+        ).not.toHaveLength(0);
     });
 });

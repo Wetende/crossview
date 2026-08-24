@@ -18,6 +18,7 @@ import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
 import GoogleWorkspaceConnectionCard from "@/features/google-workspace/components/GoogleWorkspaceConnectionCard";
+import AttendanceReviewSummary from "@/features/gradebook/components/AttendanceReviewSummary";
 import {
     EmptyPanel,
     MetricCard,
@@ -59,6 +60,7 @@ const InstructorDashboard = ({
         />
 
         <GoogleWorkspaceConnectionCard />
+        <AttendanceReviewSummary />
 
         <Grid container spacing={2.5}>
             <Grid size={{ xs: 12, sm: 6, xl: 3 }}>

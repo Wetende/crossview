@@ -28,6 +28,10 @@ vi.mock(
     }),
 );
 
+vi.mock("@/features/gradebook/components/AttendanceReviewSummary", () => ({
+    default: () => null,
+}));
+
 describe("Student dashboard", () => {
     beforeEach(() => {
         mockUsePage.mockReturnValue({

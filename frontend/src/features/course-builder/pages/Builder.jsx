@@ -27,7 +27,6 @@ import CurriculumTree, { flattenNodes } from "../components/CurriculumTree";
 import EditorContainer from "../editors/EditorContainer";
 import SettingsPanel from "../components/SettingsPanel";
 import CoursePublicationControls from "../components/CoursePublicationControls";
-import LiveClassesDashboard from "@/features/google-workspace/components/LiveClassesDashboard";
 import {
     getBuilderTabUrl,
     getRequestedSettingsSection,
@@ -105,9 +104,13 @@ export default function InstructorProgramBuilder({
                 window.location.search,
             ).get("section");
             const shouldNormalizeSettingsSection =
-                nextTab === "settings" && requestedSection !== nextSettingsSection;
+                nextTab === "settings" &&
+                requestedSection !== nextSettingsSection;
 
-            if (getRequestedBuilderTab() !== nextTab || shouldNormalizeSettingsSection) {
+            if (
+                getRequestedBuilderTab() !== nextTab ||
+                shouldNormalizeSettingsSection
+            ) {
                 syncBuilderTabUrl(program.id, nextTab, {
                     replace: true,
                     settingsSection: nextSettingsSection,
@@ -242,11 +245,13 @@ export default function InstructorProgramBuilder({
                     sx={{
                         height: "100%",
                         overflowY:
-                            activeTab === "curriculum" || activeTab === "settings"
+                            activeTab === "curriculum" ||
+                            activeTab === "settings"
                                 ? "hidden"
                                 : "auto",
                         p:
-                            activeTab === "curriculum" || activeTab === "settings"
+                            activeTab === "curriculum" ||
+                            activeTab === "settings"
                                 ? 0
                                 : 3,
                         flexGrow: 1, // Allow this box to grow
@@ -369,11 +374,6 @@ export default function InstructorProgramBuilder({
                                     />
                                 </CardContent>
                             </Card>
-                        </Box>
-                    )}
-                    {activeTab === "live-classes" && (
-                        <Box sx={{ maxWidth: 960, mx: "auto", pt: 2, pb: 4 }}>
-                            <LiveClassesDashboard program={program} />
                         </Box>
                     )}
                 </Box>

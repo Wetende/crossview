@@ -190,18 +190,99 @@ def _attended_seconds(session, records):
 @transaction.atomic
 def apply_meet_conference(session, result):
     from apps.live_sessions.models import ScheduledLearningSession, SessionAttendance
-    identity_map = {item.google_user_id.removeprefix("users/"): item.user_id for item in GoogleParticipantIdentity.objects.filter(user__enrollments__program=session.node.program, user__enrollments__status__in=["active", "completed"]).distinct()}
-    enrollments = {item.user_id: item for item in Enrollment.objects.filter(program=session.node.program, status__in=["active", "completed"])}
-    scheduled_seconds, unmatched, matched = max(int((session.ends_at - session.starts_at).total_seconds()), 1), [], 0
+
+    identity_map = {
+        item.google_user_id.removeprefix("users/"): item.user_id
+        for item in GoogleParticipantIdentity.objects.filter(
+            user__enrollments__program=session.node.program,
+            user__enrollments__status__in=["active", "completed"],
+        ).distinct()
+    }
+    enrollments = {
+        item.user_id: item
+        for item in Enrollment.objects.filter(
+            program=session.node.program,
+            status__in=["active", "completed"],
+        )
+    }
+    scheduled_seconds = max(
+        int((session.ends_at - session.starts_at).total_seconds()),
+        1,
+    )
+    existing = {
+        row.enrollment_id: row
+        for row in SessionAttendance.objects.select_for_update().filter(
+            session=session
+        )
+    }
+    unmatched = []
+    matched_rows = {}
+    matched_user_ids = set()
     for row in result["attendance"]:
         external_id = row["externalUserId"].removeprefix("users/")
         enrollment = enrollments.get(identity_map.get(external_id)) if external_id else None
         if not enrollment:
             unmatched.append({"participantName": row["participantName"], "displayName": row["displayName"], "externalUserId": row["externalUserId"], "anonymous": not bool(external_id)})
             continue
-        seconds = _attended_seconds(session, row["sessions"]); percent = min(seconds / scheduled_seconds * 100, 100)
-        SessionAttendance.objects.update_or_create(session=session, enrollment=enrollment, defaults={"status": SessionAttendance.Status.PRESENT if percent >= session.attendance_threshold_percent else SessionAttendance.Status.ABSENT, "source": SessionAttendance.Source.PROVIDER, "attended_seconds": seconds, "attendance_percent": percent, "external_participant_id": row["participantName"], "verified_at": timezone.now(), "verified_by": None})
-        matched += 1
+        matched_user_ids.add(enrollment.user_id)
+        grouped = matched_rows.setdefault(
+            enrollment.id,
+            {"enrollment": enrollment, "sessions": [], "participantNames": []},
+        )
+        grouped["sessions"].extend(row["sessions"])
+        grouped["participantNames"].append(row["participantName"])
+
+    for grouped in matched_rows.values():
+        enrollment = grouped["enrollment"]
+        attendance = existing.get(enrollment.id)
+        if not attendance or attendance.source != SessionAttendance.Source.INSTRUCTOR:
+            seconds = _attended_seconds(session, grouped["sessions"])
+            percent = min(seconds / scheduled_seconds * 100, 100)
+            attendance, _ = SessionAttendance.objects.update_or_create(
+                session=session,
+                enrollment=enrollment,
+                defaults={
+                    "status": (
+                        SessionAttendance.Status.PRESENT
+                        if percent >= session.attendance_threshold_percent
+                        else SessionAttendance.Status.ABSENT
+                    ),
+                    "source": SessionAttendance.Source.PROVIDER,
+                    "attended_seconds": seconds,
+                    "attendance_percent": percent,
+                    "external_participant_id": ",".join(
+                        grouped["participantNames"]
+                    ),
+                    "verified_at": timezone.now(),
+                    "verified_by": None,
+                },
+            )
+            existing[enrollment.id] = attendance
+
+    known_absent = 0
+    if result["record"].get("endTime"):
+        mapped_user_ids = set(identity_map.values())
+        for user_id in mapped_user_ids - matched_user_ids:
+            enrollment = enrollments.get(user_id)
+            if not enrollment:
+                continue
+            attendance = existing.get(enrollment.id)
+            if attendance and attendance.source == SessionAttendance.Source.INSTRUCTOR:
+                continue
+            SessionAttendance.objects.update_or_create(
+                session=session,
+                enrollment=enrollment,
+                defaults={
+                    "status": SessionAttendance.Status.ABSENT,
+                    "source": SessionAttendance.Source.PROVIDER,
+                    "attended_seconds": 0,
+                    "attendance_percent": 0,
+                    "external_participant_id": "",
+                    "verified_at": timezone.now(),
+                    "verified_by": None,
+                },
+            )
+            known_absent += 1
     metadata = dict(session.provider_metadata or {})
     metadata.update({"conferenceRecord": result["record"].get("name", ""), "unmatchedParticipants": unmatched})
     session.provider_metadata = metadata
@@ -209,7 +290,12 @@ def apply_meet_conference(session, result):
     if result["record"].get("endTime"): session.status = ScheduledLearningSession.Status.COMPLETED
     session.last_sync_at, session.last_sync_error = timezone.now(), ""
     session.save()
-    return {"matched": matched, "unmatched": len(unmatched), "recordingAvailable": bool(result.get("recordingUrl"))}
+    return {
+        "matched": len(matched_rows),
+        "knownAbsent": known_absent,
+        "unmatched": len(unmatched),
+        "recordingAvailable": bool(result.get("recordingUrl")),
+    }
 
 
 def credential_for_session(session, actor=None, *, capability="calendar_events"):

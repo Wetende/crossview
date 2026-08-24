@@ -269,7 +269,33 @@ def _calendar_url(session):
     return f"https://calendar.google.com/calendar/render?{urlencode(params)}"
 
 
-def serialize_session_for_author(session):
+def _attendance_counts(session, *, enrollment_total=None, now=None):
+    records = getattr(session, "active_attendance_records", None)
+    if records is None:
+        records = list(session.attendance_records.all())
+    counts = {
+        status: sum(record.status == status for record in records)
+        for status in (
+            SessionAttendance.Status.PRESENT,
+            SessionAttendance.Status.ABSENT,
+            SessionAttendance.Status.EXCUSED,
+            SessionAttendance.Status.PENDING,
+        )
+    }
+    total = enrollment_total if enrollment_total is not None else len(records)
+    unresolved = max(total - len(records), 0) + counts[SessionAttendance.Status.PENDING]
+    has_ended = (
+        session.status == ScheduledLearningSession.Status.COMPLETED
+        or session.ends_at <= (now or timezone.now())
+    )
+    return {
+        **counts,
+        "needsReview": unresolved if has_ended else 0,
+        "total": total,
+    }
+
+
+def serialize_session_for_author(session, *, enrollment_total=None):
     if not session:
         return None
     latest_create_job = session.sync_jobs.filter(
@@ -291,6 +317,8 @@ def serialize_session_for_author(session):
         creation_state = "not_created"
     return {
         "id": session.id,
+        "nodeId": session.node_id,
+        "courseId": session.node.program_id,
         "kind": session.kind,
         "provider": session.provider,
         "title": session.title,
@@ -321,6 +349,14 @@ def serialize_session_for_author(session):
         ),
         "unmatchedAttendanceCount": len(
             (session.provider_metadata or {}).get("unmatchedParticipants", [])
+        ),
+        "attendanceCounts": _attendance_counts(
+            session,
+            enrollment_total=enrollment_total,
+        ),
+        "hasEnded": (
+            session.status == ScheduledLearningSession.Status.COMPLETED
+            or session.ends_at <= timezone.now()
         ),
         "lastSyncAt": session.last_sync_at.isoformat() if session.last_sync_at else None,
         "lastSyncError": session.last_sync_error,
@@ -470,6 +506,23 @@ def build_player_delivery_context(program, enrollment):
 
 def serialize_attendance_roster(session):
     existing = {row.enrollment_id: row for row in session.attendance_records.all()}
+    audit_history = {}
+    for audit in session.attendance_audits.select_related("actor").order_by(
+        "-created_at"
+    ):
+        audit_history.setdefault(audit.enrollment_id, []).append(
+            {
+                "previousStatus": audit.previous_status,
+                "resultingStatus": audit.resulting_status,
+                "reason": audit.reason,
+                "actor": (
+                    audit.actor.get_full_name() or audit.actor.email
+                    if audit.actor
+                    else "System"
+                ),
+                "createdAt": audit.created_at.isoformat(),
+            }
+        )
     rows = []
     enrollments = Enrollment.objects.filter(
         program=session.node.program,
@@ -490,6 +543,7 @@ def serialize_attendance_roster(session):
                 "attendedSeconds": attendance.attended_seconds if attendance else 0,
                 "attendancePercent": float(attendance.attendance_percent) if attendance else 0,
                 "verifiedAt": attendance.verified_at.isoformat() if attendance and attendance.verified_at else None,
+                "auditHistory": audit_history.get(enrollment.id, []),
             }
         )
     return rows

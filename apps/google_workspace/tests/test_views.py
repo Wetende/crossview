@@ -102,7 +102,7 @@ class GoogleWorkspaceConnectionTestViewTests(TestCase):
             stage="refresh_token",
         ),
     )
-    def test_oauth_callback_failure_is_returned_as_safe_dashboard_diagnostic(
+    def test_oauth_callback_failure_is_returned_as_a_clean_one_time_message(
         self,
         _complete_authorization,
     ):
@@ -139,4 +139,14 @@ class GoogleWorkspaceConnectionTestViewTests(TestCase):
         connection = self.client.get(reverse("google_workspace:connection"))
 
         self.assertEqual(connection.status_code, 200)
-        self.assertEqual(connection.json()["oauthCallback"], diagnostic)
+        self.assertEqual(
+            connection.json()["oauthCallback"],
+            {
+                "status": "error",
+                "message": "Google Calendar could not be connected. Try again.",
+            },
+        )
+        self.assertNotIn("stage", connection.json()["oauthCallback"])
+        self.assertNotIn("category", connection.json()["oauthCallback"])
+        second_connection = self.client.get(reverse("google_workspace:connection"))
+        self.assertNotIn("oauthCallback", second_connection.json())

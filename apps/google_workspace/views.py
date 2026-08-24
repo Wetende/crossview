@@ -37,9 +37,17 @@ class GoogleWorkspaceConnectionView(APIView):
     permission_classes = [IsInstructorOrStaff]
     def get(self, request):
         connection = serialize_connection(request.user)
-        connection["oauthCallback"] = request.session.get(
-            CALLBACK_DIAGNOSTIC_SESSION_KEY
-        )
+        callback = request.session.pop(CALLBACK_DIAGNOSTIC_SESSION_KEY, None)
+        if callback:
+            succeeded = callback.get("status") == "success"
+            connection["oauthCallback"] = {
+                "status": "success" if succeeded else "error",
+                "message": (
+                    "Google Calendar connected successfully."
+                    if succeeded
+                    else "Google Calendar could not be connected. Try again."
+                ),
+            }
         return Response(connection)
     def post(self, request):
         serializer = OAuthConnectSerializer(data=request.data)
@@ -65,7 +73,11 @@ class GoogleWorkspaceConnectionTestView(APIView):
             diagnostic = verify_calendar_connection(credential)
         except (ValidationError, ImproperlyConfigured) as exc:
             return _error(exc)
-        connection = serialize_connection(request.user, reconcile=False)
+        connection = serialize_connection(
+            request.user,
+            reconcile=False,
+            include_diagnostics=True,
+        )
         connection["diagnostics"]["calendarAccess"] = diagnostic
         return Response(
             {
@@ -125,7 +137,7 @@ def oauth_callback(request):
             "stage": exc.stage,
             "message": str(exc),
         }
-        messages.error(request, str(exc))
+        messages.error(request, "Google Calendar could not be connected. Try again.")
         return redirect(return_to)
     except (PermissionDenied, ValidationError, ImproperlyConfigured, ValueError) as exc:
         logger.warning("Google Workspace authorization failed: %s", exc)
@@ -135,7 +147,7 @@ def oauth_callback(request):
             "stage": "callback_validation",
             "message": str(exc),
         }
-        messages.error(request, str(exc))
+        messages.error(request, "Google Calendar could not be connected. Try again.")
         return redirect(return_to)
     except Exception:
         logger.exception("Unexpected Google Workspace OAuth callback failure")
@@ -145,7 +157,7 @@ def oauth_callback(request):
             "stage": "callback",
             "message": "Google Workspace authorization could not be completed.",
         }
-        messages.error(request, "Google Workspace authorization could not be completed. Check the configured callback URL and server log.")
+        messages.error(request, "Google Calendar could not be connected. Try again.")
         return redirect(return_to)
     request.session[CALLBACK_DIAGNOSTIC_SESSION_KEY] = {
         "status": "success",

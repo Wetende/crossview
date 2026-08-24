@@ -31,7 +31,7 @@ class GoogleWorkspaceConnectionTests(TestCase):
             status=GoogleWorkspaceCredential.Status.CONNECTED,
         )
 
-        connection = serialize_connection(user)
+        connection = serialize_connection(user, include_diagnostics=True)
 
         self.assertTrue(connection["connected"])
         self.assertIn("calendar_events", connection["grantedCapabilities"])
@@ -73,7 +73,7 @@ class GoogleWorkspaceConnectionTests(TestCase):
         )
 
         with self.assertLogs("apps.google_workspace.services", level="WARNING"):
-            connection = serialize_connection(user)
+            connection = serialize_connection(user, include_diagnostics=True)
 
         self.assertEqual(
             connection["diagnostics"]["calendarAccess"],
