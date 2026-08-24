@@ -229,7 +229,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                         {session.title}
                     </Typography>
                     <Typography sx={{ color: "#5f6368" }}>
-                        Join from Airads when the class window opens.
+                        Join from the course when the class window opens.
                     </Typography>
                 </Box>
 

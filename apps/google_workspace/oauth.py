@@ -48,7 +48,7 @@ def fetch_token_with_incremental_grants(flow, *, code, required_scopes):
     OAuthlib raises ``Warning`` whenever the token response scopes are not an
     exact match for the request. Google incremental authorization can validly
     add grants from earlier consent. Recover that already-parsed token only
-    when it still contains every scope Airads required for this request.
+    when it still contains every scope the application required for this request.
     """
     try:
         return flow.fetch_token(code=code)
@@ -60,7 +60,7 @@ def fetch_token_with_incremental_grants(flow, *, code, required_scopes):
         missing_scopes = normalize_scopes(required_scopes) - granted_scopes
         if not token or missing_scopes:
             raise GoogleWorkspaceOAuthCallbackError(
-                "Google did not grant every permission Airads requested.",
+                "Google did not grant every permission the application requested.",
                 category="scope_mismatch",
                 stage="token_exchange",
             ) from exc
@@ -130,7 +130,7 @@ def complete_authorization(request, *, state, code):
         refresh_token = decrypt_refresh_token(existing.refresh_token_ciphertext)
     if not refresh_token:
         raise GoogleWorkspaceOAuthCallbackError(
-            "Google did not return the offline access token Airads requires.",
+            "Google did not return the offline access token the application requires.",
             category="refresh_token_missing",
             stage="refresh_token",
         )
@@ -143,7 +143,7 @@ def complete_authorization(request, *, state, code):
         ).userinfo().get().execute()
     except Exception as exc:
         raise GoogleWorkspaceOAuthCallbackError(
-            "Airads could not read the authorized Google account identity.",
+            "The application could not read the authorized Google account identity.",
             category="identity_lookup_failed",
             stage="identity_lookup",
         ) from exc
@@ -158,7 +158,7 @@ def complete_authorization(request, *, state, code):
         encrypted_refresh_token = encrypt_refresh_token(refresh_token)
     except Exception as exc:
         raise GoogleWorkspaceOAuthCallbackError(
-            "Airads could not encrypt the Google offline access token.",
+            "The application could not encrypt the Google offline access token.",
             category="token_encryption_failed",
             stage="token_encryption",
         ) from exc
@@ -177,7 +177,7 @@ def complete_authorization(request, *, state, code):
         )
     except Exception as exc:
         raise GoogleWorkspaceOAuthCallbackError(
-            "Airads could not save the authorized Google account.",
+            "The application could not save the authorized Google account.",
             category="credential_storage_failed",
             stage="credential_storage",
         ) from exc

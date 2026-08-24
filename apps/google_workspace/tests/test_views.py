@@ -97,7 +97,7 @@ class GoogleWorkspaceConnectionTestViewTests(TestCase):
     @patch(
         "apps.google_workspace.views.complete_authorization",
         side_effect=GoogleWorkspaceOAuthCallbackError(
-            "Google did not return the offline access token Airads requires.",
+            "Google did not return the offline access token the application requires.",
             category="refresh_token_missing",
             stage="refresh_token",
         ),
@@ -132,7 +132,7 @@ class GoogleWorkspaceConnectionTestViewTests(TestCase):
                 "status": "error",
                 "category": "refresh_token_missing",
                 "stage": "refresh_token",
-                "message": "Google did not return the offline access token Airads requires.",
+                "message": "Google did not return the offline access token the application requires.",
             },
         )
 
