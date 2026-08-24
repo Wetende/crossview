@@ -5,6 +5,7 @@ Requirements: 1.1-1.4, 2.1-2.6, 3.1-3.6, 4.1-4.5, 5.1-5.6, 6.1-6.6
 
 from collections import Counter, defaultdict
 from datetime import datetime
+import logging
 import re
 from urllib.parse import urlencode
 from typing import Optional
@@ -34,6 +35,8 @@ from django.utils.http import (
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from inertia import render
+
+logger = logging.getLogger(__name__)
 
 from apps.assessments.text_normalization import (
     normalize_assessment_text,
