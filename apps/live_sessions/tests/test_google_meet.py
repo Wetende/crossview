@@ -206,6 +206,40 @@ class GoogleMeetLessonTests(TestCase):
         self.assertEqual(synced.status_code, 200)
         self.assertEqual(synced.json()["job"]["status"], "succeeded")
 
+    def test_manual_mapping_cannot_reassign_an_existing_global_identity(self):
+        self.client.force_login(self.instructor)
+        owner = UserFactory(email="existing-owner@example.test")
+        identity = GoogleParticipantIdentity.objects.create(
+            google_user_id="already-verified", user=owner,
+            source="workspace_oauth", verified_email=owner.email,
+        )
+        response = self.client.post(
+            reverse("live_sessions:google-meet-participant-map", args=[self.node.id]),
+            {"externalUserId": "users/already-verified", "enrollmentId": self.enrollment.id},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 409)
+        identity.refresh_from_db()
+        self.assertEqual(identity.user_id, owner.id)
+        self.assertEqual(identity.source, "workspace_oauth")
+        self.assertNotIn(owner.email, response.content.decode())
+
+    def test_repeated_mapping_preserves_existing_identity_verification(self):
+        self.client.force_login(self.instructor)
+        identity = GoogleParticipantIdentity.objects.create(
+            google_user_id="already-verified", user=self.student,
+            source="workspace_oauth", verified_email=self.student.email,
+        )
+        response = self.client.post(
+            reverse("live_sessions:google-meet-participant-map", args=[self.node.id]),
+            {"externalUserId": "already-verified", "enrollmentId": self.enrollment.id},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        identity.refresh_from_db()
+        self.assertEqual(identity.source, "workspace_oauth")
+        self.assertEqual(identity.verified_email, self.student.email)
+
     def test_attendance_requires_identity_mapping_and_never_completes_lesson(self):
         self.session.starts_at = timezone.now() - timedelta(hours=2); self.session.ends_at = self.session.starts_at + timedelta(hours=1); self.session.save()
         GoogleParticipantIdentity.objects.create(user=self.student, google_user_id="learner")

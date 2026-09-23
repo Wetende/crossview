@@ -384,6 +384,7 @@ class LiveClassesDashboardView(APIView):
 class GoogleParticipantMappingView(APIView):
     permission_classes = [IsInstructorOrStaff]
 
+    @transaction.atomic
     def post(self, request, node_id):
         from apps.google_workspace.models import GoogleParticipantIdentity
         session = _google_meet_session(request, node_id)
@@ -392,8 +393,13 @@ class GoogleParticipantMappingView(APIView):
         if not external_id:
             return Response({"detail": "Only signed-in Google participants can be mapped."}, status=status.HTTP_400_BAD_REQUEST)
         enrollment = get_object_or_404(Enrollment, pk=enrollment_id, program=session.node.program)
-        GoogleParticipantIdentity.objects.update_or_create(
+        identity, _ = GoogleParticipantIdentity.objects.select_for_update().get_or_create(
             google_user_id=external_id,
             defaults={"user": enrollment.user, "source": "manual_mapping", "verified_by": request.user},
         )
+        if identity.user_id != enrollment.user_id:
+            return Response(
+                {"detail": "This Google participant is already mapped to another learner."},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response({"mapped": True, "externalUserId": external_id, "enrollmentId": enrollment.id})
