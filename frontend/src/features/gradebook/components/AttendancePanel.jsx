@@ -71,9 +71,11 @@ export default function AttendancePanel({ program }) {
     const [mapping, setMapping] = useState({});
     const [expandedAudit, setExpandedAudit] = useState({});
     const [loading, setLoading] = useState(true);
+    const [reviewLoading, setReviewLoading] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const automaticSyncAttempted = useRef(false);
+    const reviewRequestId = useRef(0);
 
     const selectedSession = sessions.find(
         (session) => String(session.nodeId) === String(selectedNodeId),
@@ -93,9 +95,18 @@ export default function AttendancePanel({ program }) {
 
     const loadReview = useCallback(async (nodeId) => {
         if (!nodeId) return;
-        const attendanceResult = await workspaceApi.attendance(nodeId);
-        setRoster(attendanceResult.results || []);
-        setUnmatched(attendanceResult.unmatchedParticipants || []);
+        const requestId = ++reviewRequestId.current;
+        setReviewLoading(true);
+        try {
+            const attendanceResult = await workspaceApi.attendance(nodeId);
+            if (requestId !== reviewRequestId.current) return;
+            setRoster(attendanceResult.results || []);
+            setUnmatched(attendanceResult.unmatchedParticipants || []);
+        } catch (loadError) {
+            if (requestId === reviewRequestId.current) throw loadError;
+        } finally {
+            if (requestId === reviewRequestId.current) setReviewLoading(false);
+        }
     }, []);
 
     useEffect(() => {
@@ -123,6 +134,9 @@ export default function AttendancePanel({ program }) {
         void loadReview(selectedNodeId).catch((loadError) =>
             setError(loadError.message),
         );
+        return () => {
+            reviewRequestId.current += 1;
+        };
     }, [loadReview, selectedNodeId]);
 
     useEffect(() => {
@@ -171,6 +185,11 @@ export default function AttendancePanel({ program }) {
     };
 
     const selectSession = (nodeId) => {
+        if (busy || String(nodeId) === String(selectedNodeId)) return;
+        reviewRequestId.current += 1;
+        setRoster([]);
+        setUnmatched([]);
+        setReviewLoading(true);
         setSelectedNodeId(String(nodeId));
         setOverrides({});
         setMapping({});
@@ -355,7 +374,8 @@ export default function AttendancePanel({ program }) {
                                                 color="error"
                                                 variant="outlined"
                                             />
-                                            {Number(counts.excused || 0) > 0 && (
+                                            {Number(counts.excused || 0) >
+                                                0 && (
                                                 <Chip
                                                     size="small"
                                                     label={`${counts.excused} excused`}
@@ -388,6 +408,7 @@ export default function AttendancePanel({ program }) {
                                             )}
                                             <Button
                                                 size="small"
+                                                disabled={busy}
                                                 variant={
                                                     selected
                                                         ? "contained"
@@ -474,6 +495,12 @@ export default function AttendancePanel({ program }) {
                         </Stack>
 
                         <Divider />
+
+                        {reviewLoading && (
+                            <Typography role="status" color="text.secondary">
+                                Loading class attendance…
+                            </Typography>
+                        )}
 
                         {roster.map((row) => {
                             const displayedStatus = reviewStatus(

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { workspaceApi } from "@/features/google-workspace/api/workspaceApi";
@@ -132,6 +138,50 @@ describe("AttendancePanel", () => {
                 returnTo: "/instructor/programs/4/gradebook/?view=attendance",
             }),
         );
+    });
+
+    test("ignores a previous class roster arriving after the selected class", async () => {
+        let resolveFirst;
+        workspaceApi.attendanceSessions.mockResolvedValue({
+            results: [
+                session,
+                { ...session, id: 8, nodeId: 64, title: "Second class" },
+            ],
+        });
+        workspaceApi.attendance.mockImplementation((nodeId) =>
+            String(nodeId) === "63"
+                ? new Promise((resolve) => {
+                      resolveFirst = resolve;
+                  })
+                : Promise.resolve({ results: [], unmatchedParticipants: [] }),
+        );
+        render(<AttendancePanel program={{ id: 4 }} />);
+        const buttons = await screen.findAllByRole("button", {
+            name: "Review attendance",
+        });
+        fireEvent.click(buttons[0]);
+        await waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
+        fireEvent.click(buttons[1]);
+        await waitFor(() =>
+            expect(workspaceApi.attendance).toHaveBeenCalledWith("64"),
+        );
+        await act(async () =>
+            resolveFirst({
+                results: [
+                    {
+                        enrollmentId: 12,
+                        learner: {
+                            name: "Stale learner",
+                            email: "stale@example.test",
+                        },
+                        status: "pending",
+                        attendancePercent: 0,
+                    },
+                ],
+                unmatchedParticipants: [],
+            }),
+        );
+        expect(screen.queryByText("Stale learner")).not.toBeInTheDocument();
     });
 
     test("synchronizes the selected completed meeting after authorization returns", async () => {
