@@ -66,15 +66,23 @@ export default defineConfig(({ command }) => ({
                         return 'vendor-dash';
                     }
                     
+                    // Tiny helper shared by react-pdf and recharts; without its
+                    // own chunk it is absorbed into vendor-pdf and the analytics
+                    // page downloads the whole PDF bundle for it.
+                    if (id.includes('/node_modules/tiny-invariant/')) {
+                        return 'vendor-invariant';
+                    }
+
                     // PDF rendering - very large (~500kb), independent
                     if (id.includes('react-pdf') || id.includes('pdfjs-dist')) {
                         return 'vendor-pdf';
                     }
                     
-                    // Charts are independent
-                    if (id.includes('recharts') || id.includes('d3-')) {
-                        return 'vendor-charts';
-                    }
+                    // Charts (recharts/d3) are deliberately not a manual chunk:
+                    // Rollup pulls a manual chunk's unassigned dependencies
+                    // (React, CommonJS helpers) into it, which made every page
+                    // load the charts bundle. Left to Rollup, charts stay with
+                    // the lazily loaded analytics page.
                     
                     // Drag and drop
                     if (id.includes('@dnd-kit')) {
@@ -125,8 +133,13 @@ export default defineConfig(({ command }) => ({
                         return 'vendor-axios';
                     }
                     
-                    // Lodash utilities
-                    if (id.includes('lodash')) {
+                    // Lodash utilities (lodash-es and lodash.* packages). The
+                    // CommonJS `lodash` package is only used by recharts, so it
+                    // stays with the lazily loaded analytics page.
+                    if (
+                        id.includes('lodash') &&
+                        !id.includes('/node_modules/lodash/')
+                    ) {
                         return 'vendor-lodash';
                     }
                     

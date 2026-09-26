@@ -22,6 +22,7 @@ import {
     IconArrowLeft,
     IconUsers,
     IconBook,
+    IconChartLine,
     IconClipboardCheck,
     IconFolder,
     IconUserCheck,
@@ -143,6 +144,17 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                                             startIcon={<IconBook size={18} />}
                                         >
                                             Gradebook
+                                        </Button>
+                                        <Button
+                                            component={Link}
+                                            href={`/instructor/programs/${program.id}/analytics/`}
+                                            fullWidth
+                                            variant="outlined"
+                                            startIcon={
+                                                <IconChartLine size={18} />
+                                            }
+                                        >
+                                            Analytics
                                         </Button>
                                         <Button
                                             component={Link}

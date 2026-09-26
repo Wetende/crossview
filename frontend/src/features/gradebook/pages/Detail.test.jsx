@@ -47,6 +47,15 @@ describe("Gradebook instructor actions and grade states", () => {
         expect(html).toContain("Attendance");
     });
 
+    test("links the gradebook header to course analytics", () => {
+        const html = renderToStaticMarkup(
+            <Gradebook {...baseProps} students={[]} />,
+        );
+
+        expect(html).toContain('href="/instructor/programs/5/analytics/"');
+        expect(html).toContain("Analytics");
+    });
+
     test("distinguishes pending grading from an unattempted quiz", () => {
         const html = renderToStaticMarkup(
             <Gradebook

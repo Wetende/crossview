@@ -101,6 +101,8 @@ urlpatterns = [
     ),
     path("instructor/programs/<int:pk>/", views.instructor_program_detail, name="instructor.program"),
     path("instructor/programs/<int:pk>/preview/", views.instructor_program_preview, name="instructor.program_preview"),
+    path("instructor/programs/<int:pk>/analytics/", views.instructor_program_analytics, name="instructor.program_analytics"),
+    path("instructor/analytics/", views.instructor_analytics_index, name="instructor.analytics"),
     # Course Manager (Builder)
     path("instructor/programs/<int:pk>/manage/", views.instructor_program_manage, name="instructor.program_manage"),
     path("instructor/programs/<int:pk>/manage/settings/", views.instructor_program_update_settings, name="instructor.program_update_settings"),

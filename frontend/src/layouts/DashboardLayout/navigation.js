@@ -6,6 +6,7 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import GradingIcon from "@mui/icons-material/Grading";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import PaymentsIcon from "@mui/icons-material/Payments";
@@ -129,6 +130,11 @@ export const ROLE_NAVIGATION = {
                     label: "Assignments",
                     href: "/instructor/assignments/",
                     icon: AssignmentIcon,
+                },
+                {
+                    label: "Analytics",
+                    href: "/instructor/analytics/",
+                    icon: InsightsOutlinedIcon,
                 },
             ],
         },
