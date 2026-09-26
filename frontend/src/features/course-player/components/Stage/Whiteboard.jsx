@@ -228,6 +228,7 @@ const Whiteboard = ({
 
         // 5. Live class / stream lesson
         if (
+            activityType === ACTIVITY_TYPES.GOOGLE_MEET ||
             activityType === ACTIVITY_TYPES.LIVE_MEETING ||
             activityType === ACTIVITY_TYPES.LIVE_STREAM ||
             activityType === ACTIVITY_TYPES.IN_PERSON_SESSION

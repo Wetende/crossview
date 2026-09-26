@@ -9,7 +9,6 @@ const CORE_BUILDER_TABS = [
 ];
 
 const PRACTICUM_BUILDER_TAB = { label: "Practicum", value: "practicum" };
-const LIVE_CLASSES_BUILDER_TAB = { label: "Live Classes", value: "live-classes" };
 export const SETTINGS_SECTIONS = [
     { label: "Main", value: "main" },
     { label: "Academic Details", value: "academic" },
@@ -27,7 +26,6 @@ const SETTINGS_SECTION_VALUES = new Set(
 const BUILDER_TAB_VALUES = new Set([
     ...CORE_BUILDER_TABS.map((tab) => tab.value),
     PRACTICUM_BUILDER_TAB.value,
-    LIVE_CLASSES_BUILDER_TAB.value,
 ]);
 
 export const isPracticumTabEnabled = (program) => {
@@ -35,12 +33,11 @@ export const isPracticumTabEnabled = (program) => {
     return Boolean(blueprintFlags.practicum || blueprintFlags.portfolio);
 };
 
-export const isLiveClassesTabEnabled = (program) =>
-    !(program?.deliveryModeLocked && program?.deliveryMode === "self_paced");
-
 export const getBuilderTabUrl = (programId, tabValue) => {
     const manageUrl = `/instructor/programs/${programId}/manage/`;
-    return tabValue === "curriculum" ? manageUrl : `${manageUrl}?tab=${tabValue}`;
+    return tabValue === "curriculum"
+        ? manageUrl
+        : `${manageUrl}?tab=${tabValue}`;
 };
 
 export const getSettingsSectionUrl = (programId, sectionValue = "main") => {
@@ -53,10 +50,6 @@ export const getAvailableBuilderTabs = (program) => {
     if (isPracticumTabEnabled(program)) {
         tabs.push(PRACTICUM_BUILDER_TAB);
     }
-    if (isLiveClassesTabEnabled(program)) {
-        tabs.push(LIVE_CLASSES_BUILDER_TAB);
-    }
-
     return tabs.map((tab) => ({
         ...tab,
         href: getBuilderTabUrl(program.id, tab.value),
@@ -71,9 +64,6 @@ export const normalizeBuilderTab = (program, requestedTab) => {
     if (tabValue === "practicum" && !isPracticumTabEnabled(program)) {
         return "curriculum";
     }
-    if (tabValue === "live-classes" && !isLiveClassesTabEnabled(program)) {
-        return "curriculum";
-    }
     return tabValue;
 };
 
@@ -81,7 +71,9 @@ export const getRequestedBuilderTab = () => {
     if (typeof window === "undefined") {
         return "curriculum";
     }
-    return new URLSearchParams(window.location.search).get("tab") || "curriculum";
+    return (
+        new URLSearchParams(window.location.search).get("tab") || "curriculum"
+    );
 };
 
 export const normalizeSettingsSection = (requestedSection) => {

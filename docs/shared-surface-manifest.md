@@ -1,7 +1,8 @@
 # Shared LMS Surface Manifest
 
-This manifest is the tracked ownership contract for `lms`, `airads`, and
-`digikatech`. `lms` is authoritative after a change is accepted.
+This manifest is the tracked ownership contract for `lms`, `airads-virtual`,
+and `digikatech`. `lms` is authoritative after a change is accepted.
+`airads-website` owns only the public website/CMS and does not participate.
 
 ## Shared by Default
 

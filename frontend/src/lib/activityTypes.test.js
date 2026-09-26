@@ -1,14 +1,12 @@
 import { describe, expect, test } from "vitest";
 
-import {
-    formatActivityDuration,
-    normalizeActivityType,
-} from "./activityTypes";
+import { formatActivityDuration, normalizeActivityType } from "./activityTypes";
 
 describe("activity types", () => {
     test.each([
         ["video_lesson", "video"],
         ["live_class", "live_meeting"],
+        ["google_meet", "google_meet"],
         ["stream", "live_stream"],
         ["in_person_session", "in_person_session"],
     ])("normalizes %s to %s", (input, expected) => {

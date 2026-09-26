@@ -19,6 +19,8 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    Tab,
+    Tabs,
     Tooltip,
     IconButton,
 } from "@mui/material";
@@ -34,6 +36,7 @@ import {
 import InstructorLayout from "@/layouts/InstructorLayout";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ReportToolbar } from "@/features/reports";
+import AttendancePanel from "../components/AttendancePanel";
 
 const GRADEBOOK_GUIDE_DISMISSED_KEY = "lms.gradebook.guide.dismissed";
 
@@ -44,14 +47,38 @@ export default function Gradebook({
     assignments = [],
     students,
 }) {
+    const [activeView, setActiveView] = useState(() => {
+        if (typeof window === "undefined") return "grades";
+        return new URLSearchParams(window.location.search).get("view") ===
+            "attendance"
+            ? "attendance"
+            : "grades";
+    });
     const [publishing, setPublishing] = useState(false);
     const [publishDialogOpen, setPublishDialogOpen] = useState(false);
     const [showGradebookGuide, setShowGradebookGuide] = useState(() => {
         if (typeof window === "undefined") return true;
-        return window.localStorage.getItem(GRADEBOOK_GUIDE_DISMISSED_KEY) !== "true";
+        return (
+            window.localStorage.getItem(GRADEBOOK_GUIDE_DISMISSED_KEY) !==
+            "true"
+        );
     });
 
     const gradingMode = gradingConfig?.mode || "summative";
+
+    const handleViewChange = (_event, nextView) => {
+        setActiveView(nextView);
+        if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (nextView === "attendance") {
+                url.searchParams.set("view", "attendance");
+            } else {
+                url.searchParams.delete("view");
+                url.searchParams.delete("session");
+            }
+            window.history.replaceState({}, "", url);
+        }
+    };
 
     const handlePublish = () => {
         setPublishDialogOpen(true);
@@ -115,7 +142,9 @@ export default function Gradebook({
         }
         return (
             <Chip
-                label={score.attemptNumber ? "Awaiting grading" : "Not attempted"}
+                label={
+                    score.attemptNumber ? "Awaiting grading" : "Not attempted"
+                }
                 size="small"
                 variant="outlined"
                 color={score.attemptNumber ? "warning" : "default"}
@@ -183,278 +212,314 @@ export default function Gradebook({
                             </Stack>
                         </Box>
 
-                        <Stack direction="row" spacing={2}>
-                            <ReportToolbar
-                                scope="instructor"
-                                reportId="instructor.gradebook"
-                                queryParams={{ program: program.id }}
-                            />
-                            <Button
-                                variant="contained"
-                                startIcon={<PublishIcon />}
-                                onClick={handlePublish}
-                                disabled={!hasUnpublished || publishing}
-                            >
-                                {publishing
-                                    ? "Publishing..."
-                                    : "Release results"}
-                            </Button>
-                        </Stack>
+                        {activeView === "grades" && (
+                            <Stack direction="row" spacing={2}>
+                                <ReportToolbar
+                                    scope="instructor"
+                                    reportId="instructor.gradebook"
+                                    queryParams={{ program: program.id }}
+                                />
+                                <Button
+                                    variant="contained"
+                                    startIcon={<PublishIcon />}
+                                    onClick={handlePublish}
+                                    disabled={!hasUnpublished || publishing}
+                                >
+                                    {publishing
+                                        ? "Publishing..."
+                                        : "Release results"}
+                                </Button>
+                            </Stack>
+                        )}
                     </Box>
 
-                    {showGradebookGuide && (
+                    <Tabs
+                        value={activeView}
+                        onChange={handleViewChange}
+                        aria-label="Gradebook views"
+                    >
+                        <Tab label="Grades" value="grades" />
+                        <Tab label="Attendance" value="attendance" />
+                    </Tabs>
+
+                    {activeView === "grades" && showGradebookGuide && (
                         <Alert
                             severity="info"
                             onClose={handleDismissGradebookGuide}
                         >
-                            Grades update automatically from official quiz and assignment
-                            results. Pending work is excluded. Release results when
-                            learners are ready to see them.
+                            Grades update automatically from official quiz and
+                            assignment results. Pending work is excluded.
+                            Release results when learners are ready to see them.
                         </Alert>
                     )}
 
-                    {/* Gradebook Table */}
-                    <TableContainer
-                        component={Paper}
-                        sx={{ maxWidth: "100%", overflowX: "auto" }}
-                    >
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell
-                                        sx={{
-                                            minWidth: 180,
-                                            position: "sticky",
-                                            left: 0,
-                                            bgcolor: "background.paper",
-                                            zIndex: 1,
-                                        }}
-                                    >
-                                        Student
-                                    </TableCell>
-                                    {quizzes.map((q) => (
-                                        <TableCell
-                                            key={`quiz-${q.id}`}
-                                            align="center"
-                                            sx={{ minWidth: 100 }}
-                                        >
-                                            <Tooltip
-                                                title={`${q.title}${q.weight > 0 ? ` (${q.weight}%)` : ""}`}
-                                            >
-                                                <Typography
-                                                    variant="caption"
-                                                    noWrap
-                                                    sx={{ display: "block" }}
-                                                >
-                                                    {q.title.length > 15
-                                                        ? q.title.slice(0, 15) +
-                                                          "…"
-                                                        : q.title}
-                                                </Typography>
-                                            </Tooltip>
-                                            <Chip
-                                                label={
-                                                    q.weight > 0
-                                                        ? `${q.weight}%`
-                                                        : "Quiz"
-                                                }
-                                                size="small"
-                                                color={
-                                                    q.weight > 0
-                                                        ? "primary"
-                                                        : "default"
-                                                }
-                                                sx={{ fontSize: 10 }}
-                                            />
-                                        </TableCell>
-                                    ))}
-                                    {assignments.map((a) => (
-                                        <TableCell
-                                            key={`assign-${a.id}`}
-                                            align="center"
-                                            sx={{ minWidth: 100 }}
-                                        >
-                                            <Tooltip
-                                                title={`${a.title} (${a.weight}%)`}
-                                            >
-                                                <Typography
-                                                    variant="caption"
-                                                    noWrap
-                                                    sx={{ display: "block" }}
-                                                >
-                                                    {a.title.length > 15
-                                                        ? a.title.slice(0, 15) +
-                                                          "…"
-                                                        : a.title}
-                                                </Typography>
-                                            </Tooltip>
-                                            <Chip
-                                                label={`${a.weight}%`}
-                                                size="small"
-                                                color="secondary"
-                                                sx={{ fontSize: 10 }}
-                                            />
-                                        </TableCell>
-                                    ))}
-                                    <TableCell
-                                        align="center"
-                                        sx={{
-                                            minWidth: 80,
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        Current grade
-                                    </TableCell>
-                                    <TableCell
-                                        align="center"
-                                        sx={{ minWidth: 60 }}
-                                    >
-                                        Actions
-                                    </TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {students.length === 0 ? (
+                    {activeView === "grades" ? (
+                        <TableContainer
+                            component={Paper}
+                            sx={{ maxWidth: "100%", overflowX: "auto" }}
+                        >
+                            <Table size="small">
+                                <TableHead>
                                     <TableRow>
                                         <TableCell
-                                            colSpan={
-                                                quizzes.length +
-                                                assignments.length +
-                                                3
-                                            }
-                                            align="center"
-                                            sx={{ py: 4 }}
+                                            sx={{
+                                                minWidth: 180,
+                                                position: "sticky",
+                                                left: 0,
+                                                bgcolor: "background.paper",
+                                                zIndex: 1,
+                                            }}
                                         >
-                                            <Typography color="text.secondary">
-                                                No students enrolled
-                                            </Typography>
+                                            Student
+                                        </TableCell>
+                                        {quizzes.map((q) => (
+                                            <TableCell
+                                                key={`quiz-${q.id}`}
+                                                align="center"
+                                                sx={{ minWidth: 100 }}
+                                            >
+                                                <Tooltip
+                                                    title={`${q.title}${q.weight > 0 ? ` (${q.weight}%)` : ""}`}
+                                                >
+                                                    <Typography
+                                                        variant="caption"
+                                                        noWrap
+                                                        sx={{
+                                                            display: "block",
+                                                        }}
+                                                    >
+                                                        {q.title.length > 15
+                                                            ? q.title.slice(
+                                                                  0,
+                                                                  15,
+                                                              ) + "…"
+                                                            : q.title}
+                                                    </Typography>
+                                                </Tooltip>
+                                                <Chip
+                                                    label={
+                                                        q.weight > 0
+                                                            ? `${q.weight}%`
+                                                            : "Quiz"
+                                                    }
+                                                    size="small"
+                                                    color={
+                                                        q.weight > 0
+                                                            ? "primary"
+                                                            : "default"
+                                                    }
+                                                    sx={{ fontSize: 10 }}
+                                                />
+                                            </TableCell>
+                                        ))}
+                                        {assignments.map((a) => (
+                                            <TableCell
+                                                key={`assign-${a.id}`}
+                                                align="center"
+                                                sx={{ minWidth: 100 }}
+                                            >
+                                                <Tooltip
+                                                    title={`${a.title} (${a.weight}%)`}
+                                                >
+                                                    <Typography
+                                                        variant="caption"
+                                                        noWrap
+                                                        sx={{
+                                                            display: "block",
+                                                        }}
+                                                    >
+                                                        {a.title.length > 15
+                                                            ? a.title.slice(
+                                                                  0,
+                                                                  15,
+                                                              ) + "…"
+                                                            : a.title}
+                                                    </Typography>
+                                                </Tooltip>
+                                                <Chip
+                                                    label={`${a.weight}%`}
+                                                    size="small"
+                                                    color="secondary"
+                                                    sx={{ fontSize: 10 }}
+                                                />
+                                            </TableCell>
+                                        ))}
+                                        <TableCell
+                                            align="center"
+                                            sx={{
+                                                minWidth: 80,
+                                                fontWeight: "bold",
+                                            }}
+                                        >
+                                            Current grade
+                                        </TableCell>
+                                        <TableCell
+                                            align="center"
+                                            sx={{ minWidth: 60 }}
+                                        >
+                                            Actions
                                         </TableCell>
                                     </TableRow>
-                                ) : (
-                                    students.map((student) => (
-                                        <TableRow
-                                            key={student.enrollmentId}
-                                            hover
-                                        >
+                                </TableHead>
+                                <TableBody>
+                                    {students.length === 0 ? (
+                                        <TableRow>
                                             <TableCell
-                                                sx={{
-                                                    position: "sticky",
-                                                    left: 0,
-                                                    bgcolor: "background.paper",
-                                                    zIndex: 1,
-                                                }}
+                                                colSpan={
+                                                    quizzes.length +
+                                                    assignments.length +
+                                                    3
+                                                }
+                                                align="center"
+                                                sx={{ py: 4 }}
                                             >
-                                                <Typography
-                                                    variant="body2"
-                                                    fontWeight="medium"
-                                                >
-                                                    {student.name}
-                                                </Typography>
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                >
-                                                    {student.email}
+                                                <Typography color="text.secondary">
+                                                    No students enrolled
                                                 </Typography>
                                             </TableCell>
-                                            {(student.quizScores || []).map(
-                                                (qs) => (
-                                                    <TableCell
-                                                        key={`q-${qs.quizId}`}
-                                                        align="center"
-                                                    >
-                                                        {renderQuizScoreCell(qs)}
-                                                    </TableCell>
-                                                ),
-                                            )}
-                                            {(
-                                                student.assignmentScores || []
-                                            ).map((as) => (
+                                        </TableRow>
+                                    ) : (
+                                        students.map((student) => (
+                                            <TableRow
+                                                key={student.enrollmentId}
+                                                hover
+                                            >
                                                 <TableCell
-                                                    key={`a-${as.assignmentId}`}
-                                                    align="center"
-                                                >
-                                                    <Stack
-                                                        alignItems="center"
-                                                        spacing={0.5}
-                                                    >
-                                                        {as.status === "not_submitted" ? (
-                                                            <Chip
-                                                                label="Not submitted"
-                                                                size="small"
-                                                                variant="outlined"
-                                                            />
-                                                        ) : as.score === null ||
-                                                          as.score === undefined ? (
-                                                            <Chip
-                                                                label="Awaiting grading"
-                                                                size="small"
-                                                                variant="outlined"
-                                                                color="warning"
-                                                            />
-                                                        ) : (
-                                                            <>
-                                                                {renderScoreCell(
-                                                                    as.score,
-                                                                )}
-                                                                {as.isLate && (
-                                                                    <Chip
-                                                                        icon={
-                                                                            <IconAlertTriangle
-                                                                                size={
-                                                                                    12
-                                                                                }
-                                                                            />
-                                                                        }
-                                                                        label="Late"
-                                                                        size="small"
-                                                                        color="warning"
-                                                                    />
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </Stack>
-                                                </TableCell>
-                                            ))}
-                                            <TableCell align="center">
-                                                <Tooltip
-                                                    title={calculationDescription(student)}
+                                                    sx={{
+                                                        position: "sticky",
+                                                        left: 0,
+                                                        bgcolor:
+                                                            "background.paper",
+                                                        zIndex: 1,
+                                                    }}
                                                 >
                                                     <Typography
                                                         variant="body2"
-                                                        fontWeight="bold"
-                                                        color={
-                                                            student.overallScore !== null
-                                                                ? student.overallScore >= 70
-                                                                    ? "success.main"
-                                                                    : "error.main"
-                                                                : "text.secondary"
-                                                        }
+                                                        fontWeight="medium"
                                                     >
-                                                        {student.overallScore !== null
-                                                            ? `${student.overallScore}%`
-                                                            : "—"}
+                                                        {student.name}
                                                     </Typography>
-                                                </Tooltip>
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <Tooltip title="View detailed progress">
-                                                    <IconButton
-                                                        component={Link}
-                                                        href={`/instructor/programs/${program.id}/gradebook/student/${student.enrollmentId}/`}
-                                                        size="small"
-                                                        color="primary"
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
                                                     >
-                                                        <IconEye size={18} />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                                        {student.email}
+                                                    </Typography>
+                                                </TableCell>
+                                                {(student.quizScores || []).map(
+                                                    (qs) => (
+                                                        <TableCell
+                                                            key={`q-${qs.quizId}`}
+                                                            align="center"
+                                                        >
+                                                            {renderQuizScoreCell(
+                                                                qs,
+                                                            )}
+                                                        </TableCell>
+                                                    ),
+                                                )}
+                                                {(
+                                                    student.assignmentScores ||
+                                                    []
+                                                ).map((as) => (
+                                                    <TableCell
+                                                        key={`a-${as.assignmentId}`}
+                                                        align="center"
+                                                    >
+                                                        <Stack
+                                                            alignItems="center"
+                                                            spacing={0.5}
+                                                        >
+                                                            {as.status ===
+                                                            "not_submitted" ? (
+                                                                <Chip
+                                                                    label="Not submitted"
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                />
+                                                            ) : as.score ===
+                                                                  null ||
+                                                              as.score ===
+                                                                  undefined ? (
+                                                                <Chip
+                                                                    label="Awaiting grading"
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                    color="warning"
+                                                                />
+                                                            ) : (
+                                                                <>
+                                                                    {renderScoreCell(
+                                                                        as.score,
+                                                                    )}
+                                                                    {as.isLate && (
+                                                                        <Chip
+                                                                            icon={
+                                                                                <IconAlertTriangle
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                />
+                                                                            }
+                                                                            label="Late"
+                                                                            size="small"
+                                                                            color="warning"
+                                                                        />
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </Stack>
+                                                    </TableCell>
+                                                ))}
+                                                <TableCell align="center">
+                                                    <Tooltip
+                                                        title={calculationDescription(
+                                                            student,
+                                                        )}
+                                                    >
+                                                        <Typography
+                                                            variant="body2"
+                                                            fontWeight="bold"
+                                                            color={
+                                                                student.overallScore !==
+                                                                null
+                                                                    ? student.overallScore >=
+                                                                      70
+                                                                        ? "success.main"
+                                                                        : "error.main"
+                                                                    : "text.secondary"
+                                                            }
+                                                        >
+                                                            {student.overallScore !==
+                                                            null
+                                                                ? `${student.overallScore}%`
+                                                                : "—"}
+                                                        </Typography>
+                                                    </Tooltip>
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <Tooltip title="View detailed progress">
+                                                        <IconButton
+                                                            component={Link}
+                                                            href={`/instructor/programs/${program.id}/gradebook/student/${student.enrollmentId}/`}
+                                                            size="small"
+                                                            color="primary"
+                                                        >
+                                                            <IconEye
+                                                                size={18}
+                                                            />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    ) : (
+                        <AttendancePanel program={program} />
+                    )}
                 </Stack>
             </motion.div>
             <ConfirmDialog

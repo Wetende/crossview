@@ -10,6 +10,22 @@ SCOPES_BY_CAPABILITY = {
     "meet_attendance": {"https://www.googleapis.com/auth/meetings.space.readonly"},
 }
 WORKSPACE_IDENTITY_SCOPES = {"openid", "https://www.googleapis.com/auth/userinfo.email"}
+FULL_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
+
+
+def normalize_scopes(scopes):
+    """Return a stable set for JSON lists and OAuth space-delimited values."""
+    if isinstance(scopes, str):
+        values = [scopes]
+    else:
+        values = scopes or []
+    return {
+        scope
+        for value in values
+        if isinstance(value, str)
+        for scope in value.split()
+        if scope
+    }
 
 
 def workspace_configuration():
@@ -35,15 +51,23 @@ def scopes_for_capabilities(capabilities, existing_scopes=None):
     unknown = requested - set(SCOPES_BY_CAPABILITY)
     if unknown:
         raise ValueError(f"Unsupported Google Workspace capabilities: {', '.join(sorted(unknown))}")
-    scopes = set(existing_scopes or []) | WORKSPACE_IDENTITY_SCOPES
+    scopes = normalize_scopes(existing_scopes) | WORKSPACE_IDENTITY_SCOPES
     for capability in requested:
         scopes.update(SCOPES_BY_CAPABILITY[capability])
     return sorted(scopes)
 
 
 def granted_capabilities(credential):
-    granted = set(credential.granted_scopes or [])
-    return {capability for capability, scopes in SCOPES_BY_CAPABILITY.items() if scopes.issubset(granted)}
+    granted = normalize_scopes(credential.granted_scopes)
+    capabilities = {
+        capability
+        for capability, scopes in SCOPES_BY_CAPABILITY.items()
+        if scopes.issubset(granted)
+    }
+    # The broader Calendar grant includes all calendar.events permissions.
+    if FULL_CALENDAR_SCOPE in granted:
+        capabilities.add("calendar_events")
+    return capabilities
 
 
 def require_capabilities(credential, capabilities):

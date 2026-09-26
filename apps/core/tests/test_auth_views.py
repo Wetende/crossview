@@ -183,6 +183,84 @@ def test_google_one_tap_creates_student_and_logs_them_in(client, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_google_one_tap_login_survives_attendance_identity_failure(
+    client, monkeypatch
+):
+    from apps.google_workspace.models import GoogleParticipantIdentity
+
+    monkeypatch.setattr(
+        "apps.core.views._verify_google_one_tap_credential",
+        lambda _credential: {
+            "email": "identity-write-failure@example.com",
+            "email_verified": True,
+            "given_name": "Identity",
+            "family_name": "Failure",
+            "sub": "identity-write-failure-subject",
+        },
+    )
+
+    def fail_identity_write(*_args, **_kwargs):
+        raise RuntimeError("attendance identity table unavailable")
+
+    monkeypatch.setattr(
+        GoogleParticipantIdentity.objects,
+        "update_or_create",
+        fail_identity_write,
+    )
+    client.cookies["g_csrf_token"] = "csrf-from-google"
+
+    with override_settings(
+        GOOGLE_ONE_TAP_ENABLED=True,
+        GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
+    ):
+        response = client.post(
+            "/auth/google/onetap/",
+            {
+                "credential": "signed-google-jwt",
+                "g_csrf_token": "csrf-from-google",
+            },
+        )
+
+    assert response.status_code == 302
+    assert response.url == "/dashboard/"
+    assert "_auth_user_id" in client.session
+
+
+@pytest.mark.django_db
+def test_google_one_tap_preserves_posted_enrollment_return_url(client, monkeypatch):
+    next_url = "/programs/enrollment/resume/?intent=signed-intent"
+
+    def fake_verify(_credential):
+        return {
+            "email": "google-enrollment-student@example.com",
+            "email_verified": True,
+            "given_name": "Enroll",
+            "family_name": "Student",
+            "sub": "google-enrollment-subject-id",
+        }
+
+    monkeypatch.setattr("apps.core.views._verify_google_one_tap_credential", fake_verify)
+    client.cookies["g_csrf_token"] = "csrf-from-google"
+
+    with override_settings(
+        GOOGLE_ONE_TAP_ENABLED=True,
+        GOOGLE_ONE_TAP_CLIENT_ID="google-client-id",
+    ):
+        response = client.post(
+            "/auth/google/onetap/",
+            {
+                "credential": "signed-google-jwt",
+                "g_csrf_token": "csrf-from-google",
+                "next": next_url,
+            },
+        )
+
+    assert response.status_code == 302
+    assert response.url == next_url
+    assert User.objects.filter(email="google-enrollment-student@example.com").exists()
+
+
+@pytest.mark.django_db
 def test_google_one_tap_preserves_button_state_return_url(client, monkeypatch):
     next_url = "/dashboard/?from=google-state"
 

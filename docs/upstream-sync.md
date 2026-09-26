@@ -1,6 +1,6 @@
 # Sequential Shared-Engine Sync Runbook
 
-Use this runbook when shared work originates in `airads` or another fork.
+Use this runbook when shared work originates in `airads-virtual` or another fork.
 Promotion is sequential: source fork, then canonical `lms`, then each downstream
 fork. Do not implement the same shared change independently in parallel.
 

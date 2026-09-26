@@ -97,6 +97,7 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        alignSelf: "center",
                     }}
                 >
                     <IconCheck size={32} color="var(--mui-palette-success-main, #2e7d32)" />
@@ -141,6 +142,7 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        alignSelf: "center",
                     }}
                 >
                     <IconAlertTriangle size={32} color="var(--mui-palette-error-main, #d32f2f)" />
@@ -175,7 +177,7 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
     // Polling state
     return (
         <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
-            <CircularProgress size={48} />
+            <CircularProgress size={48} sx={{ alignSelf: "center" }} />
             <Typography variant="h6" fontWeight={600}>
                 Verifying Payment…
             </Typography>

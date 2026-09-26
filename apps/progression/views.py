@@ -767,6 +767,20 @@ def _render_course_player(request, enrollment, node, completions, status_map):
     # Get content blocks
     blocks = ContentBlock.objects.filter(node=node).order_by("position")
     activity_type = normalize_activity_type(node.node_type, node_properties)
+    from apps.learning_operations.activity_progress import (
+        get_completion_policy,
+        serialize_activity_progress,
+    )
+    from apps.live_sessions.models import ScheduledLearningSession
+    from apps.live_sessions.services import serialize_session_for_student
+
+    completion_policy = get_completion_policy(node)
+    activity_progress = serialize_activity_progress(enrollment, node)
+    scheduled_session = ScheduledLearningSession.objects.filter(node=node).first()
+    scheduled_session_payload = serialize_session_for_student(
+        scheduled_session,
+        enrollment=enrollment,
+    )
     blocks_data = [
         {
             "id": block.id,
@@ -803,6 +817,9 @@ def _render_course_player(request, enrollment, node, completions, status_map):
                     "properties": node_properties,
                 },
                 "supplements": blocks_data,
+                "completionPolicy": completion_policy,
+                "activityProgress": activity_progress,
+                "scheduledSession": scheduled_session_payload,
             },
             "program": _build_program_player_payload(program, enrollment),
             "instructor": primary_instructor,

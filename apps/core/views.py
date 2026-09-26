@@ -5,6 +5,7 @@ Requirements: 1.1-1.4, 2.1-2.6, 3.1-3.6, 4.1-4.5, 5.1-5.6, 6.1-6.6
 
 from collections import Counter, defaultdict
 from datetime import datetime
+import logging
 import re
 from urllib.parse import urlencode
 from typing import Optional
@@ -34,6 +35,8 @@ from django.utils.http import (
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from inertia import render
+
+logger = logging.getLogger(__name__)
 
 from apps.assessments.text_normalization import (
     normalize_assessment_text,
@@ -1193,10 +1196,14 @@ def google_one_tap_login(request):
     try:
         payload = _verify_google_one_tap_credential(credential)
         user, created = _get_or_create_google_one_tap_user(payload)
-        # Google Meet exposes the signed-in Google user identifier, not a name.
-        # Preserve the verified OIDC subject so attendance matching is explicit.
-        google_subject = str(payload.get("sub") or "").strip()
-        if google_subject:
+    except Exception:
+        messages.error(request, "Google sign-in failed. Please try again.")
+        return redirect(_login_url_with_next(request))
+
+    # Attendance identity enrichment is useful, but it must never block login.
+    google_subject = str(payload.get("sub") or "").strip()
+    if google_subject:
+        try:
             from apps.google_workspace.models import GoogleParticipantIdentity
 
             GoogleParticipantIdentity.objects.update_or_create(
@@ -1208,9 +1215,10 @@ def google_one_tap_login(request):
                     "verified_by": None,
                 },
             )
-    except Exception:
-        messages.error(request, "Google sign-in failed. Please try again.")
-        return redirect(_login_url_with_next(request))
+        except Exception:
+            logger.exception(
+                "Google sign-in succeeded but participant identity enrichment failed"
+            )
 
     if not user.is_active:
         messages.error(
@@ -7373,6 +7381,7 @@ def instructor_node_update(request, node_id: int):
 
     if updated_lesson_type in {
         "live_class",
+        "google_meet",
         "live_meeting",
         "live_stream",
         "in_person_session",
@@ -7389,15 +7398,33 @@ def instructor_node_update(request, node_id: int):
 
     if updated_lesson_type in {
         "live_class",
+        "google_meet",
         "live_meeting",
         "live_stream",
         "in_person_session",
     }:
-        from apps.live_sessions.jobs import enqueue_session_job
+        from apps.live_sessions.jobs import (
+            enqueue_session_job,
+            process_live_session_jobs,
+        )
+        from apps.live_sessions.models import ScheduledLearningSession
         from apps.live_sessions.services import sync_scheduled_session_from_node
 
         session = sync_scheduled_session_from_node(node, actor=request.user)
-        if session.provider_event_id:
+        if (
+            session.provider == ScheduledLearningSession.Provider.GOOGLE_MEET
+            and not session.join_url
+        ):
+            create_job = enqueue_session_job(
+                session,
+                "google_meet_create",
+                actor=request.user,
+                operation_id=(
+                    f"automatic-node-save:{node.id}:{node.updated_at.isoformat()}"
+                ),
+            )
+            process_live_session_jobs(job_ids=[create_job.id])
+        elif session.provider_event_id:
             enqueue_session_job(session, "update", actor=request.user)
 
     # Sync quiz questions to proper database tables if this is a quiz node

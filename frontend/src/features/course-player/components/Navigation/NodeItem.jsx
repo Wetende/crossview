@@ -103,6 +103,7 @@ const NodeItem = ({
                     <CodeIcon sx={{ color: "success.main", fontSize: 20 }} />
                 );
             case ACTIVITY_TYPES.LIVE_MEETING:
+            case ACTIVITY_TYPES.GOOGLE_MEET:
                 return (
                     <MeetingIcon sx={{ color: "primary.main", fontSize: 20 }} />
                 );

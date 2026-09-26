@@ -6,6 +6,7 @@ export const ACTIVITY_TYPES = Object.freeze({
     CODE: "code",
     QUIZ: "quiz",
     ASSIGNMENT: "assignment",
+    GOOGLE_MEET: "google_meet",
     LIVE_MEETING: "live_meeting",
     LIVE_STREAM: "live_stream",
     IN_PERSON_SESSION: "in_person_session",
@@ -31,7 +32,8 @@ export const normalizeActivityType = (node) => {
 };
 
 export const formatActivityDuration = (duration) => {
-    if (duration === null || duration === undefined || duration === "") return "";
+    if (duration === null || duration === undefined || duration === "")
+        return "";
     if (typeof duration === "number") return `${duration} min`;
 
     const value = String(duration).trim();

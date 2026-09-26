@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.db import transaction
 from django.db.models import F, Q
@@ -13,6 +14,47 @@ RETRYABLE_CATEGORIES = {
     "remote_error",
     "conference_not_ready",
 }
+
+
+def _send_organizer_confirmation(session, credential):
+    """Email the Google event organizer after the Meet link is persisted."""
+    from apps.notifications.services import NotificationService
+
+    try:
+        source_timezone = ZoneInfo(session.source_timezone)
+    except ZoneInfoNotFoundError:
+        source_timezone = timezone.get_default_timezone()
+
+    starts_at = timezone.localtime(session.starts_at, source_timezone)
+    ends_at = timezone.localtime(session.ends_at, source_timezone)
+    calendar_url = (session.provider_metadata or {}).get("calendarHtmlLink", "")
+    lines = [
+        "Your Google Meet live class is ready.",
+        "",
+        f"Class: {session.title}",
+        f"Course: {session.node.program.name}",
+        f"Date: {starts_at:%A, %d %B %Y}",
+        f"Time: {starts_at:%H:%M} - {ends_at:%H:%M}",
+        f"Timezone: {session.source_timezone}",
+        f"Join Google Meet: {session.join_url}",
+    ]
+    if calendar_url:
+        lines.append(f"Open in Google Calendar: {calendar_url}")
+
+    NotificationService.send_email_notification(
+        recipient=credential.user,
+        notification_type="system",
+        subject=f"Google Meet created: {session.title}",
+        message="\n".join(lines),
+        idempotency_key=(
+            f"google-meet-organizer-created:{session.id}:{session.provider_event_id}"
+        ),
+        metadata={
+            "sessionId": session.id,
+            "providerEventId": session.provider_event_id,
+            "kind": "google_meet_organizer_confirmation",
+        },
+    )
 
 
 def enqueue_session_job(
@@ -110,6 +152,7 @@ def _run_job(job):
             invited_enrollment_ids=[row.id for row in enrollments if row.user.email],
             credential=credential,
         )
+        _send_organizer_confirmation(session, credential)
         # Meet REST scope is optional. Calendar-only teachers can still create classes.
         from apps.google_workspace.configuration import granted_capabilities
         if "meet_attendance" in granted_capabilities(credential):
