@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, usePage } from "@inertiajs/react";
 import ClassroomLayout from "../layouts/ClassroomLayout";
 import CourseSidebar from "../components/Navigation/CourseSidebar";
 import StudyPanel from "../components/Tools/StudyPanel";
@@ -8,6 +8,8 @@ import CourseOverview from "../components/Stage/CourseOverview";
 import { Box, Typography } from "@mui/material";
 import PlayerSupportStrip from "../components/PlayerSupportStrip";
 import UnitCompletionView from "../components/Stage/UnitCompletionView";
+import CourseCompletionView from "../components/Stage/CourseCompletionView";
+import StageFlashMessages from "../components/Stage/StageFlashMessages";
 import { ACTIVITY_TYPES, normalizeActivityType } from "@/lib/activityTypes";
 
 const lessonHasVideo = (node) =>
@@ -32,7 +34,11 @@ const LectureView = ({
     resumeUrl = null,
     unitSummary = null,
     announcements = [],
+    courseCompletion = null,
+    courseCompleteUrl = null,
 }) => {
+    const { flash } = usePage().props;
+
     // Local State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isDiscussionsOpen, setIsDiscussionsOpen] = useState(false);
@@ -55,6 +61,7 @@ const LectureView = ({
             activeNodeId={node?.id}
             enrollmentId={enrollment?.id}
             activeView={activeView}
+            completionUrl={enrollment?.completionSummaryUrl}
         />
     );
 
@@ -77,7 +84,9 @@ const LectureView = ({
 
     const isOverview = activeView === "overview";
     const isUnitSummary = activeView === "unit_summary";
-    const isLessonView = !isOverview && !isUnitSummary && Boolean(node);
+    const isCourseComplete = activeView === "course_complete";
+    const isSummaryView = isOverview || isUnitSummary || isCourseComplete;
+    const isLessonView = !isSummaryView && Boolean(node);
 
     const messageInstructorHref =
         isLessonView && instructor?.id
@@ -91,7 +100,7 @@ const LectureView = ({
             programTitle={program?.name || "Loading Course..."}
             backLink="/dashboard/"
             LeftPanel={LeftPanel}
-            RightPanel={isOverview || isUnitSummary ? null : RightPanel}
+            RightPanel={isSummaryView ? null : RightPanel}
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isDiscussionsOpen={isDiscussionsOpen}
@@ -104,9 +113,13 @@ const LectureView = ({
                         ? `${program?.name || "Course"} - Overview`
                         : isUnitSummary
                           ? `${unitSummary?.title || "Unit"} - Summary`
-                          : node?.title || program?.name || "Course Player"
+                          : isCourseComplete
+                            ? `${program?.name || "Course"} - Completed`
+                            : node?.title || program?.name || "Course Player"
                 }
             />
+
+            {isSummaryView && <StageFlashMessages flash={flash} />}
 
             <PlayerSupportStrip
                 gamification={enrollment?.gamification}
@@ -120,9 +133,16 @@ const LectureView = ({
                     resumeUrl={resumeUrl}
                     curriculum={curriculum}
                     announcements={announcements}
+                    courseCompleteUrl={courseCompleteUrl}
                 />
             ) : isUnitSummary && unitSummary ? (
                 <UnitCompletionView unit={unitSummary} />
+            ) : isCourseComplete && courseCompletion ? (
+                <CourseCompletionView
+                    program={program}
+                    completion={courseCompletion}
+                    returnUrl={enrollment?.completionSummaryUrl}
+                />
             ) : node ? (
                 <Whiteboard
                     node={node}
@@ -133,6 +153,8 @@ const LectureView = ({
                     discussions={discussions}
                     onVideoProgress={handleVideoProgress}
                     seekRef={seekRef}
+                    courseCompleteUrl={courseCompleteUrl}
+                    courseSummaryUrl={enrollment?.completionSummaryUrl}
                 />
             ) : (
                 <Box sx={{ p: 4, textAlign: "center" }}>

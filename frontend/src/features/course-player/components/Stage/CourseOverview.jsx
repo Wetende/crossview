@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { Link } from "@inertiajs/react";
 import {
     Alert,
     Box,
+    Button,
     Card,
     CardContent,
     Chip,
@@ -12,7 +14,11 @@ import {
     Stack,
     Typography,
 } from "@mui/material";
-import { CheckCircle as CheckIcon, PushPin } from "@mui/icons-material";
+import {
+    CheckCircle as CheckIcon,
+    EmojiEventsOutlined,
+    PushPin,
+} from "@mui/icons-material";
 import DOMPurify from "dompurify";
 import { formatDistanceToNow } from "date-fns";
 
@@ -174,6 +180,7 @@ const CourseOverview = ({
     resumeUrl,
     curriculum = [],
     announcements = [],
+    courseCompleteUrl = null,
 }) => {
     const progress = Number(enrollment?.progressPercent || 0);
     const hasStarted = progress > 0;
@@ -209,6 +216,26 @@ const CourseOverview = ({
                     />
                 )}
             </Box>
+
+            {courseCompleteUrl && (
+                <Alert
+                    severity="success"
+                    icon={<EmojiEventsOutlined fontSize="inherit" />}
+                    action={
+                        <Button
+                            component={Link}
+                            href={courseCompleteUrl}
+                            color="inherit"
+                            size="small"
+                        >
+                            View course summary
+                        </Button>
+                    }
+                    sx={{ mb: { xs: 2.5, md: 3 }, borderRadius: 2 }}
+                >
+                    You completed this course.
+                </Alert>
+            )}
 
             <DeliveryOverviewCard
                 program={program}

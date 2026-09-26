@@ -25,8 +25,9 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.dateparse import parse_date, parse_datetime
 from django.utils import timezone
+from django.template.defaultfilters import linebreaks
 from django.utils.encoding import force_bytes, force_str
-from django.utils.html import strip_tags
+from django.utils.html import escape, strip_tags
 from django.utils.http import (
     url_has_allowed_host_and_scheme,
     urlsafe_base64_decode,
@@ -975,10 +976,11 @@ def program_review_submit(request, pk: int):
         messages.error(request, "Program not found.")
         return redirect("core:programs")
 
+    return_url = _safe_next_url(request, fallback=_program_public_url(program))
     enrollment = Enrollment.objects.filter(user=request.user, program=program).first()
     if not enrollment or enrollment.status != "completed":
         messages.error(request, "You can only review courses after completing them.")
-        return redirect(_program_public_url(program))
+        return redirect(return_url)
 
     data = get_post_data(request)
     try:
@@ -988,15 +990,20 @@ def program_review_submit(request, pk: int):
 
     if rating < 1 or rating > 5:
         messages.error(request, "Rating must be between 1 and 5.")
-        return redirect(_program_public_url(program))
+        return redirect(return_url)
 
-    raw_review = str(data.get("review_html") or data.get("review") or "").strip()
-    review_text = strip_tags(raw_review).strip()
-    review_html = raw_review
+    rich_review = str(data.get("review_html") or "").strip()
+    if rich_review:
+        review_html = rich_review
+        review_text = strip_tags(rich_review).strip()
+    else:
+        # Plain-text reviews are escaped and paragraph-wrapped for display.
+        review_text = str(data.get("review") or "").strip()
+        review_html = linebreaks(escape(review_text)) if review_text else ""
 
     if review_text and len(review_text) > 5000:
         messages.error(request, "Review is too long (max 5000 characters).")
-        return redirect(_program_public_url(program))
+        return redirect(return_url)
 
     review, created = ProgramReview.objects.get_or_create(
         program=program,
@@ -1020,7 +1027,7 @@ def program_review_submit(request, pk: int):
         review.save()
 
     messages.success(request, "Review submitted and awaiting moderation.")
-    return redirect(_program_public_url(program))
+    return redirect(return_url)
 
 
 @login_required
@@ -1650,6 +1657,7 @@ def _get_student_dashboard_data(user) -> dict:
     )
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import Enrollment, NodeCompletion
+    from apps.progression.services import mark_enrollment_completed
     from apps.learning_operations.selectors import (
         get_student_operations,
         serialize_enrollment_operations,
@@ -1710,8 +1718,14 @@ def _get_student_dashboard_data(user) -> dict:
         .values_list("program_id", "cnt")
     )
 
+    # Published leaves only, matching leaf_counts, so completions of
+    # unpublished lessons cannot mark a course complete.
     completion_counts = dict(
-        NodeCompletion.objects.filter(enrollment_id__in=enrollment_ids)
+        NodeCompletion.objects.filter(
+            enrollment_id__in=enrollment_ids,
+            node__is_published=True,
+            node__children__isnull=True,
+        )
         .values("enrollment_id")
         .annotate(cnt=Count("id"))
         .values_list("enrollment_id", "cnt")
@@ -1726,11 +1740,14 @@ def _get_student_dashboard_data(user) -> dict:
         if enrollment.status in {"active", "completed"}:
             target_status = "completed" if progress >= 100 else "active"
             if enrollment.status != target_status:
-                enrollment.status = target_status
-                enrollment.completed_at = (
-                    timezone.now() if target_status == "completed" else None
-                )
-                enrollment.save(update_fields=["status", "completed_at", "updated_at"])
+                if target_status == "completed":
+                    mark_enrollment_completed(enrollment)
+                else:
+                    enrollment.status = target_status
+                    enrollment.completed_at = None
+                    enrollment.save(
+                        update_fields=["status", "completed_at", "updated_at"]
+                    )
 
         program = enrollment.program
         enrollment_data.append(
@@ -4925,13 +4942,18 @@ def student_quiz_submit(request, quiz_id: int):
                 node=quiz.node,
             ).delete()
 
+        finished_course = False
         if should_mark_complete:
             from apps.progression.services import ProgressionEngine
 
+            was_completed = enrollment.status == "completed"
             ProgressionEngine().mark_complete(
                 enrollment=enrollment,
                 node=quiz.node,
                 completion_type=completion_type,
+            )
+            finished_course = (
+                not was_completed and enrollment.status == "completed"
             )
 
         redirect_url = (
@@ -4939,6 +4961,9 @@ def student_quiz_submit(request, quiz_id: int):
             f"?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
             f"&attempt_id={attempt.id}"
         )
+        if finished_course:
+            # Keep the results screen; the player then offers the summary.
+            redirect_url += "&course_complete=1"
         try:
             from apps.progression.views import _get_sibling_navigation
 
@@ -5129,6 +5154,8 @@ def student_quiz_results(request, quiz_id: int):
         query = {"show_results": 1}
         if selected_attempt_id:
             query["attempt_id"] = selected_attempt_id
+        if request.GET.get("course_complete") == "1":
+            query["course_complete"] = 1
         session_url = (
             f"/student/programs/{enrollment.id}/session/{quiz.node_id}/"
             f"?{urlencode(query)}"
@@ -6011,11 +6038,16 @@ def student_assignment_submit(request, assignment_id: int):
         if completion_state["is_complete"]:
             from apps.progression.services import ProgressionEngine
 
+            was_completed = enrollment.status == "completed"
             ProgressionEngine().mark_complete(
                 enrollment=enrollment,
                 node=context_node,
                 completion_type="manual",
             )
+            if not was_completed and enrollment.status == "completed":
+                return redirect(
+                    "progression:student.course.complete", pk=enrollment.id
+                )
         else:
             NodeCompletion.objects.filter(
                 enrollment=enrollment,

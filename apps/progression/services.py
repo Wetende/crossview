@@ -4,6 +4,7 @@ Handles sequential locking, prerequisite checking, and progress calculation.
 """
 from dataclasses import dataclass
 from typing import Optional, List, Set, Dict, Any
+from django.db import transaction
 from django.utils import timezone
 
 from apps.curriculum.models import CurriculumNode
@@ -16,6 +17,34 @@ from apps.assessments.official_results import (
 
 
 ASSIGNMENT_MODES = {"submission_only", "question_only", "mixed"}
+
+
+def mark_enrollment_completed(enrollment: Enrollment) -> bool:
+    """
+    Move an enrollment to ``completed`` and schedule the learner notification.
+
+    Shared by every path that detects 100% progress. The notification is
+    registered before the save so it is sent ahead of the certificate notice
+    that the save's certificate signal may queue; both run only after commit.
+    Re-completions (for example after new lessons were added) schedule it
+    again, and the per-enrollment idempotency key keeps it to one send.
+
+    Returns True when this call changed the status to ``completed``.
+    """
+    if enrollment.status == "completed":
+        return False
+
+    def _notify():
+        from apps.notifications.services import NotificationService
+
+        NotificationService.notify_course_completed(enrollment)
+
+    with transaction.atomic():
+        transaction.on_commit(_notify, robust=True)
+        enrollment.status = "completed"
+        enrollment.completed_at = timezone.now()
+        enrollment.save(update_fields=["status", "completed_at", "updated_at"])
+    return True
 
 
 def _safe_int(value):
@@ -620,9 +649,7 @@ class ProgressionEngine:
 
         # Check for program completion
         if self.check_program_completion(enrollment) and enrollment.status != 'completed':
-            enrollment.status = 'completed'
-            enrollment.completed_at = timezone.now()
-            enrollment.save(update_fields=['status', 'completed_at', 'updated_at'])
+            mark_enrollment_completed(enrollment)
 
         return completion
 

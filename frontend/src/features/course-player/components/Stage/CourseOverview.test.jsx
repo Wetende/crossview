@@ -79,6 +79,28 @@ describe("CourseOverview", () => {
         expect(
             screen.getByRole("link", { name: /course guide/i }),
         ).toHaveAttribute("href", "/guide.pdf");
+        expect(
+            screen.queryByText("You completed this course."),
+        ).not.toBeInTheDocument();
+    });
+
+    test("links a completed course to its summary", () => {
+        render(
+            <CourseOverview
+                program={{ id: 4, name: "Data Foundations", resources: [] }}
+                enrollment={{ progressPercent: 100, upcomingDeadlines: [] }}
+                resumeUrl="/student/programs/4/resume/"
+                courseCompleteUrl="/student/programs/9/complete/"
+                curriculum={[]}
+            />,
+        );
+
+        expect(
+            screen.getByText("You completed this course."),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("link", { name: "View course summary" }),
+        ).toHaveAttribute("href", "/student/programs/9/complete/");
     });
 
     test("shows course announcements above the notices, pinned ones marked", () => {

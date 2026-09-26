@@ -85,6 +85,31 @@ describe("QuizResultsRenderer", () => {
         expect(html).not.toContain("All 3 available attempts");
     });
 
+    test("offers the course summary when this quiz finished the course", () => {
+        render(
+            <QuizResultsRenderer
+                quizResults={buildResults()}
+                nextNode={{ id: 2, url: "/session/2/" }}
+                courseCompleteUrl="/student/programs/5/complete/"
+            />,
+        );
+
+        expect(
+            screen.getByRole("link", { name: "View course summary" }),
+        ).toHaveAttribute("href", "/student/programs/5/complete/");
+        expect(
+            screen.getByRole("link", { name: "Continue learning" }),
+        ).toHaveClass("MuiButton-outlined");
+    });
+
+    test("hides the course summary action without a summary URL", () => {
+        render(<QuizResultsRenderer quizResults={buildResults()} />);
+
+        expect(
+            screen.queryByRole("link", { name: "View course summary" }),
+        ).not.toBeInTheDocument();
+    });
+
     test("keeps correct answers hidden until the release policy allows them", () => {
         const html = renderToStaticMarkup(
             <QuizResultsRenderer
