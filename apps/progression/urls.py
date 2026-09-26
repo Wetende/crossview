@@ -121,6 +121,21 @@ urlpatterns = [
         name="instructor.gradebook",
     ),
     path(
+        "instructor/programs/<int:pk>/gradebook/attendance/<int:node_id>/mark/",
+        views.instructor_gradebook_attendance_mark,
+        name="instructor.gradebook.attendance.mark",
+    ),
+    path(
+        "instructor/programs/<int:pk>/gradebook/attendance/<int:node_id>/sync/",
+        views.instructor_gradebook_attendance_sync,
+        name="instructor.gradebook.attendance.sync",
+    ),
+    path(
+        "instructor/programs/<int:pk>/gradebook/attendance/<int:node_id>/map-google/",
+        views.instructor_gradebook_attendance_map_google,
+        name="instructor.gradebook.attendance.map_google",
+    ),
+    path(
         "instructor/programs/<int:pk>/gradebook/save/",
         views.instructor_gradebook_save,
         name="instructor.gradebook.save",

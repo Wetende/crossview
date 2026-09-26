@@ -7439,6 +7439,26 @@ def instructor_node_update(request, node_id: int):
         from apps.live_sessions.services import sync_scheduled_session_from_node
 
         session = sync_scheduled_session_from_node(node, actor=request.user)
+        if session.kind == ScheduledLearningSession.Kind.IN_PERSON:
+            from apps.live_sessions.notifications import (
+                notify_in_person_session_learners,
+            )
+
+            try:
+                notification_result = notify_in_person_session_learners(session)
+            except Exception:
+                logger.exception(
+                    "Could not prepare in-person session notifications session_id=%s",
+                    session.id,
+                )
+            else:
+                if notification_result["failed"]:
+                    logger.warning(
+                        "Some in-person session notifications could not be queued "
+                        "session_id=%s failed=%s",
+                        session.id,
+                        notification_result["failed"],
+                    )
         if (
             session.provider == ScheduledLearningSession.Provider.GOOGLE_MEET
             and not session.join_url

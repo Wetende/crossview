@@ -121,3 +121,22 @@ def serialize_connection(user, *, reconcile=True, include_diagnostics=False):
     if include_diagnostics:
         connection["diagnostics"] = {"calendarAccess": calendar_access}
     return connection
+
+
+def serialize_connection_for_request(request):
+    """Return the clean author-facing connection state, including one OAuth result."""
+    from .oauth import CALLBACK_DIAGNOSTIC_SESSION_KEY
+
+    connection = serialize_connection(request.user)
+    callback = request.session.pop(CALLBACK_DIAGNOSTIC_SESSION_KEY, None)
+    if callback:
+        succeeded = callback.get("status") == "success"
+        connection["oauthCallback"] = {
+            "status": "success" if succeeded else "error",
+            "message": (
+                "Google Calendar connected successfully."
+                if succeeded
+                else "Google Calendar could not be connected. Try again."
+            ),
+        }
+    return connection

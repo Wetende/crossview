@@ -32,6 +32,7 @@ const values = {
     reminderMinutes: 10,
     attendanceThreshold: 75,
     preClassNotes: "",
+    notifyLearners: false,
 };
 
 describe("ScheduledSessionFields", () => {
@@ -71,5 +72,59 @@ describe("ScheduledSessionFields", () => {
         ].forEach((label) => {
             expect(screen.queryByText(label)).not.toBeInTheDocument();
         });
+    });
+
+    test("offers learner notifications only for in-person sessions", () => {
+        const onChange = vi.fn();
+        const { rerender } = render(
+            <ScheduledSessionFields
+                values={{
+                    ...values,
+                    sessionKind: "in_person_session",
+                    sessionProvider: "physical",
+                    venue: "Skills Centre",
+                    room: "Lab 2",
+                    address: "10 Learning Road",
+                    directions: "Use the north entrance",
+                    attendanceInstructions: "Sign the class register",
+                }}
+                errors={{}}
+                lessonType="in_person_session"
+                nodeId={42}
+                persisted
+                googleMeetControlsRef={createRef()}
+                onBlur={vi.fn()}
+                onChange={onChange}
+                onSaveBeforeMeet={vi.fn()}
+            />,
+        );
+
+        const toggle = screen.getByRole("checkbox", {
+            name: "Notify enrolled learners",
+        });
+        expect(toggle).toBeInTheDocument();
+        expect(toggle).not.toBeChecked();
+
+        toggle.click();
+        expect(onChange).toHaveBeenCalledWith({ notifyLearners: true });
+
+        rerender(
+            <ScheduledSessionFields
+                values={values}
+                errors={{}}
+                lessonType="google_meet"
+                nodeId={42}
+                persisted
+                googleMeetControlsRef={createRef()}
+                onBlur={vi.fn()}
+                onChange={vi.fn()}
+                onSaveBeforeMeet={vi.fn()}
+            />,
+        );
+        expect(
+            screen.queryByRole("switch", {
+                name: "Notify enrolled learners",
+            }),
+        ).not.toBeInTheDocument();
     });
 });

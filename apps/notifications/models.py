@@ -26,6 +26,7 @@ class Notification(TimeStampedModel):
         ('assignment_reminder', 'Assignment Reminder'),
         ('access_expiry_reminder', 'Access Expiry Reminder'),
         ('inactivity_reminder', 'Inactivity Reminder'),
+        ('scheduled_session', 'Scheduled Session Update'),
         ('badge_earned', 'Badge Earned'),
         ('system', 'System Notification'),
     ]

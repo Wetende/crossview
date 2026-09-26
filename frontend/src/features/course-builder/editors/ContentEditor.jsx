@@ -190,6 +190,9 @@ const ContentEditor = forwardRef(function ContentEditor(
     const [attendanceInstructions, setAttendanceInstructions] = useState(
         node.properties?.attendance_instructions || "",
     );
+    const [notifyLearners, setNotifyLearners] = useState(
+        Boolean(node.properties?.notify_enrolled_learners),
+    );
     const [sessionVisibility, setSessionVisibility] = useState(
         node.properties?.session_visibility || "private",
     );
@@ -532,6 +535,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                     directions:
                         sessionKind === "in_person_session" ? directions : "",
                     attendance_instructions: attendanceInstructions,
+                    notify_enrolled_learners:
+                        sessionKind === "in_person_session" && notifyLearners,
                 }),
                 ...(lessonType === "document" && {
                     document: documentPayload,
@@ -557,6 +562,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         isScheduledLesson,
         lessonType,
         meetingPassword,
+        notifyLearners,
         node.properties,
         recordingUrl,
         reminderMinutes,
@@ -956,6 +962,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 address,
                                 directions,
                                 attendanceInstructions,
+                                notifyLearners,
                             }}
                             errors={{
                                 videoUrl: getFieldError("videoUrl"),
@@ -1031,6 +1038,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                                         changes.attendanceInstructions,
                                     );
                                 }
+                                if (Object.hasOwn(changes, "notifyLearners"))
+                                    setNotifyLearners(changes.notifyLearners);
                             }}
                         />
                     )}
