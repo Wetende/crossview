@@ -6,9 +6,10 @@ import json
 import secrets
 from urllib.parse import parse_qs, urlencode, urlparse
 
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from oauth2_provider.models import get_access_token_model
 
 from ..models import CourseChange
@@ -124,6 +125,45 @@ class DiscoveryAndRegistrationTests(TestCase):
         self.assertEqual(statuses, [201, 201, 429])
 
 
+@connector_on
+class NullOriginOAuthLoginTests(TestCase):
+    def setUp(self):
+        self.client = Client(enforce_csrf_checks=True)
+        self.oauth_next = "/o/authorize/?client_id=chatgpt-test"
+        response = self.client.get(f"/login/?{urlencode({'next': self.oauth_next})}")
+        self.assertEqual(response.status_code, 200)
+        self.csrf_token = self.client.cookies[settings.CSRF_COOKIE_NAME].value
+
+    def test_null_origin_is_allowed_for_oauth_login_with_a_valid_csrf_token(self):
+        response = self.client.post(
+            "/login/",
+            {
+                "email": "invalid@example.invalid",
+                "password": "not-a-real-password",
+                "next": self.oauth_next,
+            },
+            HTTP_ORIGIN="null",
+            HTTP_X_XSRF_TOKEN=self.csrf_token,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid email or password")
+
+    def test_null_origin_is_rejected_for_non_oauth_login(self):
+        response = self.client.post(
+            "/login/",
+            {
+                "email": "invalid@example.invalid",
+                "password": "not-a-real-password",
+                "next": "/dashboard/",
+            },
+            HTTP_ORIGIN="null",
+            HTTP_X_XSRF_TOKEN=self.csrf_token,
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+
 def pkce_pair():
     verifier = secrets.token_urlsafe(48)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
@@ -215,6 +255,57 @@ class AuthorizationFlowTests(MCPClientMixin, TestCase):
         )
         self.assertTrue(result["isError"])
         self.assertIn("not authorized to save", result["content"][0]["text"])
+
+    def test_null_origin_consent_still_requires_and_accepts_a_valid_csrf_token(self):
+        verifier, challenge = pkce_pair()
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.instructor)
+        consent = client.get(self.authorize_url(challenge))
+        self.assertEqual(consent.status_code, 200)
+
+        data = {
+            name: value
+            for name, value in consent.context["form"].initial.items()
+            if value is not None
+        }
+        data.update(
+            {
+                "allow": "true",
+                "csrfmiddlewaretoken": client.cookies[settings.CSRF_COOKIE_NAME].value,
+            }
+        )
+        approved = client.post("/o/authorize/", data, HTTP_ORIGIN="null")
+        self.assertEqual(approved.status_code, 302)
+
+        query = parse_qs(urlparse(approved["Location"]).query)
+        token_response = client.post(
+            "/o/token/",
+            {
+                "grant_type": "authorization_code",
+                "code": query["code"][0],
+                "redirect_uri": self.redirect_uri,
+                "client_id": self.client_id,
+                "code_verifier": verifier,
+                "resource": "http://testserver/mcp",
+            },
+        )
+        self.assertEqual(token_response.status_code, 200, token_response.content)
+
+    def test_null_origin_consent_without_a_csrf_token_is_rejected(self):
+        _, challenge = pkce_pair()
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.instructor)
+        consent = client.get(self.authorize_url(challenge))
+        data = {
+            name: value
+            for name, value in consent.context["form"].initial.items()
+            if value is not None
+        }
+        data["allow"] = "true"
+
+        response = client.post("/o/authorize/", data, HTTP_ORIGIN="null")
+
+        self.assertEqual(response.status_code, 403)
 
     def test_refresh_rotates_tokens(self):
         tokens = self.connect()
