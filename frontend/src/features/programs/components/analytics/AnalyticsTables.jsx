@@ -37,10 +37,10 @@ const visuallyHidden = {
     width: 1,
 };
 
-const SORTABLE_COLUMNS = {
-    position: "course order",
-    completionRate: "completion",
-    dropOff: "drop-off",
+// Accessible names for sort buttons whose header text needs context.
+const SORT_LABELS = {
+    completionRate: "Sort by completion",
+    dropOff: "Sort by drop-off",
 };
 
 function compareRows(orderBy, order) {
@@ -74,7 +74,7 @@ function SortableHeader({
                 active={active}
                 direction={active ? order : "asc"}
                 onClick={() => onSort(column)}
-                aria-label={`Sort by ${SORTABLE_COLUMNS[column]}`}
+                aria-label={SORT_LABELS[column]}
             >
                 {children}
             </TableSortLabel>
@@ -303,9 +303,10 @@ export function AssessmentTable({ assessments = [], gradebookUrl }) {
                         <TableCell>Assessment</TableCell>
                         <TableCell align="right">Attempts</TableCell>
                         <TableCell align="right">Learners</TableCell>
+                        <TableCell align="right">Graded</TableCell>
                         <TableCell align="right">Pass rate</TableCell>
                         <TableCell align="right">Avg. score</TableCell>
-                        <TableCell align="right">Awaiting grading</TableCell>
+                        <TableCell align="right">Pending</TableCell>
                         <TableCell align="right">
                             <Box component="span" sx={visuallyHidden}>
                                 Actions
@@ -346,20 +347,23 @@ export function AssessmentTable({ assessments = [], gradebookUrl }) {
                                 {formatCount(row.learners)}
                             </TableCell>
                             <TableCell align="right">
+                                {formatCount(row.graded)}
+                            </TableCell>
+                            <TableCell align="right">
                                 {formatPercent(row.passRate)}
                             </TableCell>
                             <TableCell align="right">
                                 {formatPercent(row.averageScore)}
                             </TableCell>
                             <TableCell align="right">
-                                {row.awaitingGrading > 0 ? (
+                                {row.pending > 0 ? (
                                     <Chip
-                                        label={formatCount(row.awaitingGrading)}
+                                        label={formatCount(row.pending)}
                                         size="small"
                                         color="warning"
                                     />
                                 ) : (
-                                    formatCount(row.awaitingGrading)
+                                    formatCount(row.pending)
                                 )}
                             </TableCell>
                             <TableCell align="right">

@@ -1,25 +1,42 @@
 """Course-level analytics for the instructor Analytics page.
 
-Every figure is aggregated in SQL so the query count stays constant as a
-course gains learners. Learner states reuse ``classify_enrollment`` and the
-lesson set matches the "published leaf" definition used for progress.
+The query count is fixed however many learners a course has: counts,
+averages and per-lesson figures are grouped in SQL. Learner states reuse
+``classify_enrollment`` over one narrow enrollment query (a Python pass over
+those rows), and the lesson set matches the "published leaf" definition used
+for progress.
 """
 
 from collections import Counter, defaultdict
 from datetime import datetime, time, timedelta
 
-from django.db.models import Avg, Count, Exists, Min, OuterRef, Q
+from django.db import connections
+from django.db.models import (
+    Avg,
+    Case,
+    Count,
+    Exists,
+    F,
+    FloatField,
+    IntegerField,
+    Min,
+    OuterRef,
+    Q,
+    Value,
+    When,
+)
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
 from django.utils import timezone
 
 from apps.assessments.models import AssignmentSubmission, QuizAttempt
+from apps.assessments.official_results import FINALIZED_ASSIGNMENT_STATUSES
 from apps.certifications.models import Certificate
 from apps.curriculum.models import CurriculumNode
+from apps.progression.gradebook_columns import resolve_gradebook_columns
 from apps.progression.models import Enrollment, NodeCompletion
 
 from .models import LearnerNodeProgress
-from .selectors import get_instructor_workload
 from .services import classify_enrollment
 
 ANALYTICS_RANGES = ("7d", "30d", "90d", "all")
@@ -27,6 +44,7 @@ DEFAULT_ANALYTICS_RANGE = "30d"
 RANGE_DAYS = {"7d": 7, "30d": 30, "90d": 90}
 LESSON_ROW_LIMIT = 250
 WEEKLY_ALL_TIME_MAX_DAYS = 180
+SUBMITTED_ASSIGNMENT_STATUSES = ("submitted", "graded", "returned")
 
 # Display order: engaged, at risk, finished, ended.
 LEARNER_STATE_ORDER = (
@@ -65,6 +83,21 @@ def _percent(part, whole):
     return round(part / whole * 100, 1) if whole else 0.0
 
 
+def _json_text(value):
+    """JSON key text; MySQL returns the string "null" for JSON null."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return None if text in {"", "null"} else text
+
+
+def _json_int(value):
+    try:
+        return int(_json_text(value))
+    except (TypeError, ValueError):
+        return None
+
+
 def _published_leaf_nodes(program):
     """Published leaves of the curriculum tree in reading (depth-first) order.
 
@@ -73,7 +106,10 @@ def _published_leaf_nodes(program):
     """
     nodes = list(
         CurriculumNode.objects.filter(program=program)
-        .annotate(lesson_type=KeyTextTransform("lesson_type", "properties"))
+        .annotate(
+            lesson_type=KeyTextTransform("lesson_type", "properties"),
+            assignment_ref=KeyTextTransform("assignment_id", "properties"),
+        )
         .values(
             "id",
             "parent_id",
@@ -82,11 +118,13 @@ def _published_leaf_nodes(program):
             "title",
             "node_type",
             "lesson_type",
+            "assignment_ref",
         )
     )
     known_ids = {node["id"] for node in nodes}
     children = defaultdict(list)
     for node in nodes:
+        node["lesson_type"] = _json_text(node["lesson_type"])
         parent_id = node["parent_id"] if node["parent_id"] in known_ids else None
         children[parent_id].append(node)
     for siblings in children.values():
@@ -104,12 +142,30 @@ def _published_leaf_nodes(program):
     return leaves
 
 
-def get_course_analytics_summary(program, *, since=None, leaf_count=None, now=None):
-    now = now or timezone.now()
+def _classify_learners(program, now):
+    """Every enrollment's learner state from the fields ``classify_enrollment`` reads."""
     enrollments = list(
-        Enrollment.objects.filter(program=program).select_related("learning_activity")
+        Enrollment.objects.filter(program=program)
+        .select_related("learning_activity")
+        .only(
+            "id",
+            "status",
+            "enrolled_at",
+            "expires_at",
+            "learning_activity__id",
+            "learning_activity__started_at",
+            "learning_activity__last_activity_at",
+        )
     )
     states = Counter(classify_enrollment(item, now=now) for item in enrollments)
+    return enrollments, states
+
+
+def get_course_analytics_summary(
+    program, *, since=None, leaf_count=None, now=None, learners=None
+):
+    now = now or timezone.now()
+    enrollments, states = learners or _classify_learners(program, now)
     total = len(enrollments)
     new_learners = sum(
         1 for item in enrollments if since is None or item.enrolled_at >= since
@@ -139,8 +195,6 @@ def get_course_analytics_summary(program, *, since=None, leaf_count=None, now=No
         "certificatesIssued": Certificate.objects.filter(
             enrollment__program=program, is_revoked=False
         ).count(),
-        "awaitingGrading": get_instructor_workload([program.id])["total"],
-        "byState": dict(states),
     }
 
 
@@ -176,8 +230,32 @@ def _as_local_date(value):
     return value
 
 
+def _count_by_bucket(enrollments, granularity):
+    counts = defaultdict(int)
+    if connections[enrollments.db].features.has_zoneinfo_database:
+        rows = (
+            enrollments.annotate(bucket=_TRUNC[granularity]("enrolled_at"))
+            .values("bucket")
+            .annotate(count=Count("id"))
+            .order_by("bucket")
+        )
+        for row in rows:
+            bucket = _bucket_start(_as_local_date(row["bucket"]), granularity)
+            counts[bucket] += row["count"]
+    else:
+        # Without time zone tables (MySQL) Trunc cannot convert to local time
+        # and Django raises on the NULL buckets, so bucket timestamps here.
+        for value in enrollments.values_list("enrolled_at", flat=True):
+            counts[_bucket_start(_as_local_date(value), granularity)] += 1
+    return counts
+
+
 def get_enrollment_trend(program, range_key, now=None):
-    """New enrollments per day, week or month, zero-filled across the range."""
+    """New enrollments per local day, week or month, zero-filled.
+
+    A first week that starts before the range is clipped to the range start
+    and marked ``partial`` so it is not read as a full week.
+    """
     now = now or timezone.now()
     today = timezone.localdate(now)
     since = get_range_start(range_key, now)
@@ -196,28 +274,16 @@ def get_enrollment_trend(program, range_key, now=None):
         start_day = _as_local_date(since)
         granularity = "week" if range_key == "90d" else "day"
 
-    rows = list(
-        enrollments.annotate(bucket=_TRUNC[granularity]("enrolled_at"))
-        .values("bucket")
-        .annotate(count=Count("id"))
-        .order_by("bucket")
-    )
-    if any(row["bucket"] is None for row in rows):
-        # MySQL without time zone tables returns NULL from CONVERT_TZ;
-        # bucket the raw timestamps locally instead of dropping them.
-        rows = [
-            {"bucket": value, "count": 1}
-            for value in enrollments.values_list("enrolled_at", flat=True)
-        ]
-    counts = defaultdict(int)
-    for row in rows:
-        counts[_bucket_start(_as_local_date(row["bucket"]), granularity)] += row["count"]
+    counts = _count_by_bucket(enrollments, granularity)
 
     points = []
     bucket = _bucket_start(start_day, granularity)
     last_bucket = _bucket_start(today, granularity)
     while bucket <= last_bucket:
-        points.append({"date": bucket.isoformat(), "count": counts.get(bucket, 0)})
+        point = {"date": bucket.isoformat(), "count": counts.get(bucket, 0)}
+        if since is not None and bucket < start_day:
+            point.update(date=start_day.isoformat(), partial=True)
+        points.append(point)
         bucket = _next_bucket(bucket, granularity)
     return {
         "granularity": granularity,
@@ -227,11 +293,37 @@ def get_enrollment_trend(program, range_key, now=None):
     }
 
 
+def _assignment_node_map(leaves):
+    """Assignment id -> node id for assignment lessons (first node wins)."""
+    mapping = {}
+    for node in leaves:
+        kinds = {
+            str(node["node_type"] or "").lower(),
+            str(node["lesson_type"] or "").lower(),
+        }
+        assignment_id = _json_int(node.get("assignment_ref"))
+        if "assignment" in kinds and assignment_id:
+            mapping.setdefault(assignment_id, node["id"])
+    return mapping
+
+
+def _has_evidence(model, node_ref, node_field="node_id"):
+    """Correlated check for the outer row's learner having evidence on a node."""
+    return Exists(
+        model.objects.filter(
+            enrollment_id=OuterRef("enrollment_id"),
+            **{node_field: OuterRef(node_ref)},
+        )
+    )
+
+
 def get_lesson_engagement(program, *, leaves=None, learner_count=None):
     """Per-lesson reach, completion and drop-off in curriculum order.
 
     A learner has *started* a lesson when there is activity evidence, a
-    completion, or a quiz attempt for it; each learner counts once per lesson.
+    completion, a quiz attempt or an assignment submission for it; each
+    learner counts once per lesson. Text lessons record no evidence before
+    completion, so for them started equals completed.
     """
     if leaves is None:
         leaves = _published_leaf_nodes(program)
@@ -243,10 +335,8 @@ def get_lesson_engagement(program, *, leaves=None, learner_count=None):
     progress_stats = {}
     completion_stats = {}
     attempt_only = {}
+    submission_only = {}
     if leaf_ids and learner_count:
-        progress_for_pair = LearnerNodeProgress.objects.filter(
-            enrollment_id=OuterRef("enrollment_id"), node_id=OuterRef("node_id")
-        )
         progress_stats = {
             row["node_id"]: row
             for row in LearnerNodeProgress.objects.filter(
@@ -267,7 +357,9 @@ def get_lesson_engagement(program, *, leaves=None, learner_count=None):
             .annotate(
                 completed=Count("enrollment_id", distinct=True),
                 without_progress=Count(
-                    "enrollment_id", distinct=True, filter=~Exists(progress_for_pair)
+                    "enrollment_id",
+                    distinct=True,
+                    filter=~_has_evidence(LearnerNodeProgress, "node_id"),
                 ),
             )
         }
@@ -276,23 +368,37 @@ def get_lesson_engagement(program, *, leaves=None, learner_count=None):
                 quiz__node_id__in=leaf_ids, enrollment__program=program
             )
             .filter(
-                ~Exists(
-                    LearnerNodeProgress.objects.filter(
-                        enrollment_id=OuterRef("enrollment_id"),
-                        node_id=OuterRef("quiz__node_id"),
-                    )
-                ),
-                ~Exists(
-                    NodeCompletion.objects.filter(
-                        enrollment_id=OuterRef("enrollment_id"),
-                        node_id=OuterRef("quiz__node_id"),
-                    )
-                ),
+                ~_has_evidence(LearnerNodeProgress, "quiz__node_id"),
+                ~_has_evidence(NodeCompletion, "quiz__node_id"),
             )
             .values("quiz__node_id")
             .annotate(started=Count("enrollment_id", distinct=True))
             .values_list("quiz__node_id", "started")
         )
+        assignment_nodes = _assignment_node_map(rows)
+        if assignment_nodes:
+            lesson_for_assignment = Case(
+                *(
+                    When(assignment_id=assignment_id, then=Value(node_id))
+                    for assignment_id, node_id in assignment_nodes.items()
+                ),
+                output_field=IntegerField(),
+            )
+            submission_only = dict(
+                AssignmentSubmission.objects.filter(
+                    assignment_id__in=list(assignment_nodes),
+                    enrollment__program=program,
+                )
+                .annotate(lesson_id=lesson_for_assignment)
+                .filter(
+                    ~_has_evidence(LearnerNodeProgress, "lesson_id"),
+                    ~_has_evidence(NodeCompletion, "lesson_id"),
+                    ~_has_evidence(QuizAttempt, "lesson_id", "quiz__node_id"),
+                )
+                .values("lesson_id")
+                .annotate(started=Count("enrollment_id", distinct=True))
+                .values_list("lesson_id", "started")
+            )
 
     results = []
     previous_started = None
@@ -303,6 +409,7 @@ def get_lesson_engagement(program, *, leaves=None, learner_count=None):
             progress.get("started", 0)
             + completion.get("without_progress", 0)
             + attempt_only.get(node["id"], 0)
+            + submission_only.get(node["id"], 0)
         )
         completed = completion.get("completed", 0)
         drop_off = None
@@ -338,12 +445,25 @@ def _round_score(value):
 
 
 def get_assessment_performance(program):
-    """Attempts, pass rate and grading queue for the gradebook's assessments."""
-    from apps.progression.views import _resolve_gradebook_columns
+    """Attempts, pass rate, scores and grading queue per gradebook assessment.
 
-    quizzes, assignments = _resolve_gradebook_columns(program)
+    Pass rate is learners who passed over learners with a graded result, so
+    work still awaiting grading is reported as ``pending`` instead of
+    lowering the rate. Quiz scores average each learner's best attempt;
+    assignment scores average official results after any late penalty.
+    """
+    quizzes, assignments = resolve_gradebook_columns(program)
     quiz_stats = {}
     if quizzes:
+        scored = Q(submitted_at__isnull=False, score__isnull=False)
+        better_attempt = QuizAttempt.objects.filter(
+            scored,
+            enrollment_id=OuterRef("enrollment_id"),
+            quiz_id=OuterRef("quiz_id"),
+        ).filter(
+            Q(score__gt=OuterRef("score"))
+            | Q(score=OuterRef("score"), id__gt=OuterRef("id"))
+        )
         quiz_stats = {
             row["quiz_id"]: row
             for row in QuizAttempt.objects.filter(
@@ -355,47 +475,65 @@ def get_assessment_performance(program):
             .annotate(
                 attempts=Count("id"),
                 learners=Count("enrollment_id", distinct=True),
+                graded_learners=Count(
+                    "enrollment_id", distinct=True, filter=Q(passed__isnull=False)
+                ),
                 passed_learners=Count(
                     "enrollment_id", distinct=True, filter=Q(passed=True)
                 ),
-                average=Avg("score"),
-                awaiting=Count("id", filter=Q(passed__isnull=True)),
+                average=Avg("score", filter=scored & ~Exists(better_attempt)),
+                pending=Count("id", filter=Q(passed__isnull=True)),
             )
         }
     assignment_stats = {}
     if assignments:
+        finalized = Q(status__in=FINALIZED_ASSIGNMENT_STATUSES)
+        final_score = Case(
+            When(
+                Q(is_late=True, assignment__late_penalty_percent__gt=0),
+                then=F("score")
+                * (Value(100.0) - F("assignment__late_penalty_percent"))
+                / Value(100.0),
+            ),
+            default=F("score"),
+            output_field=FloatField(),
+        )
         assignment_stats = {
             row["assignment_id"]: row
             for row in AssignmentSubmission.objects.filter(
                 assignment_id__in=[item["id"] for item in assignments],
                 enrollment__program=program,
-                status__in=["submitted", "graded", "returned"],
+                status__in=SUBMITTED_ASSIGNMENT_STATUSES,
             )
             .values("assignment_id")
             .annotate(
                 attempts=Count("id"),
                 learners=Count("enrollment_id", distinct=True),
+                graded_learners=Count("enrollment_id", distinct=True, filter=finalized),
                 passed_learners=Count(
-                    "enrollment_id", distinct=True, filter=Q(passed=True)
+                    "enrollment_id", distinct=True, filter=finalized & Q(passed=True)
                 ),
-                average=Avg("score"),
-                awaiting=Count("id", filter=Q(status="submitted")),
+                average=Avg(
+                    final_score, filter=Q(is_official=True, score__isnull=False)
+                ),
+                pending=Count("id", filter=Q(status="submitted")),
             )
         }
 
     def row(kind, item, stats, url):
-        learners = stats.get("learners", 0)
+        graded = stats.get("graded_learners", 0)
         passed = stats.get("passed_learners", 0)
         return {
             "id": item["id"],
             "kind": kind,
             "title": item["title"],
             "attempts": stats.get("attempts", 0),
-            "learners": learners,
+            "learners": stats.get("learners", 0),
+            "graded": graded,
             "passed": passed,
-            "passRate": _percent(passed, learners) if learners else None,
+            "passRate": _percent(passed, graded) if graded else None,
             "averageScore": _round_score(stats.get("average")),
-            "awaitingGrading": stats.get("awaiting", 0),
+            "pending": stats.get("pending", 0),
             "passThreshold": item.get("passThreshold"),
             "url": url,
         }
@@ -416,18 +554,22 @@ def get_assessment_performance(program):
 def get_course_analytics(program, range_key, now=None):
     now = now or timezone.now()
     leaves = _published_leaf_nodes(program)
+    learners = _classify_learners(program, now)
     summary = get_course_analytics_summary(
         program,
         since=get_range_start(range_key, now),
         leaf_count=len(leaves),
         now=now,
+        learners=learners,
     )
+    assessments = get_assessment_performance(program)
+    summary["pendingGrading"] = sum(item["pending"] for item in assessments)
     return {
         "summary": summary,
-        "statusBreakdown": get_status_breakdown(summary["byState"]),
+        "statusBreakdown": get_status_breakdown(learners[1]),
         "enrollmentTrend": get_enrollment_trend(program, range_key, now=now),
         "lessonEngagement": get_lesson_engagement(
             program, leaves=leaves, learner_count=summary["totalLearners"]
         ),
-        "assessments": get_assessment_performance(program),
+        "assessments": assessments,
     }

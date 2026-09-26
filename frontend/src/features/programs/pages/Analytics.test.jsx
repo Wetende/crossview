@@ -72,7 +72,7 @@ const baseProps = {
         needsAttention: 42,
         averageProgress: 57.5,
         certificatesIssued: 80,
-        awaitingGrading: 3,
+        pendingGrading: 3,
     },
     statusBreakdown: [
         { status: "active", count: 300 },
@@ -130,10 +130,11 @@ const baseProps = {
             title: "Checkpoint quiz",
             attempts: 12,
             learners: 10,
+            graded: 10,
             passed: 8,
             passRate: 80,
             averageScore: 74.5,
-            awaitingGrading: 0,
+            pending: 0,
             passThreshold: 60,
             url: null,
         },
@@ -143,10 +144,11 @@ const baseProps = {
             title: "Final project",
             attempts: 6,
             learners: 6,
-            passed: 2,
+            graded: 3,
+            passed: 1,
             passRate: 33.3,
             averageScore: 81,
-            awaitingGrading: 3,
+            pending: 3,
             passThreshold: 50,
             url: "/instructor/assignments/9/submissions/",
         },
@@ -202,7 +204,19 @@ describe("instructor course analytics page", () => {
         expect(
             within(assessments).getByText("Checkpoint quiz"),
         ).toBeInTheDocument();
-        expect(within(assessments).getByText("33.3%")).toBeInTheDocument();
+        const project = within(assessments)
+            .getByText("Final project")
+            .closest("tr");
+        expect(
+            within(project)
+                .getAllByRole("cell")
+                .slice(1, 7)
+                .map((cell) => cell.textContent),
+        ).toEqual(["6", "6", "3", "33.3%", "81%", "3"]);
+        expect(screen.getByText(/3 pending grading/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/including\s+withdrawn, suspended and expired/),
+        ).toBeInTheDocument();
         expect(
             within(assessments).getByRole("link", { name: "Review" }),
         ).toHaveAttribute("href", "/instructor/assignments/9/submissions/");
@@ -238,6 +252,42 @@ describe("instructor course analytics page", () => {
         expect(
             screen.queryByRole("table", { name: "Lesson engagement" }),
         ).not.toBeInTheDocument();
+    });
+
+    test("shows the trend empty state when the range has no enrollments", () => {
+        render(
+            <Analytics
+                {...baseProps}
+                enrollmentTrend={{
+                    ...baseProps.enrollmentTrend,
+                    points: baseProps.enrollmentTrend.points.map((point) => ({
+                        ...point,
+                        count: 0,
+                    })),
+                    total: 0,
+                }}
+            />,
+        );
+
+        expect(
+            screen.getByText("No enrollments in this period."),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("figure", { name: /new enrollments per/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    test("names each chart once", () => {
+        render(<Analytics {...baseProps} />);
+
+        const figures = screen.getAllByRole("figure");
+        expect(figures).toHaveLength(2);
+        for (const figure of figures) {
+            const svgTitles = [...figure.querySelectorAll("svg title")];
+            expect(svgTitles.every((title) => !title.textContent.trim())).toBe(
+                true,
+            );
+        }
     });
 
     test("range toggle reloads the page through the Inertia router", () => {
@@ -276,6 +326,12 @@ describe("instructor course analytics page", () => {
 
     test("sorts lessons by completion", () => {
         render(<Analytics {...baseProps} />);
+
+        const orderHeader = screen.getByRole("columnheader", { name: "#" });
+        expect(orderHeader).toHaveAttribute("aria-sort", "ascending");
+        expect(
+            within(orderHeader).getByRole("button", { name: "#" }),
+        ).not.toHaveAttribute("aria-label");
 
         fireEvent.click(
             screen.getByRole("button", { name: "Sort by completion" }),

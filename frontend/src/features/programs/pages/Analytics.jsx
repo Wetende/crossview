@@ -172,6 +172,11 @@ export default function Analytics({
                         <Typography color="textSecondary">
                             {program.title}
                         </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                            Learner counts include every enrollment, including
+                            withdrawn, suspended and expired ones, as on the
+                            learner roster.
+                        </Typography>
                         <Stack
                             direction="row"
                             spacing={1}
@@ -294,7 +299,7 @@ export default function Analytics({
 
                         <Section
                             title="Lesson engagement"
-                            subtitle={`Published lessons in course order, all time. Drop-off compares learners who started a lesson with the lesson before it; above ${HIGH_DROP_OFF_PERCENT}% is highlighted.`}
+                            subtitle={`Published lessons in course order, all time. Drop-off compares learners who started a lesson with the lesson before it; above ${HIGH_DROP_OFF_PERCENT}% is highlighted. Text lessons record no activity before completion, so for them started equals completed.`}
                         >
                             <LessonEngagementTable
                                 lessons={lessonEngagement}
@@ -304,7 +309,7 @@ export default function Analytics({
 
                         <Section
                             title="Assessments"
-                            subtitle={`Quizzes and assignments from the gradebook, all time. ${formatCount(summary.awaitingGrading)} submissions awaiting grading.`}
+                            subtitle={`Quizzes and assignments from the gradebook, all time. Pass rate counts graded learners only; ${formatCount(summary.pendingGrading)} pending grading. Scores use each learner's best quiz attempt and official assignment result.`}
                         >
                             <AssessmentTable
                                 assessments={assessments}

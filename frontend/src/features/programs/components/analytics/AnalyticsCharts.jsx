@@ -50,7 +50,7 @@ export function EnrollmentTrendChart({ trend, rangeKey }) {
     const label =
         `New enrollments per ${GRANULARITY_UNIT[granularity] || "day"}: ${formatCount(trend?.total)} ${RANGE_PHRASES[rangeKey] || ""}`.trim();
 
-    if (!points.length) {
+    if (!points.length || !trend?.total) {
         return (
             <Typography
                 color="textSecondary"
@@ -67,7 +67,6 @@ export function EnrollmentTrendChart({ trend, rangeKey }) {
                 <AreaChart
                     data={points}
                     margin={{ top: 8, right: 16, bottom: 0, left: 8 }}
-                    title={label}
                     accessibilityLayer
                 >
                     <CartesianGrid
@@ -103,8 +102,13 @@ export function EnrollmentTrendChart({ trend, rangeKey }) {
                     <Tooltip
                         {...tooltip}
                         cursor={{ stroke: grid }}
-                        labelFormatter={(value) =>
-                            formatBucket(value, granularity, true)
+                        labelFormatter={(value, payload) =>
+                            formatBucket(
+                                value,
+                                granularity,
+                                true,
+                                Boolean(payload?.[0]?.payload?.partial),
+                            )
                         }
                         formatter={(value) => [
                             formatCount(value),
@@ -165,7 +169,6 @@ export function StatusBreakdownChart({ breakdown = [] }) {
                     layout="vertical"
                     margin={{ top: 0, right: 40, bottom: 0, left: 0 }}
                     barCategoryGap={8}
-                    title={label}
                     accessibilityLayer
                 >
                     <XAxis type="number" allowDecimals={false} hide />

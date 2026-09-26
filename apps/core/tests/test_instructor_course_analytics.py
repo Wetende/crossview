@@ -1,10 +1,10 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import Group
 from django.db import connection
-from django.db.models import DateTimeField, Value
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
@@ -89,13 +89,14 @@ def _quiz_node(program, parent, title, position):
     return node, quiz
 
 
-def _assignment_node(program, parent, title, position):
+def _assignment_node(program, parent, title, position, late_penalty=0):
     assignment = Assignment.objects.create(
         program=program,
         title=title,
         description="Describe",
         instructions="Do it",
         weight=20,
+        late_penalty_percent=late_penalty,
         is_published=True,
     )
     node = _node(
@@ -180,7 +181,8 @@ def test_assigned_instructor_gets_analytics_page_with_prop_shape(
     # (2 + 1 completed leaves) / (2 leaves x 3 learners)
     assert summary["averageProgress"] == 50.0
     assert summary["certificatesIssued"] == 0
-    assert summary["awaitingGrading"] == 0
+    assert summary["pendingGrading"] == 0
+    assert "byState" not in summary
 
     assert props["statusBreakdown"] == [
         {"status": "active", "count": 1},
@@ -294,32 +296,83 @@ def test_range_filter_changes_the_trend_window(client, instructor, program):
     assert fallback["total"] == 2
 
 
+def _enroll_at(program, moment):
+    enrollment = Enrollment.objects.create(user=UserFactory(), program=program)
+    Enrollment.objects.filter(pk=enrollment.pk).update(enrolled_at=moment)
+    return enrollment
+
+
+def _utc(*args):
+    return datetime(*args, tzinfo=dt_timezone.utc)
+
+
 @pytest.mark.django_db
-def test_trend_buckets_locally_when_the_database_cannot_convert_time_zones(
+def test_trend_buckets_in_python_when_the_database_has_no_time_zone_tables(
     monkeypatch, program
 ):
     now = timezone.now()
     for days_ago in (0, 2, 2):
-        enrollment = Enrollment.objects.create(user=UserFactory(), program=program)
-        Enrollment.objects.filter(pk=enrollment.pk).update(
-            enrolled_at=now - timedelta(days=days_ago)
-        )
+        _enroll_at(program, now - timedelta(days=days_ago))
+    monkeypatch.setattr(connection.features, "has_zoneinfo_database", False)
 
-    def null_bucket(field):
-        return Value(None, output_field=DateTimeField())
+    with CaptureQueriesContext(connection) as queries:
+        trend = analytics.get_enrollment_trend(program, "7d", now=now)
 
-    monkeypatch.setattr(
-        analytics,
-        "_TRUNC",
-        {"day": null_bucket, "week": null_bucket, "month": null_bucket},
+    assert not any(
+        "django_datetime_trunc" in query["sql"] for query in queries.captured_queries
     )
-
-    trend = analytics.get_enrollment_trend(program, "7d", now=now)
-
     assert trend["total"] == 3
     counts = {point["date"]: point["count"] for point in trend["points"]}
     assert counts[timezone.localdate(now).isoformat()] == 1
     assert counts[(timezone.localdate(now) - timedelta(days=2)).isoformat()] == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_zoneinfo", [True, False])
+def test_trend_days_follow_nairobi_time(monkeypatch, settings, program, has_zoneinfo):
+    settings.TIME_ZONE = "Africa/Nairobi"
+    monkeypatch.setattr(connection.features, "has_zoneinfo_database", has_zoneinfo)
+    now = _utc(2026, 9, 26, 9, 0)  # 12:00 in Nairobi (UTC+3)
+    _enroll_at(program, _utc(2026, 9, 24, 21, 30))  # 00:30 on the 25th locally
+    _enroll_at(program, _utc(2026, 9, 24, 20, 30))  # 23:30 on the 24th locally
+    _enroll_at(program, _utc(2026, 9, 19, 21, 30))  # 00:30 on the 20th: in range
+    _enroll_at(program, _utc(2026, 9, 19, 20, 30))  # 23:30 on the 19th: excluded
+
+    trend = analytics.get_enrollment_trend(program, "7d", now=now)
+
+    counts = {point["date"]: point["count"] for point in trend["points"]}
+    assert trend["since"] == "2026-09-20"
+    assert trend["total"] == 3
+    assert counts["2026-09-20"] == 1
+    assert counts["2026-09-24"] == 1
+    assert counts["2026-09-25"] == 1
+
+
+@pytest.mark.django_db
+def test_ninety_day_trend_clips_and_labels_the_partial_first_week(settings, program):
+    settings.TIME_ZONE = "Africa/Nairobi"
+    now = _utc(2026, 9, 27, 9, 0)  # Sunday; the range starts Tuesday 30 June
+    _enroll_at(program, _utc(2026, 6, 30, 9, 0))
+    _enroll_at(program, _utc(2026, 6, 29, 9, 0))  # Monday before the range
+
+    trend = analytics.get_enrollment_trend(program, "90d", now=now)
+
+    points = trend["points"]
+    assert trend["granularity"] == "week"
+    assert points[0] == {"date": "2026-06-30", "count": 1, "partial": True}
+    assert points[1] == {"date": "2026-07-06", "count": 0}
+    assert points[-1] == {"date": "2026-09-21", "count": 0}
+    assert len(points) == 13
+    assert trend["total"] == 1
+
+
+def test_json_key_text_treats_mysql_null_as_missing():
+    assert analytics._json_text("null") is None
+    assert analytics._json_text(None) is None
+    assert analytics._json_text("video") == "video"
+    assert analytics._json_int("12") == 12
+    assert analytics._json_int(12) == 12
+    assert analytics._json_int("null") is None
 
 
 @pytest.mark.django_db
@@ -382,35 +435,88 @@ def test_lesson_engagement_counts_started_completed_and_drop_off(program):
 
 
 @pytest.mark.django_db
+def test_assignment_submissions_count_as_started(program):
+    module = _node(program, "Module", node_type="Unit")
+    intro = _node(program, "Intro", parent=module, position=0)
+    project_node, assignment = _assignment_node(program, module, "Project", 1)
+    a, b, c = [
+        Enrollment.objects.create(user=UserFactory(), program=program)
+        for _ in range(3)
+    ]
+    for learner in (a, b, c):
+        _complete(learner, intro)
+    now = timezone.now()
+    # Submitted, not graded yet: started but no completion.
+    AssignmentSubmission.objects.create(
+        enrollment=a, assignment=assignment, status="submitted", submitted_at=now
+    )
+    # Graded and completed: counted once even with a submission too.
+    AssignmentSubmission.objects.create(
+        enrollment=b,
+        assignment=assignment,
+        status="graded",
+        submitted_at=now,
+        score=Decimal("75.00"),
+        passed=True,
+    )
+    _complete(b, project_node)
+
+    rows = get_lesson_engagement(program)["results"]
+
+    assert [row["title"] for row in rows] == ["Intro", "Project"]
+    assert rows[1]["type"] == "assignment"
+    assert rows[1]["started"] == 2
+    assert rows[1]["completed"] == 1
+    assert rows[1]["dropOff"] == 33.3
+
+
+@pytest.mark.django_db
 def test_assessment_performance_reports_attempts_pass_rate_and_grading_queue(
     program,
 ):
     module = _node(program, "Module", node_type="Unit")
     _, quiz = _quiz_node(program, module, "Checkpoint", 0)
-    _, assignment = _assignment_node(program, module, "Project", 1)
-    a, b, c = [
+    _, assignment = _assignment_node(program, module, "Project", 1, late_penalty=10)
+    a, b, c, d = [
         Enrollment.objects.create(user=UserFactory(), program=program)
-        for _ in range(3)
+        for _ in range(4)
     ]
+    # Quiz: a improves 40 -> 80 (best attempt counts), b fails, c awaits grading.
     _attempt(a, quiz, passed=False, score=Decimal("40.00"), number=1)
     _attempt(a, quiz, passed=True, score=Decimal("80.00"), number=2)
     _attempt(b, quiz, passed=False, score=Decimal("30.00"))
-    _attempt(c, quiz, passed=None, score=None)  # awaiting manual grading
+    _attempt(c, quiz, passed=None, score=None)
     now = timezone.now()
-    AssignmentSubmission.objects.create(
-        enrollment=a,
-        assignment=assignment,
-        status="graded",
-        submitted_at=now,
+
+    def submit(enrollment, status, **fields):
+        return AssignmentSubmission.objects.create(
+            enrollment=enrollment,
+            assignment=assignment,
+            status=status,
+            submitted_at=now,
+            **fields,
+        )
+
+    # Assignment: only official results feed the average, after late penalty.
+    submit(a, "graded", attempt_number=1, score=Decimal("40.00"), passed=False)
+    submit(
+        a,
+        "graded",
+        attempt_number=2,
         score=Decimal("90.00"),
         passed=True,
+        is_official=True,
     )
-    AssignmentSubmission.objects.create(
-        enrollment=b, assignment=assignment, status="submitted", submitted_at=now
-    )
-    AssignmentSubmission.objects.create(
-        enrollment=c, assignment=assignment, status="started", submitted_at=now
-    )
+    submit(b, "submitted")  # awaiting grading
+    submit(c, "started")  # not submitted yet
+    submit(
+        d,
+        "graded",
+        score=Decimal("80.00"),
+        passed=True,
+        is_late=True,
+        is_official=True,
+    )  # 80 less 10% late penalty = 72
 
     rows = get_assessment_performance(program)
 
@@ -421,10 +527,11 @@ def test_assessment_performance_reports_attempts_pass_rate_and_grading_queue(
             "title": "Checkpoint",
             "attempts": 4,
             "learners": 3,
+            "graded": 2,
             "passed": 1,
-            "passRate": 33.3,
-            "averageScore": 50.0,
-            "awaitingGrading": 1,
+            "passRate": 50.0,
+            "averageScore": 55.0,
+            "pending": 1,
             "passThreshold": 60,
             "url": None,
         },
@@ -432,16 +539,19 @@ def test_assessment_performance_reports_attempts_pass_rate_and_grading_queue(
             "id": assignment.id,
             "kind": "assignment",
             "title": "Project",
-            "attempts": 2,
-            "learners": 2,
-            "passed": 1,
-            "passRate": 50.0,
-            "averageScore": 90.0,
-            "awaitingGrading": 1,
+            "attempts": 4,
+            "learners": 3,
+            "graded": 2,
+            "passed": 2,
+            "passRate": 100.0,
+            "averageScore": 81.0,
+            "pending": 1,
             "passThreshold": 50,
             "url": f"/instructor/assignments/{assignment.id}/submissions/",
         },
     ]
+    summary = analytics.get_course_analytics(program, "30d")["summary"]
+    assert summary["pendingGrading"] == 2
 
 
 def _seed_learners(program, nodes, quiz, assignment, count):
@@ -487,7 +597,7 @@ def test_query_count_does_not_grow_with_learners(client, instructor, program):
     assert response.status_code == 200
     assert response.json()["props"]["summary"]["totalLearners"] == 8
     assert len(large.captured_queries) == len(small.captured_queries)
-    assert len(large.captured_queries) <= 30
+    assert len(large.captured_queries) <= 25
 
 
 @pytest.mark.django_db

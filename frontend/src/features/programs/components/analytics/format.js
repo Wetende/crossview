@@ -52,14 +52,25 @@ export function formatDuration(seconds) {
     return restMinutes ? `${hours}h ${restMinutes}m` : `${hours}h`;
 }
 
-export function formatBucket(value, granularity, long = false) {
+export function formatBucket(
+    value,
+    granularity,
+    long = false,
+    partial = false,
+) {
     if (!value) return "";
     const date = parseISO(value);
-    if (granularity === "month") return format(date, "MMM yyyy");
+    if (granularity === "month") {
+        const month = format(date, "MMM yyyy");
+        return long && partial
+            ? `${month} (from ${format(date, "MMM d")})`
+            : month;
+    }
     if (granularity === "week") {
-        return long
-            ? `Week of ${format(date, "MMM d, yyyy")}`
-            : format(date, "MMM d");
+        if (!long) return format(date, "MMM d");
+        return partial
+            ? `Partial week from ${format(date, "MMM d, yyyy")}`
+            : `Week of ${format(date, "MMM d, yyyy")}`;
     }
     return long ? format(date, "EEE, MMM d, yyyy") : format(date, "MMM d");
 }
