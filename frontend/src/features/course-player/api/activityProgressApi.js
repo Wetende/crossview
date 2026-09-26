@@ -22,11 +22,18 @@ const requestJson = async (url, options = {}) => {
     return payload;
 };
 
-export const recordActivityProgress = (enrollmentId, nodeId, event) =>
-    requestJson(`${baseUrl(enrollmentId, nodeId)}/progress/`, {
+export const recordActivityProgress = (enrollmentId, nodeId, event) => {
+    // Visitors in a free preview have no enrollment to record evidence against.
+    if (!enrollmentId || !nodeId) {
+        return Promise.reject(
+            new Error("Activity progress requires an enrollment."),
+        );
+    }
+    return requestJson(`${baseUrl(enrollmentId, nodeId)}/progress/`, {
         method: "POST",
         body: JSON.stringify(event),
     });
+};
 
 export const getCodeLabWork = (enrollmentId, nodeId) =>
     requestJson(`${baseUrl(enrollmentId, nodeId)}/code-work/`);

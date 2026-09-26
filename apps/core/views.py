@@ -86,6 +86,11 @@ from apps.core.utils import (
     is_instructor,
     should_render_inertia_prop,
 )
+from apps.curriculum.preview import (
+    coerce_preview_flag,
+    is_public_preview_lesson,
+    public_preview_url,
+)
 
 COURSE_ASSESSMENT_TYPES = {"quiz", "assignment", "practicum", "peer_review"}
 COURSE_DURATION_TOKEN_RE = re.compile(
@@ -161,6 +166,43 @@ def _get_platform_pricing_context() -> dict:
         "platform_features": platform_features,
         "currency_code": platform_settings.currency_code,
     }
+
+
+ENROL_CTA_LABELS = {
+    "paid": "Get course",
+    "approval": "Request enrollment",
+    "free": "Enroll now",
+}
+
+
+def _program_enrollment_offer(
+    program,
+    pricing_context: dict | None = None,
+    *,
+    course_delivery_mode: str | None = None,
+):
+    """Return ``(pricing, price_display, enrollment_mode)`` for public enrolment CTAs."""
+    context = pricing_context or _get_platform_pricing_context()
+    pricing = get_program_pricing(
+        program,
+        deployment_mode=context["deployment_mode"],
+        platform_features=context["platform_features"],
+        currency_code=context["currency_code"],
+        course_delivery_mode=course_delivery_mode,
+    )
+    price_display = serialize_price_display(pricing)
+    if price_display["allowsOnlineCheckout"] or price_display["allowsOfflinePayment"]:
+        enrollment_mode = "paid"
+    elif pricing.get("requires_approval", False):
+        enrollment_mode = "approval"
+    else:
+        enrollment_mode = "free"
+    return pricing, price_display, enrollment_mode
+
+
+def _preview_flag_from_properties(properties) -> bool:
+    props = properties if isinstance(properties, dict) else {}
+    return coerce_preview_flag(props.get("is_preview"))
 
 
 def _program_pricing_fields(program, pricing_context: dict | None = None) -> dict:
@@ -666,6 +708,8 @@ def public_program_detail(
                 children = node.children.all().order_by("position")
             else:
                 children = node.children.filter(is_published=True).order_by("position")
+            children = list(children)
+            lesson_is_preview = not children and is_public_preview_lesson(node)
 
             result.append(
                 {
@@ -673,8 +717,15 @@ def public_program_detail(
                     "title": node.title,
                     "type": node.node_type,
                     "duration": _node_duration_minutes(node.properties),
-                    "isPreview": node.properties.get("is_preview", False),
-                    "children": build_tree(children) if children.exists() else [],
+                    "isPreview": lesson_is_preview,
+                    # Instructor draft previews list unpublished nodes, whose
+                    # public preview URL would 404, so only link on the live page.
+                    "previewUrl": (
+                        public_preview_url(program, node.id)
+                        if lesson_is_preview and not is_preview
+                        else None
+                    ),
+                    "children": build_tree(children) if children else [],
                 }
             )
         return result
@@ -830,23 +881,12 @@ def public_program_detail(
     from apps.learning_operations.services import get_course_delivery_profile
 
     delivery_profile = get_course_delivery_profile(program)
-    pricing = get_program_pricing(
+    pricing, price_display, enrollment_mode = _program_enrollment_offer(
         program,
-        deployment_mode=pricing_context["deployment_mode"],
-        platform_features=pricing_context["platform_features"],
-        currency_code=pricing_context["currency_code"],
+        pricing_context,
         course_delivery_mode=delivery_profile.delivery_mode,
     )
-    price_display = serialize_price_display(pricing)
     price = pricing.get("effective_price", pricing.get("price", 0))
-
-    # Determine enrollment mode based on pricing
-    if price_display["allowsOnlineCheckout"] or price_display["allowsOfflinePayment"]:
-        enrollment_mode = "paid"
-    elif pricing.get("requires_approval", False):
-        enrollment_mode = "approval"
-    else:
-        enrollment_mode = "free"
 
     from apps.core.services.course_prerequisites import CoursePrerequisiteService
 
@@ -954,6 +994,85 @@ def public_program_detail(
                 request,
                 program,
             ),
+        },
+    )
+
+
+def public_preview_lesson(request, slug: str, node_id: int):
+    """Read-only course player for a free preview lesson; no login required.
+
+    Only published preview lessons (see ``apps.curriculum.preview``) of a
+    published program open here; anything else is a 404. Enrolled learners are
+    sent to their real session instead.
+    """
+    from django.shortcuts import get_object_or_404
+
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import Enrollment
+    from apps.progression.views import (
+        _build_player_node_payload,
+        _build_preview_curriculum,
+        _build_program_player_payload,
+    )
+
+    program = get_object_or_404(Program, slug=slug, is_published=True)
+    curriculum, preview_lessons = _build_preview_curriculum(program)
+    preview_ids = [lesson["id"] for lesson in preview_lessons]
+    if node_id not in preview_ids:
+        raise Http404("This lesson is not available as a free preview.")
+
+    if request.user.is_authenticated:
+        enrollment = (
+            Enrollment.objects.filter(
+                user=request.user,
+                program=program,
+                status__in=["active", "completed"],
+            )
+            .only("id")
+            .first()
+        )
+        if enrollment:
+            return redirect(
+                "progression:student.session", pk=enrollment.id, node_id=node_id
+            )
+
+    node = CurriculumNode.objects.get(pk=node_id, program=program)
+    index = preview_ids.index(node_id)
+    program_url = _program_public_url(program)
+    _, _, enrollment_mode = _program_enrollment_offer(program)
+
+    return render(
+        request,
+        "Student/CoursePlayer",
+        {
+            "activeView": "preview",
+            "node": _build_player_node_payload(request, node, None),
+            "program": _build_program_player_payload(program),
+            "instructor": None,
+            "enrollment": None,
+            "curriculum": curriculum,
+            "prevNode": preview_lessons[index - 1] if index > 0 else None,
+            "nextNode": (
+                preview_lessons[index + 1]
+                if index + 1 < len(preview_lessons)
+                else None
+            ),
+            "progress": 0,
+            "isCompleted": False,
+            "isLocked": False,
+            "status": "preview",
+            "lockReason": None,
+            "lockReasonText": None,
+            "unlocksAt": None,
+            "discussions": [],
+            "notes": [],
+            "preview": {
+                "programUrl": program_url,
+                "enrolCta": {
+                    "label": ENROL_CTA_LABELS[enrollment_mode],
+                    "href": program_url,
+                },
+            },
         },
     )
 
@@ -6728,6 +6847,7 @@ def instructor_node_create(request, program_id: int):
             position=position,
             properties=node_properties,
             is_published=auto_publish,
+            is_preview=_preview_flag_from_properties(node_properties),
         )
 
         # Sync quiz payload immediately on creation so quiz_id exists for student flow.
@@ -7607,6 +7727,8 @@ def instructor_node_update(request, node_id: int):
             node.properties = incoming_props
 
     node_props = node.properties if isinstance(node.properties, dict) else {}
+    # The column is what access checks read; the builder keeps the property.
+    node.is_preview = _preview_flag_from_properties(node_props)
     updated_lesson_type = str(node_props.get("lesson_type") or "").lower()
     if updated_lesson_type == "document":
         document = node_props.get("document")
@@ -9134,6 +9256,7 @@ def _clone_node(source_node, target_parent, target_program):
         properties=cloned_properties,
         position=target_parent.children.count() if target_parent else 0,
         is_published=False,  # Cloned content starts unpublished
+        is_preview=_preview_flag_from_properties(cloned_properties),
     )
 
     # Clone Quiz if exists

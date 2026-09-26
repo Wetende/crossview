@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { Link } from "@inertiajs/react";
 import DOMPurify from "dompurify";
 import {
     Accordion,
@@ -205,7 +206,18 @@ function CurriculumContent({ curriculum }) {
                                                                 {lesson.duration} min
                                                             </Typography>
                                                         ) : null}
-                                                        {lesson.isPreview ? (
+                                                        {lesson.isPreview && lesson.previewUrl ? (
+                                                            <Chip
+                                                                component={Link}
+                                                                href={lesson.previewUrl}
+                                                                clickable
+                                                                label="Preview"
+                                                                aria-label={`Preview ${lesson.title}`}
+                                                                size="small"
+                                                                color="primary"
+                                                                variant="outlined"
+                                                            />
+                                                        ) : lesson.isPreview ? (
                                                             <Chip label="Preview" size="small" color="primary" variant="outlined" />
                                                         ) : (
                                                             <IconLock aria-label="Locked content" size={18} color="currentColor" />

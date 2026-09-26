@@ -68,6 +68,7 @@ const BlockRenderer = ({
     onVideoRequirementMet,
     activityProgress,
     seekRef = null,
+    readOnly = false,
 }) => {
     const documentSessionRef = useRef(createActivitySessionId());
     const documentSequenceRef = useRef(0);
@@ -84,7 +85,9 @@ const BlockRenderer = ({
                         url={data?.url || data?.video_url}
                         onEnded={onComplete}
                         onProgress={onVideoProgress}
-                        requiredProgress={data?.required_progress || 0}
+                        requiredProgress={
+                            readOnly ? 0 : data?.required_progress || 0
+                        }
                         onRequirementMet={onVideoRequirementMet}
                         enrollmentId={enrollmentId}
                         nodeId={nodeId}
@@ -176,7 +179,7 @@ const BlockRenderer = ({
                         requiredPages={data?.required_pages || 0}
                         initialPagesViewed={activityProgress?.pagesViewed || []}
                         onProgress={(_count, _total, pageNumber) => {
-                            if (!pageNumber) return;
+                            if (!pageNumber || !enrollmentId) return;
                             recordActivityProgress(enrollmentId, nodeId, {
                                 eventType: "page_view",
                                 sessionId: documentSessionRef.current,

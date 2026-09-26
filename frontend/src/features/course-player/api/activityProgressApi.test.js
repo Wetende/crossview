@@ -38,6 +38,17 @@ describe("course-player activity progress API", () => {
         );
     });
 
+    it("refuses to record evidence without an enrollment", async () => {
+        await expect(
+            recordActivityProgress(undefined, 34, { eventType: "playback" }),
+        ).rejects.toThrow("enrollment");
+        await expect(
+            recordActivityProgress(12, null, { eventType: "page_view" }),
+        ).rejects.toThrow("enrollment");
+
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
     it("uses durable code work endpoints for load and submit", async () => {
         await getCodeLabWork(5, 9);
         await submitCodeLabWork(5, 9, "console.log('done')");

@@ -154,4 +154,27 @@ describe("SessionControl", () => {
 
         expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
     });
+
+    it("only navigates in a read-only preview", () => {
+        const { onComplete, onNavigate } = renderControl({
+            showCompletion: false,
+            canComplete: false,
+            completionTooltip: "Watch the video first",
+        });
+
+        expect(
+            screen.queryByRole("button", { name: /complete/i }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText("Watch the video first")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+        expect(onNavigate).toHaveBeenCalledWith(nextNode);
+        expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it("disables Next on the last lesson of a read-only preview", () => {
+        renderControl({ showCompletion: false, nextNode: null });
+
+        expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    });
 });

@@ -18,6 +18,11 @@ urlpatterns = [
     path("contact/", views.contact_page, name="contact"),
     path("programs/", views.public_programs_list, name="programs"),
     path("programs/<slug:slug>/", views.public_program_detail, name="program_detail"),
+    path(
+        "programs/<slug:slug>/preview/<int:node_id>/",
+        views.public_preview_lesson,
+        name="program_preview_lesson",
+    ),
     path("programs/<int:pk>/review/", views.program_review_submit, name="program_review_submit"),
     # Authentication
     path("login/", views.login_page, name="login"),

@@ -3,6 +3,7 @@ import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import VideoRenderer from "./VideoRenderer";
+import { recordActivityProgress } from "../../api/activityProgressApi";
 
 const player = { props: null, element: { currentTime: 0, duration: 0 } };
 
@@ -91,6 +92,43 @@ describe("VideoRenderer", () => {
         playTo(90);
 
         expect(onRequirementMet).not.toHaveBeenCalled();
+    });
+
+    it("posts viewing evidence for an enrolled learner", () => {
+        recordActivityProgress.mockClear();
+        recordActivityProgress.mockResolvedValue({ isCompleted: false });
+        render(
+            <VideoRenderer
+                url="/media/lesson.mp4"
+                enrollmentId={22}
+                nodeId={146}
+            />,
+        );
+
+        player.element.duration = 100;
+        act(() => player.props.onDurationChange(mediaEvent()));
+        playTo(5);
+        act(() => player.props.onPause());
+
+        expect(recordActivityProgress).toHaveBeenCalledWith(
+            22,
+            146,
+            expect.objectContaining({ eventType: "pause" }),
+        );
+    });
+
+    it("never posts progress evidence without an enrollment", () => {
+        recordActivityProgress.mockClear();
+        render(<VideoRenderer url="/media/lesson.mp4" nodeId={146} />);
+
+        player.element.duration = 100;
+        act(() => player.props.onDurationChange(mediaEvent()));
+        act(() => player.props.onPlay());
+        for (let second = 0; second <= 12; second += 1) playTo(second);
+        act(() => player.props.onPause());
+        act(() => player.props.onEnded());
+
+        expect(recordActivityProgress).not.toHaveBeenCalled();
     });
 
     it("resumes from the saved position once the media metadata loads", () => {
