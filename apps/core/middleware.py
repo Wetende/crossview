@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.middleware.csrf import get_token
 from inertia import share
 
+from apps.core.inertia_errors import pop_inertia_errors
 from apps.platform.models import PlatformSettings
 
 
@@ -18,6 +19,7 @@ class InertiaShareMiddleware:
     - auth: Current user info (if authenticated)
     - platform: Platform branding from PlatformSettings
     - flash: Flash messages for feedback
+    - errors: One-shot validation errors flashed by a rejected POST
     """
 
     def __init__(self, get_response):
@@ -69,6 +71,11 @@ class InertiaShareMiddleware:
             return flash_messages
 
         share(request, flash=_flash_messages)
+
+        # Share validation errors lazily too: they are popped from the session
+        # only when a page is actually rendered, so a POST that redirects keeps
+        # them for the GET it redirects to (see apps.core.inertia_errors).
+        share(request, errors=lambda: pop_inertia_errors(request))
 
         return self.get_response(request)
 

@@ -42,6 +42,25 @@ const getDripItems = (nodes = [], depth = 0) => {
     return items;
 };
 
+const isFilled = (value) => value !== undefined && value !== null && value !== "";
+
+// A row counts as scheduled on the server when the field for the current
+// schedule mode is set; the other mode's saved value is kept but not shown.
+const toServerScheduleRow = (item, scheduleMode) => {
+    const unlockAfterDays = item.unlockAfterDays ?? "";
+    const unlockDate = item.unlockDate
+        ? String(item.unlockDate).slice(0, 10)
+        : "";
+    return {
+        unlockAfterDays,
+        unlockDate,
+        active:
+            scheduleMode === "date"
+                ? isFilled(unlockDate)
+                : isFilled(unlockAfterDays),
+    };
+};
+
 const DripEditor = forwardRef(function DripEditor(
     { program, curriculum, onSave },
     ref,
@@ -62,37 +81,37 @@ const DripEditor = forwardRef(function DripEditor(
     const [scheduleByNodeId, setScheduleByNodeId] = useState(() => {
         const map = {};
         dripItems.forEach((item) => {
-            map[item.id] = {
-                unlockAfterDays: item.unlockAfterDays ?? "",
-                unlockDate: item.unlockDate
-                    ? String(item.unlockDate).slice(0, 10)
-                    : "",
-                active: Boolean(
-                    (item.unlockAfterDays ?? null) || (item.unlockDate ?? null),
-                ),
-            };
+            map[item.id] = toServerScheduleRow(item, scheduleMode);
         });
         return map;
     });
 
+    // Merge refreshed curriculum props into local rows instead of replacing
+    // them: an autosave of a still-empty row stores null and redirects back,
+    // which must not switch the row off or drop what the instructor typed.
     useEffect(() => {
-        setScheduleByNodeId(() => {
+        setScheduleByNodeId((prev) => {
             const next = {};
             dripItems.forEach((item) => {
+                const server = toServerScheduleRow(item, scheduleMode);
+                const local = prev[item.id];
+                if (!local) {
+                    next[item.id] = server;
+                    return;
+                }
                 next[item.id] = {
-                    unlockAfterDays: item.unlockAfterDays ?? "",
-                    unlockDate: item.unlockDate
-                        ? String(item.unlockDate).slice(0, 10)
-                        : "",
-                    active: Boolean(
-                        (item.unlockAfterDays ?? null) ||
-                            (item.unlockDate ?? null),
-                    ),
+                    unlockAfterDays: isFilled(local.unlockAfterDays)
+                        ? local.unlockAfterDays
+                        : server.unlockAfterDays,
+                    unlockDate: isFilled(local.unlockDate)
+                        ? local.unlockDate
+                        : server.unlockDate,
+                    active: Boolean(local.active || server.active),
                 };
             });
             return next;
         });
-    }, [dripItems]);
+    }, [dripItems, scheduleMode]);
 
     const dripMode = useMemo(() => {
         if (!dripEnabled) return "none";
@@ -114,20 +133,25 @@ const DripEditor = forwardRef(function DripEditor(
     };
 
     const buildSavePayload = useCallback(() => {
+        // Send only the current mode's field per row: the server leaves the
+        // other field untouched, so switching modes never wipes saved values.
         const drip_schedule = dripEnabled
             ? dripItems.map((item) => {
                   const row = scheduleByNodeId[item.id] || {};
+                  if (scheduleMode === "date") {
+                      return {
+                          node_id: item.id,
+                          unlock_date:
+                              row.active && isFilled(row.unlockDate)
+                                  ? row.unlockDate
+                                  : null,
+                      };
+                  }
                   return {
                       node_id: item.id,
                       unlock_after_days:
-                          scheduleMode === "sequence" &&
-                          row.active &&
-                          row.unlockAfterDays !== ""
+                          row.active && isFilled(row.unlockAfterDays)
                               ? Number(row.unlockAfterDays)
-                              : null,
-                      unlock_date:
-                          scheduleMode === "date" && row.active && row.unlockDate
-                              ? row.unlockDate
                               : null,
                   };
               })

@@ -126,6 +126,19 @@ const deriveSessionDuration = (startDate, startTime, endDate, endTime) => {
         .join(" ");
 };
 
+const GENERIC_SAVE_ERROR = "Could not save the lesson. Please try again.";
+
+// Inertia passes page.props.errors ({ field: message }) to onError.
+const getSaveErrorMessage = (error) => {
+    if (error && typeof error === "object" && !(error instanceof Error)) {
+        const firstMessage = Object.values(error)
+            .map((value) => (Array.isArray(value) ? value[0] : value))
+            .find((value) => typeof value === "string" && value.trim());
+        if (firstMessage) return firstMessage;
+    }
+    return GENERIC_SAVE_ERROR;
+};
+
 const ContentEditor = forwardRef(function ContentEditor(
     { node, onSave, blueprint },
     ref,
@@ -467,6 +480,55 @@ const ContentEditor = forwardRef(function ContentEditor(
         return true;
     };
 
+    // Mirrors the hard rejections in instructor_node_update (document upload
+    // and conversion, validate_session_properties). Only these gate autosave;
+    // client-only quality rules still allow saving drafts.
+    const canServerAcceptSave = () => {
+        if (lessonType === "document") {
+            if (!documentData?.original_url) return false;
+            if (strictCompletion) {
+                const status = (
+                    documentData?.conversion_status || ""
+                ).toLowerCase();
+                const pageCount = Number(documentData?.page_count || 0);
+                if (
+                    status !== "ready" ||
+                    !documentData?.viewer_pdf_url ||
+                    pageCount <= 0
+                ) {
+                    return false;
+                }
+            }
+        }
+
+        if (isScheduledLesson) {
+            if (!timezone) return false;
+            if (!startDate || !startTime || !endDate || !endTime) return false;
+            const start = new Date(`${startDate}T${startTime}:00`);
+            const end = new Date(`${endDate}T${endTime}:00`);
+            if (
+                Number.isNaN(start.getTime()) ||
+                Number.isNaN(end.getTime()) ||
+                end <= start
+            ) {
+                return false;
+            }
+            if (sessionKind === "in_person_session") {
+                if (!venue.trim() || !address.trim()) return false;
+            } else if (
+                sessionProvider !== "google_meet" &&
+                (!videoUrl || !/^https:\/\/.+/.test(videoUrl))
+            ) {
+                return false;
+            }
+            if (recordingUrl && !/^https:\/\/.+/.test(recordingUrl)) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
     const buildSavePayload = useCallback(() => {
         const documentPayload =
             lessonType === "document"
@@ -647,6 +709,7 @@ const ContentEditor = forwardRef(function ContentEditor(
 
     const autosave = useAutosave({
         enabled: hasPersistedNodeId,
+        canSave: canServerAcceptSave(),
         value: autosaveValue,
         buildPayload: buildSavePayload,
         save: savePayload,
@@ -677,7 +740,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         if (saveResult?.ok === false) {
             setSnackbar({
                 open: true,
-                message: "Could not save the lesson. Please try again.",
+                message: getSaveErrorMessage(saveResult.error),
                 severity: "error",
             });
             return;

@@ -21,6 +21,7 @@ from apps.progression.tests.factories import ProgramFactory
 from apps.learning_operations.learner_management import (
     accept_course_invitation,
     create_course_invitation,
+    ensure_active_enrollment,
 )
 from apps.learning_operations.models import (
     AssessmentAttemptGrant,
@@ -77,6 +78,41 @@ def test_existing_account_is_enrolled_immediately_and_audited(
     assert LearnerManagementAudit.objects.filter(
         enrollment=enrollment, action="enroll_existing_user"
     ).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("existing_status", "expected_status", "expected_actions"),
+    [
+        (None, "active", ["enroll_existing_user"]),
+        ("withdrawn", "active", ["reactivate"]),
+        ("suspended", "active", ["reactivate"]),
+        ("active", "active", []),
+        ("completed", "completed", []),
+    ],
+)
+def test_ensure_active_enrollment_reuses_the_unique_enrollment(
+    instructor, program, existing_status, expected_status, expected_actions
+):
+    user = UserFactory()
+    if existing_status:
+        Enrollment.objects.create(user=user, program=program, status=existing_status)
+
+    enrollment, created = ensure_active_enrollment(
+        user=user, program=program, actor=instructor, access_source="approval"
+    )
+
+    assert created is (existing_status is None)
+    assert Enrollment.objects.filter(user=user, program=program).count() == 1
+    enrollment.refresh_from_db()
+    assert enrollment.status == expected_status
+    if created:
+        assert enrollment.access_source == "approval"
+    assert list(
+        LearnerManagementAudit.objects.filter(enrollment=enrollment).values_list(
+            "action", flat=True
+        )
+    ) == expected_actions
 
 
 @pytest.mark.django_db

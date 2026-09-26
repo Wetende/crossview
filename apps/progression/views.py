@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.http import Http404
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -4585,25 +4586,41 @@ def instructor_enrollment_request_approve(request, pk: int, request_id: int):
         messages.error(request, prerequisite_evaluation.blocking_message)
         return redirect("progression:instructor.enrollment_requests", pk=pk)
 
-    # Create enrollment
-    enrollment = Enrollment.objects.create(
-        user=enrollment_request.user,
-        program=enrollment_request.program,
-        status="active",
-        enrolled_at=timezone.now(),
-    )
-    NotificationService.notify_enrollment_approved(enrollment)
+    from apps.learning_operations.learner_management import ensure_active_enrollment
 
-    # Update request
-    enrollment_request.status = "approved"
-    enrollment_request.reviewed_by = user
-    enrollment_request.reviewed_at = timezone.now()
-    enrollment_request.save()
+    learner = enrollment_request.user
+    with transaction.atomic():
+        # Enrollment is unique per (user, program): reuse or reactivate an
+        # existing one instead of creating a duplicate.
+        already_enrolled = Enrollment.objects.filter(
+            user=learner,
+            program=enrollment_request.program,
+            status__in=["active", "completed"],
+        ).exists()
+        enrollment, _created = ensure_active_enrollment(
+            user=learner,
+            program=enrollment_request.program,
+            actor=user,
+            access_source="approval",
+        )
 
-    messages.success(
-        request,
-        f"Approved enrollment for {enrollment_request.user.get_full_name() or enrollment_request.user.email}",
-    )
+        enrollment_request.status = "approved"
+        enrollment_request.reviewed_by = user
+        enrollment_request.reviewed_at = timezone.now()
+        enrollment_request.save()
+
+        transaction.on_commit(
+            lambda: NotificationService.notify_enrollment_approved(enrollment)
+        )
+
+    learner_name = learner.get_full_name() or learner.email
+    if already_enrolled:
+        messages.success(
+            request,
+            f"Approved the request; {learner_name} was already enrolled",
+        )
+    else:
+        messages.success(request, f"Approved enrollment for {learner_name}")
 
     return redirect("progression:instructor.enrollment_requests", pk=pk)
 

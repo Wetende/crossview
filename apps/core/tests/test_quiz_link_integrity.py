@@ -260,13 +260,22 @@ class QuizLinkIntegrityTest(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        self.assertIn(response.status_code, (200, 302))
+        self.assertEqual(response.status_code, 302)
 
         node = CurriculumNode.objects.get(program=program, title="Knowledge Check")
         self.assertIsNotNone((node.properties or {}).get("quiz_id"))
 
         quiz = Quiz.objects.get(node=node)
         self.assertEqual(quiz.questions.count(), 1)
+
+        manage_url = reverse(
+            "core:instructor.program_manage", kwargs={"pk": program.id}
+        )
+        self.assertEqual(response["Location"], f"{manage_url}?node={node.id}")
+        page = self.client.get(response["Location"], HTTP_X_INERTIA="true").json()
+        self.assertEqual(page["component"], "Instructor/Program/Manage")
+        self.assertIn("questionLibrary", page["props"])
+        self.assertIn("questionBanks", page["props"])
 
     def test_instructor_program_publish_cascades_assessment_publication_state(self):
         instructor = User.objects.create_user(
@@ -693,9 +702,13 @@ class QuizLinkIntegrityTest(TestCase):
             data=json.dumps(payload),
             content_type="application/json",
         )
-        self.assertIn(response.status_code, (200, 302))
+        self.assertEqual(response.status_code, 302)
 
         node = CurriculumNode.objects.get(program=program, title="Hybrid Assignment")
+        manage_url = reverse(
+            "core:instructor.program_manage", kwargs={"pk": program.id}
+        )
+        self.assertEqual(response["Location"], f"{manage_url}?node={node.id}")
         props = node.properties or {}
         self.assertIsNotNone(props.get("assignment_id"))
         self.assertIsNotNone(props.get("quiz_id"))

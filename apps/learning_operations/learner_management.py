@@ -138,35 +138,52 @@ def send_course_invitation(*, invitation, raw_token, request=None) -> bool:
 
 
 @transaction.atomic
+def ensure_active_enrollment(*, user, program, actor, access_source="admin"):
+    """
+    Give ``user`` an active enrollment in ``program`` without duplicating it.
+
+    Enrollment is unique per (user, program): a missing enrollment is created,
+    a withdrawn or suspended one is reactivated, and an active or completed one
+    is left as is. Each change is audited. Returns ``(enrollment, created)``.
+    """
+    enrollment, created = Enrollment.objects.select_for_update().get_or_create(
+        user=user,
+        program=program,
+        defaults={"status": "active", "access_source": access_source},
+    )
+    if created:
+        LearnerManagementAudit.objects.create(
+            enrollment=enrollment,
+            action="enroll_existing_user",
+            actor=actor,
+            previous_state={},
+            resulting_state={"status": "active"},
+        )
+    elif enrollment.status in {"withdrawn", "suspended"}:
+        previous = {"status": enrollment.status}
+        enrollment.status = "active"
+        enrollment.save(update_fields=["status", "updated_at"])
+        LearnerManagementAudit.objects.create(
+            enrollment=enrollment,
+            action="reactivate",
+            actor=actor,
+            previous_state=previous,
+            resulting_state={"status": "active"},
+        )
+    return enrollment, created
+
+
+@transaction.atomic
 def add_or_invite_learner(*, program, email: str, actor, request=None):
     User = get_user_model()
     email = validate_normalized_email(email)
     user = User.objects.filter(email__iexact=email).first()
     if user:
-        enrollment, created = Enrollment.objects.get_or_create(
+        enrollment, created = ensure_active_enrollment(
             user=user,
             program=program,
-            defaults={"status": "active", "access_source": "admin"},
+            actor=actor,
         )
-        if not created and enrollment.status in {"withdrawn", "suspended"}:
-            previous = {"status": enrollment.status}
-            enrollment.status = "active"
-            enrollment.save(update_fields=["status", "updated_at"])
-            LearnerManagementAudit.objects.create(
-                enrollment=enrollment,
-                action="reactivate",
-                actor=actor,
-                previous_state=previous,
-                resulting_state={"status": "active"},
-            )
-        elif created:
-            LearnerManagementAudit.objects.create(
-                enrollment=enrollment,
-                action="enroll_existing_user",
-                actor=actor,
-                previous_state={},
-                resulting_state={"status": "active"},
-            )
         return {"status": "enrolled", "enrollment": enrollment, "created": created}
 
     invitation, raw_token = create_course_invitation(

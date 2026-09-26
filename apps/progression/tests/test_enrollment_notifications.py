@@ -52,12 +52,14 @@ class EnrollmentNotificationFlowTests(TestCase):
         )
 
         self.client.force_login(instructor)
-        response = self.client.post(
-            reverse(
-                "progression:instructor.enrollment_request.approve",
-                kwargs={"pk": program.id, "request_id": enrollment_request.id},
-            ),
-        )
+        # Notifications are sent after the approval transaction commits.
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse(
+                    "progression:instructor.enrollment_request.approve",
+                    kwargs={"pk": program.id, "request_id": enrollment_request.id},
+                ),
+            )
 
         self.assertEqual(response.status_code, 302)
         enrollment = Enrollment.objects.get(user=student, program=program)

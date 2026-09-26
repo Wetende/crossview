@@ -478,3 +478,129 @@ class TestInstructorPracticum:
 
         # Check node completion was created
         assert NodeCompletion.objects.filter(enrollment=enrollment, node=node).exists()
+
+
+@pytest.mark.django_db
+class TestInstructorEnrollmentRequestApproval:
+    """Approving a request must reuse the unique (user, program) enrollment."""
+
+    def _approve(self, client, program, enrollment_request, capture_on_commit):
+        from apps.notifications.services import NotificationService
+
+        url = reverse(
+            "progression:instructor.enrollment_request.approve",
+            kwargs={"pk": program.id, "request_id": enrollment_request.id},
+        )
+        with patch.object(
+            NotificationService, "notify_enrollment_approved"
+        ) as notify:
+            with capture_on_commit(execute=True):
+                response = client.post(url)
+        return response, notify
+
+    def _pending_request(self, student, program):
+        from apps.progression.models import EnrollmentRequest
+
+        return EnrollmentRequest.objects.create(
+            user=student, program=program, status="pending"
+        )
+
+    def _messages(self, response):
+        from django.contrib.messages import get_messages
+
+        return [str(message) for message in get_messages(response.wsgi_request)]
+
+    def test_approve_reactivates_withdrawn_enrollment(
+        self,
+        client,
+        instructor,
+        assignment,
+        program,
+        student,
+        django_capture_on_commit_callbacks,
+    ):
+        from apps.learning_operations.models import LearnerManagementAudit
+
+        existing = EnrollmentFactory(user=student, program=program, status="withdrawn")
+        enrollment_request = self._pending_request(student, program)
+        client.force_login(instructor)
+
+        response, notify = self._approve(
+            client, program, enrollment_request, django_capture_on_commit_callbacks
+        )
+
+        assert response.status_code == 302
+        assert response["Location"] == reverse(
+            "progression:instructor.enrollment_requests", kwargs={"pk": program.id}
+        )
+        assert Enrollment.objects.filter(user=student, program=program).count() == 1
+        existing.refresh_from_db()
+        assert existing.status == "active"
+        enrollment_request.refresh_from_db()
+        assert enrollment_request.status == "approved"
+        assert enrollment_request.reviewed_by == instructor
+        assert enrollment_request.reviewed_at is not None
+        audit = LearnerManagementAudit.objects.get(enrollment=existing)
+        assert audit.action == "reactivate"
+        assert audit.previous_state == {"status": "withdrawn"}
+        notify.assert_called_once_with(existing)
+        assert any(
+            message.startswith("Approved enrollment for")
+            for message in self._messages(response)
+        )
+
+    def test_approve_when_already_active_still_approves_request(
+        self,
+        client,
+        instructor,
+        assignment,
+        program,
+        student,
+        django_capture_on_commit_callbacks,
+    ):
+        from apps.learning_operations.models import LearnerManagementAudit
+
+        existing = EnrollmentFactory(user=student, program=program, status="active")
+        enrollment_request = self._pending_request(student, program)
+        client.force_login(instructor)
+
+        response, notify = self._approve(
+            client, program, enrollment_request, django_capture_on_commit_callbacks
+        )
+
+        assert response.status_code == 302
+        assert Enrollment.objects.filter(user=student, program=program).count() == 1
+        existing.refresh_from_db()
+        assert existing.status == "active"
+        enrollment_request.refresh_from_db()
+        assert enrollment_request.status == "approved"
+        assert not LearnerManagementAudit.objects.filter(enrollment=existing).exists()
+        notify.assert_called_once_with(existing)
+        assert any(
+            message.endswith("was already enrolled")
+            for message in self._messages(response)
+        )
+
+    def test_approve_without_enrollment_creates_one(
+        self,
+        client,
+        instructor,
+        assignment,
+        program,
+        student,
+        django_capture_on_commit_callbacks,
+    ):
+        enrollment_request = self._pending_request(student, program)
+        client.force_login(instructor)
+
+        response, notify = self._approve(
+            client, program, enrollment_request, django_capture_on_commit_callbacks
+        )
+
+        assert response.status_code == 302
+        enrollment = Enrollment.objects.get(user=student, program=program)
+        assert enrollment.status == "active"
+        assert enrollment.access_source == "approval"
+        enrollment_request.refresh_from_db()
+        assert enrollment_request.status == "approved"
+        notify.assert_called_once_with(enrollment)

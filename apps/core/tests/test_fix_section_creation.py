@@ -44,7 +44,11 @@ class TestSectionCreationFix(TestCase):
         }
         
         response = self.client.post(url, data, follow=False)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            reverse("core:instructor.program_manage", kwargs={"pk": program.id}),
+        )
         
         # 3. Assertion:
         # WITHOUT FIX: This should fail because "Module" is not in ["Year", "Session"]

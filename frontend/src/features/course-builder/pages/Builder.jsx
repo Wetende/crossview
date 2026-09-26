@@ -135,6 +135,7 @@ export default function InstructorProgramBuilder({
     };
 
     const selectedNode = selectedNodeId ? findNode(selectedNodeId) : null;
+    const appliedNodeRequestUrlRef = useRef(null);
 
     useEffect(() => {
         if (activeTab !== "curriculum" || typeof window === "undefined") {
@@ -145,6 +146,14 @@ export default function InstructorProgramBuilder({
             "node",
         );
         if (!requestedNodeId) {
+            appliedNodeRequestUrlRef.current = null;
+            return;
+        }
+
+        // Server redirects (node create, rejected save) open a lesson with
+        // ?node=. Apply it once per visit so later curriculum refreshes on the
+        // same URL do not pull the instructor away from the lesson they chose.
+        if (appliedNodeRequestUrlRef.current === page.url) {
             return;
         }
 
@@ -152,6 +161,7 @@ export default function InstructorProgramBuilder({
             (node) => String(node.id) === requestedNodeId,
         );
         if (requestedNode) {
+            appliedNodeRequestUrlRef.current = page.url;
             setSelectedNodeId(requestedNode.id);
         }
     }, [activeTab, curriculum, page.url]);
