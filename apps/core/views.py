@@ -774,7 +774,7 @@ def public_program_detail(
                 "id": review.user_id,
                 "name": review.user.get_full_name()
                 or review.user.username
-                or review.user.email,
+                or "Learner",
             },
             "updatedAt": review.updated_at.isoformat() if review.updated_at else None,
         }
@@ -7836,6 +7836,7 @@ def instructor_program_update_settings(request, pk: int):
             )
         except ValidationError as exc:
             messages.error(request, exc.messages[0])
+            flash_inertia_errors(request, {"intro_video_url": exc.messages[0]})
             return _redirect_to_builder()
 
     if active_tab == "settings" and settings_section == "main" and "name" in data:
