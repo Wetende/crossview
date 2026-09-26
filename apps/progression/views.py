@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
+from django.utils.html import escape
 from django.utils.http import urlsafe_base64_encode
 from inertia import render
 
@@ -3552,6 +3553,11 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                     }
                 )
 
+                # Legacy answer_data.explanation is plain text; escape it so the
+                # rich-text display keeps text such as "x < 5".
+                legacy_explanation = str(
+                    (question.answer_data or {}).get("explanation") or ""
+                ).strip()
                 questions_data.append(
                     {
                         "id": question.id,
@@ -3564,7 +3570,11 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                         ),
                         "points": question.points,
                         "explanation": question.explanation
-                        or (question.answer_data or {}).get("explanation", ""),
+                        or (
+                            f"<p>{escape(legacy_explanation)}</p>"
+                            if legacy_explanation
+                            else ""
+                        ),
                         "orderingExplanations": (question.answer_data or {}).get(
                             "explanations", {}
                         ),

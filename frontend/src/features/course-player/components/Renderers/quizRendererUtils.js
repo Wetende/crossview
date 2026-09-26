@@ -32,6 +32,21 @@ export const normalizeText = (value, fallback = '') => {
 const normalizeRichText = (value) =>
     hasRichTextContent(value) ? String(value).trim() : '';
 
+const escapeHtml = (value) =>
+    String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+// Legacy answer_data.explanation is plain text: escape it so text such as
+// "x < 5 and y > 3" survives sanitising when shown as rich text.
+const legacyPlainTextToRichText = (value) => {
+    const text = typeof value === 'string' ? value.trim() : '';
+    return text ? `<p>${escapeHtml(text)}</p>` : '';
+};
+
 const toNumberOrNull = (value) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
@@ -352,9 +367,11 @@ export const normalizeQuestions = (rawQuestions = []) => {
                 type,
                 text: normalizeText(rawQuestion?.text ?? rawQuestion?.question, 'Untitled question'),
                 points,
-                explanation: normalizeRichText(
-                    rawQuestion?.explanation ?? rawQuestion?.answer_data?.explanation,
-                ),
+                explanation:
+                    normalizeRichText(rawQuestion?.explanation) ||
+                    legacyPlainTextToRichText(
+                        rawQuestion?.answer_data?.explanation,
+                    ),
                 hint: normalizeRichText(rawQuestion?.hint),
                 options,
                 pairs,

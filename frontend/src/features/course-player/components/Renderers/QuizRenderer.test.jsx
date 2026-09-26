@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { router } from "@inertiajs/react";
 
+import QuestionExplanation from "@/features/quizzes/components/QuestionExplanation";
 import QuizRenderer from "./QuizRenderer";
 import {
     evaluateQuizAnswers,
@@ -372,6 +373,37 @@ describe("QuizRenderer", () => {
             '<p>Because <span data-type="inline-math" data-latex="x^2"></span></p>',
         );
         expect(question.hint).toBe("");
+    });
+
+    test("escapes legacy plain-text explanations so comparisons survive sanitising", () => {
+        const [legacy, current] = normalizeQuestions([
+            {
+                id: 1,
+                type: "mcq",
+                text: "Which holds?",
+                explanation: "",
+                answer_data: {
+                    explanation: " x < 5 and y > 3 & <b>z</b> ",
+                },
+            },
+            {
+                id: 2,
+                type: "mcq",
+                text: "Rich wins",
+                explanation: "<p>Rich <em>text</em></p>",
+                answer_data: { explanation: "legacy" },
+            },
+        ]);
+
+        expect(legacy.explanation).toBe(
+            "<p>x &lt; 5 and y &gt; 3 &amp; &lt;b&gt;z&lt;/b&gt;</p>",
+        );
+        expect(current.explanation).toBe("<p>Rich <em>text</em></p>");
+
+        render(<QuestionExplanation explanation={legacy.explanation} />);
+        const region = screen.getByRole("region", { name: "Explanation" });
+        expect(region).toHaveTextContent("x < 5 and y > 3 & <b>z</b>");
+        expect(region.querySelector("b")).toBeNull();
     });
 
     test("uses backend-compatible true/false values when options are omitted", () => {

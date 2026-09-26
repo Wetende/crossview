@@ -8,9 +8,19 @@ from django.core.management import call_command
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.assessments.models import Question, QuestionBank, Quiz, QuizAttempt
+from apps.assessments.models import (
+    Question,
+    QuestionBank,
+    QuestionBankEntry,
+    QuestionBankEntryRevision,
+    Quiz,
+    QuizAttempt,
+    QuizAttemptQuestionSnapshot,
+    QuizQuestionPool,
+)
 from apps.assessments.question_bank_service import QuestionBankService
 from apps.assessments.question_snapshots import (
+    build_snapshot_question_review,
     ensure_attempt_runtime_state,
     serialize_attempt_questions,
     snapshot_as_question_data,
@@ -387,3 +397,93 @@ def test_clone_and_resync_keep_explanation_and_hint(quiz_node):
     quiz_node.refresh_from_db()
     assert quiz_node.properties["questions"][0]["explanation"] == EXPLANATION
     assert quiz_node.properties["questions"][0]["hint"] == HINT
+
+
+def _without_feedback(snapshot):
+    legacy = dict(snapshot)
+    legacy.pop("explanation", None)
+    legacy.pop("hint", None)
+    return legacy
+
+
+@pytest.mark.django_db
+def test_snapshots_stored_before_explanations_and_hints_still_work(
+    quiz_node, instructor
+):
+    """Bank entries, revisions and attempt snapshots saved before this change
+    have no explanation/hint keys; every reader treats them as blank."""
+    _sync_quiz_questions(
+        quiz_node, [builder_question("mcq", explanation=EXPLANATION, hint=HINT)]
+    )
+    quiz = Quiz.objects.get(node=quiz_node)
+    quiz.answer_release_policy = Quiz.AnswerReleasePolicy.AFTER_EACH_ATTEMPT
+    quiz.save(update_fields=["answer_release_policy"])
+    bank = QuestionBank.objects.create(
+        program=quiz_node.program, owner=instructor, name="Legacy bank"
+    )
+    service = QuestionBankService()
+    entry = service.add_to_bank(quiz.questions.get(), instructor, bank=bank)
+
+    # Rewrite the stored JSON the way older rows look, bypassing normalisation.
+    legacy_snapshot = _without_feedback(entry.question_snapshot)
+    QuestionBankEntry.objects.filter(pk=entry.pk).update(
+        question_snapshot=legacy_snapshot
+    )
+    QuestionBankEntryRevision.objects.filter(entry=entry).update(
+        snapshot=legacy_snapshot
+    )
+    entry.refresh_from_db()
+    assert "explanation" not in entry.question_snapshot
+    assert "hint" not in entry.revisions.get(version=1).snapshot
+
+    data = snapshot_as_question_data(entry.question_snapshot)
+    assert data["explanation"] == ""
+    assert data["hint"] == ""
+
+    copied = service.copy_from_bank(entry, quiz)
+    assert copied.explanation == ""
+    assert copied.hint == ""
+
+    # One static question (snapshot rewritten below) and one drawn from the
+    # legacy bank entry, which is copied into the attempt as stored.
+    quiz.questions.exclude(pk=copied.pk).delete()
+    Question.objects.filter(pk=copied.pk).update(
+        explanation=EXPLANATION, hint=HINT
+    )
+    QuizQuestionPool.objects.create(
+        quiz=quiz, bank=bank, question_count=1, created_by=instructor
+    )
+    # The copy reserves its source entry; a second legacy entry feeds the pool.
+    pooled = service.add_to_bank(
+        None,
+        instructor,
+        bank=bank,
+        question_snapshot={**legacy_snapshot, "text": "Pooled legacy question"},
+    )
+    QuestionBankEntry.objects.filter(pk=pooled.pk).update(
+        question_snapshot={
+            **legacy_snapshot,
+            "text": "Pooled legacy question",
+        }
+    )
+    _, enrollment, attempt = start_attempt(quiz)
+    state = ensure_attempt_runtime_state(quiz, attempt)
+    static_row = attempt.question_snapshots.get(source_question=copied)
+    QuizAttemptQuestionSnapshot.objects.filter(pk=static_row.pk).update(
+        snapshot=_without_feedback(static_row.snapshot)
+    )
+    rows = list(attempt.question_snapshots.all())
+    assert len(rows) == 2
+    assert all("explanation" not in row.snapshot for row in rows)
+    assert all("hint" not in row.snapshot for row in rows)
+
+    payload = serialize_attempt_questions(quiz, attempt, state)
+    assert len(payload) == 2
+    assert all("hint" not in item and "explanation" not in item for item in payload)
+
+    attempt.answers = {str(item["id"]): "0" for item in payload}
+    attempt.submitted_at = timezone.now()
+    attempt.save(update_fields=["answers", "submitted_at"])
+    review = build_snapshot_question_review(attempt, correct_answers_released=True)
+    assert [item["explanation"] for item in review] == [None, None]
+    assert all(item["correctAnswer"] for item in review)

@@ -322,8 +322,33 @@ class TestInstructorGradebook:
         assert result["pointsEarned"] == 8.0
         assert result["gradingFeedback"] == "Clear explanation."
 
+    @pytest.mark.parametrize(
+        ("explanation", "answer_data", "expected"),
+        [
+            (
+                "<p>Rayleigh scattering.</p>",
+                {"correct": True},
+                "<p>Rayleigh scattering.</p>",
+            ),
+            # Legacy plain-text explanations are escaped so the rich-text
+            # display keeps "<" and ">" instead of sanitising them away.
+            (
+                "",
+                {"correct": True, "explanation": "  x < 5 and y > 3 & z  "},
+                "<p>x &lt; 5 and y &gt; 3 &amp; z</p>",
+            ),
+            ("", {"correct": True, "explanation": "   "}, ""),
+        ],
+    )
     def test_student_progress_exposes_question_explanation(
-        self, client, instructor, assignment, enrollment
+        self,
+        client,
+        instructor,
+        assignment,
+        enrollment,
+        explanation,
+        answer_data,
+        expected,
     ):
         node = CurriculumNodeFactory(
             program=assignment.program,
@@ -340,8 +365,8 @@ class TestInstructorGradebook:
             text="The sky is blue.",
             points=1,
             position=0,
-            answer_data={"correct": True},
-            explanation="<p>Rayleigh scattering.</p>",
+            answer_data=answer_data,
+            explanation=explanation,
             hint="<p>Look up.</p>",
         )
         QuizAttempt.objects.create(
@@ -377,9 +402,7 @@ class TestInstructorGradebook:
             return None
 
         curriculum_node = find_node(response.json()["props"]["curriculum"])
-        assert curriculum_node["questions"][0]["explanation"] == (
-            "<p>Rayleigh scattering.</p>"
-        )
+        assert curriculum_node["questions"][0]["explanation"] == expected
 
     def test_gradebook_save_creates_results(
         self, client, instructor, assignment, enrollment
