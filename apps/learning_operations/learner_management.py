@@ -138,13 +138,17 @@ def send_course_invitation(*, invitation, raw_token, request=None) -> bool:
 
 
 @transaction.atomic
-def ensure_active_enrollment(*, user, program, actor, access_source="admin"):
+def ensure_active_enrollment(
+    *, user, program, actor, access_source="admin", audit_action=None
+):
     """
     Give ``user`` an active enrollment in ``program`` without duplicating it.
 
     Enrollment is unique per (user, program): a missing enrollment is created,
     a withdrawn or suspended one is reactivated, and an active or completed one
-    is left as is. Each change is audited. Returns ``(enrollment, created)``.
+    is left as is. Each change is audited, as ``audit_action`` when given
+    (otherwise "enroll_existing_user" or "reactivate"). Callers that must not
+    lift a suspension check for it first. Returns ``(enrollment, created)``.
     """
     enrollment, created = Enrollment.objects.select_for_update().get_or_create(
         user=user,
@@ -154,7 +158,7 @@ def ensure_active_enrollment(*, user, program, actor, access_source="admin"):
     if created:
         LearnerManagementAudit.objects.create(
             enrollment=enrollment,
-            action="enroll_existing_user",
+            action=audit_action or "enroll_existing_user",
             actor=actor,
             previous_state={},
             resulting_state={"status": "active"},
@@ -165,7 +169,7 @@ def ensure_active_enrollment(*, user, program, actor, access_source="admin"):
         enrollment.save(update_fields=["status", "updated_at"])
         LearnerManagementAudit.objects.create(
             enrollment=enrollment,
-            action="reactivate",
+            action=audit_action or "reactivate",
             actor=actor,
             previous_state=previous,
             resulting_state={"status": "active"},

@@ -179,9 +179,20 @@ class ScheduleLockChecker:
         scheduled_nodes = [*node.get_ancestors(), node]
         active_locks = []
 
+        # The builder keeps the other mode's saved value when an instructor
+        # switches drip mode, so only the active mode's field may lock
+        # content. Legacy "none"/"mixed" courses keep applying both.
+        drip_mode = getattr(enrollment.program, "drip_mode", "none")
+        apply_unlock_date = drip_mode != "relative"
+        apply_unlock_after_days = drip_mode != "absolute"
+
         for scheduled_node in scheduled_nodes:
             # 1. Absolute unlock date
-            if scheduled_node.unlock_date and scheduled_node.unlock_date > now:
+            if (
+                apply_unlock_date
+                and scheduled_node.unlock_date
+                and scheduled_node.unlock_date > now
+            ):
                 active_locks.append(
                     (
                         scheduled_node.unlock_date,
@@ -191,7 +202,7 @@ class ScheduleLockChecker:
                 )
 
             # 2. Relative unlock days
-            if scheduled_node.unlock_after_days:
+            if apply_unlock_after_days and scheduled_node.unlock_after_days:
                 unlock_at = enrollment.created_at + timedelta(
                     days=scheduled_node.unlock_after_days
                 )

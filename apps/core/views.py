@@ -3481,7 +3481,12 @@ def instructor_student_detail(request, pk: int):
 
 @login_required
 def instructor_enrollment_status(request, enrollment_id: int):
-    """Update enrollment status (active, suspended, withdrawn, completed)."""
+    """
+    Change an enrollment's status and return to the student's page.
+
+    Only transitions in ALLOWED_ENROLLMENT_STATUS_TRANSITIONS are accepted;
+    anything else is reported back as ``errors.status``.
+    """
     if not is_instructor(request.user):
         return redirect("/dashboard/")
 
@@ -6349,7 +6354,9 @@ def build_curriculum_tree(program):
             "properties": node["properties"],
             "scheduledSession": scheduled_sessions.get(node_id),
             "position": node["position"],
-            "unlockDate": node["unlock_date"].isoformat()
+            # The builder edits a calendar date; send the local date so a
+            # midnight unlock in the site timezone does not show a day early.
+            "unlockDate": timezone.localtime(node["unlock_date"]).date().isoformat()
             if node["unlock_date"]
             else None,
             "unlockAfterDays": node["unlock_after_days"],
@@ -8127,6 +8134,7 @@ def instructor_program_update_settings(request, pk: int):
 
         if "drip_schedule" in data:
             updates = []
+            rows_by_node_id = {}
             for row in drip_schedule:
                 if not isinstance(row, dict):
                     continue
@@ -8135,16 +8143,27 @@ def instructor_program_update_settings(request, pk: int):
                     continue
                 # The drip editor sends only the active schedule mode's field.
                 # A field missing from the row keeps its saved value.
-                has_after_days = "unlock_after_days" in row or "unlockAfterDays" in row
-                has_unlock_date = "unlock_date" in row or "unlockDate" in row
-                if not (has_after_days or has_unlock_date):
+                if not any(
+                    key in row
+                    for key in (
+                        "unlock_after_days",
+                        "unlockAfterDays",
+                        "unlock_date",
+                        "unlockDate",
+                    )
+                ):
                     continue
+                rows_by_node_id[node_id] = row
 
-                node = CurriculumNode.objects.filter(pk=node_id, program_id=pk).first()
+            nodes_by_id = CurriculumNode.objects.filter(program_id=pk).in_bulk(
+                list(rows_by_node_id)
+            )
+            for node_id, row in rows_by_node_id.items():
+                node = nodes_by_id.get(node_id)
                 if not node:
                     continue
 
-                if has_after_days:
+                if "unlock_after_days" in row or "unlockAfterDays" in row:
                     unlock_after_days = _to_int(
                         row.get("unlock_after_days")
                         if "unlock_after_days" in row
@@ -8155,7 +8174,7 @@ def instructor_program_update_settings(request, pk: int):
                         if unlock_after_days and unlock_after_days > 0
                         else None
                     )
-                if has_unlock_date:
+                if "unlock_date" in row or "unlockDate" in row:
                     node.unlock_date = _parse_unlock_date(
                         row.get("unlock_date")
                         if "unlock_date" in row

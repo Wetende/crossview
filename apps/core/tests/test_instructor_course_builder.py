@@ -1125,19 +1125,19 @@ class TestInstructorCourseBuilder:
     ):
         from datetime import date
 
-        dated = CurriculumNode.objects.create(
+        relative = CurriculumNode.objects.create(
             program=program,
-            title="Module with both schedules",
+            title="Module with a day offset",
             node_type="Unit",
             unlock_after_days=5,
         )
-        relative = CurriculumNode.objects.create(
+        dated = CurriculumNode.objects.create(
             program=program,
             title="Module with a date",
             node_type="Unit",
             unlock_date=timezone.now() + timedelta(days=30),
         )
-        original_date = relative.unlock_date
+        original_date = dated.unlock_date
 
         client.force_login(instructor)
         response = client.post(
@@ -1148,21 +1148,57 @@ class TestInstructorCourseBuilder:
                 "drip_mode": "absolute",
                 "drip_schedule": [
                     # Date-mode row: must not wipe the saved day offset.
-                    {"node_id": dated.id, "unlock_date": "2026-11-02"},
+                    {"node_id": relative.id, "unlock_date": "2026-11-02"},
                     # Days-mode row: must not wipe the saved unlock date.
-                    {"node_id": relative.id, "unlockAfterDays": 3},
+                    {"node_id": dated.id, "unlockAfterDays": 3},
                 ],
             },
             content_type="application/json",
         )
 
         assert response.status_code == 302
-        dated.refresh_from_db()
         relative.refresh_from_db()
-        assert dated.unlock_after_days == 5
-        assert timezone.localtime(dated.unlock_date).date() == date(2026, 11, 2)
-        assert relative.unlock_after_days == 3
-        assert relative.unlock_date == original_date
+        dated.refresh_from_db()
+        assert relative.unlock_after_days == 5
+        assert timezone.localtime(relative.unlock_date).date() == date(2026, 11, 2)
+        assert dated.unlock_after_days == 3
+        assert dated.unlock_date == original_date
+
+    def test_builder_curriculum_serialises_unlock_date_as_local_date(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+        settings,
+    ):
+        settings.TIME_ZONE = "Africa/Nairobi"
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Dated module",
+            node_type="Unit",
+        )
+
+        client.force_login(instructor)
+        response = client.post(
+            reverse("core:instructor.program_update_settings", kwargs={"pk": program.id}),
+            data={
+                "tab": "drip",
+                "drip_enabled": True,
+                "drip_mode": "absolute",
+                "drip_schedule": [{"node_id": node.id, "unlock_date": "2026-11-02"}],
+            },
+            content_type="application/json",
+        )
+        assert response.status_code == 302
+
+        # Local midnight in Nairobi is 21:00 UTC the day before; the builder
+        # must still see the date the instructor picked.
+        page = client.get(
+            reverse("core:instructor.program_manage", kwargs={"pk": program.id}),
+            HTTP_X_INERTIA="true",
+        ).json()
+        assert page["props"]["curriculum"][0]["unlockDate"] == "2026-11-02"
 
     def test_update_drip_can_disable_and_redirect_back_to_drip_tab(
         self,

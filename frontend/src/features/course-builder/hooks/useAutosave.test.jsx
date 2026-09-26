@@ -189,11 +189,12 @@ describe("useAutosave", () => {
         expect(save).not.toHaveBeenCalled();
         expect(result.current.status).toBe("dirty");
 
+        // The skip is reported as paused so callers can warn about the edits.
         let flushResult;
         await act(async () => {
             flushResult = await result.current.flush();
         });
-        expect(flushResult).toEqual({ skipped: true });
+        expect(flushResult).toEqual({ skipped: true, paused: true });
         expect(save).not.toHaveBeenCalled();
 
         // The edit that makes the lesson saveable must not be swallowed.

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import DripEditor from "./DripEditor";
 
@@ -41,6 +41,10 @@ const curriculum = [
 ];
 
 describe("DripEditor", () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it("saves relative drip schedules for modules and lessons", async () => {
         const onSave = vi.fn((payload, callbacks) => callbacks.onFinish());
 
@@ -158,6 +162,98 @@ describe("DripEditor", () => {
 
         expect(screen.getByLabelText("Unlock Module 1 after days")).toHaveValue(
             3,
+        );
+    });
+
+    it("keeps a field cleared after its save went out when the reply still has the old value", () => {
+        vi.useFakeTimers();
+        const onSave = vi.fn();
+        const program = { id: 5, dripEnabled: true, dripMode: "relative" };
+        const { rerender } = render(
+            <DripEditor
+                program={program}
+                curriculum={curriculum}
+                onSave={onSave}
+            />,
+        );
+
+        fireEvent.click(screen.getByLabelText("Enable schedule for Module 1"));
+        fireEvent.change(screen.getByLabelText("Unlock Module 1 after days"), {
+            target: { value: "5" },
+        });
+        act(() => {
+            vi.advanceTimersByTime(2000);
+        });
+        expect(onSave).toHaveBeenCalledTimes(1);
+        expect(onSave.mock.calls[0][0].drip_schedule[0]).toEqual({
+            node_id: 10,
+            unlock_after_days: 5,
+        });
+
+        // The instructor clears the field before the save's reply arrives.
+        fireEvent.change(screen.getByLabelText("Unlock Module 1 after days"), {
+            target: { value: "" },
+        });
+        const reply = structuredClone(curriculum);
+        reply[0].unlockAfterDays = 5;
+        rerender(
+            <DripEditor program={program} curriculum={reply} onSave={onSave} />,
+        );
+
+        expect(screen.getByLabelText("Unlock Module 1 after days")).toHaveValue(
+            null,
+        );
+        expect(
+            screen.getByLabelText("Enable schedule for Module 1"),
+        ).toBeChecked();
+    });
+
+    it("keeps a row switched off when a refresh still carries its old value", () => {
+        const program = { id: 5, dripEnabled: true, dripMode: "relative" };
+        const scheduled = structuredClone(curriculum);
+        scheduled[1].unlockAfterDays = 7;
+        const { rerender } = render(
+            <DripEditor program={program} curriculum={scheduled} onSave={vi.fn()} />,
+        );
+
+        fireEvent.click(screen.getByLabelText("Enable schedule for Module 2"));
+        rerender(
+            <DripEditor
+                program={program}
+                curriculum={structuredClone(scheduled)}
+                onSave={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByLabelText("Enable schedule for Module 2"),
+        ).not.toBeChecked();
+    });
+
+    it("switches off an untouched row that the server cleared", () => {
+        const program = { id: 5, dripEnabled: true, dripMode: "relative" };
+        const scheduled = structuredClone(curriculum);
+        scheduled[1].unlockAfterDays = 7;
+        const { rerender } = render(
+            <DripEditor program={program} curriculum={scheduled} onSave={vi.fn()} />,
+        );
+        expect(screen.getByLabelText("Enable schedule for Module 2")).toBeChecked();
+        expect(screen.getByLabelText("Unlock Module 2 after days")).toHaveValue(7);
+
+        // Another instructor cleared the schedule.
+        rerender(
+            <DripEditor
+                program={program}
+                curriculum={structuredClone(curriculum)}
+                onSave={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByLabelText("Enable schedule for Module 2"),
+        ).not.toBeChecked();
+        expect(screen.getByLabelText("Unlock Module 2 after days")).toHaveValue(
+            null,
         );
     });
 

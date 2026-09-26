@@ -1,3 +1,4 @@
+import { createRef } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -36,9 +37,25 @@ const validTextLessonProperties = {
 const validDescription =
     "A short description that is comfortably longer than fifty characters.";
 
-const renderEditor = (node, onSave = vi.fn()) => {
-    render(<ContentEditor node={node} onSave={onSave} blueprint={{}} />);
+const renderEditor = (node, onSave = vi.fn(), ref = undefined) => {
+    render(
+        <ContentEditor ref={ref} node={node} onSave={onSave} blueprint={{}} />,
+    );
     return onSave;
+};
+
+const meetLessonWithoutTimezone = {
+    id: 45,
+    title: "Weekly Meet",
+    properties: {
+        lesson_type: "google_meet",
+        session_kind: "live_meeting",
+        provider: "google_meet",
+        start_date: "2026-10-01",
+        start_time: "09:00",
+        end_date: "2026-10-01",
+        end_time: "10:00",
+    },
 };
 
 const changeTitle = (value) => {
@@ -66,7 +83,9 @@ describe("ContentEditor saving", () => {
         });
 
         expect(onSave).not.toHaveBeenCalled();
-        expect(screen.getByText("Unsaved")).toBeInTheDocument();
+        expect(
+            screen.getByText("Autosave paused: upload the document"),
+        ).toBeInTheDocument();
     });
 
     test("still autosaves drafts that only miss client-side quality rules", () => {
@@ -85,6 +104,55 @@ describe("ContentEditor saving", () => {
         expect(onSave).toHaveBeenCalledTimes(1);
         expect(onSave.mock.calls[0][0]).toBe(42);
         expect(onSave.mock.calls[0][1].title).toBe("Draft lesson");
+    });
+
+    test("shows why autosave is paused while edits are unsaved", () => {
+        vi.useFakeTimers();
+        const onSave = renderEditor(meetLessonWithoutTimezone);
+
+        changeTitle("Weekly Meet: week 2");
+        act(() => {
+            vi.advanceTimersByTime(5000);
+        });
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(
+            screen.getByText("Autosave paused: select a timezone"),
+        ).toBeInTheDocument();
+    });
+
+    test("warns about unsaved edits when a flush is skipped", async () => {
+        const ref = createRef();
+        const onSave = renderEditor(meetLessonWithoutTimezone, vi.fn(), ref);
+
+        changeTitle("Weekly Meet: week 2");
+        let result;
+        await act(async () => {
+            result = await ref.current.flushAutosave();
+        });
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(result).toMatchObject({
+            skipped: true,
+            paused: true,
+            pauseReason: "select a timezone",
+        });
+        expect(
+            await screen.findByText("Unsaved changes: select a timezone"),
+        ).toBeInTheDocument();
+    });
+
+    test("asks the browser to confirm leaving with paused unsaved edits", () => {
+        renderEditor(meetLessonWithoutTimezone);
+
+        const cleanEvent = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(cleanEvent);
+        expect(cleanEvent.defaultPrevented).toBe(false);
+
+        changeTitle("Weekly Meet: week 2");
+        const dirtyEvent = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(dirtyEvent);
+        expect(dirtyEvent.defaultPrevented).toBe(true);
     });
 
     test("shows the server's message when a save is rejected", async () => {

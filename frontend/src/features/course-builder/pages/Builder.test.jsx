@@ -31,15 +31,20 @@ vi.mock("../components/CurriculumTree", async () => {
     };
 });
 
+const mockPausedChanges = vi.hoisted(() => ({ current: null }));
+
 vi.mock("../editors/EditorContainer", async () => {
-    const { forwardRef } = await vi.importActual("react");
+    const { forwardRef, useImperativeHandle } = await vi.importActual("react");
     return {
         default: forwardRef(function MockEditor({ node }, ref) {
-            return (
-                <div ref={ref} data-testid="editor">
-                    {node.title}
-                </div>
-            );
+            useImperativeHandle(ref, () => ({
+                flushAutosave: async () =>
+                    mockPausedChanges.current
+                        ? { skipped: true, paused: true, ...mockPausedChanges.current }
+                        : { skipped: true },
+                hasPausedUnsavedChanges: () => Boolean(mockPausedChanges.current),
+            }));
+            return <div data-testid="editor">{node.title}</div>;
         }),
     };
 });
@@ -70,10 +75,12 @@ const visit = (url, curriculum = buildCurriculum()) => {
 describe("Builder ?node= selection", () => {
     beforeEach(() => {
         mockTreeProps.current = null;
+        mockPausedChanges.current = null;
     });
 
     afterEach(() => {
         window.history.replaceState({}, "", "/");
+        vi.restoreAllMocks();
     });
 
     test("opens the lesson named by ?node= after a server redirect", () => {
@@ -127,6 +134,63 @@ describe("Builder ?node= selection", () => {
                 curriculum={mockPage.current.props.curriculum}
             />,
         );
+        expect(screen.getByTestId("editor")).toHaveTextContent("Lesson 12");
+    });
+
+    test("asks before leaving a lesson whose edits autosave could not save", async () => {
+        visit("/instructor/programs/5/manage/?node=12");
+        render(
+            <InstructorProgramBuilder
+                program={program}
+                curriculum={mockPage.current.props.curriculum}
+            />,
+        );
+        mockPausedChanges.current = {
+            pauseReason: "select a timezone",
+            lessonTitle: "Lesson 12",
+        };
+        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+        let allowed;
+        await act(async () => {
+            allowed = await mockTreeProps.current.onNodeSelect({ id: 13 });
+        });
+
+        expect(confirm).toHaveBeenCalledWith(
+            'Unsaved changes in "Lesson 12": select a timezone.\n\nLeave this lesson and discard them?',
+        );
+        expect(allowed).toBe(false);
+        expect(screen.getByTestId("editor")).toHaveTextContent("Lesson 12");
+
+        confirm.mockReturnValue(true);
+        await act(async () => {
+            allowed = await mockTreeProps.current.onNodeSelect({ id: 13 });
+        });
+        expect(allowed).toBe(true);
+        expect(screen.getByTestId("editor")).toHaveTextContent("Lesson 13");
+    });
+
+    test("does not jump to a ?node= lesson over paused unsaved edits", () => {
+        visit("/instructor/programs/5/manage/?node=12");
+        const { rerender } = render(
+            <InstructorProgramBuilder
+                program={program}
+                curriculum={mockPage.current.props.curriculum}
+            />,
+        );
+        mockPausedChanges.current = {
+            pauseReason: "select a timezone",
+            lessonTitle: "Lesson 12",
+        };
+
+        visit("/instructor/programs/5/manage/?node=13");
+        rerender(
+            <InstructorProgramBuilder
+                program={program}
+                curriculum={mockPage.current.props.curriculum}
+            />,
+        );
+
         expect(screen.getByTestId("editor")).toHaveTextContent("Lesson 12");
     });
 });

@@ -481,11 +481,12 @@ const ContentEditor = forwardRef(function ContentEditor(
     };
 
     // Mirrors the hard rejections in instructor_node_update (document upload
-    // and conversion, validate_session_properties). Only these gate autosave;
-    // client-only quality rules still allow saving drafts.
-    const canServerAcceptSave = () => {
+    // and conversion, validate_session_properties). Only these pause
+    // autosave; client-only quality rules still allow saving drafts. Returns
+    // a short reason ("" when the server would accept the save).
+    const getAutosavePauseReason = () => {
         if (lessonType === "document") {
-            if (!documentData?.original_url) return false;
+            if (!documentData?.original_url) return "upload the document";
             if (strictCompletion) {
                 const status = (
                     documentData?.conversion_status || ""
@@ -496,14 +497,16 @@ const ContentEditor = forwardRef(function ContentEditor(
                     !documentData?.viewer_pdf_url ||
                     pageCount <= 0
                 ) {
-                    return false;
+                    return "wait for the document conversion";
                 }
             }
         }
 
         if (isScheduledLesson) {
-            if (!timezone) return false;
-            if (!startDate || !startTime || !endDate || !endTime) return false;
+            if (!timezone) return "select a timezone";
+            if (!startDate || !startTime || !endDate || !endTime) {
+                return "add the start and end times";
+            }
             const start = new Date(`${startDate}T${startTime}:00`);
             const end = new Date(`${endDate}T${endTime}:00`);
             if (
@@ -511,23 +514,26 @@ const ContentEditor = forwardRef(function ContentEditor(
                 Number.isNaN(end.getTime()) ||
                 end <= start
             ) {
-                return false;
+                return "end the session after it starts";
             }
             if (sessionKind === "in_person_session") {
-                if (!venue.trim() || !address.trim()) return false;
+                if (!venue.trim() || !address.trim()) {
+                    return "add the venue and address";
+                }
             } else if (
                 sessionProvider !== "google_meet" &&
                 (!videoUrl || !/^https:\/\/.+/.test(videoUrl))
             ) {
-                return false;
+                return "add a secure HTTPS session link";
             }
             if (recordingUrl && !/^https:\/\/.+/.test(recordingUrl)) {
-                return false;
+                return "use a secure HTTPS recording link";
             }
         }
 
-        return true;
+        return "";
     };
+    const autosavePauseReason = getAutosavePauseReason();
 
     const buildSavePayload = useCallback(() => {
         const documentPayload =
@@ -709,21 +715,64 @@ const ContentEditor = forwardRef(function ContentEditor(
 
     const autosave = useAutosave({
         enabled: hasPersistedNodeId,
-        canSave: canServerAcceptSave(),
+        canSave: !autosavePauseReason,
         value: autosaveValue,
         buildPayload: buildSavePayload,
         save: savePayload,
         debounceMs: 1800,
         saveKey: `content:${node.id}`,
     });
+    const { flush: flushAutosaveNow } = autosave;
+    const hasPausedUnsavedChanges =
+        Boolean(autosavePauseReason) && autosave.status === "dirty";
+
+    // Leaving the lesson (another lesson, another tab) flushes autosave. When
+    // the pause skips that flush, say so while the editor is still open and
+    // hand the reason to the builder so it can ask before discarding.
+    const flushAutosave = useCallback(
+        async (options) => {
+            const result = await flushAutosaveNow(options);
+            if (result?.paused) {
+                setSnackbar({
+                    open: true,
+                    message: `Unsaved changes: ${autosavePauseReason}`,
+                    severity: "warning",
+                });
+                return {
+                    ...result,
+                    pauseReason: autosavePauseReason,
+                    lessonTitle: title,
+                };
+            }
+            return result;
+        },
+        [autosavePauseReason, flushAutosaveNow, title],
+    );
 
     useImperativeHandle(
         ref,
         () => ({
-            flushAutosave: autosave.flush,
+            flushAutosave,
+            hasPausedUnsavedChanges: () => hasPausedUnsavedChanges,
         }),
-        [autosave.flush],
+        [flushAutosave, hasPausedUnsavedChanges],
     );
+
+    // Refresh or close: the pagehide flush is skipped while paused, so use
+    // the browser's own leave-page prompt (same pattern as the certificate
+    // builder).
+    useEffect(() => {
+        if (!hasPausedUnsavedChanges || typeof window === "undefined") {
+            return undefined;
+        }
+        const warnBeforeLeaving = (event) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+        window.addEventListener("beforeunload", warnBeforeLeaving);
+        return () =>
+            window.removeEventListener("beforeunload", warnBeforeLeaving);
+    }, [hasPausedUnsavedChanges]);
 
     const handleSave = async () => {
         touchAllFields();
@@ -889,6 +938,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                         status={autosave.status}
                         lastSavedAt={autosave.lastSavedAt}
                         disabledReason="Create the lesson before autosave can start."
+                        pausedReason={autosavePauseReason}
                     />
                 </Box>
                 <Button

@@ -263,19 +263,21 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                                   <GradeIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title={enrollment.status === 'suspended' ? 'Activate' : 'Suspend'}>
-                                <IconButton
-                                  size="small"
-                                  color={enrollment.status === 'suspended' ? 'success' : 'warning'}
-                                  onClick={() => handleOpenStatusDialog(enrollment)}
-                                >
-                                  {enrollment.status === 'suspended' ? (
-                                    <ActiveIcon fontSize="small" />
-                                  ) : (
-                                    <SuspendIcon fontSize="small" />
-                                  )}
-                                </IconButton>
-                              </Tooltip>
+                              {enrollment.allowedStatuses?.length > 0 && (
+                                <Tooltip title={enrollment.status === 'suspended' ? 'Activate' : 'Suspend'}>
+                                  <IconButton
+                                    size="small"
+                                    color={enrollment.status === 'suspended' ? 'success' : 'warning'}
+                                    onClick={() => handleOpenStatusDialog(enrollment)}
+                                  >
+                                    {enrollment.status === 'suspended' ? (
+                                      <ActiveIcon fontSize="small" />
+                                    ) : (
+                                      <SuspendIcon fontSize="small" />
+                                    )}
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             </Stack>
                           </TableCell>
                         </TableRow>

@@ -4589,38 +4589,61 @@ def instructor_enrollment_request_approve(request, pk: int, request_id: int):
     from apps.learning_operations.learner_management import ensure_active_enrollment
 
     learner = enrollment_request.user
+    learner_name = learner.get_full_name() or learner.email
+    requests_url = reverse("progression:instructor.enrollment_requests", kwargs={"pk": pk})
     with transaction.atomic():
-        # Enrollment is unique per (user, program): reuse or reactivate an
-        # existing one instead of creating a duplicate.
-        already_enrolled = Enrollment.objects.filter(
-            user=learner,
-            program=enrollment_request.program,
-            status__in=["active", "completed"],
-        ).exists()
-        enrollment, _created = ensure_active_enrollment(
+        # Lock the request so two reviewers cannot approve it twice.
+        enrollment_request = (
+            EnrollmentRequest.objects.select_for_update()
+            .select_related("user", "program")
+            .filter(pk=enrollment_request.pk, program_id=pk, status="pending")
+            .first()
+        )
+        if enrollment_request is None:
+            messages.info(request, "This enrollment request was already reviewed.")
+            return redirect(requests_url)
+
+        # Enrollment is unique per (user, program): reuse the existing row.
+        existing = (
+            Enrollment.objects.select_for_update()
+            .filter(user=learner, program=enrollment_request.program)
+            .first()
+        )
+        if existing and existing.status == "suspended":
+            messages.error(
+                request,
+                f"{learner_name} is suspended in this course. Restore the learner "
+                "from the learner list instead of approving this request.",
+            )
+            return redirect(requests_url)
+
+        previous_status = existing.status if existing else None
+        enrollment, created = ensure_active_enrollment(
             user=learner,
             program=enrollment_request.program,
             actor=user,
             access_source="approval",
+            audit_action="approve_request",
         )
+        access_granted = created or previous_status == "withdrawn"
 
         enrollment_request.status = "approved"
         enrollment_request.reviewed_by = user
         enrollment_request.reviewed_at = timezone.now()
         enrollment_request.save()
 
-        transaction.on_commit(
-            lambda: NotificationService.notify_enrollment_approved(enrollment)
-        )
+        if access_granted:
+            transaction.on_commit(
+                lambda: NotificationService.notify_enrollment_approved(enrollment)
+            )
 
-    learner_name = learner.get_full_name() or learner.email
-    if already_enrolled:
+    if access_granted:
+        messages.success(request, f"Approved enrollment for {learner_name}")
+    else:
         messages.success(
             request,
             f"Approved the request; {learner_name} was already enrolled",
         )
-    else:
-        messages.success(request, f"Approved enrollment for {learner_name}")
 
     return redirect("progression:instructor.enrollment_requests", pk=pk)
 

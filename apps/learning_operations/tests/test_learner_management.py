@@ -116,6 +116,31 @@ def test_ensure_active_enrollment_reuses_the_unique_enrollment(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("existing_status", [None, "withdrawn"])
+def test_ensure_active_enrollment_records_the_callers_audit_action(
+    instructor, program, existing_status
+):
+    user = UserFactory()
+    if existing_status:
+        Enrollment.objects.create(user=user, program=program, status=existing_status)
+
+    enrollment, _created = ensure_active_enrollment(
+        user=user,
+        program=program,
+        actor=instructor,
+        access_source="approval",
+        audit_action="approve_request",
+    )
+
+    audit = LearnerManagementAudit.objects.get(enrollment=enrollment)
+    assert audit.action == "approve_request"
+    assert audit.previous_state == (
+        {"status": existing_status} if existing_status else {}
+    )
+    assert audit.resulting_state == {"status": "active"}
+
+
+@pytest.mark.django_db
 def test_unknown_account_invitation_stores_only_hash(client, mailoutbox, instructor, program):
     client.force_login(instructor)
 

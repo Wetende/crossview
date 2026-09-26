@@ -117,7 +117,7 @@ describe("enrollment status dialog", () => {
         ).toBeDisabled();
     });
 
-    test("does not offer any change for a completed enrollment", () => {
+    test("hides the status action when no change is allowed", () => {
         render(
             <InstructorStudentDetail
                 student={student}
@@ -127,7 +127,32 @@ describe("enrollment status dialog", () => {
             />,
         );
 
+        expect(
+            screen.queryByRole("button", { name: "Suspend" }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Activate" }),
+        ).not.toBeInTheDocument();
+    });
+
+    test("explains when a refreshed enrollment no longer allows a change", () => {
+        const { rerender } = render(
+            <InstructorStudentDetail
+                student={student}
+                enrollments={[buildEnrollment()]}
+            />,
+        );
         const dialog = openStatusDialog();
+
+        // e.g. another instructor completed the enrollment meanwhile.
+        rerender(
+            <InstructorStudentDetail
+                student={student}
+                enrollments={[
+                    buildEnrollment({ status: "completed", allowedStatuses: [] }),
+                ]}
+            />,
+        );
 
         expect(within(dialog).queryByRole("combobox")).not.toBeInTheDocument();
         expect(

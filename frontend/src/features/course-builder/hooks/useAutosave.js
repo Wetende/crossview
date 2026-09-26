@@ -41,7 +41,9 @@ export const stableSerialize = (value) =>
 // `enabled` turns autosave on or off; edits made while it is off are treated
 // as already handled. `canSave` only pauses it: edits stay "dirty" and are
 // saved as soon as `canSave` turns true again (for example once a lesson
-// meets the server's save rules). Forced flushes ignore `canSave`.
+// meets the server's save rules). Forced flushes ignore `canSave`; other
+// flushes skipped by the pause resolve `{ skipped: true, paused: true }` so
+// callers can warn that edits are not saved.
 export default function useAutosave({
     enabled = true,
     canSave = true,
@@ -121,12 +123,16 @@ export default function useAutosave({
                 return Promise.resolve({ skipped: true });
             }
 
-            if ((!currentEnabled || !currentCanSave) && !force) {
+            if (!currentEnabled && !force) {
                 return Promise.resolve({ skipped: true });
             }
 
             if (!force && currentHash === lastSavedHashRef.current) {
                 return Promise.resolve({ skipped: true });
+            }
+
+            if (!currentCanSave && !force) {
+                return Promise.resolve({ skipped: true, paused: true });
             }
 
             if (timerRef.current) {
