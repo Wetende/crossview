@@ -174,10 +174,18 @@ describe("CurriculumTree", () => {
             />,
         );
 
-        expect(screen.queryByText("Program level: Beginner")).not.toBeInTheDocument();
-        expect(screen.getByText("Start by adding your first Unit.")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "New Unit" })).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "New section" })).not.toBeInTheDocument();
+        expect(
+            screen.queryByText("Program level: Beginner"),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText("Start by adding your first Unit."),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: "New Unit" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "New section" }),
+        ).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: "New Unit" }));
 
@@ -200,17 +208,22 @@ describe("CurriculumTree", () => {
             />,
         );
 
-        expect(screen.getByRole("button", { name: "Add a lesson" })).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: "Add a Session" })).not.toBeInTheDocument();
+        expect(
+            screen.getByRole("button", { name: "Add a lesson" }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Add a Session" }),
+        ).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: "Add a lesson" }));
 
         expect(screen.getByText("Select Lesson Type")).toBeInTheDocument();
         expect(screen.getByText("Text Lesson")).toBeInTheDocument();
-        expect(screen.getByText("Live Meeting")).toBeInTheDocument();
+        expect(screen.getByText("Google Meet")).toBeInTheDocument();
         expect(screen.getByText("Live Stream")).toBeInTheDocument();
         expect(screen.getByText("In-person Session")).toBeInTheDocument();
         expect(screen.queryByText("Live Class")).not.toBeInTheDocument();
+        expect(screen.queryByText("Live Meeting")).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByText("Text Lesson"));
 
@@ -220,6 +233,36 @@ describe("CurriculumTree", () => {
                 title: "Untitled Lesson",
                 type: "Lesson",
                 properties: { lesson_type: "text" },
+            }),
+            expect.any(Object),
+        );
+    });
+
+    test("creates Google Meet as a first-class lesson type", () => {
+        render(
+            <CurriculumTree
+                program={program}
+                nodes={[
+                    {
+                        id: 7,
+                        title: "Safety Basics",
+                        children: [],
+                        properties: {},
+                    },
+                ]}
+                blueprint={blueprint}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole("button", { name: "Add a lesson" }));
+        fireEvent.click(screen.getByText("Google Meet"));
+
+        expect(mockRouterPost).toHaveBeenCalledWith(
+            "/instructor/programs/42/nodes/create/",
+            expect.objectContaining({
+                title: "Untitled Lesson",
+                type: "Lesson",
+                properties: { lesson_type: "google_meet" },
             }),
             expect.any(Object),
         );

@@ -44,6 +44,7 @@ describe("Gradebook instructor actions and grade states", () => {
         expect(html).toContain('aria-label="Close"');
         expect(html).not.toContain("Regenerate");
         expect(html).not.toContain("recompute");
+        expect(html).toContain("Attendance");
     });
 
     test("distinguishes pending grading from an unattempted quiz", () => {

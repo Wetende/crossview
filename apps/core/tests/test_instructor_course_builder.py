@@ -518,7 +518,8 @@ class TestInstructorCourseBuilder:
             title="Weekly Meet",
             node_type="Session",
             properties={
-                "lesson_type": "live_meeting",
+                "lesson_type": "google_meet",
+                "session_kind": "live_meeting",
                 "provider": "google_meet",
                 "starts_at": starts_at.isoformat(),
                 "ends_at": ends_at.isoformat(),

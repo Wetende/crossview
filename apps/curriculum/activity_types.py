@@ -12,6 +12,7 @@ AUDIO = "audio"
 CODE = "code"
 QUIZ = "quiz"
 ASSIGNMENT = "assignment"
+GOOGLE_MEET = "google_meet"
 LIVE_MEETING = "live_meeting"
 LIVE_STREAM = "live_stream"
 IN_PERSON_SESSION = "in_person_session"
@@ -24,6 +25,7 @@ ACTIVITY_TYPES = {
     CODE,
     QUIZ,
     ASSIGNMENT,
+    GOOGLE_MEET,
     LIVE_MEETING,
     LIVE_STREAM,
     IN_PERSON_SESSION,
@@ -57,7 +59,13 @@ def sanitize_student_activity_properties(properties) -> dict:
     for key in AUTHOR_ONLY_PROPERTY_KEYS:
         safe_properties.pop(key, None)
     lesson_type = str(safe_properties.get("lesson_type") or "").lower()
-    if lesson_type in {"live_class", LIVE_MEETING, LIVE_STREAM, IN_PERSON_SESSION}:
+    if lesson_type in {
+        "live_class",
+        GOOGLE_MEET,
+        LIVE_MEETING,
+        LIVE_STREAM,
+        IN_PERSON_SESSION,
+    }:
         for key in (
             "session_url",
             "video_url",

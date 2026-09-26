@@ -1,6 +1,8 @@
 # Shared-Engine Hook and Cross-Repo Sharing Playbook
 
-This document defines how shared LMS work moves across `lms`, `airads`, and `digikatech`.
+This document defines how shared LMS work moves across `lms`, `airads-virtual`,
+and `digikatech`. The independent `airads-website` repository is outside this
+shared-engine flow.
 
 `lms` is the canonical shared engine. Its local repository is
 `/home/wetende/Projects/lms`.
@@ -13,8 +15,8 @@ promotion sequence and required gates live in
 ## Operating Model
 
 - `lms` owns the shared LMS engine.
-- `airads` can be the fast working lab for shared LMS improvements.
-- `digikatech` and `airads` should receive accepted shared engine changes back from `lms`.
+- `airads-virtual` can be the fast working lab for shared LMS improvements.
+- `digikatech` and `airads-virtual` should receive accepted shared engine changes back from `lms`.
 - Public pages, branding, admissions/marketing content, and tenant-specific seed/demo content stay fork-specific unless intentionally generalized.
 
 ## The Hook
@@ -111,13 +113,13 @@ by the generic policy mechanism.
 
 For all shared engine work, use this exact order:
 
-1. Start in `airads` when speed matters.
+1. Start in `airads-virtual` when speed matters.
 2. Build only the generic behavior first, or split mixed work before committing.
-3. Create a `shared-engine` commit in `airads` with no branding or public-page payload.
+3. Create a `shared-engine` commit in `airads-virtual` with no branding or public-page payload.
 4. Promote that commit into `lms`.
 5. Verify in `lms`.
 6. Treat `lms` as the official parent version of the feature.
-7. Pull `lms/main` back into `airads`.
+7. Pull `lms/main` back into `airads-virtual`.
 8. Pull `lms/main` into `digikatech`.
 
 Important convention:

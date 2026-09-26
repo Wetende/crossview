@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from cryptography.fernet import Fernet
 from django.conf import settings
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -10,11 +11,21 @@ from django.utils import timezone
 from apps.core.models import Program
 from apps.core.tests.factories import UserFactory
 from apps.curriculum.models import CurriculumNode
+from apps.curriculum.services import CoursePublishValidationService
 from apps.google_workspace.configuration import encrypt_refresh_token
 from apps.google_workspace.meet import GoogleMeetAdapter, apply_meet_conference
 from apps.google_workspace.models import GoogleParticipantIdentity, GoogleWorkspaceCredential
 from apps.progression.models import Enrollment, NodeCompletion
-from apps.live_sessions.models import LiveSessionSyncJob, ScheduledLearningSession
+from apps.live_sessions.models import (
+    LiveSessionSyncJob,
+    ScheduledLearningSession,
+    SessionAttendance,
+)
+from apps.live_sessions.services import (
+    override_attendance,
+    serialize_attendance_roster,
+    serialize_session_for_student,
+)
 
 
 class GoogleMeetLessonTests(TestCase):
@@ -28,7 +39,7 @@ class GoogleMeetLessonTests(TestCase):
         self.instructor, self.student = UserFactory(admin=True, email="teacher@example.test"), UserFactory(email="learner@example.test")
         self.program = Program.objects.create(name="Live course", code="LIVE-COURSE", level="beginner")
         self.enrollment = Enrollment.objects.create(user=self.student, program=self.program, status="active")
-        self.node = CurriculumNode.objects.create(program=self.program, title="Weekly Meet", node_type="Lesson", properties={"lesson_type": "live_meeting"})
+        self.node = CurriculumNode.objects.create(program=self.program, title="Weekly Meet", node_type="Lesson", properties={"lesson_type": "google_meet", "session_kind": "live_meeting", "provider": "google_meet"})
         start = timezone.now() + timedelta(days=1)
         self.session = ScheduledLearningSession.objects.create(node=self.node, kind="live_meeting", provider="google_meet", title="Weekly Meet", starts_at=start, ends_at=start + timedelta(hours=1), source_timezone="Africa/Nairobi", created_by=self.instructor)
         self.credential = GoogleWorkspaceCredential.objects.create(user=self.instructor, google_email=self.instructor.email, refresh_token_ciphertext=encrypt_refresh_token("refresh-token"), granted_scopes=["https://www.googleapis.com/auth/calendar.events"])
@@ -50,6 +61,87 @@ class GoogleMeetLessonTests(TestCase):
         self.session.refresh_from_db()
         self.assertTrue(self.session.invite_learners)
         self.assertEqual(self.session.send_updates, "all")
+
+    def test_saving_google_meet_lesson_automatically_creates_calendar_event(self):
+        self.client.force_login(self.instructor)
+        adapter = Mock()
+        adapter.create_event.return_value = {
+            "id": "automatic-calendar-event",
+            "hangoutLink": "https://meet.google.com/auto-meet-link",
+            "conferenceData": {
+                "conferenceId": "auto-meet-link",
+                "entryPoints": [
+                    {
+                        "entryPointType": "video",
+                        "uri": "https://meet.google.com/auto-meet-link",
+                    }
+                ],
+            },
+        }
+
+        with patch(
+            "apps.google_workspace.meet.GoogleMeetAdapter",
+            return_value=adapter,
+        ):
+            response = self.client.post(
+                reverse("core:instructor.node_update", args=[self.node.id]),
+                {
+                    "title": "Weekly Meet",
+                    "description": "A scheduled class for enrolled learners.",
+                    "properties": {
+                        "lesson_type": "google_meet",
+                        "session_kind": "live_meeting",
+                        "provider": "google_meet",
+                        "start_date": self.session.starts_at.date().isoformat(),
+                        "start_time": self.session.starts_at.strftime("%H:%M"),
+                        "end_date": self.session.ends_at.date().isoformat(),
+                        "end_time": self.session.ends_at.strftime("%H:%M"),
+                        "timezone": "Africa/Nairobi",
+                    },
+                },
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.session.refresh_from_db()
+        self.node.refresh_from_db()
+        self.assertEqual(
+            self.session.join_url,
+            "https://meet.google.com/auto-meet-link",
+        )
+        self.assertEqual(
+            self.node.properties["session_url"],
+            "https://meet.google.com/auto-meet-link",
+        )
+        self.assertTrue(
+            LiveSessionSyncJob.objects.filter(
+                session=self.session,
+                job_type="google_meet_create",
+                status=LiveSessionSyncJob.Status.SUCCEEDED,
+            ).exists()
+        )
+        publish_validation = CoursePublishValidationService().validate_for_publish(
+            self.program
+        )
+        self.assertNotIn(
+            "missing_google_meet",
+            {error["type"] for error in publish_validation["errors"]},
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, [self.instructor.email])
+        self.assertIn("Google Meet created", mail.outbox[0].subject)
+        self.assertIn("Weekly Meet", mail.outbox[0].body)
+        self.assertIn("https://meet.google.com/auto-meet-link", mail.outbox[0].body)
+        learner_session = serialize_session_for_student(
+            self.session,
+            enrollment=self.enrollment,
+            now=self.session.starts_at - timedelta(minutes=5),
+        )
+        self.assertTrue(learner_session["hasJoinDetails"])
+        self.assertEqual(
+            learner_session["joinUrl"],
+            "https://meet.google.com/auto-meet-link",
+        )
 
     def test_manual_retry_reuses_a_stable_calendar_request_id(self):
         self.client.force_login(self.instructor)
@@ -88,6 +180,12 @@ class GoogleMeetLessonTests(TestCase):
                 google_user_id="learner", user=self.student
             ).exists()
         )
+        anonymous = self.client.post(
+            reverse("live_sessions:google-meet-participant-map", args=[self.node.id]),
+            {"externalUserId": "", "enrollmentId": self.enrollment.id},
+            content_type="application/json",
+        )
+        self.assertEqual(anonymous.status_code, 400)
 
         self.credential.granted_scopes.append(
             "https://www.googleapis.com/auth/meetings.space.readonly"
@@ -108,9 +206,275 @@ class GoogleMeetLessonTests(TestCase):
         self.assertEqual(synced.status_code, 200)
         self.assertEqual(synced.json()["job"]["status"], "succeeded")
 
+    def test_manual_mapping_cannot_reassign_an_existing_global_identity(self):
+        self.client.force_login(self.instructor)
+        owner = UserFactory(email="existing-owner@example.test")
+        identity = GoogleParticipantIdentity.objects.create(
+            google_user_id="already-verified", user=owner,
+            source="workspace_oauth", verified_email=owner.email,
+        )
+        response = self.client.post(
+            reverse("live_sessions:google-meet-participant-map", args=[self.node.id]),
+            {"externalUserId": "users/already-verified", "enrollmentId": self.enrollment.id},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 409)
+        identity.refresh_from_db()
+        self.assertEqual(identity.user_id, owner.id)
+        self.assertEqual(identity.source, "workspace_oauth")
+        self.assertNotIn(owner.email, response.content.decode())
+
+    def test_repeated_mapping_preserves_existing_identity_verification(self):
+        self.client.force_login(self.instructor)
+        identity = GoogleParticipantIdentity.objects.create(
+            google_user_id="already-verified", user=self.student,
+            source="workspace_oauth", verified_email=self.student.email,
+        )
+        response = self.client.post(
+            reverse("live_sessions:google-meet-participant-map", args=[self.node.id]),
+            {"externalUserId": "already-verified", "enrollmentId": self.enrollment.id},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        identity.refresh_from_db()
+        self.assertEqual(identity.source, "workspace_oauth")
+        self.assertEqual(identity.verified_email, self.student.email)
+
     def test_attendance_requires_identity_mapping_and_never_completes_lesson(self):
         self.session.starts_at = timezone.now() - timedelta(hours=2); self.session.ends_at = self.session.starts_at + timedelta(hours=1); self.session.save()
         GoogleParticipantIdentity.objects.create(user=self.student, google_user_id="learner")
         outcome = apply_meet_conference(self.session, {"record": {"name": "conferenceRecords/1", "endTime": timezone.now().isoformat()}, "attendance": [{"participantName": "p/1", "externalUserId": "users/learner", "displayName": "Learner", "sessions": [{"startTime": self.session.starts_at.isoformat(), "endTime": self.session.ends_at.isoformat()}]}, {"participantName": "p/2", "externalUserId": "", "displayName": "Anonymous", "sessions": []}], "recordingUrl": ""})
         self.assertEqual(outcome["matched"], 1); self.assertEqual(outcome["unmatched"], 1)
         self.assertFalse(NodeCompletion.objects.filter(enrollment=self.enrollment, node=self.node).exists())
+
+    def test_final_attendance_merges_join_periods_and_marks_known_absence(self):
+        self.session.starts_at = timezone.now() - timedelta(hours=2)
+        self.session.ends_at = self.session.starts_at + timedelta(hours=1)
+        self.session.attendance_threshold_percent = 50
+        self.session.save()
+        GoogleParticipantIdentity.objects.create(
+            user=self.student,
+            google_user_id="learner",
+        )
+        absent_student = UserFactory(email="absent@example.test")
+        absent_enrollment = Enrollment.objects.create(
+            user=absent_student,
+            program=self.program,
+            status="active",
+        )
+        GoogleParticipantIdentity.objects.create(
+            user=absent_student,
+            google_user_id="absent-learner",
+        )
+        unknown_student = UserFactory(email="unknown@example.test")
+        unknown_enrollment = Enrollment.objects.create(
+            user=unknown_student,
+            program=self.program,
+            status="active",
+        )
+
+        outcome = apply_meet_conference(
+            self.session,
+            {
+                "record": {
+                    "name": "conferenceRecords/final",
+                    "endTime": self.session.ends_at.isoformat(),
+                },
+                "attendance": [
+                    {
+                        "participantName": "participants/learner",
+                        "externalUserId": "users/learner",
+                        "displayName": "Learner",
+                        "sessions": [
+                            {
+                                "startTime": self.session.starts_at.isoformat(),
+                                "endTime": (
+                                    self.session.starts_at + timedelta(minutes=20)
+                                ).isoformat(),
+                            },
+                            {
+                                "startTime": (
+                                    self.session.starts_at + timedelta(minutes=15)
+                                ).isoformat(),
+                                "endTime": (
+                                    self.session.starts_at + timedelta(minutes=40)
+                                ).isoformat(),
+                            },
+                        ],
+                    },
+                    {
+                        "participantName": "participants/learner-rejoined",
+                        "externalUserId": "users/learner",
+                        "displayName": "Learner",
+                        "sessions": [
+                            {
+                                "startTime": (
+                                    self.session.starts_at + timedelta(minutes=30)
+                                ).isoformat(),
+                                "endTime": (
+                                    self.session.starts_at + timedelta(minutes=35)
+                                ).isoformat(),
+                            }
+                        ],
+                    },
+                ],
+                "recordingUrl": "",
+            },
+        )
+
+        present = SessionAttendance.objects.get(enrollment=self.enrollment)
+        absent = SessionAttendance.objects.get(enrollment=absent_enrollment)
+        self.assertEqual(present.status, SessionAttendance.Status.PRESENT)
+        self.assertEqual(present.attended_seconds, 40 * 60)
+        self.assertAlmostEqual(float(present.attendance_percent), 66.67, places=2)
+        self.assertEqual(absent.status, SessionAttendance.Status.ABSENT)
+        self.assertEqual(absent.attended_seconds, 0)
+        self.assertFalse(
+            SessionAttendance.objects.filter(enrollment=unknown_enrollment).exists()
+        )
+        self.assertEqual(outcome["knownAbsent"], 1)
+        self.assertFalse(
+            NodeCompletion.objects.filter(
+                enrollment__in=[self.enrollment, absent_enrollment],
+                node=self.node,
+            ).exists()
+        )
+
+    def test_joined_time_below_threshold_is_verified_absent(self):
+        self.session.starts_at = timezone.now() - timedelta(hours=2)
+        self.session.ends_at = self.session.starts_at + timedelta(hours=1)
+        self.session.attendance_threshold_percent = 50
+        self.session.save()
+        GoogleParticipantIdentity.objects.create(
+            user=self.student,
+            google_user_id="learner",
+        )
+
+        apply_meet_conference(
+            self.session,
+            {
+                "record": {
+                    "name": "conferenceRecords/final",
+                    "endTime": self.session.ends_at.isoformat(),
+                },
+                "attendance": [
+                    {
+                        "participantName": "participants/learner",
+                        "externalUserId": "users/learner",
+                        "displayName": "Learner",
+                        "sessions": [
+                            {
+                                "startTime": self.session.starts_at.isoformat(),
+                                "endTime": (
+                                    self.session.starts_at + timedelta(minutes=20)
+                                ).isoformat(),
+                            }
+                        ],
+                    }
+                ],
+                "recordingUrl": "",
+            },
+        )
+
+        attendance = SessionAttendance.objects.get(enrollment=self.enrollment)
+        self.assertEqual(attendance.status, SessionAttendance.Status.ABSENT)
+        self.assertAlmostEqual(float(attendance.attendance_percent), 33.33, places=2)
+        self.assertFalse(
+            NodeCompletion.objects.filter(
+                enrollment=self.enrollment,
+                node=self.node,
+            ).exists()
+        )
+
+    def test_provider_sync_preserves_instructor_override_and_roster_audit(self):
+        self.session.starts_at = timezone.now() - timedelta(hours=2)
+        self.session.ends_at = self.session.starts_at + timedelta(hours=1)
+        self.session.save()
+        GoogleParticipantIdentity.objects.create(
+            user=self.student,
+            google_user_id="learner",
+        )
+        attendance = override_attendance(
+            session=self.session,
+            enrollment=self.enrollment,
+            status=SessionAttendance.Status.EXCUSED,
+            actor=self.instructor,
+            reason="Approved medical absence.",
+        )
+
+        apply_meet_conference(
+            self.session,
+            {
+                "record": {
+                    "name": "conferenceRecords/final",
+                    "endTime": self.session.ends_at.isoformat(),
+                },
+                "attendance": [
+                    {
+                        "participantName": "participants/learner",
+                        "externalUserId": "users/learner",
+                        "displayName": "Learner",
+                        "sessions": [
+                            {
+                                "startTime": self.session.starts_at.isoformat(),
+                                "endTime": self.session.ends_at.isoformat(),
+                            }
+                        ],
+                    }
+                ],
+                "recordingUrl": "",
+            },
+        )
+
+        attendance.refresh_from_db()
+        self.assertEqual(attendance.status, SessionAttendance.Status.EXCUSED)
+        self.assertEqual(attendance.source, SessionAttendance.Source.INSTRUCTOR)
+        roster = serialize_attendance_roster(self.session)
+        self.assertEqual(roster[0]["auditHistory"][0]["reason"], "Approved medical absence.")
+
+    def test_live_class_endpoint_filters_by_course(self):
+        self.session.starts_at = timezone.now() - timedelta(hours=2)
+        self.session.ends_at = self.session.starts_at + timedelta(hours=1)
+        self.session.save(update_fields=["starts_at", "ends_at", "updated_at"])
+        other_program = Program.objects.create(
+            name="Other live course",
+            code="OTHER-LIVE",
+            level="beginner",
+        )
+        other_node = CurriculumNode.objects.create(
+            program=other_program,
+            title="Other Meet",
+            node_type="Lesson",
+            properties={"lesson_type": "google_meet"},
+        )
+        ScheduledLearningSession.objects.create(
+            node=other_node,
+            kind="live_meeting",
+            provider="google_meet",
+            title="Other Meet",
+            starts_at=self.session.starts_at,
+            ends_at=self.session.ends_at,
+            source_timezone="Africa/Nairobi",
+            created_by=self.instructor,
+        )
+        self.client.force_login(self.instructor)
+
+        response = self.client.get(
+            reverse("live_sessions:classes-dashboard"),
+            {"programId": self.program.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["results"]), 1)
+        self.assertEqual(response.json()["results"][0]["courseId"], self.program.id)
+        self.assertEqual(
+            response.json()["results"][0]["attendanceCounts"],
+            {
+                "present": 0,
+                "absent": 0,
+                "excused": 0,
+                "pending": 0,
+                "needsReview": 1,
+                "total": 1,
+            },
+        )

@@ -1,5 +1,7 @@
 from datetime import timedelta
+from importlib import import_module
 
+from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
@@ -48,7 +50,8 @@ class ScheduledLearningSessionTests(TestCase):
             node_type="Lesson",
             is_published=True,
             properties={
-                "lesson_type": "live_meeting",
+                "lesson_type": "google_meet",
+                "session_kind": "live_meeting",
                 "provider": "google_meet",
                 "session_url": "https://meet.google.com/abc-defg-hij",
                 "meeting_password": "private-passcode",
@@ -63,11 +66,47 @@ class ScheduledLearningSessionTests(TestCase):
         session = sync_scheduled_session_from_node(node, actor=self.instructor)
         node.refresh_from_db()
 
+        self.assertEqual(node.properties["lesson_type"], "google_meet")
+        self.assertEqual(node.properties["session_kind"], "live_meeting")
+        self.assertEqual(session.kind, "live_meeting")
+        self.assertEqual(session.provider, "google_meet")
         self.assertNotIn("meeting_password", node.properties)
         self.assertNotIn("private-passcode", session.passcode_ciphertext)
         self.assertEqual(
             decrypt_session_secret(session.passcode_ciphertext), "private-passcode"
         )
+
+    def test_legacy_google_meet_node_is_promoted_without_changing_other_meetings(self):
+        legacy_meet = CurriculumNode.objects.create(
+            program=self.program,
+            title="Legacy Google meeting",
+            node_type="Lesson",
+            properties={
+                "lesson_type": "live_meeting",
+                "session_provider": "google_meet",
+            },
+        )
+        zoom_meeting = CurriculumNode.objects.create(
+            program=self.program,
+            title="Zoom meeting",
+            node_type="Lesson",
+            properties={
+                "lesson_type": "live_meeting",
+                "provider": "zoom",
+            },
+        )
+
+        migration = import_module(
+            "apps.curriculum.migrations.0006_promote_google_meet_lesson_type"
+        )
+        migration.promote_google_meet_lessons(django_apps, None)
+        legacy_meet.refresh_from_db()
+        zoom_meeting.refresh_from_db()
+
+        self.assertEqual(legacy_meet.properties["lesson_type"], "google_meet")
+        self.assertEqual(legacy_meet.properties["session_kind"], "live_meeting")
+        self.assertEqual(legacy_meet.properties["provider"], "google_meet")
+        self.assertEqual(zoom_meeting.properties["lesson_type"], "live_meeting")
 
     def test_student_gets_join_details_only_inside_join_window(self):
         node = self._meeting_node(start_delta=timedelta(hours=2))
@@ -102,6 +141,28 @@ class ScheduledLearningSessionTests(TestCase):
         self.assertNotIn("video_url", payload["properties"])
         self.assertIsNone(payload["scheduledSession"]["joinUrl"])
         self.assertIsNone(payload["scheduledSession"]["passcode"])
+
+    def test_course_resume_hydrates_google_meet_renderer_payload(self):
+        node = self._meeting_node(start_delta=timedelta(hours=2))
+        sync_scheduled_session_from_node(node, actor=self.instructor)
+        self.client.force_login(self.student)
+
+        response = self.client.get(
+            reverse("progression:student.program.resume", args=[self.program.id]),
+            HTTP_X_INERTIA="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["props"]["node"]
+        self.assertEqual(payload["activityType"], "google_meet")
+        self.assertEqual(payload["scheduledSession"]["provider"], "google_meet")
+        self.assertTrue(payload["scheduledSession"]["hasJoinDetails"])
+        self.assertIsNone(payload["scheduledSession"]["joinUrl"])
+        self.assertEqual(
+            payload["completionPolicy"]["kind"],
+            "verified_attendance",
+        )
+        self.assertFalse(payload["completionPolicy"]["learnerCanComplete"])
 
     def test_learner_cannot_self_complete_a_scheduled_session(self):
         node = self._meeting_node(start_delta=timedelta(hours=2))
@@ -141,7 +202,8 @@ class ScheduledLearningSessionTests(TestCase):
         with self.assertRaises(ValidationError):
             validate_session_properties(
                 {
-                    "lesson_type": "live_meeting",
+                    "lesson_type": "google_meet",
+                    "session_kind": "live_meeting",
                     "provider": "google_meet",
                     "session_url": "https://example.test/not-a-meet",
                     "starts_at": timezone.now().isoformat(),
