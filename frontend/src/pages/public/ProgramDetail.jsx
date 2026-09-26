@@ -41,6 +41,14 @@ import { truncatePlainText } from "@/utils/htmlText";
 import { resolvePriceDisplay } from "@/utils/priceDisplay";
 import CourseContentTabs from "@/features/programs/components/CourseContentTabs";
 import CourseDetailsPanel from "@/features/programs/components/CourseDetailsPanel";
+import CourseIntroMedia from "@/features/programs/components/CourseIntroMedia";
+import MobileEnrollBar from "@/features/programs/components/MobileEnrollBar";
+import { enrollBarHeight } from "@/features/programs/utils/enrollBar";
+import {
+    ORDERS_HREF,
+    getEnrollCtaLabel,
+    getProgramResumeHref,
+} from "@/features/programs/utils/primaryCta";
 import EnrollmentIntentDialog from "@/features/enrollment-intents/components/EnrollmentIntentDialog";
 
 // --- Helper Components ---
@@ -69,18 +77,13 @@ function CourseDetailsSidebar({
     const priceDisplay = resolvePriceDisplay(program);
 
     // Determine CTA button text based on enrollment mode
-    const getCtaText = () => {
-        if (ctaState === "not_enrolled_paid") {
-            const amount = formatCurrency(priceDisplay.price);
-            return priceDisplay.paymentCollection === "offline"
-                ? `PAY OFFLINE - ${amount}`
-                : `GET COURSE - ${amount}`;
-        }
-        if (enrollmentMode === "approval") {
-            return "REQUEST ENROLLMENT";
-        }
-        return "ENROLL NOW";
-    };
+    const getCtaText = () =>
+        getEnrollCtaLabel({
+            ctaState,
+            enrollmentMode,
+            priceDisplay,
+            formatCurrency,
+        });
 
     return (
         <Card sx={{ mb: 3, position: "sticky", top: 100 }}>
@@ -174,7 +177,7 @@ function CourseDetailsSidebar({
                         {/* Continue Button */}
                         <Button
                             component={Link}
-                            href={`/student/programs/${program.id}/resume/`}
+                            href={getProgramResumeHref(program)}
                             variant="contained"
                             fullWidth
                             size="large"
@@ -276,7 +279,7 @@ function CourseDetailsSidebar({
                     <>
                         <Button
                             component={Link}
-                            href="/student/orders/"
+                            href={ORDERS_HREF}
                             variant="outlined"
                             fullWidth
                             size="large"
@@ -529,6 +532,7 @@ export default function ProgramDetail({
     );
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
     const shortDescription = truncatePlainText(program.description, 200);
+    const showMobileEnrollBar = !isPreview;
 
     const handleShowDetails = () => setDetailsModalOpen(true);
     const handleCloseDetails = () => setDetailsModalOpen(false);
@@ -578,7 +582,15 @@ export default function ProgramDetail({
         <>
             <Head title={`${program.name} - ${platform?.institutionName || "LMS"}`} />
 
-            <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+            <Box
+                sx={{
+                    minHeight: "100vh",
+                    bgcolor: "background.default",
+                    // The bar reports its measured height, so content above it
+                    // stays reachable even when its label wraps.
+                    pb: showMobileEnrollBar ? { xs: enrollBarHeight(), md: 0 } : 0,
+                }}
+            >
                 {/* Navbar */}
                 <PublicNavbar activeLink="/programs/" auth={auth} />
 
@@ -762,21 +774,12 @@ export default function ProgramDetail({
                                     {shortDescription}
                                 </Typography>
 
-                                {/* Featured Image */}
-                                {program.thumbnail && (
-                                    <Box
-                                        component="img"
-                                        src={program.thumbnail}
-                                        alt={program.name}
-                                        sx={{
-                                            width: "100%",
-                                            height: 350,
-                                            objectFit: "cover",
-                                            borderRadius: 2,
-                                            mb: 3,
-                                        }}
-                                    />
-                                )}
+                                {/* Intro video, or the featured image */}
+                                <CourseIntroMedia
+                                    introVideoUrl={program.introVideoUrl}
+                                    thumbnail={program.thumbnail}
+                                    title={program.name}
+                                />
 
                                 <CourseContentTabs
                                     program={program}
@@ -790,6 +793,16 @@ export default function ProgramDetail({
                 {/* Footer */}
                 <Footer />
             </Box>
+
+            {showMobileEnrollBar && (
+                <MobileEnrollBar
+                    program={program}
+                    enrollmentStatus={enrollmentStatus}
+                    enrollmentMode={enrollmentMode}
+                    ctaState={ctaState}
+                    onBuyNow={handleBuyNow}
+                />
+            )}
 
             {/* Modals */}
             <CourseDetailsModal
@@ -812,6 +825,11 @@ export default function ProgramDetail({
                 autoHideDuration={4000}
                 onClose={() => setCartSnackbar((s) => ({ ...s, open: false }))}
                 anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+                sx={
+                    showMobileEnrollBar
+                        ? { bottom: { xs: enrollBarHeight("8px"), md: 24 } }
+                        : undefined
+                }
             >
                 <MuiAlert
                     severity={cartSnackbar.severity}

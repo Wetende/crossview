@@ -7,6 +7,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 
+from .intro_video import INTRO_VIDEO_URL_MAX_LENGTH, validate_intro_video_url
 from .learning_outcomes import extract_learning_outcome_items_from_html
 
 
@@ -230,6 +231,23 @@ class Program(TimeStampedModel):
         default="",
         help_text="Rich text learning outcomes HTML",
     )
+    intro_video_url = models.URLField(
+        max_length=INTRO_VIDEO_URL_MAX_LENGTH,
+        blank=True,
+        default="",
+        validators=[validate_intro_video_url],
+        help_text="YouTube, Vimeo, or direct .mp4/.webm intro video for the public course page.",
+    )
+    requirements_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Rich text course requirements HTML",
+    )
+    audience_html = models.TextField(
+        blank=True,
+        default="",
+        help_text="Rich text 'Who this course is for' HTML",
+    )
 
     class Meta:
         db_table = "programs"
@@ -297,6 +315,8 @@ class Program(TimeStampedModel):
         self.what_you_learn_items = extract_learning_outcome_items_from_html(
             self.what_you_learn_html
         )
+        self.requirements_html = str(self.requirements_html or "").strip()
+        self.audience_html = str(self.audience_html or "").strip()
         super().save(*args, **kwargs)
 
 

@@ -51,6 +51,8 @@ import useAutosave from "../hooks/useAutosave";
 import { SETTINGS_SECTIONS } from "../utils/builderTabs";
 import EngagementEditor from "./EngagementEditor";
 import CertificateTemplateSelector from "@/features/certifications/components/CertificateTemplateSelector";
+import { getIntroVideoUrlError } from "@/utils/introVideoUrl";
+import IntroVideoUrlField from "./IntroVideoUrlField";
 
 const SETTINGS_SECTION_ICONS = {
     main: MainIcon,
@@ -126,6 +128,9 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         video_hours: program.videoHours ?? 0,
         description: program.description || "",
         whatYouLearn: program.whatYouLearnHtml || "",
+        intro_video_url: program.introVideoUrl || "",
+        requirements_html: program.requirementsHtml || "",
+        audience_html: program.audienceHtml || "",
         preview_description: program.previewDescription || "",
         is_featured: Boolean(program.isFeatured),
         lock_lessons_in_order: program.lockLessonsInOrder !== false,
@@ -274,12 +279,19 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     video_hours: currentData.video_hours,
                     description: currentData.description,
                     whatYouLearn: currentData.whatYouLearn,
+                    requirements_html: currentData.requirements_html,
+                    audience_html: currentData.audience_html,
                     preview_description: currentData.preview_description,
                     lock_lessons_in_order: currentData.lock_lessons_in_order,
                     delivery_mode: currentData.delivery_mode,
                 };
                 if (!hasExamBodies) {
                     payload.level = currentData.level;
+                }
+                // Leave the saved intro video alone while the field shows an
+                // error, so autosave keeps saving the rest of the section.
+                if (!getIntroVideoUrlError(currentData.intro_video_url)) {
+                    payload.intro_video_url = currentData.intro_video_url;
                 }
                 if (canManageFeatured) {
                     payload.is_featured = currentData.is_featured;
@@ -306,13 +318,15 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                 return payload;
             }
             if (settingsSection === "access") {
-                return {
-                    tab: "settings",
-                    section: "access",
-                    access_duration_days: currentData.access_time_limit_enabled
-                        ? currentData.access_duration_days || ""
-                        : "",
-                };
+                const payload = { tab: "settings", section: "access" };
+                // A switched-on limit without days is incomplete: keep the
+                // saved value until the user enters a number of days.
+                if (!currentData.access_time_limit_enabled) {
+                    payload.access_duration_days = "";
+                } else if (currentData.access_duration_days) {
+                    payload.access_duration_days = currentData.access_duration_days;
+                }
+                return payload;
             }
             if (settingsSection === "prerequisites") {
                 return {
@@ -718,6 +732,11 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     </Stack>
                 </Box>
 
+                <IntroVideoUrlField
+                    value={formData.intro_video_url}
+                    onChange={(value) => setData("intro_video_url", value)}
+                />
+
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                     <Box sx={{ flex: 1 }}>
                         {renderFieldLabel("Course duration")}
@@ -764,6 +783,26 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                         onChange={(value) => setData("whatYouLearn", value)}
                         minHeight={180}
                         placeholder="List the outcomes students should be able to achieve."
+                    />
+                </Box>
+
+                <Box>
+                    {renderFieldLabel("Requirements")}
+                    <RichTextEditor
+                        value={formData.requirements_html}
+                        onChange={(value) => setData("requirements_html", value)}
+                        minHeight={160}
+                        placeholder="List any knowledge, tools, or equipment students need before starting."
+                    />
+                </Box>
+
+                <Box>
+                    {renderFieldLabel("Who this course is for")}
+                    <RichTextEditor
+                        value={formData.audience_html}
+                        onChange={(value) => setData("audience_html", value)}
+                        minHeight={160}
+                        placeholder="Describe the learners this course is designed for."
                     />
                 </Box>
 
@@ -1235,6 +1274,10 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         settingsSection === "access" &&
         formData.access_time_limit_enabled &&
         !formData.access_duration_days;
+    const isIntroVideoUrlInvalid =
+        activeTab === "settings" &&
+        settingsSection === "main" &&
+        Boolean(getIntroVideoUrlError(formData.intro_video_url));
 
     const autosaveValue = useMemo(
         () => ({
@@ -1262,8 +1305,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
     const settingsAutosaveEnabled =
         Boolean(program.id) &&
         autosaveSectionAllowed &&
-        !hasPendingFileWork &&
-        !isAccessTimeLimitIncomplete;
+        !hasPendingFileWork;
 
     const saveSettingsPayload = useCallback(
         (payload, callbacks = {}) => {
@@ -1332,7 +1374,11 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                 <Button
                     variant="contained"
                     onClick={handleSubmit}
-                    disabled={processing || isAccessTimeLimitIncomplete}
+                    disabled={
+                        processing ||
+                        isAccessTimeLimitIncomplete ||
+                        isIntroVideoUrlInvalid
+                    }
                     size="large"
                 >
                     Save changes
