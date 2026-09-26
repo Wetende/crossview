@@ -274,7 +274,7 @@ class QuizLinkIntegrityTest(TestCase):
         self.assertEqual(response["Location"], f"{manage_url}?node={node.id}")
         page = self.client.get(response["Location"], HTTP_X_INERTIA="true").json()
         self.assertEqual(page["component"], "Instructor/Program/Manage")
-        self.assertIn("questionLibrary", page["props"])
+        self.assertIn("questionLibraryVersions", page["props"])
         self.assertIn("questionBanks", page["props"])
 
     def test_instructor_program_publish_cascades_assessment_publication_state(self):

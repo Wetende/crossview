@@ -485,7 +485,7 @@ class TestInstructorCourseBuilder:
         assert page["component"] == "Instructor/Program/Manage"
         assert page["url"] == manage_url
         assert [item["id"] for item in page["props"]["curriculum"]] == [node.id]
-        assert "questionLibrary" in page["props"]
+        assert "questionLibraryVersions" in page["props"]
 
     def test_create_child_node(self, client, instructor, program, assignment):
         # Create root "Unit"
@@ -517,7 +517,7 @@ class TestInstructorCourseBuilder:
         assert page["component"] == "Instructor/Program/Manage"
         assert page["url"] == expected_url
         assert page["props"]["curriculum"][0]["children"][0]["id"] == child.id
-        for prop in ("questionLibrary", "questionBanks", "questionCategories"):
+        for prop in ("questionLibraryVersions", "questionBanks", "questionCategories"):
             assert prop in page["props"]
         assert page["props"]["flash"] == [
             {"type": "success", "message": "Lesson 'Session 1' created successfully"}
