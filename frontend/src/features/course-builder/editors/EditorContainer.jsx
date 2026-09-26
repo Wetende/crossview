@@ -3,14 +3,16 @@ import ContentEditor from './ContentEditor';
 import AssessmentEditor from './AssessmentEditor';
 import CodeLabEditor from './CodeLabEditor';
 
+const EMPTY_LIBRARY_VERSIONS = {};
+
 const EditorContainer = forwardRef(function EditorContainer(
     {
         node,
         onSave,
         blueprint,
         programId,
-        questionLibrary = [],
         questionBanks = [],
+        questionLibraryVersions = EMPTY_LIBRARY_VERSIONS,
         categories = [],
         quizEditorComponent: QuizEditorComponent = AssessmentEditor,
     },
@@ -46,8 +48,8 @@ const EditorContainer = forwardRef(function EditorContainer(
                 onSave={onSave} 
                 type="quiz"
                 programId={programId}
-                questionLibrary={questionLibrary}
                 questionBanks={questionBanks}
+                questionLibraryVersions={questionLibraryVersions}
                 categories={categories}
             />
         );
@@ -61,8 +63,8 @@ const EditorContainer = forwardRef(function EditorContainer(
                 onSave={onSave} 
                 type="assignment"
                 programId={programId}
-                questionLibrary={questionLibrary}
                 questionBanks={questionBanks}
+                questionLibraryVersions={questionLibraryVersions}
                 categories={categories}
             />
         );

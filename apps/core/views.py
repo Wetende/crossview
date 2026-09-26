@@ -6381,39 +6381,43 @@ def instructor_program_manage(request, pk: int):
     response_data = serialize_program_data(program)
     response_data["curriculum"] = curriculum
 
-    # Add question library data as Inertia props (no REST API needed)
-    from apps.assessments.models import QuestionBank, QuestionBankEntry
-    from apps.assessments.serializers import (
-        QuestionBankEntrySerializer,
-        QuestionBankSerializer,
-    )
-
-    library_entries = (
-        QuestionBankEntry.objects.filter(bank__program=program)
-        .select_related("bank", "question")
-        .prefetch_related(
-            "question__options",
-            "question__matching_pairs",
-            "question__gap_answers",
-        )
-        .order_by("-created_at")[:100]
-    )
-
-    response_data["questionLibrary"] = QuestionBankEntrySerializer(
-        library_entries,
-        many=True,
-    ).data
-    response_data["questionBanks"] = QuestionBankSerializer(
-        QuestionBank.objects.filter(program=program).order_by("name"),
-        many=True,
-    ).data
-
-    # Get unique categories (must query before slicing)
-    all_entries_qs = QuestionBankEntry.objects.filter(bank__program=program)
-    categories = list(all_entries_qs.values_list("category", flat=True).distinct())
-    response_data["questionCategories"] = [c for c in categories if c]
+    response_data.update(_builder_question_bank_props(request, program))
 
     return render(request, "Instructor/Program/Manage", response_data)
+
+
+def _builder_question_bank_props(request, program) -> dict:
+    """Question bank data the quiz editor needs on every builder response.
+
+    Library entries are searched through the question-library API; only banks,
+    categories and copied-entry versions load with the page.
+    """
+    from apps.assessments.models import QuestionBankEntry
+    from apps.assessments.question_bank_service import QuestionBankService
+    from apps.assessments.serializers import QuestionBankSerializer
+
+    bank_service = QuestionBankService()
+    linked_entries = (
+        QuestionBankEntry.objects.filter(quiz_copies__quiz__node__program=program)
+        .select_related("bank")
+        .distinct()
+    )
+    return {
+        "questionBanks": QuestionBankSerializer(
+            bank_service.list_banks(request.user, program=program),
+            many=True,
+            context={"request": request},
+        ).data,
+        "questionCategories": bank_service.list_categories(request.user, program=program),
+        "questionLibraryVersions": {
+            str(entry.id): {
+                "snapshotVersion": entry.snapshot_version,
+                "bankName": entry.bank.name if entry.bank_id else "",
+                "bankScope": entry.bank.scope if entry.bank_id else "",
+            }
+            for entry in linked_entries
+        },
+    }
 
 
 @login_required
@@ -6541,12 +6545,12 @@ def instructor_node_create(request, program_id: int):
                 if isinstance(node.properties, dict)
                 else []
             )
-            _sync_quiz_questions(node, questions_data)
+            _sync_quiz_questions(node, questions_data, actor=request.user)
         if (
             node_type_normalized == "assignment"
             or lesson_type_normalized == "assignment"
         ):
-            _sync_assignment(node)
+            _sync_assignment(node, actor=request.user)
 
         # Use semantic labels in toasts to avoid blueprint label leakage
         # (e.g. container label "Course" for section creation).
@@ -6569,6 +6573,7 @@ def instructor_node_create(request, program_id: int):
         # Serialize program data using shared helper
         response_data = serialize_program_data(program)
         response_data["curriculum"] = curriculum
+        response_data.update(_builder_question_bank_props(request, program))
 
         return render(request, "Instructor/Program/Manage", response_data)
     except Exception as e:
@@ -6585,7 +6590,39 @@ def instructor_node_create(request, program_id: int):
         return redirect("core:instructor.program_manage", pk=program_id)
 
 
-def _sync_quiz_questions(node, questions_data: list):
+def _resolve_library_link(node, q_data, *, actor=None, existing_link=None):
+    """Return the bank entry a builder question was copied from and its version.
+
+    A link the question already has is kept even when the current editor
+    cannot see that bank. New links must point at an entry the editor can use
+    in this course; without an editor (system jobs) only course banks qualify.
+    """
+    from apps.assessments.models import QuestionBankEntry
+    from apps.assessments.question_bank_access import visible_entries
+
+    entry_id = _safe_int(q_data.get("libraryEntryId", q_data.get("source_bank_entry_id")))
+    if not entry_id:
+        return None, None
+    existing_link = existing_link or {}
+    if entry_id == existing_link.get("source_bank_entry_id"):
+        entry = QuestionBankEntry.objects.filter(pk=entry_id).first()
+        previous_version = existing_link.get("source_bank_entry_version")
+    else:
+        if actor is None:
+            candidates = QuestionBankEntry.objects.filter(bank__program=node.program)
+        else:
+            candidates = visible_entries(actor, program=node.program, include_archived=True)
+        entry = candidates.filter(pk=entry_id).first()
+        previous_version = None
+    if entry is None:
+        return None, None
+    requested_version = _safe_int(q_data.get("libraryEntryVersion"))
+    if requested_version and requested_version > 0:
+        return entry, min(requested_version, entry.snapshot_version)
+    return entry, previous_version or entry.snapshot_version
+
+
+def _sync_quiz_questions(node, questions_data: list, *, actor=None):
     """
     Sync quiz questions from frontend JSON to proper database tables.
 
@@ -6713,22 +6750,23 @@ def _sync_quiz_questions(node, questions_data: list):
         quiz.save(update_fields=["title", *quiz_settings.keys()])
 
     # Track existing question IDs
-    existing_ids = set(quiz.questions.values_list("id", flat=True))
+    existing_links = {
+        row["id"]: row
+        for row in quiz.questions.values(
+            "id", "source_bank_entry_id", "source_bank_entry_version"
+        )
+    }
+    existing_ids = set(existing_links)
     processed_ids = set()
     updated_questions = []
 
     for idx, q_data in enumerate(questions_data):
         db_id = q_data.get("db_id")
-        source_entry_id = _safe_int(
-            q_data.get("libraryEntryId", q_data.get("source_bank_entry_id"))
-        )
-        source_entry = (
-            QuestionBankEntry.objects.filter(
-                pk=source_entry_id,
-                bank__program=node.program,
-            ).first()
-            if source_entry_id
-            else None
+        source_entry, source_entry_version = _resolve_library_link(
+            node,
+            q_data,
+            actor=actor,
+            existing_link=existing_links.get(db_id),
         )
         question_type = q_data.get("type", "mcq")
 
@@ -6887,6 +6925,7 @@ def _sync_quiz_questions(node, questions_data: list):
                 position=idx,
                 answer_data=answer_data,
                 source_bank_entry=source_entry,
+                source_bank_entry_version=source_entry_version,
             )
             processed_ids.add(db_id)
 
@@ -6962,6 +7001,7 @@ def _sync_quiz_questions(node, questions_data: list):
                 position=idx,
                 answer_data=answer_data,
                 source_bank_entry=source_entry,
+                source_bank_entry_version=source_entry_version,
             )
             processed_ids.add(new_question.id)
 
@@ -7067,6 +7107,7 @@ def _sync_quiz_questions(node, questions_data: list):
         }
         if q.source_bank_entry_id:
             q_entry["libraryEntryId"] = q.source_bank_entry_id
+            q_entry["libraryEntryVersion"] = q.source_bank_entry_version
             q_entry["fromLibrary"] = True
         q_entry.update(question_metadata_by_id.get(q.id, {}))
 
@@ -7144,11 +7185,12 @@ def _sync_quiz_questions(node, questions_data: list):
     node.properties["question_banks"] = sync_quiz_pools_from_properties(
         quiz,
         node_props.get("question_banks", []),
+        actor=actor,
     )
     node.save(update_fields=["properties"])
 
 
-def _sync_assignment(node):
+def _sync_assignment(node, *, actor=None):
     """
     Sync assignment data from node properties to the Assignment table.
 
@@ -7320,7 +7362,7 @@ def _sync_assignment(node):
     questions_data = props.get("questions", [])
     has_questions = isinstance(questions_data, list) and len(questions_data) > 0
     if _assignment_requires_questions(props) and has_questions:
-        _sync_quiz_questions(node, questions_data)
+        _sync_quiz_questions(node, questions_data, actor=actor)
 
 
 @login_required
@@ -7433,11 +7475,11 @@ def instructor_node_update(request, node_id: int):
 
     if node_type == "quiz" or lesson_type == "quiz":
         questions_data = node.properties.get("questions", [])
-        _sync_quiz_questions(node, questions_data)
+        _sync_quiz_questions(node, questions_data, actor=request.user)
 
     # Sync assignment data to Assignment table
     if node_type == "assignment" or lesson_type == "assignment":
-        _sync_assignment(node)
+        _sync_assignment(node, actor=request.user)
 
     return redirect("core:instructor.program_manage", pk=node.program_id)
 

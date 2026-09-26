@@ -5,6 +5,7 @@ Assessment models - Grading strategies and results.
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Union
 
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
@@ -225,6 +226,11 @@ class Question(TimeStampedModel):
         null=True,
         blank=True,
         related_name="quiz_copies",
+    )
+    source_bank_entry_version = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Bank entry version this copy was taken from",
     )
 
     class Meta:
@@ -942,22 +948,43 @@ class QuestionGapAnswer(models.Model):
 
 class QuestionBank(TimeStampedModel):
     """
-    Question Bank for organizing reusable questions by program.
-    Allows instructors to group questions by topic/category within a program.
+    Reusable group of questions.
+
+    The scope decides who can use it: one course, the owner's library across
+    every course they teach, or a shared bank managed by administrators.
     """
+
+    SCOPE_COURSE = "course"
+    SCOPE_INSTRUCTOR = "instructor"
+    SCOPE_INSTITUTION = "institution"
+    SCOPE_CHOICES = [
+        (SCOPE_COURSE, "Course"),
+        (SCOPE_INSTRUCTOR, "Instructor library"),
+        (SCOPE_INSTITUTION, "Shared"),
+    ]
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
+    scope = models.CharField(
+        max_length=20, choices=SCOPE_CHOICES, default=SCOPE_COURSE
+    )
     program = models.ForeignKey(
         "core.Program",
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="question_banks",
-        help_text="Questions in this bank are shared within the program",
+        help_text="Required for course banks; empty for library and shared banks",
     )
     owner = models.ForeignKey(
-        "core.User", on_delete=models.CASCADE, related_name="owned_question_banks"
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="owned_question_banks",
     )
     category = models.CharField(max_length=100, blank=True, default="")
+    is_archived = models.BooleanField(default=False)
 
     class Meta:
         db_table = "question_banks"
@@ -965,10 +992,35 @@ class QuestionBank(TimeStampedModel):
             models.Index(fields=["program"]),
             models.Index(fields=["owner"]),
             models.Index(fields=["category"]),
+            models.Index(fields=["scope", "program"], name="question_bank_scope_prog_idx"),
+            models.Index(fields=["scope", "owner"], name="question_bank_scope_owner_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(scope="course") | Q(program__isnull=False),
+                name="question_bank_course_requires_program",
+            ),
+            models.CheckConstraint(
+                condition=Q(scope="course") | Q(program__isnull=True),
+                name="question_bank_shared_has_no_program",
+            ),
         ]
 
+    def clean(self):
+        errors = {}
+        if self.scope == self.SCOPE_COURSE and not self.program_id:
+            errors["program"] = "Select the course this bank belongs to."
+        if self.scope != self.SCOPE_COURSE and self.program_id:
+            errors["program"] = "Library and shared banks are not tied to one course."
+        if self.scope == self.SCOPE_INSTRUCTOR and not self.owner_id:
+            errors["owner"] = "An instructor library needs an owner."
+        if errors:
+            raise ValidationError(errors)
+
     def __str__(self):
-        return f"{self.name} ({self.program.name})"
+        if self.program_id:
+            return f"{self.name} ({self.program.name})"
+        return f"{self.name} ({self.get_scope_display()})"
 
 
 class QuestionBankEntry(TimeStampedModel):
@@ -984,7 +1036,11 @@ class QuestionBankEntry(TimeStampedModel):
     ]
 
     owner = models.ForeignKey(
-        "core.User", on_delete=models.CASCADE, related_name="question_bank"
+        "core.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="question_bank",
     )
     question = models.ForeignKey(
         Question,
@@ -1094,6 +1150,7 @@ class QuizQuestionPool(TimeStampedModel):
         "core.User",
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name="created_quiz_question_pools",
     )
 

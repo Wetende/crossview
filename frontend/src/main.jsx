@@ -80,6 +80,8 @@ const featureMap = {
     "Student/Orders": "./features/enrollments/pages/Orders.jsx",
     "Instructor/Assignments/Global":
         "./features/assignments/pages/instructor/Global.jsx",
+    "Instructor/QuestionLibrary/Index":
+        "./features/question-library/pages/instructor/Index.jsx",
     "Instructor/Assignments/Index":
         "./features/assignments/pages/instructor/Index.jsx",
     "Instructor/Assignments/Grade":

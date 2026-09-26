@@ -42,4 +42,26 @@ describe("QuestionBankDialog", () => {
             }),
         );
     });
+
+    test("shows where each bank comes from", async () => {
+        render(
+            <QuestionBankDialog
+                open
+                onClose={() => {}}
+                onSave={() => {}}
+                banks={[
+                    { id: 1, name: "Course bank", scope: "course", entries_count: 4 },
+                    { id: 2, name: "Safety", scope: "institution", entries_count: 9 },
+                    { id: 3, name: "Mine", scope: "instructor", entries_count: 2 },
+                ]}
+                categories={[]}
+            />,
+        );
+
+        fireEvent.mouseDown(screen.getByRole("combobox", { name: /Question bank/i }));
+
+        expect(await screen.findByRole("option", { name: /Safety.*Shared/ })).toBeInTheDocument();
+        expect(screen.getByRole("option", { name: /Mine.*My library/ })).toBeInTheDocument();
+        expect(screen.getByRole("option", { name: /Course bank.*Course/ })).toBeInTheDocument();
+    });
 });

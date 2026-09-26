@@ -31,6 +31,7 @@ import {
     Add as AddIcon,
     Help as HelpIcon,
     LibraryAdd as LibraryAddIcon,
+    Sync as SyncIcon,
 } from "@mui/icons-material";
 import RichTextEditor from "@/components/RichTextEditor";
 
@@ -75,7 +76,10 @@ export default function QuestionEditorCard({
     onChange,
     onDelete,
     onSaveToLibrary,
+    libraryStatus = null,
+    onUpdateFromLibrary,
     categories = [],
+    showCategories = true,
     isNew = false,
     defaultExpanded = false,
 }) {
@@ -291,7 +295,7 @@ export default function QuestionEditorCard({
                 </IconButton>
 
                 {/* Question Title Preview */}
-                <Box sx={{ flex: 1, overflow: "hidden" }}>
+                <Box sx={{ flex: 1, minWidth: 120, overflow: "hidden" }}>
                     <Typography
                         variant="body1"
                         sx={{
@@ -306,6 +310,37 @@ export default function QuestionEditorCard({
                         }}
                     />
                 </Box>
+
+                {/* Bank copy status */}
+                {question.fromLibrary && !libraryStatus?.outdated && (
+                    <Tooltip title={libraryStatus?.bankName ? `Copied from ${libraryStatus.bankName}` : "Copied from a question bank"}>
+                        <Chip label="From bank" size="small" variant="outlined" />
+                    </Tooltip>
+                )}
+                {libraryStatus?.outdated && (
+                    <>
+                        <Tooltip
+                            title={`The bank has version ${libraryStatus.latestVersion}; this copy is version ${libraryStatus.currentVersion}.`}
+                        >
+                            <Chip label="Newer version in bank" size="small" color="warning" />
+                        </Tooltip>
+                        {onUpdateFromLibrary && (
+                            <Tooltip title="Update from bank">
+                                <IconButton
+                                    size="small"
+                                    color="warning"
+                                    aria-label="Update from bank"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUpdateFromLibrary(question);
+                                    }}
+                                >
+                                    <SyncIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </>
+                )}
 
                 {/* Type Badge */}
                 <Chip
@@ -347,16 +382,18 @@ export default function QuestionEditorCard({
                 )}
 
                 {/* Delete */}
-                <IconButton
-                    size="small"
-                    color="error"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete?.();
-                    }}
-                >
-                    <DeleteIcon fontSize="small" />
-                </IconButton>
+                {onDelete && (
+                    <IconButton
+                        size="small"
+                        color="error"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                    >
+                        <DeleteIcon fontSize="small" />
+                    </IconButton>
+                )}
             </Box>
 
             {/* Expanded Editor */}
@@ -466,6 +503,7 @@ export default function QuestionEditorCard({
                         </Tooltip>
 
                         {/* Categories */}
+                        {showCategories && (
                         <FormControl size="small" sx={{ minWidth: 200 }}>
                             <InputLabel>Category</InputLabel>
                             <Select
@@ -513,6 +551,7 @@ export default function QuestionEditorCard({
                                 )}
                             </Select>
                         </FormControl>
+                        )}
 
                         {/* Required Toggle */}
                         <FormControlLabel

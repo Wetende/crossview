@@ -37,6 +37,7 @@ import {
     KeyboardArrowDown as ArrowDownIcon,
     AccountBalance as BankIcon,
 } from "@mui/icons-material";
+import { alpha } from "@mui/material/styles";
 import { router } from "@inertiajs/react";
 
 import QuestionsLibraryDrawer from "../components/QuestionsLibraryDrawer";
@@ -47,6 +48,12 @@ import AutosaveStatus from "../components/AutosaveStatus";
 import useAutosave from "../hooks/useAutosave";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import RichTextEditor from "@/components/RichTextEditor";
+import BankScopeChip from "@/features/question-library/components/BankScopeChip";
+import {
+    errorMessage,
+    getEntry,
+} from "@/features/question-library/api/questionLibraryApi";
+import { libraryEntryToBuilderQuestion } from "../utils/libraryQuestion";
 
 const QUESTION_TYPES = [
     { value: "mcq", label: "Single Choice", color: "#1976d2" },
@@ -59,6 +66,7 @@ const QUESTION_TYPES = [
 ];
 
 const EMPTY_LIST = [];
+const EMPTY_OBJECT = {};
 
 const QUIZ_STYLES = [
     { value: "default", label: "Default" },
@@ -165,8 +173,8 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
         onSave,
         type = "quiz",
         programId,
-        questionLibrary = EMPTY_LIST,
         questionBanks: availableQuestionBanks = EMPTY_LIST,
+        questionLibraryVersions = EMPTY_OBJECT,
         categories = EMPTY_LIST,
     },
     ref,
@@ -278,13 +286,11 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
     const [managedQuestionBanks, setManagedQuestionBanks] = useState(
         availableQuestionBanks,
     );
-    const [managedQuestionLibrary, setManagedQuestionLibrary] = useState(
-        questionLibrary,
-    );
+    const [libraryVersions, setLibraryVersions] = useState(questionLibraryVersions);
     const [questionToSave, setQuestionToSave] = useState(null);
 
     useEffect(() => setManagedQuestionBanks(availableQuestionBanks), [availableQuestionBanks]);
-    useEffect(() => setManagedQuestionLibrary(questionLibrary), [questionLibrary]);
+    useEffect(() => setLibraryVersions(questionLibraryVersions), [questionLibraryVersions]);
     useEffect(() => {
         const persistedPools = node.properties?.question_banks;
         if (!Array.isArray(persistedPools)) return;
@@ -670,28 +676,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                 normalizeQuestion({
                     id: Date.now() + Math.random(),
                     db_id: null,
-                    type:
-                        entry.question_data?.question_type ||
-                        entry.question_type ||
-                        "mcq",
-                    text: entry.question_data?.text || "",
-                    points: entry.question_data?.points || 1,
-                    options: (entry.question_data?.options || [])
-                        .map((o) => (typeof o === "string" ? o : o?.text))
-                        .filter(Boolean),
-                    correct: entry.question_data?.answer_data?.correct ?? 0,
-                    correct_indices:
-                        entry.question_data?.answer_data?.correct_indices || [],
-                    pairs: entry.question_data?.matching_pairs || [],
-                    gaps: entry.question_data?.gap_answers || [],
-                    items:
-                        (
-                            entry.question_data?.answer_data?.items ||
-                            entry.question_data?.answer_data?.correct_order ||
-                            []
-                        ).filter((item) => typeof item === "string"),
-                    fromLibrary: true,
-                    libraryEntryId: entry.id,
+                    ...libraryEntryToBuilderQuestion(entry),
                 }),
             );
 
@@ -712,6 +697,67 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
             message: `Added ${newQuestions.length} question(s)${skipped > 0 ? ` (${skipped} duplicates skipped)` : ""}`,
             severity: "success",
         });
+    };
+
+    const bankScopeFor = (pool) =>
+        managedQuestionBanks.find(
+            (item) => String(item.id) === String(pool.bankId ?? pool.bank),
+        )?.scope || null;
+
+    const libraryStatusFor = (question) => {
+        if (!question.fromLibrary || !question.libraryEntryId) return null;
+        const info = libraryVersions[String(question.libraryEntryId)] || {};
+        const currentVersion = question.libraryEntryVersion || null;
+        const latestVersion = info.snapshotVersion || currentVersion;
+        return {
+            bankName: info.bankName || "",
+            currentVersion,
+            latestVersion,
+            outdated: Boolean(
+                currentVersion && latestVersion && latestVersion > currentVersion,
+            ),
+        };
+    };
+
+    // Replace a copied question with the bank's current version
+    const handleUpdateFromLibrary = async (question) => {
+        try {
+            const entry = await getEntry(question.libraryEntryId);
+            const refreshed = normalizeQuestion({
+                ...question,
+                ...libraryEntryToBuilderQuestion(entry),
+                // A new client id remounts the card so it shows the new content.
+                id: `${question.db_id || question.id}-v${entry.snapshot_version}`,
+                db_id: question.db_id,
+                required: question.required,
+                categories: question.categories,
+                isNew: false,
+            });
+            setQuestions((current) =>
+                current.map((item) => (item.id === question.id ? refreshed : item)),
+            );
+            setLibraryVersions((current) => ({
+                ...current,
+                [String(entry.id)]: {
+                    ...(current[String(entry.id)] || {}),
+                    snapshotVersion: entry.snapshot_version,
+                },
+            }));
+            setSnackbar({
+                open: true,
+                message: "Question updated from the bank",
+                severity: "success",
+            });
+        } catch (error) {
+            setSnackbar({
+                open: true,
+                message: errorMessage(
+                    error,
+                    "This bank question is no longer available to you.",
+                ),
+                severity: "error",
+            });
+        }
     };
 
     // Handle adding question bank
@@ -972,6 +1018,8 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                             }}
                             onDelete={() => handleDeleteQuestion(q.id)}
                             onSaveToLibrary={isQuiz ? setQuestionToSave : undefined}
+                            libraryStatus={libraryStatusFor(q)}
+                            onUpdateFromLibrary={handleUpdateFromLibrary}
                             categories={categories}
                             defaultExpanded={q.isNew || false}
                             isNew={q.isNew || false}
@@ -982,22 +1030,30 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                     {questionBanks.map((bank) => (
                         <Paper
                             key={bank.id}
-                            sx={{
+                            sx={(theme) => ({
                                 p: 2,
-                                bgcolor: "#e8f5e9",
-                                border: "1px solid #a5d6a7",
+                                bgcolor: alpha(theme.palette.success.main, 0.1),
+                                border: "1px solid",
+                                borderColor: alpha(theme.palette.success.main, 0.4),
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "space-between",
-                            }}
+                                gap: 2,
+                                flexWrap: "wrap",
+                            })}
                         >
                             <Box>
                                 <Typography color="primary" sx={{ fontWeight: 500 }}>
                                     Questions Bank
                                 </Typography>
-                                <Typography variant="body2">
-                                    {bank.name}
-                                </Typography>
+                                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                    <Typography variant="body2">
+                                        {bank.name}
+                                    </Typography>
+                                    {bankScopeFor(bank) && (
+                                        <BankScopeChip scope={bankScopeFor(bank)} />
+                                    )}
+                                </Stack>
                             </Box>
                             <Box
                                 sx={{
@@ -1006,6 +1062,14 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                     gap: 2,
                                 }}
                             >
+                                {typeof bank.availableQuestions === "number" &&
+                                    bank.availableQuestions < bank.questionCount && (
+                                        <Chip
+                                            size="small"
+                                            color="warning"
+                                            label={`Only ${bank.availableQuestions} of ${bank.questionCount} available`}
+                                        />
+                                    )}
                                 <Typography color="primary">
                                     {bank.questionCount} questions
                                 </Typography>
@@ -1685,8 +1749,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                 existingQuestionIds={questions
                     .map((q) => q.libraryEntryId)
                     .filter(Boolean)}
-                preloadedQuestions={managedQuestionLibrary}
-                preloadedCategories={categories}
+                categories={categories}
             />
 
             <SaveQuestionToBankDialog
@@ -1699,8 +1762,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                 onBankCreated={(bank) => {
                     setManagedQuestionBanks((current) => [...current, bank]);
                 }}
-                onSaved={(entry) => {
-                    setManagedQuestionLibrary((current) => [entry, ...current]);
+                onSaved={() => {
                     setSnackbar({
                         open: true,
                         message: "Question saved to the reusable library",

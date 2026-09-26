@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import {
     Alert,
     Button,
@@ -14,44 +13,13 @@ import {
     Stack,
     TextField,
 } from "@mui/material";
-
-const snapshotForQuestion = (question) => {
-    const type = question?.type || "mcq";
-    const options = (question?.options || []).map((text, position) => ({
-        text,
-        position,
-        is_correct:
-            type === "mcq"
-                ? position === question.correct
-                : type === "mcq_multi"
-                  ? (question.correct_indices || []).includes(position)
-                  : false,
-    }));
-    const answerData = {};
-    if (type === "mcq") answerData.correct = question.correct ?? 0;
-    if (type === "mcq_multi") {
-        answerData.correct_indices = question.correct_indices || [];
-    }
-    if (type === "true_false") answerData.correct = (question.correct ?? 0) === 0;
-    if (type === "short_answer") {
-        answerData.keywords = question.keywords || [];
-        answerData.manual_grading = question.manual_grading ?? true;
-    }
-    if (type === "ordering") {
-        answerData.items = question.items || [];
-        answerData.explanations = question.explanations || {};
-    }
-    return {
-        question_type: type,
-        text: question?.text || "",
-        points: question?.points || 1,
-        answer_data: answerData,
-        options,
-        matching_pairs: question?.pairs || [],
-        gap_answers: question?.gaps || [],
-        image_matching_pairs: question?.image_pairs || [],
-    };
-};
+import BankScopeChip from "@/features/question-library/components/BankScopeChip";
+import {
+    createBank as createBankRequest,
+    createEntry,
+    errorMessage,
+} from "@/features/question-library/api/questionLibraryApi";
+import { snapshotForQuestion } from "../utils/libraryQuestion";
 
 export default function SaveQuestionToBankDialog({
     open,
@@ -68,27 +36,35 @@ export default function SaveQuestionToBankDialog({
     const [difficulty, setDifficulty] = useState("medium");
     const [tags, setTags] = useState("");
     const [newBankName, setNewBankName] = useState("");
+    const [newBankScope, setNewBankScope] = useState("course");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
 
+    const editableBanks = useMemo(
+        () => banks.filter((bank) => bank.can_edit !== false),
+        [banks],
+    );
+
     useEffect(() => {
-        if (open && banks.length === 1) setBankId(banks[0].id);
-    }, [banks, open]);
+        if (open && editableBanks.length === 1) setBankId(editableBanks[0].id);
+    }, [editableBanks, open]);
 
     const createBank = async () => {
         if (!newBankName.trim()) return;
         setBusy(true);
         setError("");
         try {
-            const { data } = await axios.post(
-                `/assessments/programs/${programId}/question-library/banks/`,
-                { name: newBankName.trim(), category },
-            );
+            const data = await createBankRequest({
+                name: newBankName.trim(),
+                category,
+                scope: newBankScope,
+                program: programId,
+            });
             onBankCreated?.(data);
             setBankId(data.id);
             setNewBankName("");
         } catch (requestError) {
-            setError(requestError?.response?.data?.message || "Could not create the bank.");
+            setError(errorMessage(requestError, "Could not create the bank."));
         } finally {
             setBusy(false);
         }
@@ -99,20 +75,18 @@ export default function SaveQuestionToBankDialog({
         setBusy(true);
         setError("");
         try {
-            const { data } = await axios.post(
-                `/assessments/programs/${programId}/question-library/entries/`,
-                {
-                    bank_id: bankId,
-                    category,
-                    difficulty,
-                    tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
-                    questionSnapshot: snapshotForQuestion(question),
-                },
-            );
+            const data = await createEntry({
+                bank_id: bankId,
+                program: programId,
+                category,
+                difficulty,
+                tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+                questionSnapshot: snapshotForQuestion(question),
+            });
             onSaved?.(data);
             onClose();
         } catch (requestError) {
-            setError(requestError?.response?.data?.message || "Could not save the question.");
+            setError(errorMessage(requestError, "Could not save the question."));
         } finally {
             setBusy(false);
         }
@@ -125,14 +99,20 @@ export default function SaveQuestionToBankDialog({
                 <Stack spacing={2.5} sx={{ pt: 1 }}>
                     {error && <Alert severity="error">{error}</Alert>}
                     <FormControl fullWidth>
-                        <InputLabel>Question bank</InputLabel>
+                        <InputLabel id="save-question-bank-label">Question bank</InputLabel>
                         <Select
+                            labelId="save-question-bank-label"
                             value={bankId}
                             label="Question bank"
                             onChange={(event) => setBankId(event.target.value)}
                         >
-                            {banks.map((bank) => (
-                                <MenuItem key={bank.id} value={bank.id}>{bank.name}</MenuItem>
+                            {editableBanks.map((bank) => (
+                                <MenuItem key={bank.id} value={bank.id}>
+                                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                        <span>{bank.name}</span>
+                                        <BankScopeChip scope={bank.scope} />
+                                    </Stack>
+                                </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
@@ -143,6 +123,18 @@ export default function SaveQuestionToBankDialog({
                             value={newBankName}
                             onChange={(event) => setNewBankName(event.target.value)}
                         />
+                        <FormControl sx={{ minWidth: 180 }}>
+                            <InputLabel id="new-bank-scope-label">New bank belongs to</InputLabel>
+                            <Select
+                                labelId="new-bank-scope-label"
+                                value={newBankScope}
+                                label="New bank belongs to"
+                                onChange={(event) => setNewBankScope(event.target.value)}
+                            >
+                                <MenuItem value="course">This course</MenuItem>
+                                <MenuItem value="instructor">My library</MenuItem>
+                            </Select>
+                        </FormControl>
                         <Button variant="outlined" disabled={busy || !newBankName.trim()} onClick={createBank}>
                             Create bank
                         </Button>
