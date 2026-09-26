@@ -28,6 +28,7 @@ import MatchingQuestion from "@/features/quizzes/components/MatchingQuestion";
 import OrderingQuestion from "@/features/quizzes/components/OrderingQuestion";
 import FillBlankQuestion from "@/features/quizzes/components/FillBlankQuestion";
 import ImageMatchingQuestion from "@/features/quizzes/components/ImageMatchingQuestion";
+import QuestionHint from "@/features/quizzes/components/QuestionHint";
 import { getCsrfHeaders } from "@/utils/csrf";
 import {
     AnswerOptionCard,
@@ -528,9 +529,13 @@ export default function Take({
                                                 size="small"
                                             />
                                         </Stack>
-                                        <Typography variant="h6" sx={{ mb: 3 }}>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{ mb: question.hint ? 1.5 : 3 }}
+                                        >
                                             {question.text}
                                         </Typography>
+                                        <QuestionHint hint={question.hint} />
                                         {renderQuestionContent(question)}
                                     </CardContent>
                                 </Card>
@@ -572,9 +577,18 @@ export default function Take({
                                             size="small"
                                         />
                                     </Stack>
-                                    <Typography variant="h6" sx={{ mb: 3 }}>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{
+                                            mb: currentQuestion.hint ? 1.5 : 3,
+                                        }}
+                                    >
                                         {currentQuestion.text}
                                     </Typography>
+                                    <QuestionHint
+                                        key={currentQuestion.id}
+                                        hint={currentQuestion.hint}
+                                    />
                                     {renderQuestionContent(currentQuestion)}
                                 </CardContent>
                             </Card>

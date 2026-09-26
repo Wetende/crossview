@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { router } from "@inertiajs/react";
 
+import QuestionExplanation from "@/features/quizzes/components/QuestionExplanation";
 import QuizRenderer from "./QuizRenderer";
 import {
     evaluateQuizAnswers,
@@ -301,6 +302,108 @@ describe("QuizRenderer", () => {
         expect(result.evaluations[1].pointsEarned).toBe(1);
         expect(result.pointsEarned).toBe(2.33);
         expect(result.score).toBe(33.29);
+    });
+
+    test("reveals a question hint only when the learner asks for it", () => {
+        render(
+            <QuizRenderer
+                node={{
+                    id: 3,
+                    title: "Hints",
+                    properties: {
+                        questions: [
+                            {
+                                id: 301,
+                                type: "mcq",
+                                text: "How many cores?",
+                                options: ["Two", "Four"],
+                                correct: 1,
+                                hint: "<p>Count the <strong>chips</strong>.</p><script>window.hinted = true</script>",
+                            },
+                            {
+                                id: 302,
+                                type: "true_false",
+                                text: "No hint here",
+                                correct: 0,
+                                hint: "<p></p>",
+                            },
+                        ],
+                    },
+                }}
+                enrollmentId={55}
+            />,
+        );
+
+        const toggle = screen.getByRole("button", { name: "Show hint" });
+        expect(toggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByText("chips")).not.toBeInTheDocument();
+
+        fireEvent.click(toggle);
+
+        expect(screen.getByText("chips").tagName).toBe("STRONG");
+        expect(
+            screen.getByRole("button", { name: "Hide hint" }),
+        ).toHaveAttribute("aria-expanded", "true");
+        expect(document.querySelector("script")).toBeNull();
+        expect(window.hinted).toBeUndefined();
+
+        fireEvent.click(screen.getByLabelText("Four"));
+        fireEvent.click(screen.getByRole("button", { name: "Next Question" }));
+
+        expect(screen.getByText("No hint here")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: /hint/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    test("keeps rich explanations and hints when normalising questions", () => {
+        const [question] = normalizeQuestions([
+            {
+                id: 1,
+                type: "short_answer",
+                text: "<p>Explain</p>",
+                explanation:
+                    '<p>Because <span data-type="inline-math" data-latex="x^2"></span></p>',
+                hint: "<p><br></p>",
+            },
+        ]);
+
+        expect(question.text).toBe("Explain");
+        expect(question.explanation).toBe(
+            '<p>Because <span data-type="inline-math" data-latex="x^2"></span></p>',
+        );
+        expect(question.hint).toBe("");
+    });
+
+    test("escapes legacy plain-text explanations so comparisons survive sanitising", () => {
+        const [legacy, current] = normalizeQuestions([
+            {
+                id: 1,
+                type: "mcq",
+                text: "Which holds?",
+                explanation: "",
+                answer_data: {
+                    explanation: " x < 5 and y > 3 & <b>z</b> ",
+                },
+            },
+            {
+                id: 2,
+                type: "mcq",
+                text: "Rich wins",
+                explanation: "<p>Rich <em>text</em></p>",
+                answer_data: { explanation: "legacy" },
+            },
+        ]);
+
+        expect(legacy.explanation).toBe(
+            "<p>x &lt; 5 and y &gt; 3 &amp; &lt;b&gt;z&lt;/b&gt;</p>",
+        );
+        expect(current.explanation).toBe("<p>Rich <em>text</em></p>");
+
+        render(<QuestionExplanation explanation={legacy.explanation} />);
+        const region = screen.getByRole("region", { name: "Explanation" });
+        expect(region).toHaveTextContent("x < 5 and y > 3 & <b>z</b>");
+        expect(region.querySelector("b")).toBeNull();
     });
 
     test("uses backend-compatible true/false values when options are omitted", () => {

@@ -19,6 +19,8 @@ import MatchingQuestion from "@/features/quizzes/components/MatchingQuestion";
 import OrderingQuestion from "@/features/quizzes/components/OrderingQuestion";
 import FillBlankQuestion from "@/features/quizzes/components/FillBlankQuestion";
 import ImageMatchingQuestion from "@/features/quizzes/components/ImageMatchingQuestion";
+import QuestionExplanation from "@/features/quizzes/components/QuestionExplanation";
+import QuestionHint from "@/features/quizzes/components/QuestionHint";
 import { formatPoints } from "@/lib/formatPoints";
 import { getCsrfHeaders } from "@/utils/csrf";
 import {
@@ -934,15 +936,10 @@ const QuizRenderer = ({
                                             {correctAnswerDisplay}
                                         </Typography>
                                     )}
-                                    {question.explanation && (
-                                        <Typography
-                                            variant="body2"
-                                            color="textSecondary"
-                                            sx={{ mt: 1, fontStyle: "italic" }}
-                                        >
-                                            Note: {question.explanation}
-                                        </Typography>
-                                    )}
+                                    <QuestionExplanation
+                                        explanation={question.explanation}
+                                        ariaLabel={`Explanation for question ${index + 1}`}
+                                    />
                                 </Box>
                             </Paper>
                         );
@@ -1013,10 +1010,15 @@ const QuizRenderer = ({
             <Typography
                 variant="h5"
                 gutterBottom
-                sx={{ fontWeight: 600, mb: 3 }}
+                sx={{ fontWeight: 600, mb: currentQuestion.hint ? 1.5 : 3 }}
             >
                 {currentQuestion.text}
             </Typography>
+
+            <QuestionHint
+                key={currentQuestion.id}
+                hint={currentQuestion.hint}
+            />
 
             {renderQuestionInput({
                 question: currentQuestion,

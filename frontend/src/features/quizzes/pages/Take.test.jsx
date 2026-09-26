@@ -68,4 +68,40 @@ describe("Quiz Take page", () => {
             expect.any(Object),
         );
     });
+
+    test("lets the learner reveal a question hint", () => {
+        render(
+            <Take
+                quiz={{
+                    id: 6,
+                    title: "Quiz 2",
+                    nodeTitle: "Module 2",
+                    timeLimit: null,
+                    quizStyle: "pagination",
+                }}
+                attempt={{
+                    id: 11,
+                    attemptNumber: 1,
+                    answers: {},
+                    startedAt: new Date().toISOString(),
+                }}
+                questions={[
+                    {
+                        id: 36,
+                        type: "short_answer",
+                        text: "Name the unit of resistance",
+                        points: 1,
+                        hint: "<p>It is named after <em>Georg Ohm</em>.</p>",
+                    },
+                ]}
+                attemptsRemaining={0}
+            />,
+        );
+
+        expect(screen.queryByText("Georg Ohm")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: "Show hint" }));
+
+        expect(screen.getByText("Georg Ohm")).toBeInTheDocument();
+    });
 });

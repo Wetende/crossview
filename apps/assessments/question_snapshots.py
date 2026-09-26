@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.utils.crypto import salted_hmac
 
 from apps.assessments.text_normalization import (
+    normalize_assessment_rich_text,
     normalize_assessment_text,
     normalize_assessment_text_list,
     normalize_question_answer_data,
@@ -152,6 +153,8 @@ def normalize_question_snapshot(value: dict) -> dict:
         "question_type": question_type,
         "text": text,
         "points": points,
+        "explanation": normalize_assessment_rich_text(raw.get("explanation", "")),
+        "hint": normalize_assessment_rich_text(raw.get("hint", "")),
         "answer_data": answer_data,
         "options": options,
         "matching_pairs": matching_pairs,
@@ -166,6 +169,8 @@ def build_question_snapshot(question: Question) -> dict:
             "question_type": question.question_type,
             "text": question.text,
             "points": question.points,
+            "explanation": question.explanation,
+            "hint": question.hint,
             "answer_data": copy.deepcopy(question.answer_data or {}),
             "options": [
                 {
@@ -219,6 +224,8 @@ def snapshot_as_question_data(snapshot: dict) -> dict:
         "question_type": data["question_type"],
         "text": data["text"],
         "points": data["points"],
+        "explanation": data["explanation"],
+        "hint": data["hint"],
         "position": 0,
         "answer_data": data["answer_data"],
         "options": [
@@ -645,6 +652,9 @@ def serialize_attempt_questions(quiz, attempt, runtime_state=None) -> list[dict]
             "text": snapshot.get("text", ""),
             "points": snapshot.get("points", 1),
         }
+        # Hints are for use while answering; explanations stay with the results.
+        if snapshot.get("hint"):
+            data["hint"] = snapshot["hint"]
         if question_type in {"mcq", "mcq_multi"}:
             options = {int(item["key"]): item for item in snapshot.get("options", [])}
             order = _normalize_key_order(
@@ -936,6 +946,13 @@ def build_snapshot_question_review(attempt, *, correct_answers_released):
                 "studentAnswer": format_snapshot_student_answer(row, answer),
                 "correctAnswer": (
                     format_snapshot_correct_answer(snapshot)
+                    if correct_answers_released
+                    else None
+                ),
+                # Explanations can reveal the answer, so they follow the same
+                # release rule as the correct answer.
+                "explanation": (
+                    (snapshot.get("explanation") or None)
                     if correct_answers_released
                     else None
                 ),

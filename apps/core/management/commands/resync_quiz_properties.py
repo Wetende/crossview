@@ -43,6 +43,8 @@ class Command(BaseCommand):
                     "type": q.question_type,
                     "text": q.text,
                     "points": q.points,
+                    "explanation": q.explanation,
+                    "hint": q.hint,
                 }
                 if q.question_type in ("mcq", "mcq_multi"):
                     opts = list(q.options.all().order_by("position"))

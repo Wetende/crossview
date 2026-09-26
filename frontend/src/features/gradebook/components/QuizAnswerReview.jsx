@@ -28,6 +28,8 @@ import {
     IconClock,
     IconPencil,
 } from "@tabler/icons-react";
+import RichTextContent from "@/components/rich-text/RichTextContent";
+import { hasRichTextContent } from "@/components/rich-text/richTextMath";
 import { formatPoints } from "@/lib/formatPoints";
 import { saveManualQuizGrade } from "../api/manualGradingApi";
 
@@ -494,8 +496,8 @@ const QuestionReviewCard = ({
                     />
                 )}
 
-                {/* Explanation */}
-                {explanation && (
+                {/* Explanation (rich text, sanitised) */}
+                {hasRichTextContent(explanation) && (
                     <Box
                         sx={{
                             mt: 2,
@@ -511,9 +513,14 @@ const QuestionReviewCard = ({
                         >
                             Explanation:
                         </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                            {explanation}
-                        </Typography>
+                        <RichTextContent
+                            html={explanation}
+                            sx={{
+                                color: "text.secondary",
+                                fontSize: "0.875rem",
+                                lineHeight: 1.6,
+                            }}
+                        />
                     </Box>
                 )}
             </Box>

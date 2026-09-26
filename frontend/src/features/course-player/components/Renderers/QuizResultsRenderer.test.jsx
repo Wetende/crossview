@@ -137,6 +137,55 @@ describe("QuizResultsRenderer", () => {
         expect(html).toContain("Your answer:");
     });
 
+    test("shows the question explanation with released answers", () => {
+        const results = buildResults();
+        render(
+            <QuizResultsRenderer
+                quizResults={{
+                    ...results,
+                    questionReview: [
+                        {
+                            ...results.questionReview[0],
+                            explanation:
+                                '<p>Mandatory means <em>required</em>.</p><img src="x" onerror="window.pwned = true">',
+                        },
+                    ],
+                }}
+            />,
+        );
+
+        const explanation = screen.getByRole("region", {
+            name: "Explanation for question 1",
+        });
+        expect(explanation).toHaveTextContent("Mandatory means required.");
+        expect(explanation.querySelector("em")).not.toBeNull();
+        expect(
+            explanation.querySelector("img").getAttribute("onerror"),
+        ).toBeNull();
+    });
+
+    test("hides the explanation until the release policy allows answers", () => {
+        const results = buildResults({ correctAnswersReleased: false });
+        const html = renderToStaticMarkup(
+            <QuizResultsRenderer
+                quizResults={{
+                    ...results,
+                    questionReview: [
+                        {
+                            ...results.questionReview[0],
+                            correctAnswer: null,
+                            // Defence in depth: never shown while answers are withheld.
+                            explanation: "<p>Secret reasoning</p>",
+                        },
+                    ],
+                }}
+            />,
+        );
+
+        expect(html).not.toContain("Secret reasoning");
+        expect(html).not.toContain("Explanation");
+    });
+
     test("shows a policy lock separately from exhausted attempts", () => {
         const html = renderToStaticMarkup(
             <QuizResultsRenderer

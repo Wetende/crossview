@@ -118,6 +118,32 @@ describe("libraryEntryToBuilderQuestion", () => {
         expect(question.options).toEqual(["Volt", "Ampere"]);
         expect(question.correct).toBe(1);
     });
+
+    it("carries the question explanation and hint both ways", () => {
+        const question = libraryEntryToBuilderQuestion(
+            entryFor({
+                question_type: "true_false",
+                text: "Glass conducts well.",
+                answer_data: { correct: false },
+                explanation: "<p>Glass is an insulator.</p>",
+                hint: "<p>Think of windows.</p>",
+            }),
+        );
+
+        expect(question.explanation).toBe("<p>Glass is an insulator.</p>");
+        expect(question.hint).toBe("<p>Think of windows.</p>");
+        expect(snapshotForQuestion(question)).toMatchObject({
+            explanation: "<p>Glass is an insulator.</p>",
+            hint: "<p>Think of windows.</p>",
+        });
+        expect(
+            snapshotForQuestion(
+                libraryEntryToBuilderQuestion(
+                    entryFor({ question_type: "mcq" }),
+                ),
+            ),
+        ).toMatchObject({ explanation: "", hint: "" });
+    });
 });
 
 describe("snapshotForQuestion round trip", () => {

@@ -25,7 +25,10 @@ import {
     UploadFile,
 } from "@mui/icons-material";
 
+import katex from "katex";
+
 import { normalizeImageSource, normalizeLinkUrl } from "./richTextEditorConfig";
+import { KATEX_OPTIONS } from "./richTextMath";
 
 const DialogCloseButton = ({ onClose }) => (
     <IconButton
@@ -477,6 +480,140 @@ export function RichTextImageDialog({
                             : mode === "edit"
                               ? "Save image"
                               : "Insert image"}
+                    </Button>
+                </Box>
+            </DialogActions>
+        </Dialog>
+    );
+}
+
+const renderMathPreview = (latex, displayMode) => {
+    if (!latex.trim()) return "";
+    try {
+        return katex.renderToString(latex, { ...KATEX_OPTIONS, displayMode });
+    } catch {
+        return "";
+    }
+};
+
+export function RichTextMathDialog({
+    open,
+    initialValue,
+    onClose,
+    onSave,
+    onRemove,
+}) {
+    const [latex, setLatex] = React.useState(initialValue.latex);
+    const [display, setDisplay] = React.useState(initialValue.display);
+
+    React.useEffect(() => {
+        if (open) {
+            setLatex(initialValue.latex);
+            setDisplay(initialValue.display);
+        }
+    }, [initialValue, open]);
+
+    const preview = React.useMemo(
+        () => renderMathPreview(latex, display),
+        [latex, display],
+    );
+
+    const submit = (event) => {
+        event.preventDefault();
+        const value = latex.trim();
+        if (value) onSave({ latex: value, display });
+    };
+
+    return (
+        <Dialog
+            open={open}
+            onClose={onClose}
+            fullWidth
+            maxWidth="sm"
+            slotProps={{
+                paper: { component: "form", onSubmit: submit },
+            }}
+        >
+            <DialogTitle sx={{ pr: 7 }}>
+                {initialValue.isExisting ? "Edit maths" : "Insert maths"}
+            </DialogTitle>
+            <DialogCloseButton onClose={onClose} />
+            <DialogContent dividers>
+                <Stack spacing={2.25}>
+                    <TextField
+                        autoFocus
+                        required
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        label="LaTeX"
+                        value={latex}
+                        onChange={(event) => setLatex(event.target.value)}
+                        helperText="For example x^2, \frac{a}{b} or \sqrt{2}. In the editor you can also type $…$ for inline maths, or $$…$$ on a line of its own."
+                        slotProps={{
+                            htmlInput: {
+                                spellCheck: false,
+                                style: { fontFamily: "monospace" },
+                            },
+                        }}
+                    />
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={display}
+                                onChange={(event) =>
+                                    setDisplay(event.target.checked)
+                                }
+                            />
+                        }
+                        label="Show on its own line"
+                    />
+                    <Box>
+                        <Typography
+                            variant="caption"
+                            color="textSecondary"
+                            component="p"
+                            sx={{ mb: 0.5 }}
+                        >
+                            Preview
+                        </Typography>
+                        <Box
+                            aria-live="polite"
+                            data-testid="rich-text-math-preview"
+                            sx={{
+                                minHeight: 48,
+                                p: 1.5,
+                                border: 1,
+                                borderColor: "divider",
+                                borderRadius: 1,
+                                overflowX: "auto",
+                                color: "text.primary",
+                            }}
+                            dangerouslySetInnerHTML={{ __html: preview }}
+                        />
+                    </Box>
+                </Stack>
+            </DialogContent>
+            <DialogActions sx={{ justifyContent: "space-between", px: 3 }}>
+                <Button
+                    color="error"
+                    startIcon={<DeleteOutlineOutlined />}
+                    onClick={onRemove}
+                    disabled={!initialValue.isExisting}
+                >
+                    Remove maths
+                </Button>
+                <Box>
+                    <Button onClick={onClose}>Cancel</Button>
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        sx={{ ml: 1 }}
+                        disabled={!latex.trim()}
+                    >
+                        {initialValue.isExisting
+                            ? "Save maths"
+                            : "Insert maths"}
                     </Button>
                 </Box>
             </DialogActions>

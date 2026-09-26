@@ -76,3 +76,48 @@ describe("RichTextEditorToolbar image controls", () => {
         ).toBeInTheDocument();
     });
 });
+
+describe("RichTextEditorToolbar maths control", () => {
+    const renderToolbar = ({ onOpenMath, active = [] }) => {
+        const { editor } = createEditor();
+        editor.isActive = (name) => active.includes(name);
+        render(
+            <RichTextEditorToolbar
+                editor={editor}
+                onOpenLink={vi.fn()}
+                onOpenImage={vi.fn()}
+                onOpenMath={onOpenMath}
+                imageAttributes={{}}
+                onUpdateImage={vi.fn()}
+                onDeleteImage={vi.fn()}
+                isFullscreen={false}
+                onToggleFullscreen={vi.fn()}
+            />,
+        );
+    };
+
+    test("opens the maths dialog from the toolbar", () => {
+        const onOpenMath = vi.fn();
+        renderToolbar({ onOpenMath });
+
+        fireEvent.click(screen.getByRole("button", { name: "Insert maths" }));
+
+        expect(onOpenMath).toHaveBeenCalledTimes(1);
+    });
+
+    test("offers to edit a selected formula", () => {
+        renderToolbar({ onOpenMath: vi.fn(), active: ["inlineMath"] });
+
+        expect(
+            screen.getByRole("button", { name: "Edit maths" }),
+        ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    test("hides the maths control when maths is disabled", () => {
+        renderToolbar({ onOpenMath: undefined });
+
+        expect(
+            screen.queryByRole("button", { name: "Insert maths" }),
+        ).not.toBeInTheDocument();
+    });
+});

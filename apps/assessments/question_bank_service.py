@@ -169,6 +169,8 @@ class QuestionBankService:
             points=snapshot["points"],
             position=target_quiz.questions.count(),
             answer_data=snapshot["answer_data"],
+            explanation=snapshot["explanation"],
+            hint=snapshot["hint"],
             source_bank_entry=entry,
             source_bank_entry_version=entry.snapshot_version,
         )

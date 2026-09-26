@@ -143,4 +143,42 @@ describe("QuizAnswerReview grading states", () => {
         );
         expect(onGradeSaved).toHaveBeenCalledTimes(1);
     });
+
+    test("shows the question explanation as sanitised rich text", () => {
+        render(
+            <QuizAnswerReview
+                defaultExpanded
+                questions={[
+                    {
+                        id: 9,
+                        text: "The sky is blue.",
+                        type: "true_false",
+                        points: 1,
+                        explanation:
+                            '<p>Rayleigh <strong>scattering</strong>.</p><img src="x" onerror="window.pwned = true">',
+                    },
+                ]}
+                attempt={{
+                    id: 5,
+                    score: 100,
+                    passed: true,
+                    answers: { 9: true },
+                    questionResults: [
+                        {
+                            questionId: 9,
+                            isCorrect: true,
+                            correctAnswer: true,
+                            pointsEarned: 1,
+                            gradingStatus: "graded",
+                        },
+                    ],
+                }}
+            />,
+        );
+
+        expect(screen.getByText("Explanation:")).toBeInTheDocument();
+        expect(screen.getByText("scattering").tagName).toBe("STRONG");
+        const image = document.querySelector('img[src="x"]');
+        expect(image.getAttribute("onerror")).toBeNull();
+    });
 });

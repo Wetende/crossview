@@ -1,22 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
     Box,
     Paper,
     Typography,
     TextField,
     Button,
+    ButtonBase,
     IconButton,
     FormControl,
     InputLabel,
     Select,
     MenuItem,
     Chip,
-    FormControlLabel,
-    Switch,
     Stack,
     Checkbox,
     Radio,
-    OutlinedInput,
     Collapse,
     Tooltip,
     Divider,
@@ -24,16 +22,19 @@ import {
 import {
     Delete as DeleteIcon,
     DragIndicator as DragIcon,
-    Image as ImageIcon,
     Edit as EditIcon,
     ExpandMore as ExpandIcon,
     ExpandLess as CollapseIcon,
+    ExpandMoreOutlined,
     Add as AddIcon,
     Help as HelpIcon,
     LibraryAdd as LibraryAddIcon,
+    LightbulbOutlined,
     Sync as SyncIcon,
+    TipsAndUpdatesOutlined,
 } from "@mui/icons-material";
 import RichTextEditor from "@/components/RichTextEditor";
+import { hasRichTextContent } from "@/components/rich-text/richTextMath";
 
 // Import specialized editors
 import MatchingPairsEditor from "@/features/quizzes/components/MatchingPairsEditor";
@@ -67,9 +68,99 @@ const getCorrectIndices = (question) => {
     return [];
 };
 
+const buildLocalData = (question) => ({
+    text: normalizeFillBlankText(question.text, question.type || "mcq"),
+    type: question.type || "mcq",
+    points: question.points || 1,
+    options: question.options || ["", "", "", ""],
+    correct: question.correct ?? 0,
+    correct_indices: getCorrectIndices(question),
+    pairs: question.pairs || [],
+    gaps: question.gaps || [],
+    items: question.items || ["", "", "", ""],
+    keywords: question.keywords || [],
+    explanations: question.explanations || {},
+    explanation: question.explanation || "",
+    hint: question.hint || "",
+});
+
+/** Collapsed-by-default rich-text field for question feedback. */
+function QuestionFeedbackField({
+    title,
+    description,
+    placeholder,
+    icon,
+    value,
+    onChange,
+}) {
+    const [open, setOpen] = useState(false);
+    const panelId = useId();
+    const hasContent = hasRichTextContent(value);
+
+    return (
+        <Paper variant="outlined" sx={{ borderRadius: 1, overflow: "hidden" }}>
+            <ButtonBase
+                onClick={() => setOpen((current) => !current)}
+                aria-expanded={open}
+                aria-controls={open ? panelId : undefined}
+                sx={{
+                    width: "100%",
+                    justifyContent: "flex-start",
+                    gap: 1,
+                    px: 2,
+                    py: 1.25,
+                    textAlign: "left",
+                    "&:hover": { bgcolor: "action.hover" },
+                }}
+            >
+                {icon}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="subtitle2" component="span">
+                        {title}
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        color="textSecondary"
+                        component="span"
+                        sx={{ display: "block" }}
+                    >
+                        {description}
+                    </Typography>
+                </Box>
+                {hasContent && (
+                    <Chip
+                        label="Added"
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                    />
+                )}
+                <ExpandMoreOutlined
+                    fontSize="small"
+                    sx={{
+                        color: "text.secondary",
+                        transform: open ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s",
+                    }}
+                />
+            </ButtonBase>
+            <Collapse in={open} unmountOnExit>
+                <Box id={panelId} sx={{ px: 2, pb: 2 }}>
+                    <RichTextEditor
+                        value={value}
+                        onChange={onChange}
+                        placeholder={placeholder}
+                        minHeight={120}
+                    />
+                </Box>
+            </Collapse>
+        </Paper>
+    );
+}
+
 /**
  * QuestionEditorCard - Inline editor for quiz questions
- * Matches STM LMS Quiz Builder design with rich text, media, categories
+ * Matches STM LMS Quiz Builder design with rich text, explanations and hints
  */
 export default function QuestionEditorCard({
     question,
@@ -78,47 +169,15 @@ export default function QuestionEditorCard({
     onSaveToLibrary,
     libraryStatus = null,
     onUpdateFromLibrary,
-    categories = [],
-    showCategories = true,
     isNew = false,
     defaultExpanded = false,
 }) {
     const [expanded, setExpanded] = useState(defaultExpanded || isNew);
-    const [localData, setLocalData] = useState({
-        text: normalizeFillBlankText(question.text, question.type || "mcq"),
-        type: question.type || "mcq",
-        points: question.points || 1,
-        options: question.options || ["", "", "", ""],
-        correct: question.correct ?? 0,
-        correct_indices: getCorrectIndices(question),
-        categories: question.categories || [],
-        required: question.required ?? true,
-        pairs: question.pairs || [],
-        gaps: question.gaps || [],
-        items: question.items || ["", "", "", ""],
-        keywords: question.keywords || [],
-        explanations: question.explanations || {},
-        media: question.media || null,
-    });
+    const [localData, setLocalData] = useState(() => buildLocalData(question));
 
     // Keep local state in sync when switching between different questions
     useEffect(() => {
-        setLocalData({
-            text: normalizeFillBlankText(question.text, question.type || "mcq"),
-            type: question.type || "mcq",
-            points: question.points || 1,
-            options: question.options || ["", "", "", ""],
-            correct: question.correct ?? 0,
-            correct_indices: getCorrectIndices(question),
-            categories: question.categories || [],
-            required: question.required ?? true,
-            pairs: question.pairs || [],
-            gaps: question.gaps || [],
-            items: question.items || ["", "", "", ""],
-            keywords: question.keywords || [],
-            explanations: question.explanations || {},
-            media: question.media || null,
-        });
+        setLocalData(buildLocalData(question));
         // Reset only when switching cards; syncing every echoed field update
         // would overwrite in-progress edits in the debounced local editor.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -400,24 +459,8 @@ export default function QuestionEditorCard({
             <Collapse in={expanded}>
                 <Divider />
                 <Box sx={{ p: 2 }}>
-                    {/* Media & Rich Text Editor Row */}
+                    {/* Question Text Editor */}
                     <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-                        {/* Media Button */}
-                        <Tooltip title="Add Video or Audio">
-                            <IconButton
-                                sx={{
-                                    border: "1px dashed",
-                                    borderColor: "divider",
-                                    borderRadius: 1,
-                                    width: 48,
-                                    height: 48,
-                                }}
-                            >
-                                <ImageIcon color="action" />
-                            </IconButton>
-                        </Tooltip>
-
-                        {/* Rich Text Editor */}
                         <Box sx={{ flex: 1 }}>
                             <Typography
                                 variant="caption"
@@ -441,6 +484,9 @@ export default function QuestionEditorCard({
                                     onChange={(value) => updateField("text", value)}
                                     placeholder="Enter your question"
                                     minHeight={200}
+                                    // Question text is stored as plain text, so
+                                    // maths nodes would be lost on save.
+                                    enableMath={false}
                                 />
                             )}
                             <Typography
@@ -501,74 +547,6 @@ export default function QuestionEditorCard({
                                 <HelpIcon fontSize="small" />
                             </IconButton>
                         </Tooltip>
-
-                        {/* Categories */}
-                        {showCategories && (
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel>Category</InputLabel>
-                            <Select
-                                multiple
-                                value={localData.categories}
-                                label="Category"
-                                onChange={(e) =>
-                                    updateField("categories", e.target.value)
-                                }
-                                input={<OutlinedInput label="Category" />}
-                                renderValue={(selected) => (
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            gap: 0.5,
-                                        }}
-                                    >
-                                        {selected.map((value) => (
-                                            <Chip
-                                                key={value}
-                                                label={value}
-                                                size="small"
-                                            />
-                                        ))}
-                                    </Box>
-                                )}
-                            >
-                                {categories.length === 0 ? (
-                                    <MenuItem disabled>
-                                        <em>No categories</em>
-                                    </MenuItem>
-                                ) : (
-                                    categories.map((cat) => (
-                                        <MenuItem key={cat} value={cat}>
-                                            <Checkbox
-                                                checked={localData.categories.includes(
-                                                    cat,
-                                                )}
-                                                size="small"
-                                            />
-                                            {cat}
-                                        </MenuItem>
-                                    ))
-                                )}
-                            </Select>
-                        </FormControl>
-                        )}
-
-                        {/* Required Toggle */}
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={localData.required}
-                                    onChange={(e) =>
-                                        updateField(
-                                            "required",
-                                            e.target.checked,
-                                        )
-                                    }
-                                    size="small"
-                                />
-                            }
-                            label="Required Question"
-                        />
 
                         {/* Points */}
                         <TextField
@@ -864,6 +842,38 @@ export default function QuestionEditorCard({
                             />
                         </Box>
                     )}
+
+                    {/* Question-level feedback, for every question type */}
+                    <Stack spacing={1.5} sx={{ mt: 3 }}>
+                        <QuestionFeedbackField
+                            title="Explanation (shown after submission)"
+                            description="Why the answer is right. Learners see it when the quiz releases correct answers."
+                            placeholder="Explain the correct answer"
+                            icon={
+                                <TipsAndUpdatesOutlined
+                                    fontSize="small"
+                                    color="action"
+                                />
+                            }
+                            value={localData.explanation}
+                            onChange={(value) =>
+                                updateField("explanation", value)
+                            }
+                        />
+                        <QuestionFeedbackField
+                            title="Hint (learners can reveal before answering)"
+                            description="A nudge that does not give the answer away."
+                            placeholder="Write a hint"
+                            icon={
+                                <LightbulbOutlined
+                                    fontSize="small"
+                                    color="action"
+                                />
+                            }
+                            value={localData.hint}
+                            onChange={(value) => updateField("hint", value)}
+                        />
+                    </Stack>
                 </Box>
             </Collapse>
         </Paper>
