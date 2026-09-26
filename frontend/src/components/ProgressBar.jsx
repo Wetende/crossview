@@ -20,12 +20,12 @@ export default function ProgressBar({
       {(showLabel || label) && (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
           {label && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               {label}
             </Typography>
           )}
           {showLabel && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               {clampedValue.toFixed(0)}%
             </Typography>
           )}

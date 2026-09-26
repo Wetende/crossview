@@ -69,8 +69,8 @@ const EnrollmentLeadsIndex = ({
             label: "Learner",
             render: (row) => (
                 <Box>
-                    <Typography fontWeight={600}>{row.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography sx={{ fontWeight: 600 }}>{row.name}</Typography>
+                    <Typography variant="caption" color="textSecondary">
                         {row.email} · {row.phone}
                     </Typography>
                 </Box>
@@ -115,14 +115,14 @@ const EnrollmentLeadsIndex = ({
             <Head title="Enrollment Leads" />
             <Stack spacing={3}>
                 <Box>
-                    <Typography variant="h4" fontWeight={700}>Enrollment Leads</Typography>
-                    <Typography color="text.secondary">
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>Enrollment Leads</Typography>
+                    <Typography color="textSecondary">
                         Follow learners from captured details through identity, payment and enrollment.
                     </Typography>
                 </Box>
                 <Card>
                     <CardContent>
-                        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems="flex-end">
+                        <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ alignItems: "flex-end" }}>
                             <TextField
                                 size="small"
                                 label="Search learner"

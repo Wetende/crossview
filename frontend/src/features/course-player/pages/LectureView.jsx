@@ -128,7 +128,7 @@ const LectureView = ({
                 />
             ) : (
                 <Box sx={{ p: 4, textAlign: "center" }}>
-                    <Typography color="text.secondary">
+                    <Typography color="textSecondary">
                         Select a lesson from the curriculum to start learning.
                     </Typography>
                 </Box>

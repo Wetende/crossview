@@ -267,17 +267,17 @@ export default function AttendancePanel({ program }) {
 
     if (loading) {
         return (
-            <Typography color="text.secondary">Loading attendance…</Typography>
+            <Typography color="textSecondary">Loading attendance…</Typography>
         );
     }
 
     return (
         <Stack spacing={2.5}>
             <Box>
-                <Typography variant="h5" fontWeight={700}>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     Google Meet attendance
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography color="textSecondary">
                     Verified participation is separate from Calendar invitations
                     and grades.
                 </Typography>
@@ -329,16 +329,20 @@ export default function AttendancePanel({ program }) {
                                 <CardContent>
                                     <Stack
                                         direction={{ xs: "column", md: "row" }}
-                                        justifyContent="space-between"
-                                        gap={2}
+                                        sx={{
+                                            justifyContent: "space-between",
+                                            gap: 2,
+                                        }}
                                     >
                                         <Box>
-                                            <Typography fontWeight={700}>
+                                            <Typography
+                                                sx={{ fontWeight: 700 }}
+                                            >
                                                 {session.title}
                                             </Typography>
                                             <Typography
                                                 variant="body2"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 {formatDateTime(
                                                     session.startsAt,
@@ -347,7 +351,7 @@ export default function AttendancePanel({ program }) {
                                             </Typography>
                                             <Typography
                                                 variant="caption"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Last sync:{" "}
                                                 {formatDateTime(
@@ -358,8 +362,10 @@ export default function AttendancePanel({ program }) {
                                         <Stack
                                             direction="row"
                                             spacing={1}
-                                            alignItems="center"
-                                            flexWrap="wrap"
+                                            sx={{
+                                                alignItems: "center",
+                                                flexWrap: "wrap",
+                                            }}
                                             useFlexGap
                                         >
                                             <Chip
@@ -436,16 +442,18 @@ export default function AttendancePanel({ program }) {
                     <Stack spacing={2}>
                         <Stack
                             direction={{ xs: "column", sm: "row" }}
-                            justifyContent="space-between"
-                            gap={1}
+                            sx={{ justifyContent: "space-between", gap: 1 }}
                         >
                             <Box>
-                                <Typography variant="h6" fontWeight={700}>
+                                <Typography
+                                    variant="h6"
+                                    sx={{ fontWeight: 700 }}
+                                >
                                     {selectedSession.title}
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Attendance threshold:{" "}
                                     {selectedSession.attendanceThresholdPercent ||
@@ -497,7 +505,7 @@ export default function AttendancePanel({ program }) {
                         <Divider />
 
                         {reviewLoading && (
-                            <Typography role="status" color="text.secondary">
+                            <Typography role="status" color="textSecondary">
                                 Loading class attendance…
                             </Typography>
                         )}
@@ -521,18 +529,21 @@ export default function AttendancePanel({ program }) {
                                                     xs: "column",
                                                     md: "row",
                                                 }}
-                                                justifyContent="space-between"
-                                                gap={1}
+                                                sx={{
+                                                    justifyContent:
+                                                        "space-between",
+                                                    gap: 1,
+                                                }}
                                             >
                                                 <Box>
                                                     <Typography
-                                                        fontWeight={700}
+                                                        sx={{ fontWeight: 700 }}
                                                     >
                                                         {row.learner.name}
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         {row.learner.email}
                                                     </Typography>
@@ -540,8 +551,10 @@ export default function AttendancePanel({ program }) {
                                                 <Stack
                                                     direction="row"
                                                     spacing={1}
-                                                    alignItems="center"
-                                                    flexWrap="wrap"
+                                                    sx={{
+                                                        alignItems: "center",
+                                                        flexWrap: "wrap",
+                                                    }}
                                                     useFlexGap
                                                 >
                                                     <Chip
@@ -566,7 +579,7 @@ export default function AttendancePanel({ program }) {
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         {sourceLabel[
                                                             row.source
@@ -577,7 +590,7 @@ export default function AttendancePanel({ program }) {
                                             </Stack>
                                             <Typography
                                                 variant="caption"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Verified:{" "}
                                                 {formatDateTime(row.verifiedAt)}
@@ -727,7 +740,7 @@ export default function AttendancePanel({ program }) {
                                                                     <Typography
                                                                         key={`${audit.createdAt}-${index}`}
                                                                         variant="caption"
-                                                                        color="text.secondary"
+                                                                        color="textSecondary"
                                                                     >
                                                                         {formatDateTime(
                                                                             audit.createdAt,
@@ -764,7 +777,7 @@ export default function AttendancePanel({ program }) {
                         <Box>
                             <Typography
                                 variant="subtitle1"
-                                fontWeight={700}
+                                sx={{ fontWeight: 700 }}
                                 gutterBottom
                             >
                                 Unmatched Google participants
@@ -787,7 +800,7 @@ export default function AttendancePanel({ program }) {
                                             >
                                                 <CardContent>
                                                     <Typography
-                                                        fontWeight={700}
+                                                        sx={{ fontWeight: 700 }}
                                                     >
                                                         {participant.displayName ||
                                                             "Anonymous participant"}

@@ -129,18 +129,18 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
         <motion.div {...fadeInUp}>
           <Card>
             <CardContent>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ sm: 'center' }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} sx={{ alignItems: { sm: 'center' } }}>
                 <Avatar sx={{ width: 80, height: 80, bgcolor: 'secondary.main', fontSize: 28 }}>
                   {initials}
                 </Avatar>
-                <Box flex={1}>
-                  <Typography variant="h5" fontWeight="bold" gutterBottom>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 'bold' }} gutterBottom>
                     {student.name}
                   </Typography>
-                  <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap' }} useFlexGap>
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                       <EmailIcon fontSize="small" color="action" />
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         {student.email}
                       </Typography>
                     </Stack>
@@ -193,7 +193,7 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                       {enrollments.map((enrollment) => (
                         <TableRow key={enrollment.id} hover>
                           <TableCell>
-                            <Typography variant="body2" fontWeight="medium">
+                            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                               {enrollment.programName}
                             </Typography>
                           </TableCell>
@@ -215,7 +215,7 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                             />
                           </TableCell>
                           <TableCell align="right">
-                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
                               <Tooltip title="View Program Progress">
                                 <IconButton
                                   component={Link}
@@ -256,7 +256,7 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                   </Table>
                 </TableContainer>
               ) : (
-                <Typography color="text.secondary" variant="body2">
+                <Typography color="textSecondary" variant="body2">
                   No enrollments found for this student in your programs.
                 </Typography>
               )}
@@ -269,7 +269,7 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
       <Dialog open={statusDialog.open} onClose={handleCloseStatusDialog} maxWidth="xs" fullWidth>
         <DialogTitle>Change Enrollment Status</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
             Change the enrollment status for {student.name} in {statusDialog.enrollment?.programName}
           </Typography>
           <TextField

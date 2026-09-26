@@ -123,7 +123,7 @@ export default function Submissions({ assignment, submissions = [], filter = 'al
               p: 3,
             }}
           >
-            <Stack direction="row" alignItems="center" spacing={2}>
+            <Stack direction="row" sx={{ alignItems: 'center' }} spacing={2}>
               <IconButton
                 component={Link}
                 href="/instructor/assignments/"
@@ -140,7 +140,7 @@ export default function Submissions({ assignment, submissions = [], filter = 'al
               </Typography>
             </Stack>
 
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
               {/* Search */}
               <TextField
                 size="small"
@@ -150,12 +150,14 @@ export default function Submissions({ assignment, submissions = [], filter = 'al
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconSearch size={18} style={{ opacity: 0.5 }} />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconSearch size={18} style={{ opacity: 0.5 }} />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
                 sx={{ minWidth: 200 }}
               />
@@ -205,7 +207,7 @@ export default function Submissions({ assignment, submissions = [], filter = 'al
                 {paginatedSubmissions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">
+                      <Typography color="textSecondary">
                         No submissions found
                       </Typography>
                     </TableCell>
@@ -236,7 +238,7 @@ export default function Submissions({ assignment, submissions = [], filter = 'al
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" color="textSecondary">
                             — {assignment.programName}
                           </Typography>
                         </TableCell>
@@ -249,7 +251,7 @@ export default function Submissions({ assignment, submissions = [], filter = 'al
                           <Typography>1</Typography>
                         </TableCell>
                         <TableCell>
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
                             <StatusIcon size={16} color={statusDisplay.color} />
                             <Typography sx={{ color: statusDisplay.color }}>
                               {statusDisplay.label}

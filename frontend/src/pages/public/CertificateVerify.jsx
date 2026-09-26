@@ -34,21 +34,21 @@ function ValidCertificate({ certificate }) {
       <CardContent>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <VerifiedIcon sx={{ fontSize: 64, color: 'success.main' }} />
-          <Typography variant="h5" color="success.main" sx={{ mt: 1 }}>
+          <Typography variant="h5" color="success" sx={{ mt: 1 }}>
             Certificate Verified
           </Typography>
         </Box>
 
         <Stack spacing={2}>
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
               Certificate Holder
             </Typography>
             <Typography variant="h6">{certificate.studentName}</Typography>
           </Box>
 
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
               Program
             </Typography>
             <Typography variant="h6">{certificate.programTitle}</Typography>
@@ -56,15 +56,15 @@ function ValidCertificate({ certificate }) {
 
           <Stack direction="row" spacing={4}>
             <Box>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="textSecondary">
                 Serial Number
               </Typography>
-              <Typography variant="body1" fontFamily="monospace">
+              <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>
                 {certificate.serialNumber}
               </Typography>
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="textSecondary">
                 Completion Date
               </Typography>
               <Typography variant="body1">
@@ -72,7 +72,7 @@ function ValidCertificate({ certificate }) {
               </Typography>
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="textSecondary">
                 Issue Date
               </Typography>
               <Typography variant="body1">
@@ -92,7 +92,7 @@ function RevokedCertificate({ certificate }) {
       <CardContent>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <WarningIcon sx={{ fontSize: 64, color: 'error.main' }} />
-          <Typography variant="h5" color="error.main" sx={{ mt: 1 }}>
+          <Typography variant="h5" color="error" sx={{ mt: 1 }}>
             Certificate Revoked
           </Typography>
         </Box>
@@ -108,24 +108,24 @@ function RevokedCertificate({ certificate }) {
 
         <Stack spacing={2}>
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
               Original Certificate Holder
             </Typography>
             <Typography variant="body1">{certificate.studentName}</Typography>
           </Box>
 
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
               Program
             </Typography>
             <Typography variant="body1">{certificate.programTitle}</Typography>
           </Box>
 
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
               Serial Number
             </Typography>
-            <Typography variant="body1" fontFamily="monospace">
+            <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>
               {certificate.serialNumber}
             </Typography>
           </Box>
@@ -141,7 +141,7 @@ function NotFoundCertificate({ serialNumber }) {
       <CardContent>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <ErrorIcon sx={{ fontSize: 64, color: 'grey.400' }} />
-          <Typography variant="h5" color="text.secondary" sx={{ mt: 1 }}>
+          <Typography variant="h5" color="textSecondary" sx={{ mt: 1 }}>
             Certificate Not Found
           </Typography>
         </Box>
@@ -150,7 +150,7 @@ function NotFoundCertificate({ serialNumber }) {
           No certificate was found with serial number: <strong>{serialNumber}</strong>
         </Alert>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
           Please verify the serial number and try again. If you believe this is an error,
           please contact the issuing institution.
         </Typography>
@@ -169,10 +169,10 @@ export default function CertificateVerify({ serialNumber, result, certificate })
 
       <Container maxWidth="sm" sx={{ py: 6 }}>
         <motion.div {...fadeIn}>
-          <Typography variant="h4" component="h1" textAlign="center" gutterBottom>
+          <Typography variant="h4" component="h1" sx={{ textAlign: 'center' }} gutterBottom>
             Certificate Verification
           </Typography>
-          <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 4 }}>
+          <Typography variant="body1" color="textSecondary" sx={{ textAlign: 'center', mb: 4 }}>
             {institutionName}
           </Typography>
 

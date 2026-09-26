@@ -44,9 +44,8 @@ const QuestionCard = ({
             <CardContent>
                 <Stack
                     direction="row"
-                    alignItems="center"
                     spacing={2}
-                    sx={{ mb: 2 }}
+                    sx={{ alignItems: "center", mb: 2 }}
                 >
                     {showNumber && (
                         <Chip label={`Question ${index + 1}`} color="primary" />
@@ -401,8 +400,10 @@ export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
                     >
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
+                            sx={{
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                            }}
                         >
                             <Box>
                                 <Typography variant="h5">
@@ -410,7 +411,7 @@ export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {quiz.nodeTitle}
                                 </Typography>
@@ -433,8 +434,10 @@ export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
                         <Box sx={{ mt: 2 }}>
                             <Stack
                                 direction="row"
-                                justifyContent="space-between"
-                                sx={{ mb: 0.5 }}
+                                sx={{
+                                    justifyContent: "space-between",
+                                    mb: 0.5,
+                                }}
                             >
                                 <Typography variant="caption">
                                     {answeredCount} of {questions.length}{" "}
@@ -455,9 +458,11 @@ export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
                             <Stack
                                 direction="row"
                                 spacing={0.5}
-                                alignItems="center"
-                                sx={{ mt: 2 }}
-                                flexWrap="wrap"
+                                sx={{
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
+                                    mt: 2,
+                                }}
                             >
                                 {questions.map((q, idx) => (
                                     <Box
@@ -542,7 +547,7 @@ export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
                             {/* Navigation */}
                             <Stack
                                 direction="row"
-                                justifyContent="space-between"
+                                sx={{ justifyContent: "space-between" }}
                             >
                                 <Button
                                     startIcon={<IconChevronLeft />}
@@ -560,7 +565,7 @@ export default function Take({ quiz, attempt, questions, attemptsRemaining }) {
                                 <Stack
                                     direction="row"
                                     spacing={0.5}
-                                    alignItems="center"
+                                    sx={{ alignItems: "center" }}
                                 >
                                     {questions.map((q, idx) => (
                                         <Box

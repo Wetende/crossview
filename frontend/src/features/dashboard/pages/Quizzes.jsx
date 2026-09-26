@@ -19,7 +19,7 @@ export default function Quizzes({ quizzes = [] }) {
         {/* Header */}
         <Stack direction="row" sx={{ mb: 4, justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <Box>
-            <Typography variant="h5" color="text.secondary" gutterBottom>
+            <Typography variant="h5" color="textSecondary" gutterBottom>
               Enrolled Quizzes
             </Typography>
           </Box>
@@ -44,10 +44,10 @@ export default function Quizzes({ quizzes = [] }) {
                 <Box key={quiz.id}>
                   {/* Header: Course Name Box */}
                   <Box sx={{ bgcolor: '#e2e8f0', py: 1, px: 1.5, borderRadius: 1.5, mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
+                    <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem', mb: 0.5 }}>
                       Course:
                     </Typography>
-                    <Typography variant="subtitle2" fontWeight={700} color="text.primary">
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }} color="textPrimary">
                       {quiz.programName}
                     </Typography>
                   </Box>
@@ -56,7 +56,7 @@ export default function Quizzes({ quizzes = [] }) {
                   <Box sx={{ py: 1, px: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Box>
                       <Stack direction="row" spacing={1.5} sx={{ mb: 0.5, alignItems: 'center' }}>
-                        <Typography variant="subtitle2" fontWeight={500} color="text.primary">
+                        <Typography variant="subtitle2" sx={{ fontWeight: 500 }} color="textPrimary">
                           {quiz.title}
                         </Typography>
                         <Chip 
@@ -66,13 +66,13 @@ export default function Quizzes({ quizzes = [] }) {
                           sx={{ fontWeight: 700, borderRadius: 1, height: 20, fontSize: '0.65rem' }}
                         />
                       </Stack>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                      <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
                         {quiz.attempts} attempt(s) • {quiz.questionCount} questions
                       </Typography>
                     </Box>
                     
                     <Stack direction="row" spacing={4} sx={{ alignItems: 'center' }}>
-                      <Typography variant="body2" fontWeight={600} color="text.primary">
+                      <Typography variant="body2" sx={{ fontWeight: 600 }} color="textPrimary">
                         {quiz.bestScore !== null ? `${quiz.bestScore}%` : '0%'}
                       </Typography>
                       <Button 
@@ -96,7 +96,7 @@ export default function Quizzes({ quizzes = [] }) {
             </Stack>
           ) : (
             <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-              <Typography color="text.secondary">You haven't attempted any quizzes yet.</Typography>
+              <Typography color="textSecondary">You haven't attempted any quizzes yet.</Typography>
             </Paper>
           )}
         </Box>

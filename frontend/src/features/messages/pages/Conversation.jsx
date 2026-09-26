@@ -46,7 +46,7 @@ export default function Conversation({ conversation, messages = [], errorMessage
             <Stack spacing={2}>
                 {!!errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                     <Box>
                         <Button
                             component={Link}
@@ -57,10 +57,10 @@ export default function Conversation({ conversation, messages = [], errorMessage
                         >
                             Back to Inbox
                         </Button>
-                        <Typography variant="h5" fontWeight={700}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
                             {conversation.otherUser?.name}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {conversation.otherUser?.email}
                         </Typography>
                     </Box>
@@ -69,7 +69,7 @@ export default function Conversation({ conversation, messages = [], errorMessage
                 <Paper variant="outlined" sx={{ p: 2, minHeight: 360, maxHeight: 520, overflowY: "auto" }}>
                     <Stack spacing={1.5}>
                         {messages.length === 0 ? (
-                            <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+                            <Typography color="textSecondary" sx={{ textAlign: "center", py: 4 }}>
                                 No messages yet.
                             </Typography>
                         ) : (

@@ -54,7 +54,7 @@ export default function CourseRow({
           >
             {name?.charAt(0)}
           </Avatar>
-          <Typography variant="body1" fontWeight="medium">
+          <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
             {name}
           </Typography>
         </Box>

@@ -335,13 +335,13 @@ export function RichTextImageDialog({
                         />
                     </Button>
                     {file && (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Selected: {file.name}
                         </Typography>
                     )}
                     <Typography
                         variant="caption"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ my: -1 }}
                     >
                         or

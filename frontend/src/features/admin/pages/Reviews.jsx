@@ -27,11 +27,9 @@ export default function Reviews({
                 <Head title="Review Moderation" />
                 <Stack
                     direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{ mb: 3 }}
+                    sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}
                 >
-                    <Typography variant="h5" fontWeight={700}>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
                         Review Moderation
                     </Typography>
                     <Select
@@ -56,10 +54,10 @@ export default function Reviews({
                         <Card key={review.id}>
                             <CardContent>
                                 <Stack spacing={1.5}>
-                                    <Typography variant="subtitle1" fontWeight={600}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                         {review.program?.name}
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary">
+                                    <Typography variant="body2" color="textSecondary">
                                         By {review.user?.name} • Rating {review.rating}/5 • Status {review.status}
                                     </Typography>
                                     <Box
@@ -89,7 +87,7 @@ export default function Reviews({
                                         placeholder="Moderation note (optional)"
                                         defaultValue={review.moderationNote || ""}
                                         onChange={() => {}}
-                                        inputProps={{ "data-note-id": review.id }}
+                                        slotProps={{ htmlInput: { "data-note-id": review.id } }}
                                     />
                                     <Stack direction="row" spacing={1}>
                                         <Button
@@ -126,7 +124,7 @@ export default function Reviews({
                     ))}
 
                     {reviews.length === 0 && (
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             No reviews in this queue.
                         </Typography>
                     )}

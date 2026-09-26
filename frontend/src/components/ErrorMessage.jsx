@@ -76,7 +76,7 @@ export function FullPageError({
 
             <Typography
                 variant="body1"
-                color="text.secondary"
+                color="textSecondary"
                 sx={{ maxWidth: 400, mb: 3 }}
             >
                 {message}

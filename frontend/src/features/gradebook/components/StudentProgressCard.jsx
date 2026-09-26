@@ -115,7 +115,7 @@ export default function StudentProgressCard({ student }) {
 
       {/* Name & Email */}
       <Box sx={{ minWidth: 200 }}>
-        <Typography variant="body2" fontWeight="bold">
+        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
           {name}
         </Typography>
         <Typography
@@ -130,7 +130,7 @@ export default function StudentProgressCard({ student }) {
         >
           {email}
         </Typography>
-        <Typography variant="caption" display="block" color="text.secondary">
+        <Typography variant="caption" sx={{ display: 'block' }} color="textSecondary">
           Started: {formattedDate}
         </Typography>
       </Box>

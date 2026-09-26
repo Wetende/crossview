@@ -56,12 +56,14 @@ export default function AuthForm({
                             error={!!errors.first_name}
                             helperText={errors.first_name}
                             autoFocus
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <IconUser size={20} />
-                                    </InputAdornment>
-                                ),
+                            slotProps={{
+                                input: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <IconUser size={20} />
+                                        </InputAdornment>
+                                    ),
+                                },
                             }}
                         />
                         <TextField
@@ -87,12 +89,14 @@ export default function AuthForm({
                         helperText={errors.email}
                         autoComplete="email"
                         autoFocus={mode !== "register"}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <IconMail size={20} />
-                                </InputAdornment>
-                            ),
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <IconMail size={20} />
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
                     />
                 )}
@@ -110,23 +114,25 @@ export default function AuthForm({
                             helperText={errors.password}
                             autoComplete={mode === "login" ? "current-password" : "new-password"}
                             autoFocus={mode === "reset-password"}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <IconLock size={20} />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            edge="end"
-                                            aria-label={showPassword ? "Hide password" : "Show password"}
-                                        >
-                                            {showPassword ? <IconEyeOff size={20} /> : <IconEye size={20} />}
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
+                            slotProps={{
+                                input: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <IconLock size={20} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                edge="end"
+                                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                            >
+                                                {showPassword ? <IconEyeOff size={20} /> : <IconEye size={20} />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                },
                             }}
                         />
 
@@ -139,7 +145,7 @@ export default function AuthForm({
                                     color={passwordStrength.color}
                                     sx={{ height: 6, borderRadius: 3 }}
                                 />
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="textSecondary">
                                     {passwordStrength.label}
                                 </Typography>
                             </Box>
@@ -159,28 +165,30 @@ export default function AuthForm({
                             error={!!errors.password_confirm}
                             helperText={errors.password_confirm}
                             autoComplete="new-password"
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <IconLock size={20} />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            onClick={() => setShowConfirm(!showConfirm)}
-                                            edge="end"
-                                            aria-label={showConfirm ? "Hide password" : "Show password"}
-                                        >
-                                            {showConfirm ? <IconEyeOff size={20} /> : <IconEye size={20} />}
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
+                            slotProps={{
+                                input: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <IconLock size={20} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                onClick={() => setShowConfirm(!showConfirm)}
+                                                edge="end"
+                                                aria-label={showConfirm ? "Hide password" : "Show password"}
+                                            >
+                                                {showConfirm ? <IconEyeOff size={20} /> : <IconEye size={20} />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                },
                             }}
                         />
 
                         {/* Password requirements hint */}
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             Password must be at least 8 characters with uppercase, lowercase, and a number.
                         </Typography>
                     </>

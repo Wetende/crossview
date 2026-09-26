@@ -122,13 +122,13 @@ export default function Gradebook({
     const renderScoreCell = (score, passed = null) => {
         if (score === null || score === undefined) {
             return (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     —
                 </Typography>
             );
         }
         return (
-            <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Stack direction="row" sx={{ alignItems: "center" }} spacing={0.5}>
                 <Typography variant="body2">{score.toFixed(1)}%</Typography>
                 {passed === true && <IconCheck size={14} color="green" />}
                 {passed === false && <IconX size={14} color="red" />}
@@ -195,11 +195,11 @@ export default function Gradebook({
                             <Stack
                                 direction="row"
                                 spacing={1}
-                                alignItems="center"
+                                sx={{ alignItems: "center" }}
                             >
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {program.name}
                                 </Typography>
@@ -373,7 +373,7 @@ export default function Gradebook({
                                                 align="center"
                                                 sx={{ py: 4 }}
                                             >
-                                                <Typography color="text.secondary">
+                                                <Typography color="textSecondary">
                                                     No students enrolled
                                                 </Typography>
                                             </TableCell>
@@ -395,13 +395,16 @@ export default function Gradebook({
                                                 >
                                                     <Typography
                                                         variant="body2"
-                                                        fontWeight="medium"
+                                                        sx={{
+                                                            fontWeight:
+                                                                "medium",
+                                                        }}
                                                     >
                                                         {student.name}
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         {student.email}
                                                     </Typography>
@@ -427,7 +430,10 @@ export default function Gradebook({
                                                         align="center"
                                                     >
                                                         <Stack
-                                                            alignItems="center"
+                                                            sx={{
+                                                                alignItems:
+                                                                    "center",
+                                                            }}
                                                             spacing={0.5}
                                                         >
                                                             {as.status ===
@@ -479,15 +485,18 @@ export default function Gradebook({
                                                     >
                                                         <Typography
                                                             variant="body2"
-                                                            fontWeight="bold"
+                                                            sx={{
+                                                                fontWeight:
+                                                                    "bold",
+                                                            }}
                                                             color={
                                                                 student.overallScore !==
                                                                 null
                                                                     ? student.overallScore >=
                                                                       70
-                                                                        ? "success.main"
-                                                                        : "error.main"
-                                                                    : "text.secondary"
+                                                                        ? "success"
+                                                                        : "error"
+                                                                    : "textSecondary"
                                                             }
                                                         >
                                                             {student.overallScore !==

@@ -204,7 +204,7 @@ export default function ProgramForm({
                         >
                             {backLabel}
                         </Button>
-                        <Typography variant="h4" fontWeight="bold">
+                        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                             {pageTitle}
                         </Typography>
                     </Box>
@@ -391,7 +391,11 @@ export default function ProgramForm({
                                                             "Hours"
                                                         }
                                                         fullWidth
-                                                        inputProps={{ min: 0 }}
+                                                        slotProps={{
+                                                            htmlInput: {
+                                                                min: 0,
+                                                            },
+                                                        }}
                                                     />
                                                 </Box>
                                                 <Box sx={{ flex: 1 }}>
@@ -421,7 +425,11 @@ export default function ProgramForm({
                                                             "Hours"
                                                         }
                                                         fullWidth
-                                                        inputProps={{ min: 0 }}
+                                                        slotProps={{
+                                                            htmlInput: {
+                                                                min: 0,
+                                                            },
+                                                        }}
                                                     />
                                                 </Box>
                                             </Stack>
@@ -843,7 +851,7 @@ export default function ProgramForm({
                                             </Typography>
                                             <Typography
                                                 variant="body2"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                                 sx={{ mb: 3 }}
                                             >
                                                 Select instructors who will
@@ -877,9 +885,9 @@ export default function ProgramForm({
                                                         placeholder="Select instructors"
                                                     />
                                                 )}
-                                                renderTags={(
+                                                renderValue={(
                                                     value,
-                                                    getTagProps,
+                                                    getItemProps,
                                                 ) =>
                                                     value.map(
                                                         (option, index) => (
@@ -887,7 +895,7 @@ export default function ProgramForm({
                                                                 label={
                                                                     option.name
                                                                 }
-                                                                {...getTagProps(
+                                                                {...getItemProps(
                                                                     {
                                                                         index,
                                                                     },

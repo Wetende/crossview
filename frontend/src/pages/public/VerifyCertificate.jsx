@@ -63,10 +63,10 @@ export default function VerifyCertificate({ result }) {
                         {/* Header */}
                         <Box sx={{ textAlign: "center", mb: 6 }}>
                             <IconCertificate size={64} color="#3B82F6" />
-                            <Typography variant="h3" fontWeight={700} sx={{ mt: 2 }}>
+                            <Typography variant="h3" sx={{ fontWeight: 700, mt: 2 }}>
                                 Certificate Verification
                             </Typography>
-                            <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+                            <Typography variant="body1" color="textSecondary" sx={{ mt: 1 }}>
                                 Enter a certificate serial number to verify its authenticity
                             </Typography>
                         </Box>
@@ -83,12 +83,14 @@ export default function VerifyCertificate({ result }) {
                                             value={data.serial_number}
                                             onChange={(e) => setData("serial_number", e.target.value.toUpperCase())}
                                             autoFocus
-                                            InputProps={{
-                                                startAdornment: (
-                                                    <InputAdornment position="start">
-                                                        <IconSearch size={20} />
-                                                    </InputAdornment>
-                                                ),
+                                            slotProps={{
+                                                input: {
+                                                    startAdornment: (
+                                                        <InputAdornment position="start">
+                                                            <IconSearch size={20} />
+                                                        </InputAdornment>
+                                                    ),
+                                                },
                                             }}
                                         />
                                         <Button
@@ -122,7 +124,7 @@ export default function VerifyCertificate({ result }) {
 
                         {/* Info */}
                         <Box sx={{ mt: 6, textAlign: "center" }}>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 This verification service is provided by {institutionName}.
                                 <br />
                                 All verification attempts are logged for security purposes.
@@ -152,7 +154,7 @@ function CertificateDetails({ certificate }) {
         >
             <CardContent sx={{ p: 4 }}>
                 {/* Status Header */}
-                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+                <Stack direction="row" spacing={2} sx={{ alignItems: "center", mb: 3 }}>
                     {isRevoked ? (
                         <>
                             <Box
@@ -169,10 +171,10 @@ function CertificateDetails({ certificate }) {
                                 <IconX size={24} color="#d32f2f" />
                             </Box>
                             <Box>
-                                <Typography variant="h5" fontWeight={600} color="error">
+                                <Typography variant="h5" sx={{ fontWeight: 600 }} color="error">
                                     Certificate Revoked
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" color="textSecondary">
                                     This certificate has been revoked and is no longer valid.
                                 </Typography>
                             </Box>
@@ -193,10 +195,10 @@ function CertificateDetails({ certificate }) {
                                 <IconCheck size={24} color="#2e7d32" />
                             </Box>
                             <Box>
-                                <Typography variant="h5" fontWeight={600} color="success.main">
+                                <Typography variant="h5" sx={{ fontWeight: 600 }} color="success">
                                     Certificate Valid
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" color="textSecondary">
                                     This certificate is authentic and valid.
                                 </Typography>
                             </Box>
@@ -263,7 +265,7 @@ function CertificateNotFound() {
     return (
         <Card sx={{ borderLeft: 4, borderColor: "warning.main" }}>
             <CardContent sx={{ p: 4 }}>
-                <Stack direction="row" alignItems="center" spacing={2}>
+                <Stack direction="row" sx={{ alignItems: "center" }} spacing={2}>
                     <Box
                         sx={{
                             width: 48,
@@ -278,10 +280,10 @@ function CertificateNotFound() {
                         <IconSearch size={24} color="#ed6c02" />
                     </Box>
                     <Box>
-                        <Typography variant="h5" fontWeight={600}>
+                        <Typography variant="h5" sx={{ fontWeight: 600 }}>
                             Certificate Not Found
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             No certificate was found with this serial number.
                             Please check the number and try again.
                         </Typography>
@@ -297,13 +299,16 @@ function CertificateNotFound() {
  */
 function DetailRow({ icon, label, value, valueColor = "text.primary" }) {
     return (
-        <Stack direction="row" spacing={2} alignItems="flex-start">
+        <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start" }}>
             <Box sx={{ color: "text.secondary", mt: 0.5 }}>{icon}</Box>
             <Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                     {label}
                 </Typography>
-                <Typography variant="body1" fontWeight={500} color={valueColor}>
+                <Typography
+                    variant="body1"
+                    sx={{ fontWeight: 500, color: valueColor }}
+                >
                     {value}
                 </Typography>
             </Box>

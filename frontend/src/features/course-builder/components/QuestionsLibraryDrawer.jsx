@@ -210,8 +210,10 @@ export default function QuestionsLibraryDrawer({
             // The course builder raises its app bar above drawers; keep this
             // drawer above it so its header stays visible.
             sx={{ zIndex: (theme) => theme.zIndex.modal }}
-            PaperProps={{
-                sx: { width: { xs: "100%", sm: 380 } },
+            slotProps={{
+                paper: {
+                    sx: { width: { xs: "100%", sm: 380 } },
+                },
             }}
         >
             <Box
@@ -232,7 +234,7 @@ export default function QuestionsLibraryDrawer({
                         justifyContent: "space-between",
                     }}
                 >
-                    <Typography variant="h6" fontWeight={600}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         Questions Library
                     </Typography>
                     <IconButton onClick={handleClose} size="small">
@@ -284,15 +286,17 @@ export default function QuestionsLibraryDrawer({
                             placeholder="Search questions"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <SearchIcon
-                                            fontSize="small"
-                                            color="action"
-                                        />
-                                    </InputAdornment>
-                                ),
+                            slotProps={{
+                                input: {
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <SearchIcon
+                                                fontSize="small"
+                                                color="action"
+                                            />
+                                        </InputAdornment>
+                                    ),
+                                },
                             }}
                         />
                         <Stack direction="row" spacing={1}>
@@ -356,14 +360,14 @@ export default function QuestionsLibraryDrawer({
                     )}
                     {!loadError && !loading && entries.length === 0 ? (
                         <Box sx={{ p: 4, textAlign: "center" }}>
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 {hasFilters
                                     ? "No questions match your filters."
                                     : "No questions in library yet."}
                             </Typography>
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ mt: 1 }}
                             >
                                 Save questions from quizzes to reuse them here.
@@ -433,8 +437,8 @@ export default function QuestionsLibraryDrawer({
                                                         <Stack
                                                             direction="row"
                                                             spacing={0.5}
-                                                            flexWrap="wrap"
                                                             useFlexGap
+                                                            sx={{ flexWrap: "wrap" }}
                                                         >
                                                             <Chip
                                                                 label={typeLabel}
@@ -458,7 +462,7 @@ export default function QuestionsLibraryDrawer({
                                                         </Stack>
                                                         <Typography
                                                             variant="caption"
-                                                            color="text.secondary"
+                                                            color="textSecondary"
                                                         >
                                                             {[
                                                                 entry.bank_name,
@@ -470,8 +474,8 @@ export default function QuestionsLibraryDrawer({
                                                         </Typography>
                                                     </Stack>
                                                 }
-                                                secondaryTypographyProps={{
-                                                    component: "div",
+                                                slotProps={{
+                                                    secondary: { component: "div" },
                                                 }}
                                             />
                                             <Checkbox

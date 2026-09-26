@@ -29,7 +29,7 @@ const CurriculumTree = ({ nodes, activeNodeId, enrollmentId }) => {
     if (!nodes || nodes.length === 0) {
         return (
             <Box sx={{ p: 3, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     No curriculum content available.
                 </Typography>
             </Box>

@@ -17,7 +17,7 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 
@@ -136,7 +136,7 @@ const StudentDashboard = ({
                             </Typography>
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ mt: 0.35 }}
                             >
                                 Pick up from your most relevant active course.
@@ -183,7 +183,7 @@ const StudentDashboard = ({
                     <MetricCard
                         color="success"
                         href="/student/programs/?status=completed"
-                        icon={CheckCircleOutlineIcon}
+                        icon={CheckCircleOutlinedIcon}
                         label="Completed courses"
                         value={summary.completed.length}
                     />
@@ -234,13 +234,13 @@ const StudentDashboard = ({
                                                 <TableCell>
                                                     <Typography
                                                         variant="body2"
-                                                        fontWeight={700}
+                                                        sx={{ fontWeight: 700 }}
                                                     >
                                                         {enrollment.programName}
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         {enrollment.durationHours ||
                                                             0}{" "}
@@ -287,7 +287,9 @@ const StudentDashboard = ({
                                                         />
                                                         <Typography
                                                             variant="caption"
-                                                            fontWeight={700}
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                            }}
                                                         >
                                                             {Number(
                                                                 enrollment.progressPercent ||
@@ -359,7 +361,9 @@ const StudentDashboard = ({
                                                     slotProps={{
                                                         primary: {
                                                             variant: "body2",
-                                                            fontWeight: 700,
+                                                            sx: {
+                                                                fontWeight: 700,
+                                                            },
                                                         },
                                                         secondary: {
                                                             variant: "caption",
@@ -406,14 +410,14 @@ const StudentDashboard = ({
                                             >
                                                 <Typography
                                                     variant="body2"
-                                                    fontWeight={700}
+                                                    sx={{ fontWeight: 700 }}
                                                 >
                                                     {enrollment.programName}
                                                 </Typography>
                                                 <Typography
                                                     variant="body2"
-                                                    color="primary.main"
-                                                    fontWeight={700}
+                                                    color="primary"
+                                                    sx={{ fontWeight: 700 }}
                                                 >
                                                     {Number(
                                                         enrollment.progressPercent ||
@@ -488,7 +492,9 @@ const StudentDashboard = ({
                                                             primary: {
                                                                 variant:
                                                                     "body2",
-                                                                fontWeight: 700,
+                                                                sx: {
+                                                                    fontWeight: 700,
+                                                                },
                                                             },
                                                             secondary: {
                                                                 variant:
@@ -540,7 +546,7 @@ const StudentDashboard = ({
                                                 slotProps={{
                                                     primary: {
                                                         variant: "body2",
-                                                        fontWeight: 700,
+                                                        sx: { fontWeight: 700 },
                                                     },
                                                     secondary: {
                                                         variant: "caption",

@@ -73,7 +73,7 @@ function TabPanel({ children, value, index }) {
 
 function EmptyState({ children }) {
     return (
-        <Typography color="text.secondary" sx={{ py: 1 }}>
+        <Typography color="textSecondary" sx={{ py: 1 }}>
             {children}
         </Typography>
     );
@@ -145,7 +145,7 @@ function CurriculumContent({ curriculum }) {
                         <AccordionDetails sx={{ p: 0 }}>
                             <Box sx={lessonListSx}>
                                 {lessons.length === 0 ? (
-                                    <Typography color="text.secondary" sx={{ px: 2.25, py: 2 }}>
+                                    <Typography color="textSecondary" sx={{ px: 2.25, py: 2 }}>
                                         No lessons in this section yet.
                                     </Typography>
                                 ) : (
@@ -180,7 +180,7 @@ function CurriculumContent({ curriculum }) {
                                                         sx={{ ml: 1, flexShrink: 0, alignItems: "center" }}
                                                     >
                                                         {lesson.duration ? (
-                                                            <Typography variant="body2" color="text.secondary">
+                                                            <Typography variant="body2" color="textSecondary">
                                                                 {lesson.duration} min
                                                             </Typography>
                                                         ) : null}
@@ -383,7 +383,7 @@ export default function CourseContentTabs({
                                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                 {review.user?.name || "Anonymous"}
                                             </Typography>
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 {review.updatedAt
                                                     ? new Date(review.updatedAt).toLocaleDateString()
                                                     : ""}

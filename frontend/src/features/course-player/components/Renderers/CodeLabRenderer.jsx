@@ -346,16 +346,20 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
             {/* Editor toolbar */}
             <Stack
                 direction="row"
-                justifyContent="space-between"
-                alignItems="center"
                 sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
                     px: 1.5,
                     py: 0.75,
                     bgcolor: "#1e1e1e",
                     borderBottom: "1px solid rgba(255,255,255,0.08)",
                 }}
             >
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: "center" }}
+                >
                     <CodeIcon sx={{ fontSize: 16, color: "#4ec9b0" }} />
                     <Typography
                         variant="caption"
@@ -421,16 +425,20 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
             {/* Output header */}
             <Stack
                 direction="row"
-                justifyContent="space-between"
-                alignItems="center"
                 sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
                     px: 1.5,
                     py: 0.75,
                     bgcolor: "#f5f5f5",
                     borderBottom: "1px solid #e0e0e0",
                 }}
             >
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: "center" }}
+                >
                     <PreviewIcon sx={{ fontSize: 16, color: "#666" }} />
                     <Typography
                         variant="caption"
@@ -440,7 +448,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                     </Typography>
                 </Stack>
                 {!hasRun && (
-                    <Typography variant="caption" color="text.disabled">
+                    <Typography variant="caption" color="textDisabled">
                         Click &quot;Run&quot; to see output
                     </Typography>
                 )}
@@ -516,9 +524,8 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                 >
                     <Stack
                         direction="row"
-                        alignItems="center"
                         spacing={1}
-                        sx={{ px: 1.5, py: 0.5 }}
+                        sx={{ alignItems: "center", px: 1.5, py: 0.5 }}
                     >
                         <ConsoleIcon sx={{ fontSize: 14, color: "#888" }} />
                         <Typography
@@ -730,9 +737,9 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
             )}
             <Stack
                 direction="row"
-                justifyContent="space-between"
-                alignItems="center"
                 sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
                     mt: isFullscreen ? 0 : 2,
                     p: isFullscreen ? 1.5 : 0,
                     borderTop: isFullscreen ? "1px solid" : "none",
@@ -764,7 +771,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                 </Stack>
                 <Typography
                     variant="caption"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ mx: 1 }}
                 >
                     {saveState === "loading" && "Loading draft…"}

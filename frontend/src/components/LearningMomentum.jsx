@@ -48,8 +48,8 @@ export default function LearningMomentum({ gamification = null, enrollments = nu
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <StarsIcon color="warning" />
                         <Box>
-                            <Typography fontWeight="bold">{data.xp || 0} XP</Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography sx={{ fontWeight: "bold" }}>{data.xp || 0} XP</Typography>
+                            <Typography variant="caption" color="textSecondary">
                                 Experience earned
                             </Typography>
                         </Box>
@@ -57,17 +57,17 @@ export default function LearningMomentum({ gamification = null, enrollments = nu
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <LocalFireDepartmentIcon color="error" />
                         <Box>
-                            <Typography fontWeight="bold">
+                            <Typography sx={{ fontWeight: "bold" }}>
                                 {data.streak?.currentDays || 0} day streak
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="textSecondary">
                                 Longest: {data.streak?.longestDays || 0} days
                             </Typography>
                         </Box>
                     </Stack>
                 </Stack>
                 {(data.badges || []).length > 0 && (
-                    <Stack direction="row" gap={1} sx={{ flexWrap: "wrap" }}>
+                    <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
                         {(data.badges || []).map((badge) => (
                             <Chip
                                 key={badge.code}

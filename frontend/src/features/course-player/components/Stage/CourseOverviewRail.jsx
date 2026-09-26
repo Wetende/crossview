@@ -33,9 +33,17 @@ const assessmentColor = (status) => {
 
 const RailSection = ({ icon, title, children }) => (
     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+        <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", mb: 1.5 }}
+        >
             {icon}
-            <Typography component="h2" variant="subtitle1" fontWeight={800}>
+            <Typography
+                component="h2"
+                variant="subtitle1"
+                sx={{ fontWeight: 800 }}
+            >
                 {title}
             </Typography>
         </Stack>
@@ -57,13 +65,13 @@ const CourseOverviewRail = ({
                 <Stack divider={<Divider flexItem />} spacing={1.5}>
                     {deadlines.slice(0, 3).map((deadline) => (
                         <Box key={`${deadline.type}-${deadline.id}`}>
-                            <Typography variant="body2" fontWeight={700}>
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 700 }}
+                            >
                                 {deadline.title}
                             </Typography>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 {dateLabel(deadline.dueAt)}
                             </Typography>
                         </Box>
@@ -93,22 +101,27 @@ const CourseOverviewRail = ({
                                     component={Link}
                                     href={assessment.url}
                                     underline="hover"
-                                    fontWeight={700}
+                                    sx={{ fontWeight: 700 }}
                                     variant="body2"
                                 >
                                     {assessment.title}
                                 </MuiLink>
                             ) : (
-                                <Typography variant="body2" fontWeight={700}>
+                                <Typography
+                                    variant="body2"
+                                    sx={{ fontWeight: 700 }}
+                                >
                                     {assessment.title}
                                 </Typography>
                             )}
                             <Stack
                                 direction="row"
-                                alignItems="center"
-                                justifyContent="space-between"
                                 spacing={1}
-                                sx={{ mt: 1 }}
+                                sx={{
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    mt: 1,
+                                }}
                             >
                                 <Chip
                                     label={assessment.status}
@@ -124,7 +137,7 @@ const CourseOverviewRail = ({
                                 {assessment.score !== null && (
                                     <Typography
                                         variant="body2"
-                                        fontWeight={800}
+                                        sx={{ fontWeight: 800 }}
                                     >
                                         {Math.round(assessment.score)}%
                                     </Typography>
@@ -133,7 +146,7 @@ const CourseOverviewRail = ({
                             {assessment.attemptNumber && (
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ mt: 0.5, display: "block" }}
                                 >
                                     {assessment.attemptNumber} completed{" "}

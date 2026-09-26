@@ -70,13 +70,14 @@ export default function PlatformLogo({
     );
 
     const content = shouldShowName ? (
-        <Stack direction="row" spacing={gap} alignItems="center">
+        <Stack direction="row" spacing={gap} sx={{ alignItems: "center" }}>
             {mark}
             <Typography
                 variant={nameVariant}
-                color={nameColor}
-                fontWeight={nameFontWeight}
-                sx={nameSx}
+                sx={[
+                    { color: nameColor, fontWeight: nameFontWeight },
+                    ...(Array.isArray(nameSx) ? nameSx : [nameSx]),
+                ]}
             >
                 {institutionName}
             </Typography>

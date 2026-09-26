@@ -28,7 +28,7 @@ function CourseDetailRow({ icon, label, value }) {
             <Box sx={{ display: "flex", color: "text.secondary", flexShrink: 0 }}>
                 {icon}
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 0 }}>
+            <Typography variant="body2" color="textSecondary" sx={{ minWidth: 0 }}>
                 {label}
             </Typography>
             <Typography

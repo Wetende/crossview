@@ -25,7 +25,7 @@ export default function Assignments({ assignments = [] }) {
         {/* Header */}
         <Stack direction="row" sx={{ mb: 4, justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
+            <Typography variant="h4" sx={{ fontWeight: 700 }} gutterBottom>
               My Assignments
             </Typography>
             <Box sx={{ width: 40, height: 4, bgcolor: 'primary.main', borderRadius: 2 }} />
@@ -50,17 +50,17 @@ export default function Assignments({ assignments = [] }) {
                 {assignments.map((assignment) => (
                   <TableRow key={assignment.id}>
                     <TableCell>
-                      <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }} color="textPrimary">
                         {assignment.title}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         {assignment.programName}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" color="text.primary">
+                      <Typography variant="body2" color="textPrimary">
                         {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'No Due Date'}
                       </Typography>
                     </TableCell>
@@ -79,11 +79,11 @@ export default function Assignments({ assignments = [] }) {
                     </TableCell>
                     <TableCell align="right">
                       {assignment.score !== null ? (
-                        <Typography fontWeight={700} color={assignment.passed ? 'success.main' : 'error.main'}>
+                        <Typography sx={{ fontWeight: 700 }} color={assignment.passed ? 'success' : 'error'}>
                           {assignment.score}%
                         </Typography>
                       ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
+                        <Typography variant="body2" color="textSecondary">-</Typography>
                       )}
                     </TableCell>
                     <TableCell align="right">
@@ -111,7 +111,7 @@ export default function Assignments({ assignments = [] }) {
           </TableContainer>
         ) : (
           <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <Typography color="text.secondary">No assignments available.</Typography>
+            <Typography color="textSecondary">No assignments available.</Typography>
           </Paper>
         )}
       </Box>

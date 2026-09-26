@@ -54,17 +54,17 @@ export default function SettingsIndex({ platform, settings, subscription }) {
             <Stack spacing={3}>
                 {/* Header */}
                 <Box>
-                    <Typography variant="h4" fontWeight="bold">
+                    <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                         Settings
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Manage your institution settings
                     </Typography>
                 </Box>
 
                 <Grid container spacing={3}>
                     {/* Platform Info */}
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -78,7 +78,7 @@ export default function SettingsIndex({ platform, settings, subscription }) {
                                         <Box>
                                             <Typography
                                                 variant="body2"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Name
                                             </Typography>
@@ -89,7 +89,7 @@ export default function SettingsIndex({ platform, settings, subscription }) {
                                         <Box>
                                             <Typography
                                                 variant="body2"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Portal Domain
                                             </Typography>
@@ -100,7 +100,7 @@ export default function SettingsIndex({ platform, settings, subscription }) {
                                         <Box>
                                             <Typography
                                                 variant="body2"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Created
                                             </Typography>
@@ -120,7 +120,7 @@ export default function SettingsIndex({ platform, settings, subscription }) {
 
                     {/* Subscription */}
                     {showSubscription && (
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -305,7 +305,7 @@ export default function SettingsIndex({ platform, settings, subscription }) {
 
                     {/* Registration Settings */}
                     {canManageRegistration && (
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -334,9 +334,8 @@ export default function SettingsIndex({ platform, settings, subscription }) {
                                         />
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
-                                            display="block"
-                                            sx={{ mt: 1 }}
+                                            color="textSecondary"
+                                            sx={{ display: "block", mt: 1 }}
                                         >
                                             When enabled, new users can register
                                             on your institution's portal
@@ -360,7 +359,7 @@ export default function SettingsIndex({ platform, settings, subscription }) {
 
                     {/* Quick Links */}
                     {canManageBranding && (
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}

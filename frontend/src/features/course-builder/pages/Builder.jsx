@@ -403,11 +403,16 @@ export default function InstructorProgramBuilder({
                     <Box sx={{ p: 2 }}>
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{ mb: 2 }}
+                            sx={{
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 2,
+                            }}
                         >
-                            <Typography variant="h6" fontWeight="bold">
+                            <Typography
+                                variant="h6"
+                                sx={{ fontWeight: "bold" }}
+                            >
                                 Course Guide
                             </Typography>
                             <IconButton
@@ -424,7 +429,7 @@ export default function InstructorProgramBuilder({
                                 variant="subtitle2"
                                 color="primary"
                                 gutterBottom
-                                fontWeight="bold"
+                                sx={{ fontWeight: "bold" }}
                             >
                                 LEARNING OUTCOMES
                             </Typography>
@@ -445,8 +450,8 @@ export default function InstructorProgramBuilder({
                             ) : (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
-                                    fontStyle="italic"
+                                    color="textSecondary"
+                                    sx={{ fontStyle: "italic" }}
                                 >
                                     No learning outcomes defined.
                                 </Typography>
@@ -461,7 +466,7 @@ export default function InstructorProgramBuilder({
                                 variant="subtitle2"
                                 color="primary"
                                 gutterBottom
-                                fontWeight="bold"
+                                sx={{ fontWeight: "bold" }}
                             >
                                 INSTRUCTOR RESOURCES
                             </Typography>
@@ -514,7 +519,7 @@ export default function InstructorProgramBuilder({
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         Click to Open
                                                     </Typography>
@@ -526,8 +531,8 @@ export default function InstructorProgramBuilder({
                             ) : (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
-                                    fontStyle="italic"
+                                    color="textSecondary"
+                                    sx={{ fontStyle: "italic" }}
                                 >
                                     No resources attached.
                                 </Typography>

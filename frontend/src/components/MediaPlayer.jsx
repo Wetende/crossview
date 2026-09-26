@@ -42,7 +42,7 @@ export default function MediaPlayer({ url, type, title }) {
       case 'audio':
         return (
           <Box sx={{ p: 3 }}>
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
               <AudioFileIcon sx={{ fontSize: 48, color: 'primary.main' }} />
               <Typography variant="h6">{title || 'Audio File'}</Typography>
             </Stack>
@@ -119,7 +119,7 @@ export default function MediaPlayer({ url, type, title }) {
       default:
         return (
           <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">
+            <Typography color="textSecondary">
               Unsupported file type. 
             </Typography>
             <IconButton
@@ -130,7 +130,7 @@ export default function MediaPlayer({ url, type, title }) {
             >
               <DownloadIcon />
             </IconButton>
-            <Typography variant="caption" display="block">
+            <Typography variant="caption" sx={{ display: 'block' }}>
               Download file
             </Typography>
           </Box>
@@ -150,7 +150,7 @@ export default function MediaPlayer({ url, type, title }) {
         >
           <DownloadIcon />
         </IconButton>
-        <Typography variant="caption" display="block">
+        <Typography variant="caption" sx={{ display: 'block' }}>
           Try downloading instead
         </Typography>
       </Paper>

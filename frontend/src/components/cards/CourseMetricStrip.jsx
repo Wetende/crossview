@@ -11,14 +11,13 @@ function MetricTile({ Icon, value, label }) {
         <Stack
             direction="row"
             spacing={0.5}
-            alignItems="center"
-            sx={{ minWidth: 0 }}
+            sx={{ alignItems: "center", minWidth: 0 }}
         >
             <Icon size={15} stroke={1.8} />
             <Typography
                 variant="caption"
-                fontWeight={600}
                 sx={{
+                    fontWeight: 600,
                     fontSize: "0.72rem",
                     lineHeight: 1.2,
                     whiteSpace: "nowrap",

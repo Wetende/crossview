@@ -189,11 +189,13 @@ const ColorMenu = ({ editor, kind }) => {
                 anchorEl={anchor}
                 open={Boolean(anchor)}
                 onClose={() => setAnchor(null)}
-                MenuListProps={{
-                    "aria-label": isText
-                        ? "Choose text color"
-                        : "Choose highlight color",
-                    sx: { p: 1 },
+                slotProps={{
+                    list: {
+                        "aria-label": isText
+                            ? "Choose text color"
+                            : "Choose highlight color",
+                        sx: { p: 1 },
+                    },
                 }}
             >
                 <Box
@@ -275,7 +277,7 @@ const FontSizeControls = ({ editor }) => {
                     RICH_TEXT_FONT_SIZES[RICH_TEXT_FONT_SIZES.length - 1]
                 }
                 icon={
-                    <Typography component="span" fontWeight={800}>
+                    <Typography component="span" sx={{ fontWeight: 800 }}>
                         +
                     </Typography>
                 }

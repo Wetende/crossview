@@ -154,7 +154,9 @@ const InstructorDashboard = ({
                                         primary={submission.studentName}
                                         secondary={`${submission.nodeTitle} · ${submission.programName}`}
                                         slotProps={{
-                                            primary: { fontWeight: 700 },
+                                            primary: {
+                                                sx: { fontWeight: 700 },
+                                            },
                                         }}
                                     />
                                 </ListItem>
@@ -297,7 +299,7 @@ const InstructorDashboard = ({
                                 primary={request.studentName}
                                 secondary={`${request.programName} · ${new Date(request.createdAt).toLocaleDateString()}`}
                                 slotProps={{
-                                    primary: { fontWeight: 700 },
+                                    primary: { sx: { fontWeight: 700 } },
                                 }}
                             />
                             <Box sx={{ display: { xs: "none", sm: "block" } }}>

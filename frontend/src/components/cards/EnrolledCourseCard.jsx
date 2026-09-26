@@ -108,7 +108,7 @@ export default function EnrolledCourseCard({ enrollment }) {
                 {/* Category */}
                 <Typography
                     variant="caption"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ mb: 0.5 }}
                 >
                     {enrollment.category || "General"}
@@ -117,8 +117,8 @@ export default function EnrolledCourseCard({ enrollment }) {
                 {/* Title */}
                 <Typography
                     variant="subtitle1"
-                    fontWeight={600}
                     sx={{
+                        fontWeight: 600,
                         mb: 2,
                         display: "-webkit-box",
                         WebkitLineClamp: 2,
@@ -148,7 +148,7 @@ export default function EnrolledCourseCard({ enrollment }) {
                     />
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                     >
                         Progress: {enrollment.progressPercent}%
                     </Typography>
@@ -164,7 +164,7 @@ export default function EnrolledCourseCard({ enrollment }) {
                 />
 
                 {/* Star Rating */}
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
                     <Rating
                         value={enrollment.ratingAverage || 0}
                         precision={0.1}
@@ -172,7 +172,7 @@ export default function EnrolledCourseCard({ enrollment }) {
                         size="small"
                         sx={{ color: "#FFB300" }}
                     />
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         {enrollment.ratingAverage || "0.0"}
                     </Typography>
                 </Stack>
@@ -206,7 +206,7 @@ export default function EnrolledCourseCard({ enrollment }) {
                 {enrollment.enrolledAt && (
                     <Typography
                         variant="caption"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mt: 1.5, textAlign: "center" }}
                     >
                         Started {formatDate(enrollment.enrolledAt)}

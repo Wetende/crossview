@@ -33,10 +33,10 @@ export default function AnswerExplanationPopover({
           }}
         >
           <Box>
-            <Typography variant="subtitle2" fontWeight={600}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
               Answer explanation
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
               Will be shown in &quot;Show answer&quot; section
             </Typography>
           </Box>

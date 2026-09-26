@@ -70,7 +70,7 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
                     <Container maxWidth="lg">
                         <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
                             {/* Logo */}
-                            <Stack direction="row" spacing={1} alignItems="center">
+                            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                 <PlatformLogo
                                     platform={platform}
                                     href="/"
@@ -109,7 +109,7 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
                             </Stack>
 
                             {/* CTA Buttons */}
-                            <Stack direction="row" spacing={2} alignItems="center">
+                            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                                 {auth?.user && (
                                     <>
                                         <IconButton component={Link} href="/cart/" aria-label="Open cart">
@@ -185,7 +185,7 @@ export default function PublicNavbar({ activeLink = "/", showAuth = true, auth =
                 anchor="right"
                 open={mobileMenuOpen}
                 onClose={() => setMobileMenuOpen(false)}
-                PaperProps={{ sx: { width: 280, p: 2 } }}
+                slotProps={{ paper: { sx: { width: 280, p: 2 } } }}
             >
                 <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
                     <IconButton onClick={() => setMobileMenuOpen(false)}>

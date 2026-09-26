@@ -422,7 +422,9 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     fullWidth
                     error={!!titleErrorMessage}
                     helperText={titleErrorMessage}
-                    InputProps={{ sx: { fontSize: "1.2rem", fontWeight: 500 } }}
+                    slotProps={{
+                        input: { sx: { fontSize: "1.2rem", fontWeight: 500 } },
+                    }}
                 />
                 <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
                     <AutosaveStatus
@@ -559,7 +561,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                             color={
                                 descriptionErrorMessage
                                     ? "error"
-                                    : "text.secondary"
+                                    : "textSecondary"
                             }
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
@@ -576,7 +578,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 {descriptionErrorMessage}
                             </FormHelperText>
                         )}
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {descriptionTextLength} characters
                         </Typography>
                     </Box>
@@ -585,16 +587,18 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     <Box>
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{ mb: 1 }}
+                            sx={{
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 1,
+                            }}
                         >
                             <Typography
                                 variant="body2"
                                 color={
                                     getFieldError("starterCode")
                                         ? "error"
-                                        : "text.secondary"
+                                        : "textSecondary"
                                 }
                                 sx={{ fontWeight: "bold" }}
                             >
@@ -636,7 +640,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 {getFieldError("starterCode")}
                             </FormHelperText>
                         )}
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             This is the code students see when they start the
                             exercise.
                         </Typography>
@@ -680,10 +684,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                     }}
                                 />
                             </Paper>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 Hidden from students. Used for instructor
                                 reference only.
                             </Typography>
@@ -693,7 +694,11 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     <Divider />
 
                     {/* ── Toggles ── */}
-                    <Stack direction="row" spacing={4} flexWrap="wrap">
+                    <Stack
+                        direction="row"
+                        spacing={4}
+                        sx={{ flexWrap: "wrap" }}
+                    >
                         <FormControlLabel
                             control={
                                 <Switch
@@ -789,7 +794,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     <Box sx={{ mt: 3 }}>
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mb: 1 }}
                         >
                             Lesson materials

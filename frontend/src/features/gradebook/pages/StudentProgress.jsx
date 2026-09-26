@@ -148,10 +148,10 @@ export default function StudentProgress({
                     >
                         <Stack
                             direction="row"
-                            alignItems="center"
+                            sx={{ alignItems: "center" }}
                             spacing={1.5}
                         >
-                            <Typography variant="subtitle1" fontWeight="bold">
+                            <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
                                 {node.title}
                             </Typography>
                             {childCount > 0 && (
@@ -192,7 +192,7 @@ export default function StudentProgress({
                     borderLeftColor: isCompleted ? "success.main" : "grey.300",
                 }}
             >
-                <Stack direction="row" alignItems="flex-start" spacing={2}>
+                <Stack direction="row" sx={{ alignItems: "flex-start" }} spacing={2}>
                     {/* Status Icon */}
                     <Box
                         sx={{
@@ -211,12 +211,11 @@ export default function StudentProgress({
                     <Box sx={{ flexGrow: 1 }}>
                         <Stack
                             direction="row"
-                            alignItems="center"
                             spacing={1}
-                            sx={{ mb: 0.5 }}
+                            sx={{ alignItems: "center", mb: 0.5 }}
                         >
                             {getNodeIcon(lessonType || nodeType)}
-                            <Typography variant="body1" fontWeight="medium">
+                            <Typography variant="body1" sx={{ fontWeight: "medium" }}>
                                 {node.title}
                             </Typography>
                             <Chip
@@ -234,7 +233,7 @@ export default function StudentProgress({
                                     <Stack spacing={1}>
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             Question attempts: {attempts.length} attempt
                                             {attempts.length > 1 ? "s" : ""}
@@ -261,8 +260,8 @@ export default function StudentProgress({
                                 ) : (
                                     <Typography
                                         variant="body2"
-                                        color="text.secondary"
-                                        fontStyle="italic"
+                                        color="textSecondary"
+                                        sx={{ fontStyle: "italic" }}
                                     >
                                         No attempts yet
                                     </Typography>
@@ -275,7 +274,7 @@ export default function StudentProgress({
                             <Box sx={{ mt: 2 }}>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ display: "block", mb: 1 }}
                                 >
                                     Submission
@@ -284,8 +283,7 @@ export default function StudentProgress({
                                     <Stack
                                         direction="row"
                                         spacing={1}
-                                        alignItems="center"
-                                        sx={{ flexWrap: "wrap" }}
+                                        sx={{ alignItems: "center", flexWrap: "wrap" }}
                                     >
                                         <Chip
                                             size="small"
@@ -311,7 +309,7 @@ export default function StudentProgress({
                                             />
                                         )}
                                         {submission.submittedAt && (
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 {new Date(submission.submittedAt).toLocaleString()}
                                             </Typography>
                                         )}
@@ -319,8 +317,8 @@ export default function StudentProgress({
                                 ) : (
                                     <Typography
                                         variant="body2"
-                                        color="text.secondary"
-                                        fontStyle="italic"
+                                        color="textSecondary"
+                                        sx={{ fontStyle: "italic" }}
                                     >
                                         No submission yet
                                     </Typography>
@@ -332,7 +330,7 @@ export default function StudentProgress({
                         {isCompleted && node.completedAt && (
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                             >
                                 Completed:{" "}
                                 {new Date(node.completedAt).toLocaleString()}
@@ -371,7 +369,7 @@ export default function StudentProgress({
                             >
                                 Back to Gradebook
                             </Button>
-                            <Typography variant="h4" fontWeight="bold">
+                            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                                 Student Progress
                             </Typography>
                         </Box>
@@ -379,7 +377,7 @@ export default function StudentProgress({
 
                     {/* Student Info Card */}
                     <Paper sx={{ p: 3 }}>
-                        <Stack direction="row" alignItems="center" spacing={3}>
+                        <Stack direction="row" sx={{ alignItems: "center" }} spacing={3}>
                             <Avatar
                                 src={student.avatarUrl}
                                 sx={{ width: 72, height: 72, fontSize: "2rem" }}
@@ -388,18 +386,18 @@ export default function StudentProgress({
                             </Avatar>
 
                             <Box sx={{ flexGrow: 1 }}>
-                                <Typography variant="h6" fontWeight="bold">
+                                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                                     {student.name}
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {student.email}
                                 </Typography>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Enrolled:{" "}
                                     {new Date(
@@ -411,14 +409,14 @@ export default function StudentProgress({
                             <Box sx={{ textAlign: "center", minWidth: 120 }}>
                                 <Typography
                                     variant="h3"
-                                    color="primary.main"
-                                    fontWeight="bold"
+                                    color="primary"
+                                    sx={{ fontWeight: "bold" }}
                                 >
                                     {student.overallProgress || 0}%
                                 </Typography>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Overall Progress
                                 </Typography>
@@ -434,12 +432,11 @@ export default function StudentProgress({
                             />
                             <Stack
                                 direction="row"
-                                justifyContent="space-between"
-                                sx={{ mt: 1 }}
+                                sx={{ justifyContent: "space-between", mt: 1 }}
                             >
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {student.completedCount || 0} of{" "}
                                     {student.totalNodes || 0} items completed
@@ -463,15 +460,14 @@ export default function StudentProgress({
                     <Box>
                         <Typography
                             variant="h6"
-                            fontWeight="bold"
-                            sx={{ mb: 2 }}
+                            sx={{ fontWeight: "bold", mb: 2 }}
                         >
                             Curriculum Progress
                         </Typography>
 
                         {curriculum.length === 0 ? (
                             <Paper sx={{ p: 4, textAlign: "center" }}>
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     No curriculum items found
                                 </Typography>
                             </Paper>

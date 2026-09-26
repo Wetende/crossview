@@ -67,10 +67,10 @@ export default function NotificationsIndex({
                     }}
                 >
                     <Box>
-                        <Typography variant="h4" fontWeight={700}>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
                             Notifications
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {unread_count} unread
                         </Typography>
                     </Box>
@@ -85,7 +85,7 @@ export default function NotificationsIndex({
                     <CardContent sx={{ p: 0 }}>
                         {notifications.length === 0 ? (
                             <Box sx={{ p: 3 }}>
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     No notifications yet.
                                 </Typography>
                             </Box>
@@ -113,8 +113,7 @@ export default function NotificationsIndex({
                                             <Stack
                                                 direction="row"
                                                 spacing={1}
-                                                alignItems="flex-start"
-                                                sx={{ flex: 1 }}
+                                                sx={{ alignItems: "flex-start", flex: 1 }}
                                             >
                                                 <Box sx={{ mt: "2px" }}>
                                                     {notificationIconMap[
@@ -129,24 +128,22 @@ export default function NotificationsIndex({
                                                 <Box sx={{ flex: 1 }}>
                                                     <Typography
                                                         variant="subtitle2"
-                                                        fontWeight={
-                                                            notification.is_read
+                                                        sx={{ fontWeight: notification.is_read
                                                                 ? 500
-                                                                : 700
-                                                        }
+                                                                : 700 }}
                                                     >
                                                         {notification.title}
                                                     </Typography>
                                                     <Typography
                                                         variant="body2"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                         sx={{ mt: 0.25 }}
                                                     >
                                                         {notification.message}
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.disabled"
+                                                        color="textDisabled"
                                                         sx={{ display: "block", mt: 0.5 }}
                                                     >
                                                         {formatDate(
@@ -158,7 +155,7 @@ export default function NotificationsIndex({
                                             <Stack
                                                 direction="row"
                                                 spacing={1}
-                                                alignItems="center"
+                                                sx={{ alignItems: "center" }}
                                             >
                                                 <Chip
                                                     size="small"

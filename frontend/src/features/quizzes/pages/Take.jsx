@@ -440,8 +440,10 @@ export default function Take({
                     <Paper sx={{ p: 2, mb: 3 }}>
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
+                            sx={{
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                            }}
                         >
                             <Box>
                                 <Typography variant="h5">
@@ -449,7 +451,7 @@ export default function Take({
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {quiz.nodeTitle}
                                 </Typography>
@@ -472,8 +474,10 @@ export default function Take({
                         <Box sx={{ mt: 2 }}>
                             <Stack
                                 direction="row"
-                                justifyContent="space-between"
-                                sx={{ mb: 0.5 }}
+                                sx={{
+                                    justifyContent: "space-between",
+                                    mb: 0.5,
+                                }}
                             >
                                 <Typography variant="caption">
                                     {answeredCount} of {questions.length}{" "}
@@ -511,9 +515,8 @@ export default function Take({
                                     <CardContent>
                                         <Stack
                                             direction="row"
-                                            alignItems="center"
                                             spacing={2}
-                                            sx={{ mb: 2 }}
+                                            sx={{ alignItems: "center", mb: 2 }}
                                         >
                                             <Chip
                                                 label={`Question ${idx + 1}`}
@@ -532,7 +535,10 @@ export default function Take({
                                     </CardContent>
                                 </Card>
                             ))}
-                            <Stack direction="row" justifyContent="flex-end">
+                            <Stack
+                                direction="row"
+                                sx={{ justifyContent: "flex-end" }}
+                            >
                                 <Button
                                     variant="contained"
                                     color="primary"
@@ -553,9 +559,8 @@ export default function Take({
                                 <CardContent>
                                     <Stack
                                         direction="row"
-                                        alignItems="center"
                                         spacing={2}
-                                        sx={{ mb: 2 }}
+                                        sx={{ alignItems: "center", mb: 2 }}
                                     >
                                         <Chip
                                             label={`Question ${currentIdx + 1}`}
@@ -578,7 +583,7 @@ export default function Take({
                             <Stack
                                 direction={{ xs: "column-reverse", sm: "row" }}
                                 spacing={1}
-                                justifyContent="space-between"
+                                sx={{ justifyContent: "space-between" }}
                             >
                                 <Button
                                     startIcon={<IconChevronLeft />}

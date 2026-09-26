@@ -7,7 +7,7 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import GradingIcon from "@mui/icons-material/Grading";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import LogoutIcon from "@mui/icons-material/Logout";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import PeopleIcon from "@mui/icons-material/People";
 import PersonIcon from "@mui/icons-material/Person";
@@ -50,7 +50,7 @@ export const ROLE_NAVIGATION = {
                 {
                     label: "Messages",
                     href: "/messages/",
-                    icon: MailOutlineIcon,
+                    icon: MailOutlinedIcon,
                 },
             ],
         },
@@ -143,7 +143,7 @@ export const ROLE_NAVIGATION = {
                 {
                     label: "Messages",
                     href: "/messages/",
-                    icon: MailOutlineIcon,
+                    icon: MailOutlinedIcon,
                 },
             ],
         },
@@ -256,7 +256,7 @@ export const ROLE_NAVIGATION = {
                 {
                     label: "Messages",
                     href: "/messages/",
-                    icon: MailOutlineIcon,
+                    icon: MailOutlinedIcon,
                 },
             ],
         },

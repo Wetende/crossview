@@ -81,8 +81,7 @@ export default function MatchingPairsEditor({ pairs = [], onChange }) {
       {/* Header */}
       <Typography
         variant="subtitle1"
-        fontWeight={500}
-        sx={{ mb: 2, color: 'text.secondary' }}
+        sx={{ fontWeight: 500, mb: 2, color: 'text.secondary' }}
       >
         Questions & Answers
       </Typography>
@@ -111,7 +110,7 @@ export default function MatchingPairsEditor({ pairs = [], onChange }) {
             >
               <Typography
                 variant="caption"
-                color="text.secondary"
+                color="textSecondary"
                 sx={{ display: 'block', mb: 0.5 }}
               >
                 Question
@@ -126,19 +125,21 @@ export default function MatchingPairsEditor({ pairs = [], onChange }) {
                   onChange={(e) => handleUpdate(index, 'left_text', e.target.value)}
                   onFocus={() => handleFocus(index, 'left')}
                   onBlur={handleBlur}
-                  InputProps={{
-                    disableUnderline: editingField !== `${index}-left`,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <EditIcon
-                          sx={{ fontSize: 16, color: 'text.disabled' }}
-                        />
-                      </InputAdornment>
-                    ),
-                    sx: {
-                      fontSize: '0.9rem',
-                      '& input': {
-                        color: pair.left_text ? 'text.primary' : 'text.secondary',
+                  slotProps={{
+                    input: {
+                      disableUnderline: editingField !== `${index}-left`,
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <EditIcon
+                            sx={{ fontSize: 16, color: 'text.disabled' }}
+                          />
+                        </InputAdornment>
+                      ),
+                      sx: {
+                        fontSize: '0.9rem',
+                        '& input': {
+                          color: pair.left_text ? 'text.primary' : 'text.secondary',
+                        },
                       },
                     },
                   }}
@@ -167,7 +168,7 @@ export default function MatchingPairsEditor({ pairs = [], onChange }) {
             >
               <Typography
                 variant="caption"
-                color="text.secondary"
+                color="textSecondary"
                 sx={{ display: 'block', mb: 0.5 }}
               >
                 Answer
@@ -182,19 +183,21 @@ export default function MatchingPairsEditor({ pairs = [], onChange }) {
                   onChange={(e) => handleUpdate(index, 'right_text', e.target.value)}
                   onFocus={() => handleFocus(index, 'right')}
                   onBlur={handleBlur}
-                  InputProps={{
-                    disableUnderline: editingField !== `${index}-right`,
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <EditIcon
-                          sx={{ fontSize: 16, color: 'text.disabled' }}
-                        />
-                      </InputAdornment>
-                    ),
-                    sx: {
-                      fontSize: '0.9rem',
-                      '& input': {
-                        color: pair.right_text ? 'text.primary' : 'text.secondary',
+                  slotProps={{
+                    input: {
+                      disableUnderline: editingField !== `${index}-right`,
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <EditIcon
+                            sx={{ fontSize: 16, color: 'text.disabled' }}
+                          />
+                        </InputAdornment>
+                      ),
+                      sx: {
+                        fontSize: '0.9rem',
+                        '& input': {
+                          color: pair.right_text ? 'text.primary' : 'text.secondary',
+                        },
                       },
                     },
                   }}

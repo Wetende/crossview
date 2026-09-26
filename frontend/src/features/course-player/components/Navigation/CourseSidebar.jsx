@@ -13,9 +13,9 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
             <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
                 <Typography 
                     variant="subtitle1" 
-                    fontWeight={700} 
-                    color="text.primary"
+                    color="textPrimary"
                     sx={{
+                        fontWeight: 700,
                         mb: 1,
                         lineHeight: 1.3,
                         display: '-webkit-box',
@@ -43,7 +43,7 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
                     }} 
                 />
                 
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                     Course progress: {Math.round(progress)}%
                 </Typography>
             </Box>
@@ -73,7 +73,7 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
                     </ListItemIcon>
                     <ListItemText
                         primary="Overview"
-                        primaryTypographyProps={{ variant: 'body2', fontWeight: isOverview ? 600 : 400, noWrap: true }}
+                        slotProps={{ primary: { variant: 'body2', noWrap: true, sx: { fontWeight: isOverview ? 600 : 400 } } }}
                     />
                 </ListItemButton>
                 <CurriculumTree 

@@ -64,10 +64,10 @@ export default function NewConversation({
                     >
                         Back to Inbox
                     </Button>
-                    <Typography variant="h5" fontWeight={700}>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
                         New Message
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Select a recipient and send your first message.
                     </Typography>
                 </Box>

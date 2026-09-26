@@ -61,14 +61,14 @@ const ThreadDetail = ({ thread, posts = [], onBack, onPostCreated }) => {
                 <Typography variant="h6" gutterBottom>
                     {thread.title}
                 </Typography>
-                <Typography variant="body1" paragraph>
+                <Typography variant="body1" sx={{ marginBottom: "16px" }}>
                     {thread.content}
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Avatar sx={{ width: 24, height: 24, fontSize: "0.75rem" }}>
                         {thread.user?.first_name?.[0] || "U"}
                     </Avatar>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         {thread.user?.first_name || "User"} •{" "}
                         {formatDistanceToNow(new Date(thread.created_at))} ago
                     </Typography>
@@ -80,7 +80,7 @@ const ThreadDetail = ({ thread, posts = [], onBack, onPostCreated }) => {
             {/* Posts List */}
             <Box sx={{ mb: 4 }}>
                 {posts.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         No replies yet. Be the first to respond!
                     </Typography>
                 ) : (
@@ -107,7 +107,7 @@ const ThreadDetail = ({ thread, posts = [], onBack, onPostCreated }) => {
                                 </Typography>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {formatDistanceToNow(
                                         new Date(post.created_at),
@@ -138,22 +138,26 @@ const ThreadDetail = ({ thread, posts = [], onBack, onPostCreated }) => {
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     disabled={submitting}
-                    InputProps={{
-                        endAdornment: (
-                            <Button
-                                type="submit"
-                                variant="contained"
-                                size="small"
-                                disabled={!replyContent.trim() || submitting}
-                                sx={{ ml: 1 }}
-                            >
-                                {submitting ? (
-                                    <CircularProgress size={16} />
-                                ) : (
-                                    "Send"
-                                )}
-                            </Button>
-                        ),
+                    slotProps={{
+                        input: {
+                            endAdornment: (
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    size="small"
+                                    disabled={
+                                        !replyContent.trim() || submitting
+                                    }
+                                    sx={{ ml: 1 }}
+                                >
+                                    {submitting ? (
+                                        <CircularProgress size={16} />
+                                    ) : (
+                                        "Send"
+                                    )}
+                                </Button>
+                            ),
+                        },
                     }}
                 />
             </Box>

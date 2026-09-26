@@ -13,12 +13,12 @@ export default function componentsOverride(theme) {
                     fontWeight: 600,
                     textTransform: "none",
                     ...(theme.palette.mode === "dark" && {
-                        "&.MuiButton-containedPrimary": {
+                        "&.MuiButton-contained.MuiButton-colorPrimary": {
                             backgroundColor: "#166534",
                             color: "#FFFFFF",
                             "&:hover": { backgroundColor: "#15803D" },
                         },
-                        "&.MuiButton-outlinedPrimary": {
+                        "&.MuiButton-outlined.MuiButton-colorPrimary": {
                             borderColor: "#4ADE80",
                             color: "#DCFCE7",
                             "&:hover": {
