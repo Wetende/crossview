@@ -188,7 +188,7 @@ or verified client attestation must be added.
    save (stale), and disconnecting from Connected AI apps.
 5. Repeat the read, preview and save in Claude and ChatGPT on connector-enabled
    accounts.
-6. For V2, enable its separate flag in staging; test new-course creation,
+6. With the connector enabled in staging, test new-course creation,
    published-course module additions, learner activity, stale recipient
    previews, private-message approval, duplicate apply calls, and an
    instructor whose course assignment was removed. Verify saved content and
