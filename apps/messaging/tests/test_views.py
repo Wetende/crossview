@@ -1,3 +1,5 @@
+from urllib.parse import quote_plus
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
@@ -5,6 +7,7 @@ from rest_framework.test import APIClient
 
 from apps.core.models import Program
 from apps.messaging.models import Conversation, DirectMessage
+from apps.messaging.services import MessagingService
 from apps.progression.models import Enrollment, InstructorAssignment
 
 User = get_user_model()
@@ -98,6 +101,84 @@ class MessagingViewsTests(TestCase):
             },
             props['recipients'],
         )
+
+    def test_new_message_passes_a_capped_draft_from_the_course_player(self):
+        self.client.force_login(self.student)
+        question = 'Question about "Deployment models" in Messaging Program:'
+        draft = f"  {question}\n\n" + ("x" * 400)
+
+        response = self.client.get(
+            '/messages/new/',
+            {'recipient_id': self.instructor.id, 'draft': draft},
+            HTTP_X_INERTIA='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        props = response.json()['props']
+        self.assertEqual(props['preselectedRecipientId'], self.instructor.id)
+        self.assertEqual(len(props['draftContent']), 300)
+        self.assertEqual(props['draftContent'], draft.lstrip()[:300])
+        self.assertTrue(props['draftContent'].startswith(question))
+
+    def test_new_message_draft_keeps_its_trailing_blank_line(self):
+        self.client.force_login(self.student)
+        draft = 'Question about "Deployment models" in Messaging Program:\n\n'
+
+        response = self.client.get(
+            '/messages/new/',
+            {'recipient_id': self.instructor.id, 'draft': draft},
+            HTTP_X_INERTIA='true',
+        )
+
+        self.assertEqual(response.json()['props']['draftContent'], draft)
+
+    def test_existing_conversation_redirect_carries_the_capped_draft(self):
+        self.client.force_login(self.student)
+        conversation, _ = MessagingService.get_or_create_conversation(
+            self.student,
+            self.instructor,
+        )
+        draft = 'Question about "Deployment models" in Messaging Program:\n\n'
+        long_draft = draft + ('y' * 400)
+
+        response = self.client.get(
+            '/messages/new/',
+            {'recipient_id': self.instructor.id, 'draft': long_draft},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        expected_draft = long_draft[:300]
+        self.assertEqual(
+            response['Location'],
+            f'/messages/{conversation.id}/?draft={quote_plus(expected_draft)}',
+        )
+
+        followed = self.client.get(response['Location'], HTTP_X_INERTIA='true')
+        self.assertEqual(followed.status_code, 200)
+        self.assertEqual(followed.json()['props']['draftContent'], expected_draft)
+
+    def test_existing_conversation_redirect_without_draft_is_unchanged(self):
+        self.client.force_login(self.student)
+        conversation, _ = MessagingService.get_or_create_conversation(
+            self.student,
+            self.instructor,
+        )
+
+        response = self.client.get(
+            '/messages/new/',
+            {'recipient_id': self.instructor.id},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], f'/messages/{conversation.id}/')
+
+    def test_new_message_without_draft_sends_empty_draft(self):
+        self.client.force_login(self.student)
+
+        response = self.client.get('/messages/new/', HTTP_X_INERTIA='true')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['props']['draftContent'], '')
 
     def test_send_reply_in_existing_conversation(self):
         conversation = Conversation.objects.create(

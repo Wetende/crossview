@@ -9,6 +9,7 @@ import {
     Toolbar,
     Drawer,
     SwipeableDrawer,
+    Tooltip,
 } from "@mui/material";
 import { Link } from "@inertiajs/react";
 import {
@@ -18,8 +19,22 @@ import {
     DarkMode,
     LightMode,
     ChatBubbleOutlined,
+    MailOutlined,
 } from "@mui/icons-material";
 import ThemeProvider, { useThemeMode } from "@/theme";
+import { FONT_FIGTREE } from "@/config";
+import { SESSION_CONTROL_HEIGHT } from "../components/Stage/SessionControl";
+
+// The player uses one sans-serif family for headings and body text.
+const PLAYER_HEADING_VARIANTS = ["h1", "h2", "h3", "h4", "h5", "h6"];
+const extendPlayerTheme = () => ({
+    typography: Object.fromEntries(
+        PLAYER_HEADING_VARIANTS.map((variant) => [
+            variant,
+            { fontFamily: FONT_FIGTREE },
+        ]),
+    ),
+});
 
 const ClassroomLayoutInner = ({
     children,
@@ -31,6 +46,7 @@ const ClassroomLayoutInner = ({
     onToggleSidebar,
     isDiscussionsOpen,
     onToggleDiscussions,
+    messageInstructorHref = null,
 }) => {
     const theme = useTheme();
     const { isDark, toggleMode } = useThemeMode();
@@ -149,6 +165,20 @@ const ClassroomLayoutInner = ({
                             )}
                         </IconButton>
 
+                        {messageInstructorHref && (
+                            <Tooltip title="Message instructor">
+                                <IconButton
+                                    size="small"
+                                    component={Link}
+                                    href={messageInstructorHref}
+                                    aria-label="Message instructor"
+                                    sx={{ color: "text.secondary" }}
+                                >
+                                    <MailOutlined fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+
                         {hasRightPanel && (
                             <Button
                                 size="small"
@@ -252,6 +282,8 @@ const ClassroomLayoutInner = ({
                             maxWidth: 900,
                             mx: "auto",
                             width: "100%",
+                            // Keep content clear of the sticky lesson footer.
+                            scrollPaddingBottom: `${SESSION_CONTROL_HEIGHT}px`,
                             // Hide scrollbar
                             "&::-webkit-scrollbar": { display: "none" },
                             scrollbarWidth: "none",
@@ -308,7 +340,10 @@ const ClassroomLayoutInner = ({
 };
 
 const ClassroomLayout = (props) => (
-    <ThemeProvider storageKey="lms_theme_classroom">
+    <ThemeProvider
+        storageKey="lms_theme_classroom"
+        extendTheme={extendPlayerTheme}
+    >
         <ClassroomLayoutInner {...props} />
     </ThemeProvider>
 );

@@ -12,6 +12,16 @@ import {
 } from "@mui/material";
 import { ChatBubbleOutlined, PushPin } from "@mui/icons-material";
 
+const InstructorChip = () => (
+    <Chip
+        label="Instructor"
+        size="small"
+        color="primary"
+        variant="outlined"
+        sx={{ height: 18, fontSize: 11, fontWeight: 600 }}
+    />
+);
+
 const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
     const [replyOpenByThread, setReplyOpenByThread] = useState({});
     const [replyDrafts, setReplyDrafts] = useState({});
@@ -106,13 +116,25 @@ const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
                                 >
                                     {thread.user?.name?.[0] || "?"}
                                 </Avatar>
-                                <Box sx={{ flexGrow: 1 }}>
-                                    <Typography
-                                        variant="subtitle2"
-                                        sx={{ fontWeight: 600 }}
+                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.75,
+                                            flexWrap: "wrap",
+                                        }}
                                     >
-                                        {thread.user?.name || "Anonymous"}
-                                    </Typography>
+                                        <Typography
+                                            variant="subtitle2"
+                                            sx={{ fontWeight: 600 }}
+                                        >
+                                            {thread.user?.name || "Anonymous"}
+                                        </Typography>
+                                        {thread.user?.isInstructor && (
+                                            <InstructorChip />
+                                        )}
+                                    </Box>
                                     <Typography
                                         variant="caption"
                                         color="textSecondary"
@@ -184,6 +206,9 @@ const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
                                                         {post.user?.name ||
                                                             "Anonymous"}
                                                     </Typography>
+                                                    {post.user?.isInstructor && (
+                                                        <InstructorChip />
+                                                    )}
                                                     <Typography
                                                         variant="caption"
                                                         color="textSecondary"

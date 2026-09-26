@@ -191,4 +191,18 @@ describe("VideoRenderer viewing requirement summary", () => {
         ).toBeInTheDocument();
         expect(screen.queryByText(/to complete/)).not.toBeInTheDocument();
     });
+
+    it("lets notes seek the video through seekRef", () => {
+        const seekRef = { current: null };
+        const view = render(
+            <VideoRenderer url="/media/lesson.mp4" seekRef={seekRef} />,
+        );
+
+        expect(typeof seekRef.current).toBe("function");
+        act(() => seekRef.current(95));
+        expect(player.element.currentTime).toBe(95);
+
+        view.unmount();
+        expect(seekRef.current).toBeNull();
+    });
 });

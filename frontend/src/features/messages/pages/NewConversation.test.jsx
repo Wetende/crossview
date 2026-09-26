@@ -49,4 +49,37 @@ describe("new conversation recipient handoff", () => {
             ).toHaveTextContent("Peter Student (peter@student.com)");
         });
     });
+
+    test("seeds the message from a draft handed over by the course player", () => {
+        render(
+            <NewConversation
+                recipients={[
+                    { id: 7, name: "Grace Mentor", email: "grace@example.com" },
+                ]}
+                preselectedRecipientId={7}
+                draftContent={'Question about "Deployment models" in DevOps:'}
+            />,
+        );
+
+        expect(screen.getByRole("textbox", { name: /message/i })).toHaveValue(
+            'Question about "Deployment models" in DevOps:',
+        );
+    });
+
+    test("keeps submitted content ahead of the draft", () => {
+        render(
+            <NewConversation
+                recipients={[
+                    { id: 7, name: "Grace Mentor", email: "grace@example.com" },
+                ]}
+                preselectedRecipientId={7}
+                submittedContent="My typed question"
+                draftContent="Question about a lesson:"
+            />,
+        );
+
+        expect(screen.getByRole("textbox", { name: /message/i })).toHaveValue(
+            "My typed question",
+        );
+    });
 });

@@ -8,6 +8,7 @@ import {
     richTextImageSx,
 } from '@/utils/richTextImages';
 import { richTextContentSx } from '@/components/rich-text/richTextEditorConfig';
+import { lessonRichTextSx } from './lessonRichTextSx';
 
 const TextRenderer = ({ content }) => {
     // If content is just a string, treat it as HTML
@@ -37,10 +38,13 @@ const TextRenderer = ({ content }) => {
             sx={{ 
                 p: { xs: 2, md: 5 }, 
                 bgcolor: 'background.paper', 
+                border: '1px solid',
+                borderColor: 'divider',
                 borderRadius: 2,
                 minHeight: '60vh',
                 typography: 'body1',
                 ...richTextContentSx,
+                ...lessonRichTextSx,
                 '& img': { ...richTextImageSx, borderRadius: 2, my: 2 },
                 [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                     ...richTextImageFigureSx,
@@ -50,19 +54,6 @@ const TextRenderer = ({ content }) => {
                         borderRadius: 2,
                     },
                 },
-                '& h1, & h2, & h3': { fontWeight: 700, mt: 3, mb: 2 },
-                '& p': { mb: 2, lineHeight: 'inherit' },
-                '& ul, & ol': { mb: 2, pl: 3 },
-                '& li': { mb: 1 },
-                '& blockquote': { 
-                    borderLeft: '4px solid', 
-                    borderColor: 'primary.main', 
-                    pl: 2, 
-                    py: 1, 
-                    my: 3, 
-                    bgcolor: 'grey.50',
-                    fontStyle: 'italic'
-                }
             }}
         >
             <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />

@@ -40,3 +40,45 @@ export const formatActivityDuration = (duration) => {
     if (!value) return "";
     return /^\d+(?:\.\d+)?$/.test(value) ? `${value} min` : value;
 };
+
+const ACTIVITY_TYPE_LABELS = Object.freeze({
+    [ACTIVITY_TYPES.TEXT]: "Text lesson",
+    [ACTIVITY_TYPES.VIDEO]: "Video lesson",
+    [ACTIVITY_TYPES.DOCUMENT]: "Document lesson",
+    [ACTIVITY_TYPES.AUDIO]: "Audio lesson",
+    [ACTIVITY_TYPES.CODE]: "Code lab",
+    [ACTIVITY_TYPES.QUIZ]: "Quiz",
+    [ACTIVITY_TYPES.ASSIGNMENT]: "Assignment",
+    [ACTIVITY_TYPES.GOOGLE_MEET]: "Live class",
+    [ACTIVITY_TYPES.LIVE_MEETING]: "Live class",
+    [ACTIVITY_TYPES.LIVE_STREAM]: "Live stream",
+    [ACTIVITY_TYPES.IN_PERSON_SESSION]: "In-person session",
+});
+
+// Unknown types render through the text lesson renderer, so label them the same.
+export const getActivityTypeLabel = (node) =>
+    ACTIVITY_TYPE_LABELS[normalizeActivityType(node)] ||
+    ACTIVITY_TYPE_LABELS[ACTIVITY_TYPES.TEXT];
+
+const getQuestionCount = (node) => {
+    const properties = node?.properties || {};
+    if (Array.isArray(properties.questions)) return properties.questions.length;
+    const count = Number(properties.question_count ?? properties.questionCount);
+    return Number.isFinite(count) && count > 0 ? count : 0;
+};
+
+// "Video lesson · 9 min", "Quiz · 5 questions", "Text lesson".
+export const getActivitySummary = (node) => {
+    const label = getActivityTypeLabel(node);
+    let detail = "";
+    if (normalizeActivityType(node) === ACTIVITY_TYPES.QUIZ) {
+        const count = getQuestionCount(node);
+        if (count > 0) detail = `${count} ${count === 1 ? "question" : "questions"}`;
+    }
+    if (!detail) {
+        detail = formatActivityDuration(
+            node?.properties?.duration || node?.duration,
+        );
+    }
+    return detail ? `${label} · ${detail}` : label;
+};

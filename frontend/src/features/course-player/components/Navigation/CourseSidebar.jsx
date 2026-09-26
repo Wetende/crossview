@@ -32,12 +32,12 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
                     variant="determinate" 
                     value={progress} 
                     sx={{ 
-                        height: 4, 
-                        borderRadius: 2, 
+                        height: 6, 
+                        borderRadius: 3, 
                         bgcolor: 'grey.200',
                         mb: 0.5,
                         '& .MuiLinearProgress-bar': { 
-                            borderRadius: 2,
+                            borderRadius: 3,
                             bgcolor: 'primary.main'
                         }
                     }} 
