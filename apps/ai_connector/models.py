@@ -25,7 +25,7 @@ class CourseChange(models.Model):
 
     # Only these fields may change after preparation.
     MUTABLE_FIELDS = frozenset(
-        {"status", "result", "error", "applied_at", "applied_by_application"}
+        {"status", "result", "error", "applied_at", "applied_by_application", "program"}
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -51,6 +51,7 @@ class CourseChange(models.Model):
         related_name="prepared_course_changes",
     )
     client_name = models.CharField(max_length=255, blank=True, default="")
+    kind = models.CharField(max_length=24, default="course_edit")
     summary = models.CharField(max_length=500, blank=True, default="")
     operations = models.JSONField(default=list)
     preview = models.JSONField(default=dict)

@@ -24,6 +24,8 @@ from .oauth import resource_metadata_url, resource_url
 SCOPE_LABELS = {
     "courses:read": "Read courses",
     "courses:write": "Save confirmed course changes",
+    "learners:read": "Read course learner activity",
+    "messages:send": "Send confirmed learner messages",
 }
 
 

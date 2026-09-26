@@ -12,6 +12,9 @@ from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 from oauth2_provider.models import get_access_token_model
 
+from apps.core.models import Program
+from apps.platform.models import PlatformSettings
+
 from ..models import CourseChange
 from .helpers import make_course, make_oauth_token, make_user
 
@@ -78,7 +81,7 @@ class DiscoveryAndRegistrationTests(TestCase):
         resource = self.client.get("/.well-known/oauth-protected-resource/mcp").json()
         self.assertEqual(resource["resource"], "http://testserver/mcp")
         self.assertEqual(resource["authorization_servers"], ["http://testserver"])
-        self.assertEqual(resource["scopes_supported"], ["courses:read", "courses:write"])
+        self.assertEqual(resource["scopes_supported"], ["courses:read", "courses:write", "learners:read", "messages:send"])
 
         server = self.client.get("/.well-known/oauth-authorization-server").json()
         self.assertEqual(server["issuer"], "http://testserver")
@@ -185,7 +188,7 @@ class AuthorizationFlowTests(MCPClientMixin, TestCase):
         ).json()
         self.client_id = registration["client_id"]
 
-    def authorize_url(self, challenge, method="S256"):
+    def authorize_url(self, challenge, method="S256", scope="courses:read courses:write"):
         return "/o/authorize/?" + urlencode(
             {
                 "response_type": "code",
@@ -194,15 +197,15 @@ class AuthorizationFlowTests(MCPClientMixin, TestCase):
                 "code_challenge": challenge,
                 "code_challenge_method": method,
                 "state": "state-123",
-                "scope": "courses:read courses:write",
+                "scope": scope,
                 "resource": "http://testserver/mcp",
             }
         )
 
-    def connect(self, allow_write=True):
+    def connect(self, allow_write=True, *, allow_learners=False, allow_messages=False, scope="courses:read courses:write"):
         verifier, challenge = pkce_pair()
         self.client.force_login(self.instructor)
-        consent = self.client.get(self.authorize_url(challenge))
+        consent = self.client.get(self.authorize_url(challenge, scope=scope))
         self.assertEqual(consent.status_code, 200)
         self.assertContains(consent, "Connect Codex to your courses?")
         self.assertContains(consent, "127.0.0.1")
@@ -211,6 +214,10 @@ class AuthorizationFlowTests(MCPClientMixin, TestCase):
         data["allow"] = "true"
         if allow_write:
             data["allow_write"] = "1"
+        if allow_learners:
+            data["allow_learners"] = "1"
+        if allow_messages:
+            data["allow_messages"] = "1"
         redirect = self.client.post("/o/authorize/", data)
         self.assertEqual(redirect.status_code, 302)
         query = parse_qs(urlparse(redirect["Location"]).query)
@@ -237,7 +244,7 @@ class AuthorizationFlowTests(MCPClientMixin, TestCase):
         listed = self.mcp(tokens["access_token"], "tools/list")
         self.assertEqual(listed.status_code, 200)
         tools = {tool["name"]: tool for tool in listed.json()["result"]["tools"]}
-        self.assertEqual(len(tools), 8)
+        self.assertEqual(len(tools), 18)
         self.assertTrue(tools["get_course"]["annotations"]["readOnlyHint"])
         self.assertFalse(tools["apply_course_change"]["annotations"]["readOnlyHint"])
 
@@ -255,6 +262,32 @@ class AuthorizationFlowTests(MCPClientMixin, TestCase):
         )
         self.assertTrue(result["isError"])
         self.assertIn("not authorized to save", result["content"][0]["text"])
+
+    @override_settings(AI_CONNECTOR_V2_ENABLED=True)
+    def test_learner_and_message_scopes_need_separate_consent(self):
+        tokens = self.connect(
+            allow_learners=True,
+            scope="courses:read courses:write learners:read messages:send",
+        )
+        self.assertEqual(set(tokens["scope"].split()), {"courses:read", "courses:write", "learners:read"})
+        result = self.call_tool(
+            tokens["access_token"], "list_course_learners", {"course_id": self.course["program"].id},
+        )
+        self.assertFalse(result["isError"])
+        message = self.call_tool(
+            tokens["access_token"], "prepare_learner_message",
+            {"course_id": self.course["program"].id, "content": "Hello", "enrollment_ids": [1]},
+        )
+        self.assertTrue(message["isError"])
+        self.assertIn("messages:send", message["content"][0]["text"])
+
+    @override_settings(AI_CONNECTOR_V2_ENABLED=False)
+    def test_expanded_scopes_are_not_granted_while_v2_is_disabled(self):
+        tokens = self.connect(
+            allow_learners=True, allow_messages=True,
+            scope="courses:read courses:write learners:read messages:send",
+        )
+        self.assertEqual(set(tokens["scope"].split()), {"courses:read", "courses:write"})
 
     def test_null_origin_consent_still_requires_and_accepts_a_valid_csrf_token(self):
         verifier, challenge = pkce_pair()
@@ -437,6 +470,35 @@ class TokenStateTests(MCPClientMixin, TestCase):
         self.assertEqual(change.client_name, "Claude")
         status = self.call_tool(token, "get_change_status", {"change_id": prepared["change_id"]})
         self.assertEqual(status["structuredContent"]["status"], "applied")
+
+    @override_settings(AI_CONNECTOR_V2_ENABLED=True)
+    def test_new_course_and_health_tools_work_over_mcp(self):
+        PlatformSettings.objects.update_or_create(
+            pk=1, defaults={"active_blueprint": self.course["program"].blueprint},
+        )
+        token, _ = make_oauth_token(
+            self.instructor, scope="courses:read courses:write learners:read messages:send",
+        )
+        options = self.call_tool(token, "get_course_creation_options")
+        self.assertFalse(options["isError"])
+        health = self.call_tool(
+            token, "inspect_course_health", {"course_id": self.course["program"].id},
+        )
+        self.assertFalse(health["isError"])
+        self.assertIn("readiness", health["structuredContent"])
+        prepared = self.call_tool(token, "prepare_new_course", {"course": {
+            "title": "MCP Draft Course", "code": "MCPDRAFT1",
+            "modules": [{"title": "Welcome module", "items": [{
+                "type": "text_lesson", "title": "Welcome lesson", "body_html": "<p>Start here.</p>",
+            }]}],
+        }})
+        self.assertFalse(prepared["isError"])
+        self.assertFalse(Program.objects.filter(code="MCPDRAFT1").exists())
+        applied = self.call_tool(
+            token, "apply_new_course", {"change_id": prepared["structuredContent"]["change_id"]},
+        )
+        self.assertFalse(applied["isError"])
+        self.assertFalse(Program.objects.get(code="MCPDRAFT1").is_published)
 
 
 @connector_on

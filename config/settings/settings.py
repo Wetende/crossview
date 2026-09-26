@@ -328,6 +328,7 @@ PLATFORM_PUBLIC_BASE_URL = os.getenv("PLATFORM_PUBLIC_BASE_URL", "").strip().rst
 # AI course-authoring connector (remote MCP server with OAuth). Disabled until
 # acceptance; enabling it in production requires approval.
 AI_CONNECTOR_ENABLED = os.getenv("AI_CONNECTOR_ENABLED", "False").lower() == "true"
+AI_CONNECTOR_V2_ENABLED = os.getenv("AI_CONNECTOR_V2_ENABLED", "False").lower() == "true"
 # Public origin used for OAuth issuer and MCP resource URLs. When blank, the
 # validated request host is used.
 AI_CONNECTOR_BASE_URL = os.getenv("AI_CONNECTOR_BASE_URL", "").strip().rstrip("/")
@@ -349,10 +350,12 @@ OAUTH2_PROVIDER = {
     "SCOPES": {
         "courses:read": "Read the courses you can manage",
         "courses:write": "Prepare and save course changes you confirm",
+        "learners:read": "Read activity of learners in courses you can manage",
+        "messages:send": "Send confirmed messages to learners in courses you can manage",
     },
-    # Clients that request no scope are offered both; the consent screen lets
-    # the person connect read-only instead.
-    "DEFAULT_SCOPES": ["courses:read", "courses:write"],
+    # Clients that request no scope are offered all four; the consent screen
+    # lets the person decline each write or learner-data capability.
+    "DEFAULT_SCOPES": ["courses:read", "courses:write", "learners:read", "messages:send"],
     "PKCE_REQUIRED": True,
     "COMPLIANT_BCP_RFC9700_PKCE_METHOD": True,
     "COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT": True,

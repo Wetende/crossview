@@ -26,7 +26,7 @@ from oauth2_provider.views import (
 )
 from rest_framework.throttling import AnonRateThrottle
 
-from .access import WRITE_SCOPE, can_use_connector, connector_enabled
+from .access import LEARNERS_SCOPE, MESSAGES_SCOPE, WRITE_SCOPE, can_use_connector, connector_enabled
 from .content import base_url
 
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -171,7 +171,12 @@ class ConnectorAuthorizationView(FeatureFlagMixin, AuthorizationView):
         scopes = form.cleaned_data.get("scope", "").split()
         if WRITE_SCOPE in scopes and not self.request.POST.get("allow_write"):
             scopes.remove(WRITE_SCOPE)
-            form.cleaned_data["scope"] = " ".join(scopes)
+        expanded_enabled = getattr(settings, "AI_CONNECTOR_V2_ENABLED", False)
+        if LEARNERS_SCOPE in scopes and (not expanded_enabled or not self.request.POST.get("allow_learners")):
+            scopes.remove(LEARNERS_SCOPE)
+        if MESSAGES_SCOPE in scopes and (not expanded_enabled or not self.request.POST.get("allow_messages")):
+            scopes.remove(MESSAGES_SCOPE)
+        form.cleaned_data["scope"] = " ".join(scopes)
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -180,6 +185,9 @@ class ConnectorAuthorizationView(FeatureFlagMixin, AuthorizationView):
         context["redirect_host"] = urlparse(redirect_uri).hostname or ""
         scopes = kwargs.get("scopes") or []
         context["requests_write"] = WRITE_SCOPE in scopes
+        expanded_enabled = getattr(settings, "AI_CONNECTOR_V2_ENABLED", False)
+        context["requests_learners"] = expanded_enabled and LEARNERS_SCOPE in scopes
+        context["requests_messages"] = expanded_enabled and MESSAGES_SCOPE in scopes
         return context
 
 

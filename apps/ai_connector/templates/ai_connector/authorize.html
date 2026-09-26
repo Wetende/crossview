@@ -20,9 +20,23 @@
         <input type="checkbox" name="allow_write" value="1" checked>
         <span>
           <strong>Also allow saving course changes</strong><br>
-          <span class="muted">Every change is previewed in the chat and saved only after you confirm it.
-          The app cannot delete content, publish courses or change grading.</span>
+          <span class="muted">The app can prepare and save course edits. The LMS cannot verify a chat confirmation itself,
+          so keep your AI app's approval prompt enabled for write tools. It cannot delete or publish courses.</span>
         </span>
+      </label>
+    {% endif %}
+    {% if requests_learners %}
+      <label class="choice">
+        <input type="checkbox" name="allow_learners" value="1">
+        <span><strong>Allow reading learner activity</strong><br>
+          <span class="muted">Only for courses your LMS account can manage.</span></span>
+      </label>
+    {% endif %}
+    {% if requests_messages %}
+      <label class="choice">
+        <input type="checkbox" name="allow_messages" value="1">
+        <span><strong>Allow sending learner messages</strong><br>
+          <span class="muted">Messages are previewed first. Keep the AI app's tool approval enabled before sends.</span></span>
       </label>
     {% endif %}
     <p class="muted">You can disconnect the app at any time from Connected AI apps in your account.</p>

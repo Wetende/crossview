@@ -7,11 +7,13 @@ on, without changing anything. ``apply_operations`` later replays exactly those
 canonical operations.
 """
 
+from django.conf import settings
 from django.db.models import Max
 
 from apps.core.learning_outcomes import resolve_learning_outcomes_html
 from apps.core.taxonomy import validate_builder_hierarchy
 from apps.curriculum.models import CurriculumNode
+from apps.platform.models import PlatformSettings
 
 from . import questions as question_rules
 from .access import ConnectorError
@@ -23,6 +25,7 @@ from .content import (
     node_properties,
     node_version,
     program_version,
+    root_layout_version,
     quiz_for_node,
 )
 from .sanitize import clean_html, html_to_text, plain_text
@@ -35,7 +38,9 @@ PREVIEW_BEFORE_CHARS = 5_000
 
 OPERATION_TYPES = (
     "update_course",
+    "create_module",
     "update_module",
+    "set_item_visibility",
     "create_text_lesson",
     "update_text_lesson",
     "create_quiz",
@@ -104,6 +109,7 @@ class Plan:
         self.affects_published = False
         self._seen = set()
         self._added_titles = {}
+        self._added_modules = []
 
     def position_note(self, module, title):
         """Describe where a new item lands, counting items added earlier in this change."""
@@ -158,6 +164,13 @@ def _plan_update_course(plan, raw):
     program = plan.program
     title = _text(raw, "title", 255, min_length=3)
     description = _html(raw, "description_html", MAX_DESCRIPTION_HTML)
+    preview_description = _text(raw, "preview_description", 1000)
+    category = _text(raw, "category", 100)
+    level = _text(raw, "level", 100)
+    if category is not None and category != (program.category or ""):
+        configured = PlatformSettings.get_settings().get_program_categories()
+        if configured and category not in configured:
+            raise ConnectorError("Select a configured course category from get_course_creation_options.")
     outcomes = raw.get("learning_outcomes")
     outcomes_html = None
     if outcomes is not None:
@@ -169,9 +182,9 @@ def _plan_update_course(plan, raw):
                 f"Provide up to {MAX_OUTCOMES} learning outcomes of 1-300 characters each."
             )
         outcomes_html = resolve_learning_outcomes_html("", items)
-    if title is None and description is None and outcomes_html is None:
+    if all(value is None for value in (title, description, preview_description, category, level, outcomes_html)):
         raise ConnectorError(
-            "update_course needs at least one of title, description_html or learning_outcomes."
+            "update_course needs at least one supported field."
         )
 
     operation = {"op": "update_course"}
@@ -190,6 +203,14 @@ def _plan_update_course(plan, raw):
         changes.append(
             {"field": "description_html", "before": _before(program.description), "after": description}
         )
+    for field, value, current in (
+        ("preview_description", preview_description, program.preview_description or ""),
+        ("category", category, program.category or ""),
+        ("level", level, program.level or ""),
+    ):
+        if value is not None and value != current:
+            operation[field] = value
+            changes.append({"field": field, "before": current, "after": value})
     if outcomes_html is not None and outcomes_html != (program.what_you_learn_html or ""):
         operation["learning_outcomes_html"] = outcomes_html
         changes.append(
@@ -219,19 +240,74 @@ def _plan_update_course(plan, raw):
 def _plan_update_module(plan, raw):
     module = plan.module(_require_int(raw, "module_id"))
     plan.claim(("module", module.id), f"Module {module.id} appears in more than one operation.")
-    title = _text(raw, "title", 255, required=True)
-    if title == module.title:
-        raise ConnectorError(f"Module {module.id} is already titled '{title}'.")
+    title = _text(raw, "title", 255)
+    description = _text(raw, "description", 1000)
+    changes = []
+    operation = {"op": "update_module", "module_id": module.id}
+    if title is not None and title != module.title:
+        operation["title"] = title
+        changes.append({"field": "title", "before": module.title, "after": title})
+    if description is not None and description != (module.description or ""):
+        operation["description"] = description
+        changes.append({"field": "description", "before": module.description or "", "after": description})
+    if not changes:
+        raise ConnectorError(f"Module {module.id} would not change.")
     plan.depend_on_node(module)
     plan.add(
-        {"op": "update_module", "module_id": module.id, "title": title},
+        operation,
         {
             "action": "change",
-            "summary": f"Rename module '{module.title}' to '{title}'",
+            "summary": f"Edit module '{module.title}' ({', '.join(change['field'] for change in changes)})",
             "target": {"type": "module", "id": module.id, "title": module.title},
-            "changes": [{"field": "title", "before": module.title, "after": title}],
+            "changes": changes,
         },
         plan.visible_to_learners(module),
+    )
+
+
+def _plan_create_module(plan, raw):
+    _content_type_label(plan.program)
+    title = _text(raw, "title", 255, required=True, min_length=3)
+    description = _text(raw, "description", 1000) or ""
+    last = (
+        CurriculumNode.objects.filter(program=plan.program, parent__isnull=True)
+        .order_by("-position", "-id").first()
+    )
+    previous = plan._added_modules[-1] if plan._added_modules else (last.title if last else None)
+    plan._added_modules.append(title)
+    plan.targets[f"root_layout:{plan.program.id}"] = root_layout_version(plan.program)
+    plan.add(
+        {"op": "create_module", "title": title, "description": description},
+        {
+            "action": "add",
+            "summary": f"Add module '{title}'",
+            "target": {"type": "module", "course_id": plan.program.id},
+            "position": f"After '{previous}'" if previous else "First module",
+            "values": {"title": title, "description": description},
+        },
+        plan.visible_to_learners(),
+    )
+
+
+def _plan_set_item_visibility(plan, raw):
+    node = plan.node(_require_int(raw, "item_id"))
+    plan.claim(("visibility", node.id), f"Item {node.id} appears in more than one visibility operation.")
+    visible = raw.get("visible")
+    if not isinstance(visible, bool):
+        raise ConnectorError("visible must be true or false.")
+    if visible == node.is_published:
+        raise ConnectorError(f"Item {node.id} already has that visibility.")
+    plan.depend_on_node(node)
+    plan.add(
+        {"op": "set_item_visibility", "item_id": node.id, "visible": visible},
+        {
+            "action": "change",
+            "summary": f"{'Show' if visible else 'Hide'} item '{node.title}' for learners",
+            "target": {"type": "module" if node.parent_id is None else "item", "id": node.id, "title": node.title},
+            "changes": [{"field": "is_published", "before": node.is_published, "after": visible}],
+            "notes": ["This does not delete the item or its historical learner records."],
+        },
+        plan.program.is_published and (node.is_published or visible),
     )
 
 
@@ -460,7 +536,9 @@ def _plan_update_question(plan, raw):
 
 PLANNERS = {
     "update_course": _plan_update_course,
+    "create_module": _plan_create_module,
     "update_module": _plan_update_module,
+    "set_item_visibility": _plan_set_item_visibility,
     "create_text_lesson": _plan_create_text_lesson,
     "update_text_lesson": _plan_update_text_lesson,
     "create_quiz": _plan_create_quiz,
@@ -477,6 +555,8 @@ def plan_operations(program, raw_operations, links: Links) -> Plan:
     plan = Plan(program, links)
     for index, raw in enumerate(raw_operations, start=1):
         op_name = raw.get("op") if isinstance(raw, dict) else None
+        if op_name in {"create_module", "set_item_visibility"} and not getattr(settings, "AI_CONNECTOR_V2_ENABLED", False):
+            raise ConnectorError("Expanded course changes are not enabled on this deployment yet.")
         planner = PLANNERS.get(op_name)
         if planner is None:
             raise ConnectorError(
@@ -505,6 +585,9 @@ def _apply_update_course(program, operation, links):
         program.name = operation["title"]
     if "description_html" in operation:
         program.description = operation["description_html"]
+    for field in ("preview_description", "category", "level"):
+        if field in operation:
+            setattr(program, field, operation[field])
     if "learning_outcomes_html" in operation:
         program.what_you_learn_html = operation["learning_outcomes_html"]
     program.save()
@@ -513,9 +596,37 @@ def _apply_update_course(program, operation, links):
 
 def _apply_update_module(program, operation, links):
     module = CurriculumNode.objects.get(program=program, pk=operation["module_id"])
-    module.title = operation["title"]
-    module.save(update_fields=["title", "updated_at"], skip_validation=True)
+    fields = ["updated_at"]
+    for field in ("title", "description"):
+        if field in operation:
+            setattr(module, field, operation[field])
+            fields.append(field)
+    module.save(update_fields=fields, skip_validation=True)
     return {"type": "module", "id": module.id, "title": module.title, "url": links.builder(program.id, module.id)}
+
+
+def _apply_create_module(program, operation, links):
+    top = CurriculumNode.objects.filter(program=program, parent__isnull=True).aggregate(top=Max("position"))["top"]
+    module = CurriculumNode.objects.create(
+        program=program,
+        title=operation["title"],
+        description=operation["description"],
+        node_type=str(program.blueprint.hierarchy_structure[0]).strip(),
+        position=0 if top is None else top + 1,
+        is_published=program.is_published,
+    )
+    return {"type": "module", "id": module.id, "title": module.title, "url": links.builder(program.id, module.id)}
+
+
+def _apply_set_item_visibility(program, operation, links):
+    node = CurriculumNode.objects.get(program=program, pk=operation["item_id"])
+    node.is_published = operation["visible"]
+    node.save(update_fields=["is_published", "updated_at"], skip_validation=True)
+    return {
+        "type": "module" if node.parent_id is None else "item",
+        "id": node.id, "title": node.title, "is_published": node.is_published,
+        "url": links.builder(program.id, node.id),
+    }
 
 
 def _apply_create_text_lesson(program, operation, links):
@@ -608,7 +719,9 @@ def _apply_update_question(program, operation, links):
 
 APPLIERS = {
     "update_course": _apply_update_course,
+    "create_module": _apply_create_module,
     "update_module": _apply_update_module,
+    "set_item_visibility": _apply_set_item_visibility,
     "create_text_lesson": _apply_create_text_lesson,
     "update_text_lesson": _apply_update_text_lesson,
     "create_quiz": _apply_create_quiz,

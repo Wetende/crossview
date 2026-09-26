@@ -5,7 +5,8 @@ they manage. The AI app does the reasoning and writing; this application exposes
 a small set of permission-checked course tools over a remote MCP endpoint and
 saves only changes the trainer has previewed and confirmed in the chat.
 
-No AI provider API key is held by this application.
+No AI provider API key is held by this application. Expanded V2 tools are
+independently disabled by default with `AI_CONNECTOR_V2_ENABLED=False`.
 
 ## How it works
 
@@ -25,8 +26,10 @@ AI app ──OAuth (PKCE)──> /o/authorize, /o/token   (Django OAuth Toolkit)
   course; instructors reach only courses assigned to them. Every tool call
   re-checks the account, instructor role and course assignment, so removing
   access takes effect on the next request.
-- **Scopes.** `courses:read` and `courses:write`. The consent screen lets the
-  trainer connect read-only by unticking "Also allow saving course changes".
+- **Scopes.** `courses:read`, `courses:write`, `learners:read`, and
+  `messages:send`. Each extra capability has its own consent checkbox. Existing
+  connections do not acquire the new scopes automatically; disconnect and
+  reconnect before testing learner or messaging tools.
 - **Preview, confirm, apply.** `prepare_course_change` validates operations and
   stores an immutable `CourseChange` record (user, client, exact operations,
   preview, content fingerprints) without touching the course.
@@ -51,19 +54,47 @@ AI app ──OAuth (PKCE)──> /o/authorize, /o/token   (Django OAuth Toolkit)
   uploads never conflict with each other. AI saves lock the rows they change
   before checking versions, and builder saves take the same lock.
 
-### What V1 can change
+### Existing-course operations
 
 | Operation | Notes |
 | --- | --- |
-| `update_course` | Title, description (HTML), learning outcomes. A new title changes the public course address; the preview says so. |
-| `update_module` | Title of an existing module. |
+| `update_course` | Title, description (HTML), public summary, category, level and learning outcomes. A new title changes the public course address; the preview says so. |
+| `update_module` | Title and short description of an existing module. |
 | `create_text_lesson` / `update_text_lesson` | Title, body HTML, duration, short description. Other lesson properties are kept. |
 | `create_quiz` | New quiz with 1–50 questions and builder default settings (weight 0%). |
 | `add_questions` / `update_question` | Single choice, multiple choice and true/false. Existing questions, option IDs, settings and attempts are never removed. |
 
-Out of scope: deleting content, publishing/unpublishing, course creation,
-moving or reordering items, media uploads, question banks, grading weights and
-policy, learner records, payments and calendars.
+V1 still works independently of the V2 flag. With V2 enabled, the existing
+course-change flow can also append modules and show/hide individual modules or
+items without deleting them. Hiding a module may hide its children from learners.
+
+### Expanded V2 tools (off by default)
+
+| Tool | Purpose |
+| --- | --- |
+| `get_course_creation_options` | Read configured categories, levels and active curriculum labels. |
+| `prepare_new_course` → `apply_new_course` | Preview and atomically create an unpublished course with modules, text lessons and basic quizzes. |
+| `inspect_course_health` | Combine publishing findings, learner-state counts and pending instructor workload. |
+| `list_course_learners`, `get_course_learner`, `get_course_engagement_matrix` | Inspect recorded course-local activity, progress and published assessment outcomes with `learners:read`. |
+| `inspect_lms_configuration` | Admin-only non-secret deployment configuration and course counts. |
+| `prepare_learner_message` → `apply_learner_message` | Preview exact recipients and text; send private LMS direct messages and in-app notifications with `messages:send`. |
+
+Messages may target at most 50 active learners per preview, either by explicit
+enrollment IDs or by 1–365 days without recorded learning activity. A learner
+with no activity record is measured from enrollment date, **not** assumed to
+have never opened the LMS. The apply step rechecks assignments, recipient
+status, activity and preview details, and it is idempotent. It sends no email.
+
+The diagnostic tools report stored facts and configuration; they cannot see
+server logs, availability of external providers, video contents without
+transcripts, actual email delivery or every learner page visit. Separate AI
+teaching suggestions from factual findings. Unpublished grades are not exposed
+by the learner-detail tool.
+
+Still outside this release: course deletion, publishing/unpublishing, media
+uploads, question-bank changes, grading-policy changes, payments, calendars,
+arbitrary database access, and server-log access. Other lesson/session types
+remain editable in the normal LMS builder. The V2 tools do not replace it.
 
 New items in a published course become visible to learners when applied (the
 same rule as the course builder); the preview states this. Unpublished courses
@@ -82,11 +113,19 @@ requires approval after staging acceptance.
 
 ```bash
 AI_CONNECTOR_ENABLED=True
+AI_CONNECTOR_V2_ENABLED=False             # change to True only after V2 acceptance
 AI_CONNECTOR_BASE_URL=https://lms-staging.example.edu   # public origin, no trailing slash
 AI_CONNECTOR_ALLOWED_REDIRECT_HOSTS=claude.ai,claude.com,chatgpt.com,platform.openai.com
 ```
 
 Then run `python manage.py migrate` and restart Passenger.
+
+When V2 is accepted, set `AI_CONNECTOR_V2_ENABLED=True` in the target
+deployment and restart Passenger. Do not enable it solely because the migration
+ran. Once enabled, reconnect the AI app to request the learner and messaging
+scopes; existing `courses:read`/`courses:write` grants continue to work for
+course authoring. Enable per-tool approval in the AI client for
+`apply_course_change`, `apply_new_course` and `apply_learner_message`.
 
 `AI_CONNECTOR_BASE_URL` must match the URL trainers paste into their AI app
 (scheme included). Tokens are bound to `<base>/mcp`, so an HTTPS/HTTP mismatch
@@ -130,9 +169,12 @@ the trainer approves access.
   `codex mcp login course-authoring`. *(Verify commands and approval mode
   against the installed Codex version.)*
 
-The client's approval prompt and the tool instructions are the human
+The client's approval prompt and the tool instructions are the chat
 confirmation step. The server never trusts an AI-supplied "approved" flag; it
-only applies a change ID that was prepared by the same account.
+only applies a change ID prepared by the same account. The server cannot prove
+that a particular chat message came from a human. If hard server-enforced
+approval is required across all AI clients, a server-side confirmation step
+or verified client attestation must be added.
 
 ## Staging acceptance
 
@@ -146,6 +188,11 @@ only applies a change ID that was prepared by the same account.
    save (stale), and disconnecting from Connected AI apps.
 5. Repeat the read, preview and save in Claude and ChatGPT on connector-enabled
    accounts.
+6. For V2, enable its separate flag in staging; test new-course creation,
+   published-course module additions, learner activity, stale recipient
+   previews, private-message approval, duplicate apply calls, and an
+   instructor whose course assignment was removed. Verify saved content and
+   messages in the existing LMS interface before production acceptance.
 
 ## Local verification
 

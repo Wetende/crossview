@@ -7,8 +7,8 @@ from .models import CourseChange
 class CourseChangeAdmin(admin.ModelAdmin):
     """Read-only audit trail of changes requested through AI apps."""
 
-    list_display = ("created_at", "program_code", "summary", "user_email", "client_name", "status")
-    list_filter = ("status", "affects_published_content")
+    list_display = ("created_at", "kind", "program_code", "summary", "user_email", "client_name", "status")
+    list_filter = ("kind", "status", "affects_published_content")
     search_fields = ("summary", "program_code", "user_email", "client_name")
     date_hierarchy = "created_at"
 

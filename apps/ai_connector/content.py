@@ -91,10 +91,21 @@ def program_version(program) -> str:
             "name": program.name,
             "description": program.description or "",
             "preview_description": program.preview_description or "",
+            "category": program.category or "",
+            "level": program.level or "",
             "what_you_learn_html": program.what_you_learn_html or "",
             "is_published": program.is_published,
         }
     )
+
+
+def root_layout_version(program) -> str:
+    """Fingerprint the ordered root list used when appending a module."""
+    return _digest(list(
+        CurriculumNode.objects.filter(program=program, parent__isnull=True)
+        .order_by("position", "id")
+        .values_list("id", "position", "title")
+    ))
 
 
 def _question_rows(questions) -> list:

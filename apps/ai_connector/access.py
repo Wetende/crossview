@@ -15,6 +15,8 @@ from apps.core.utils import is_instructor
 
 READ_SCOPE = "courses:read"
 WRITE_SCOPE = "courses:write"
+LEARNERS_SCOPE = "learners:read"
+MESSAGES_SCOPE = "messages:send"
 
 
 class ConnectorError(Exception):
@@ -27,6 +29,11 @@ class AccessDenied(ConnectorError):
 
 def connector_enabled() -> bool:
     return bool(getattr(settings, "AI_CONNECTOR_ENABLED", False))
+
+
+def require_v2_enabled() -> None:
+    if not bool(getattr(settings, "AI_CONNECTOR_V2_ENABLED", False)):
+        raise AccessDenied("Expanded AI connector tools are not enabled on this LMS deployment yet.")
 
 
 def can_use_connector(user) -> bool:
@@ -74,4 +81,7 @@ def require_scope(token, scope: str) -> None:
                 "This connection can read courses but was not authorized to save "
                 "changes. Disconnect and reconnect the app, then allow course changes."
             )
-        raise AccessDenied(f"This connection is missing the {scope} permission.")
+        raise AccessDenied(
+            f"This connection is missing the {scope} permission. Disconnect and "
+            "reconnect the app to grant it."
+        )

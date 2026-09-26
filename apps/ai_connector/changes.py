@@ -17,9 +17,11 @@ from .access import (
     AccessDenied,
     ConnectorError,
     get_program_for_user,
+    can_use_connector,
     require_scope,
+    require_v2_enabled,
 )
-from .content import Links, node_version, program_version
+from .content import Links, node_version, program_version, root_layout_version
 from .models import CourseChange
 from .operations import apply_operations, plan_operations
 
@@ -97,6 +99,12 @@ def _load_own_change(user, change_id, lock=False):
     return change
 
 
+def _require_same_client(change, token):
+    application = getattr(token, "application", None)
+    if change.application_id != getattr(application, "pk", None):
+        raise AccessDenied("This change was prepared by another connected AI app.")
+
+
 def _finish(change, status, *, result=None, error="", token=None, applied_at=None):
     change.status = status
     change.result = result or {}
@@ -142,6 +150,9 @@ def _stale_targets(program, target_versions) -> list[str]:
         elif kind == "course":
             if program_version(program) != expected:
                 stale.append("the course details")
+        elif kind == "root_layout":
+            if root_layout_version(program) != expected:
+                stale.append("the module order")
         elif kind == "node":
             node = CurriculumNode.objects.filter(program=program, pk=raw_id).first()
             if node is None:
@@ -169,6 +180,11 @@ def apply_change(*, user, token, links: Links, change_id) -> dict:
     error = None
     with transaction.atomic():
         change = _load_own_change(user, change_id, lock=True)
+        _require_same_client(change, token)
+        if change.kind != "course_edit":
+            raise ConnectorError("This ID belongs to a different action. Use its matching apply tool.")
+        if any(operation.get("op") in {"create_module", "set_item_visibility"} for operation in change.operations):
+            require_v2_enabled()
         program = _current_program(user, change)
         if change.status == CourseChange.Status.APPLIED:
             if program is None:
@@ -239,6 +255,7 @@ def apply_change(*, user, token, links: Links, change_id) -> dict:
 def change_status(*, user, token, change_id) -> dict:
     require_scope(token, READ_SCOPE)
     change = _load_own_change(user, change_id)
+    _require_same_client(change, token)
     status = change.status
     if status == CourseChange.Status.PREPARED and change.expires_at <= timezone.now():
         status = CourseChange.Status.EXPIRED
@@ -249,7 +266,13 @@ def change_status(*, user, token, change_id) -> dict:
         "expires_at": change.expires_at.isoformat(),
         "applied_at": change.applied_at.isoformat() if change.applied_at else None,
     }
-    if _current_program(user, change) is None:
+    if change.kind == "course_create":
+        if not can_use_connector(user):
+            raise AccessDenied("This account can no longer use the connector.")
+        if change.program_id and _current_program(user, change) is None:
+            payload["message"] = "You no longer have access to the created course."
+            return payload
+    elif _current_program(user, change) is None:
         # Previews can contain course content such as answer keys; show only the
         # outcome once the person has lost access to the course.
         payload["message"] = "You no longer have access to this course, so the change details are hidden."
@@ -257,9 +280,11 @@ def change_status(*, user, token, change_id) -> dict:
     payload.update(
         {
             "summary": change.summary,
+            "kind": change.kind,
             "course": {"id": change.program_id, "code": change.program_code},
             "affects_published_content": change.affects_published_content,
             "operations": change.preview.get("operations", []),
+            "preview": change.preview if change.kind != "course_edit" else None,
             "result": change.result or None,
             "error": change.error or None,
         }
