@@ -1,6 +1,7 @@
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { router } from "@inertiajs/react";
 
 import QuizRenderer from "./QuizRenderer";
 import {
@@ -323,5 +324,79 @@ describe("QuizRenderer", () => {
 
         expect(result.pointsEarned).toBe(1);
         expect(result.score).toBe(100);
+    });
+
+    describe("inline quiz completion", () => {
+        const inlineNode = {
+            id: 7,
+            title: "Final check",
+            properties: {
+                questions: [
+                    {
+                        id: 701,
+                        type: "mcq",
+                        text: "Pick the first option",
+                        options: ["First option", "Second option"],
+                        correct: 0,
+                        points: 1,
+                    },
+                ],
+            },
+        };
+
+        beforeEach(() => {
+            router.post.mockClear();
+            router.visit.mockClear();
+        });
+
+        const finishQuiz = (onComplete) => {
+            render(
+                <QuizRenderer
+                    node={inlineNode}
+                    enrollmentId={9}
+                    onComplete={onComplete}
+                />,
+            );
+            fireEvent.click(screen.getByLabelText("First option"));
+            fireEvent.click(screen.getByRole("button", { name: "Finish Quiz" }));
+            expect(router.post).toHaveBeenCalledTimes(1);
+            return router.post.mock.calls[0];
+        };
+
+        test("opens the course summary instead of a second completion post", () => {
+            const onComplete = vi.fn();
+            const [url, , options] = finishQuiz(onComplete);
+
+            expect(url).toBe("/student/programs/9/session/7/");
+            expect(options.only).toEqual([
+                "isCompleted",
+                "curriculum",
+                "courseCompleteUrl",
+            ]);
+            act(() => {
+                options.onSuccess({
+                    props: { courseCompleteUrl: "/student/programs/9/complete/" },
+                });
+                options.onFinish();
+            });
+
+            expect(router.visit).toHaveBeenCalledWith(
+                "/student/programs/9/complete/",
+            );
+            expect(onComplete).not.toHaveBeenCalled();
+        });
+
+        test("keeps the lesson completion flow when the course continues", () => {
+            const onComplete = vi.fn();
+            const [, , options] = finishQuiz(onComplete);
+
+            act(() => {
+                options.onSuccess({ props: { courseCompleteUrl: null } });
+                options.onFinish();
+            });
+
+            expect(router.visit).not.toHaveBeenCalled();
+            expect(onComplete).toHaveBeenCalledTimes(1);
+        });
     });
 });

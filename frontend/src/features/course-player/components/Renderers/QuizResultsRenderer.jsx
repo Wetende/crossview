@@ -9,6 +9,7 @@ import {
     Typography,
 } from "@mui/material";
 import { IconArrowRight, IconEye, IconRefresh } from "@tabler/icons-react";
+import { EmojiEventsOutlined } from "@mui/icons-material";
 
 import {
     AssessmentResultHero,
@@ -47,7 +48,11 @@ const withAttemptId = (url, attemptId) => {
 const submittedLabel = (value) =>
     value ? new Date(value).toLocaleString() : "Not recorded";
 
-const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
+const QuizResultsRenderer = ({
+    quizResults,
+    nextNode = null,
+    courseCompleteUrl = null,
+}) => {
     const {
         quiz,
         attempts = [],
@@ -161,11 +166,26 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                             useFlexGap
                             sx={{ flexWrap: "wrap" }}
                         >
+                            {courseCompleteUrl && (
+                                <Button
+                                    component={Link}
+                                    href={courseCompleteUrl}
+                                    variant="contained"
+                                    color="success"
+                                    startIcon={<EmojiEventsOutlined />}
+                                >
+                                    View course summary
+                                </Button>
+                            )}
                             {hasPassedQuiz && nextNode?.url && (
                                 <Button
                                     component={Link}
                                     href={nextNode.url}
-                                    variant="contained"
+                                    variant={
+                                        courseCompleteUrl
+                                            ? "outlined"
+                                            : "contained"
+                                    }
                                     endIcon={<IconArrowRight size={18} />}
                                 >
                                     Continue learning

@@ -865,3 +865,62 @@ class CertificateEligibilityService:
         )
 
         return certificate
+
+
+def resolve_learner_certificate(enrollment) -> dict:
+    """
+    Describe the learner-facing certificate state for one enrollment.
+
+    Mirrors the student certificates page: an issued certificate links to its
+    signed download and public verification page; a queued (or eligible but not
+    yet issued) record is pending; otherwise eligibility decides between
+    "not offered" and "ineligible".
+    """
+
+    def state(status, message, certificate=None):
+        return {
+            "status": status,
+            "downloadUrl": (
+                certificate.get_signed_download_url() if certificate else None
+            ),
+            "verifyUrl": certificate.get_verification_url() if certificate else None,
+            "message": message,
+        }
+
+    pending = (
+        "pending",
+        "Your certificate is being prepared. We will notify you when it is ready.",
+    )
+
+    certificate = (
+        Certificate.objects.filter(enrollment=enrollment)
+        .order_by("-issue_date", "-id")
+        .first()
+    )
+    if certificate and not certificate.is_revoked:
+        return state(
+            "issued",
+            "Your certificate is ready to download and share.",
+            certificate,
+        )
+    if certificate:
+        return state(
+            "ineligible",
+            "Your certificate for this course has been revoked. Contact your "
+            "course administrator for details.",
+        )
+
+    if CertificateEligibility.objects.filter(
+        enrollment=enrollment, status="pending"
+    ).exists():
+        return state(*pending)
+
+    snapshot = CertificateEligibilityService().compute_eligibility(enrollment)
+    if not snapshot.get("certificateEnabled"):
+        return state("not_offered", "This course does not award a certificate.")
+    if snapshot.get("eligible"):
+        return state(*pending)
+    return state(
+        "ineligible",
+        "A certificate is awarded once you meet the course's passing requirements.",
+    )

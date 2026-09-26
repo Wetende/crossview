@@ -15,6 +15,8 @@ import GradeIcon from "@mui/icons-material/Grade";
 import AnnouncementIcon from "@mui/icons-material/Announcement";
 import PersonIcon from "@mui/icons-material/Person";
 import InfoIcon from "@mui/icons-material/Info";
+import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
+import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
 
@@ -28,6 +30,10 @@ const notificationIconMap = {
     announcement: <AnnouncementIcon color="info" fontSize="small" />,
     instructor_approved: <PersonIcon color="success" fontSize="small" />,
     instructor_rejected: <PersonIcon color="error" fontSize="small" />,
+    course_completed: <EmojiEventsOutlinedIcon color="success" fontSize="small" />,
+    certificate_issued: (
+        <WorkspacePremiumOutlinedIcon color="success" fontSize="small" />
+    ),
     system: <InfoIcon color="action" fontSize="small" />,
 };
 

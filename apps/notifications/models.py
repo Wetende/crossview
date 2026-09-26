@@ -27,6 +27,8 @@ class Notification(TimeStampedModel):
         ('access_expiry_reminder', 'Access Expiry Reminder'),
         ('inactivity_reminder', 'Inactivity Reminder'),
         ('badge_earned', 'Badge Earned'),
+        ('course_completed', 'Course Completed'),
+        ('certificate_issued', 'Certificate Issued'),
         ('system', 'System Notification'),
     ]
 

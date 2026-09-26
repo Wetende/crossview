@@ -24,6 +24,8 @@ const Whiteboard = ({
     discussions = [],
     onVideoProgress,
     seekRef = null,
+    courseCompleteUrl = null,
+    courseSummaryUrl = null,
 }) => {
     const nodeId = node?.id;
     const [videoRequirementMet, setVideoRequirementMet] = useState(false);
@@ -58,8 +60,16 @@ const Whiteboard = ({
                     "enrollment",
                     "nextNode",
                     "prevNode",
+                    "courseCompleteUrl",
                 ],
                 onSuccess: (page) => {
+                    // Present only when this completion finished the course;
+                    // the summary takes priority over the next lesson.
+                    const courseCompleteUrl = page?.props?.courseCompleteUrl;
+                    if (courseCompleteUrl) {
+                        router.visit(courseCompleteUrl);
+                        return;
+                    }
                     if (!destination?.id) return;
                     handleNavigate(page?.props?.nextNode || destination);
                 },
@@ -174,6 +184,7 @@ const Whiteboard = ({
                     <QuizResultsRenderer
                         quizResults={node.properties.quizResults}
                         nextNode={nextNode}
+                        courseCompleteUrl={courseCompleteUrl}
                     />
                 );
             }
@@ -339,6 +350,11 @@ const Whiteboard = ({
                 completionLabel={
                     node.completionPolicy?.learnerCanComplete === false
                         ? "Attendance pending"
+                        : null
+                }
+                onViewSummary={
+                    courseSummaryUrl
+                        ? () => router.visit(courseSummaryUrl)
                         : null
                 }
             />

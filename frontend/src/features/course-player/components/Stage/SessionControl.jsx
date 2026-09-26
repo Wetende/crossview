@@ -1,6 +1,11 @@
 import { useId } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { NavigateBefore, NavigateNext, CheckCircle } from "@mui/icons-material";
+import {
+    NavigateBefore,
+    NavigateNext,
+    CheckCircle,
+    EmojiEventsOutlined,
+} from "@mui/icons-material";
 
 // Minimum footer height; the stage scroll box uses it as scroll padding so
 // focused or scrolled-to content is not hidden behind the sticky footer.
@@ -12,7 +17,9 @@ export const SESSION_CONTROL_HEIGHT = 64;
  * - not completed + next lesson  -> "Complete & Next" (onComplete(nextNode))
  * - not completed + last lesson  -> "Mark complete"   (onComplete())
  * - completed + next lesson      -> "Next"            (onNavigate(nextNode))
- * - completed + last lesson      -> disabled "Completed"
+ * - completed + last lesson      -> disabled "Completed", or "View course
+ *                                    summary" (onViewSummary()) once the
+ *                                    course itself is complete
  *
  * When completion is blocked (`canComplete === false`) the learner can still
  * move on with "Next"; on the last lesson the completion button stays
@@ -28,6 +35,7 @@ const SessionControl = ({
     canComplete = true,
     completionTooltip = "",
     completionLabel = null,
+    onViewSummary = null,
 }) => {
     const reasonId = useId();
     const isBlocked = !isCompleted && canComplete === false;
@@ -43,11 +51,17 @@ const SessionControl = ({
                       onClick: () => onNavigate(nextNode),
                       endIcon: <NavigateNext />,
                   }
-                : {
-                      label: "Completed",
-                      disabled: true,
-                      startIcon: <CheckCircle />,
-                  };
+                : onViewSummary
+                  ? {
+                        label: "View course summary",
+                        onClick: onViewSummary,
+                        startIcon: <EmojiEventsOutlined />,
+                    }
+                  : {
+                        label: "Completed",
+                        disabled: true,
+                        startIcon: <CheckCircle />,
+                    };
         }
 
         if (isBlocked) {

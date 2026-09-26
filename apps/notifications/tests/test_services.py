@@ -2,7 +2,7 @@
 Tests for notification services.
 """
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.core import mail
 from apps.core.models import Program
@@ -209,3 +209,121 @@ class NotificationServiceTests(TestCase):
             1,
         )
         self.assertEqual(len(mail.outbox), 0)
+
+
+class CompletionNotificationTests(TestCase):
+    """Course completion and certificate issue notifications."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="completion-learner",
+            email="completion@example.com",
+            password="testpass123",
+            first_name="Sam",
+        )
+        self.program = Program.objects.create(
+            name="Completion Program",
+            code="NOTIF-COMPLETE-1",
+            level="beginner",
+        )
+        self.enrollment = Enrollment.objects.create(
+            user=self.user,
+            program=self.program,
+            status="active",
+        )
+
+    def _certificate(self):
+        from apps.certifications.models import Certificate, CertificateTemplate
+
+        template = CertificateTemplate.objects.get(
+            name="Classic Formal",
+            is_starter=True,
+        )
+        return Certificate.objects.create(
+            enrollment=self.enrollment,
+            template=template,
+            serial_number="LMS-2026-NOTIFY",
+            student_name="Sam",
+            program_title=self.program.name,
+            completion_date="2026-09-26",
+            issue_date="2026-09-26",
+            pdf_path="certificates/LMS-2026-NOTIFY.pdf",
+        )
+
+    def test_notify_course_completed_sends_in_app_and_email_once(self):
+        first = NotificationService.notify_course_completed(self.enrollment)
+        second = NotificationService.notify_course_completed(self.enrollment)
+
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(first.notification_type, "course_completed")
+        self.assertEqual(
+            first.action_url,
+            f"/student/programs/{self.enrollment.id}/complete/",
+        )
+        self.assertEqual(first.related_enrollment_id, self.enrollment.id)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject, "Course completed: Completion Program"
+        )
+        self.assertIn("Hello Sam,", mail.outbox[0].body)
+
+    def test_notify_course_completed_respects_type_preferences(self):
+        NotificationPreference.objects.create(
+            user=self.user,
+            type_preferences={"course_completed": {"in_app": False, "email": False}},
+        )
+
+        notification = NotificationService.notify_course_completed(self.enrollment)
+
+        self.assertIsNone(notification)
+        self.assertFalse(
+            Notification.objects.filter(notification_type="course_completed").exists()
+        )
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_notify_certificate_issued_sends_in_app_and_email_once(self):
+        certificate = self._certificate()
+
+        first = NotificationService.notify_certificate_issued(certificate)
+        second = NotificationService.notify_certificate_issued(certificate)
+
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(first.notification_type, "certificate_issued")
+        self.assertEqual(first.action_url, "/student/certificates/")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(
+            mail.outbox[0].subject, "Certificate issued: Completion Program"
+        )
+        self.assertIn("LMS-2026-NOTIFY", mail.outbox[0].body)
+
+    def test_notify_certificate_issued_respects_email_preference(self):
+        NotificationPreference.objects.create(user=self.user, email_enabled=False)
+        certificate = self._certificate()
+
+        notification = NotificationService.notify_certificate_issued(certificate)
+
+        self.assertEqual(notification.notification_type, "certificate_issued")
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(PLATFORM_PUBLIC_BASE_URL="https://learn.example")
+    def test_completion_emails_link_to_absolute_urls(self):
+        from apps.notifications.models import NotificationEmailOutbox
+
+        notification = NotificationService.notify_course_completed(self.enrollment)
+        NotificationService.notify_certificate_issued(self._certificate())
+
+        summary_url = (
+            f"https://learn.example/student/programs/{self.enrollment.id}/complete/"
+        )
+        self.assertEqual(
+            notification.action_url,
+            f"/student/programs/{self.enrollment.id}/complete/",
+        )
+        self.assertIn(summary_url, mail.outbox[0].body)
+        self.assertIn(
+            "https://learn.example/student/certificates/", mail.outbox[1].body
+        )
+        course_row = NotificationEmailOutbox.objects.get(
+            notification_type="course_completed"
+        )
+        self.assertEqual(course_row.metadata["action_url"], summary_url)

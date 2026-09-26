@@ -12,7 +12,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.http import Http404
 from django.db import transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -51,7 +51,7 @@ from apps.assessments.student_payloads import sanitize_assessment_properties
 from apps.assessments.text_normalization import normalize_true_false_choice
 from apps.practicum.models import PracticumSubmission, SubmissionReview
 from apps.certifications.models import Certificate, CertificateEligibility
-from apps.progression.services import ProgressionEngine
+from apps.progression.services import ProgressionEngine, mark_enrollment_completed
 from apps.progression.gradebook_columns import resolve_gradebook_columns
 from apps.progression.gamification import serialize_gamification
 from apps.core.utils import serialize_user, should_render_inertia_prop
@@ -526,6 +526,11 @@ def program_view(request, pk: int):
             "enrollment": _build_enrollment_player_payload(enrollment, progress),
             "curriculum": curriculum_tree,
             "resumeUrl": f"/student/programs/{program.id}/resume/",
+            "courseCompleteUrl": (
+                _course_complete_url(enrollment)
+                if enrollment.status == "completed"
+                else None
+            ),
             "prevNode": None,
             "nextNode": None,
             "progress": round(progress, 1),
@@ -788,6 +793,174 @@ def unit_summary(request, pk: int, section_id: int):
     )
 
 
+def _course_complete_url(enrollment: Enrollment) -> str:
+    return reverse("progression:student.course.complete", args=[enrollment.id])
+
+
+def _course_complete_url_if_finished_by(enrollment: Enrollment, node) -> Optional[str]:
+    """Summary URL when the enrollment is completed and this node was completed last."""
+    if enrollment.status != "completed":
+        return None
+    latest_node_id = (
+        NodeCompletion.objects.filter(enrollment=enrollment)
+        .order_by("-completed_at", "-id")
+        .values_list("node_id", flat=True)
+        .first()
+    )
+    return _course_complete_url(enrollment) if latest_node_id == node.id else None
+
+
+def _build_course_completion_stats(enrollment: Enrollment) -> dict:
+    """Summarize learner evidence already recorded for this enrollment."""
+    from apps.assessments.models import QuizAttempt
+    from apps.learning_operations.models import LearnerNodeProgress
+
+    program = enrollment.program
+    stats = {
+        "lessonsCompleted": NodeCompletion.objects.filter(
+            enrollment=enrollment,
+            node__program=program,
+            node__is_published=True,
+            node__children__isnull=True,
+        ).count(),
+        "totalLessons": _get_completable_nodes_count(program),
+        "quizzesPassed": QuizAttempt.objects.filter(
+            enrollment=enrollment,
+            passed=True,
+            submitted_at__isnull=False,
+        )
+        .values("quiz_id")
+        .distinct()
+        .count(),
+    }
+    # Server-bounded active time from tracked media/document activities only.
+    active_seconds = (
+        LearnerNodeProgress.objects.filter(enrollment=enrollment).aggregate(
+            total=Sum("active_seconds")
+        )["total"]
+        or 0
+    )
+    if active_seconds >= 60:
+        stats["timeSpentMinutes"] = int(active_seconds // 60)
+    return stats
+
+
+def _build_course_review_state(enrollment: Enrollment) -> dict:
+    """Review eligibility, matching core.views.program_review_submit."""
+    from apps.reviews.models import ProgramReview
+
+    program = enrollment.program
+    return {
+        "canReview": bool(program.is_published and enrollment.status == "completed"),
+        "hasReviewed": ProgramReview.objects.filter(
+            program=program,
+            user=enrollment.user,
+        ).exists(),
+        "submitUrl": reverse("core:program_review_submit", args=[program.id]),
+    }
+
+
+def _build_next_courses(enrollment: Enrollment, limit: int = 3) -> list:
+    """Published courses the learner has not joined, same category first."""
+    program = enrollment.program
+    candidates = Program.objects.filter(is_published=True).exclude(
+        id__in=Enrollment.objects.filter(user=enrollment.user).values("program_id")
+    )
+    ordering = ("-is_featured", "-created_at", "id")
+
+    picks = []
+    if program.category:
+        picks = list(
+            candidates.filter(category=program.category).order_by(*ordering)[:limit]
+        )
+    if len(picks) < limit:
+        picks += list(
+            candidates.exclude(id__in=[course.id for course in picks]).order_by(
+                *ordering
+            )[: limit - len(picks)]
+        )
+
+    return [
+        {
+            "id": course.id,
+            "title": course.name,
+            "slug": course.slug,
+            "url": f"/programs/{course.slug}/",
+            "thumbnailUrl": course.thumbnail.url if course.thumbnail else None,
+            "level": course.level or "",
+            "durationHours": course.duration_hours or 0,
+        }
+        for course in picks
+    ]
+
+
+@login_required
+def course_complete(request, pk: int):
+    """Render the end-of-course summary inside the course player."""
+    from apps.certifications.services import resolve_learner_certificate
+
+    enrollment = get_object_or_404(
+        Enrollment.objects.select_related("program"),
+        pk=pk,
+        user=request.user,
+    )
+    program = enrollment.program
+    if enrollment.status != "completed":
+        messages.info(
+            request,
+            "Finish every lesson in this course to see your course summary.",
+        )
+        return redirect("progression:student.program", pk=program.id)
+
+    completions = list(enrollment.completions.values_list("node_id", flat=True))
+    engine = ProgressionEngine()
+    status_map = {
+        status["node_id"]: status for status in engine.get_unlock_status(enrollment)
+    }
+    curriculum_tree = _build_curriculum_tree(
+        _get_published_root_nodes(program),
+        completions,
+        enrollment,
+        status_map,
+    )
+    total_nodes = _get_completable_nodes_count(program)
+    progress = len(completions) / total_nodes * 100 if total_nodes > 0 else 0
+
+    return render(
+        request,
+        "Student/CoursePlayer",
+        {
+            "node": None,
+            "activeView": "course_complete",
+            "courseCompletion": {
+                "completedAt": (
+                    enrollment.completed_at.isoformat()
+                    if enrollment.completed_at
+                    else None
+                ),
+                "stats": _build_course_completion_stats(enrollment),
+                "certificate": resolve_learner_certificate(enrollment),
+                "review": _build_course_review_state(enrollment),
+                "nextCourses": _build_next_courses(enrollment),
+                "dashboardUrl": "/dashboard/",
+            },
+            "program": _build_program_player_payload(program, enrollment),
+            "instructor": _get_primary_instructor_payload(program),
+            "enrollment": _build_enrollment_player_payload(enrollment, progress),
+            "curriculum": curriculum_tree,
+            "resumeUrl": f"/student/programs/{program.id}/resume/",
+            "prevNode": None,
+            "nextNode": None,
+            "progress": round(progress, 1),
+            "isCompleted": False,
+            "isLocked": False,
+            "lockReason": None,
+            "status": "unlocked",
+            "unlocksAt": None,
+        },
+    )
+
+
 # =============================================================================
 # Session Viewer
 # =============================================================================
@@ -836,6 +1009,9 @@ def session_viewer(request, pk: int, node_id: int):
     if not unlock_status.get("is_unlocked", True):
         # Node is locked - redirect to program view (shows first available lesson)
         return redirect("progression:student.program", pk=enrollment.program_id)
+
+    # Summary link, offered only when completing this node finished the course.
+    course_complete_url = None
 
     # Handle mark as complete POST
     if request.method == "POST":
@@ -975,6 +1151,14 @@ def session_viewer(request, pk: int, node_id: int):
                     node=node,
                     completion_type=completion_type,
                 )
+            # Also covers a final lesson already completed by activity evidence
+            # (media/document heartbeat, Code Lab submit) before this POST.
+            course_complete_url = _course_complete_url_if_finished_by(
+                enrollment, node
+            )
+    elif request.GET.get("course_complete") == "1":
+        # Quiz results redirect after the submission that finished the course.
+        course_complete_url = _course_complete_url_if_finished_by(enrollment, node)
 
     # Check if completed
     is_completed = NodeCompletion.objects.filter(
@@ -1141,6 +1325,7 @@ def session_viewer(request, pk: int, node_id: int):
             "unlocksAt": unlock_status.get("unlocks_at"),
             "discussions": discussions_data,
             "notes": notes_data,
+            "courseCompleteUrl": course_complete_url,
         },
     )
 
@@ -1375,11 +1560,19 @@ def _get_lesson_counts(program_ids: list[int]) -> dict[int, int]:
 
 
 def _get_completion_counts(enrollment_ids: list[int]) -> dict[int, int]:
-    """Return completion counts keyed by enrollment ID."""
+    """Return published-leaf completion counts keyed by enrollment ID.
+
+    Matches ``_get_completable_node_counts`` so completions of unpublished
+    lessons cannot push progress to 100%.
+    """
     if not enrollment_ids:
         return {}
     return dict(
-        NodeCompletion.objects.filter(enrollment_id__in=enrollment_ids)
+        NodeCompletion.objects.filter(
+            enrollment_id__in=enrollment_ids,
+            node__is_published=True,
+            node__children__isnull=True,
+        )
         .values("enrollment_id")
         .annotate(count=Count("id"))
         .values_list("enrollment_id", "count")
@@ -1397,11 +1590,12 @@ def _reconcile_enrollment_status(enrollment: Enrollment, progress: float) -> str
 
     target_status = "completed" if progress >= 100 else "active"
     if enrollment.status != target_status:
-        enrollment.status = target_status
-        enrollment.completed_at = (
-            timezone.now() if target_status == "completed" else None
-        )
-        enrollment.save(update_fields=["status", "completed_at", "updated_at"])
+        if target_status == "completed":
+            mark_enrollment_completed(enrollment)
+        else:
+            enrollment.status = target_status
+            enrollment.completed_at = None
+            enrollment.save(update_fields=["status", "completed_at", "updated_at"])
 
     return target_status
 
@@ -1416,6 +1610,11 @@ def _build_enrollment_player_payload(enrollment, progress):
     return {
         "id": enrollment.id,
         "progressPercent": round(progress, 1),
+        "completionSummaryUrl": (
+            _course_complete_url(enrollment)
+            if enrollment.status == "completed"
+            else None
+        ),
         "gamification": serialize_gamification(enrollment),
         "upcomingDeadlines": get_upcoming_deadlines_for_enrollments([enrollment]),
         **operations,

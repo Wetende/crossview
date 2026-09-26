@@ -19,7 +19,11 @@ vi.mock("../Renderers/DocumentLessonRenderer", () => stub("document"));
 vi.mock("../Renderers/ScheduledSessionRenderer", () => stub("scheduled"));
 vi.mock("../Renderers/CodeLabRenderer", () => stub("code"));
 vi.mock("../Renderers/AudioRenderer", () => stub("audio"));
-vi.mock("../Renderers/QuizResultsRenderer", () => stub("quiz-results"));
+vi.mock("../Renderers/QuizResultsRenderer", () => ({
+    default: ({ courseCompleteUrl }) => (
+        <div data-testid="quiz-results">{courseCompleteUrl || "no summary"}</div>
+    ),
+}));
 
 const node = {
     id: 5,
@@ -29,8 +33,9 @@ const node = {
     blocks: [],
 };
 const nextNode = { id: 6, title: "Release strategies" };
+const summaryUrl = "/student/programs/9/complete/";
 
-const completeAndNext = () => {
+const renderWhiteboard = (props = {}) =>
     render(
         <Whiteboard
             node={node}
@@ -38,9 +43,19 @@ const completeAndNext = () => {
             nextNode={nextNode}
             courseId={9}
             isCompleted={false}
+            {...props}
         />,
     );
+
+const completeAndNext = () => {
+    renderWhiteboard();
     fireEvent.click(screen.getByRole("button", { name: "Complete & Next" }));
+    return router.post.mock.calls[0];
+};
+
+const completeLastLesson = () => {
+    renderWhiteboard({ nextNode: null });
+    fireEvent.click(screen.getByRole("button", { name: "Mark complete" }));
     return router.post.mock.calls[0];
 };
 
@@ -61,9 +76,12 @@ describe("Whiteboard completion", () => {
             "enrollment",
             "nextNode",
             "prevNode",
+            "courseCompleteUrl",
         ]);
 
-        options.onSuccess({ props: { isCompleted: true, nextNode } });
+        options.onSuccess({
+            props: { isCompleted: true, nextNode, courseCompleteUrl: null },
+        });
         expect(router.visit).toHaveBeenCalledWith(
             "/student/programs/9/session/6/",
         );
@@ -88,5 +106,65 @@ describe("Whiteboard completion", () => {
         options.onFinish();
         fireEvent.click(screen.getByRole("button", { name: "Complete & Next" }));
         expect(router.post).toHaveBeenCalledTimes(2);
+    });
+
+    test("prefers the course summary over the next lesson when the course is finished", () => {
+        const [, , options] = completeAndNext();
+
+        options.onSuccess({
+            props: { isCompleted: true, nextNode, courseCompleteUrl: summaryUrl },
+        });
+
+        expect(router.visit).toHaveBeenCalledTimes(1);
+        expect(router.visit).toHaveBeenCalledWith(summaryUrl);
+    });
+
+    test("opens the course summary when the last lesson completes the course", () => {
+        const [, , options] = completeLastLesson();
+
+        options.onSuccess({ props: { courseCompleteUrl: summaryUrl } });
+
+        expect(router.visit).toHaveBeenCalledTimes(1);
+        expect(router.visit).toHaveBeenCalledWith(summaryUrl);
+    });
+
+    test("stays on the last lesson when the course is not yet complete", () => {
+        const [, , options] = completeLastLesson();
+
+        options.onSuccess({ props: { courseCompleteUrl: null } });
+
+        expect(router.visit).not.toHaveBeenCalled();
+    });
+
+    test("offers the summary from the footer once the course is complete", () => {
+        renderWhiteboard({
+            nextNode: null,
+            isCompleted: true,
+            courseSummaryUrl: summaryUrl,
+        });
+
+        fireEvent.click(
+            screen.getByRole("button", { name: "View course summary" }),
+        );
+
+        expect(router.visit).toHaveBeenCalledWith(summaryUrl);
+        expect(router.post).not.toHaveBeenCalled();
+    });
+
+    test("passes the course summary URL to quiz results", () => {
+        renderWhiteboard({
+            node: {
+                ...node,
+                activityType: "quiz",
+                properties: {
+                    lesson_type: "quiz",
+                    quiz_id: 3,
+                    quizResults: { quiz: { id: 3 } },
+                },
+            },
+            courseCompleteUrl: summaryUrl,
+        });
+
+        expect(screen.getByTestId("quiz-results")).toHaveTextContent(summaryUrl);
     });
 });

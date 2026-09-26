@@ -406,6 +406,7 @@ const QuizRenderer = ({
             setResultSummary(summary);
 
             if (node?.id && enrollmentId) {
+                let openingCourseSummary = false;
                 router.post(
                     `/student/programs/${enrollmentId}/session/${node.id}/`,
                     {
@@ -415,10 +416,21 @@ const QuizRenderer = ({
                     },
                     {
                         preserveScroll: true,
-                        only: ["isCompleted", "curriculum"],
+                        only: ["isCompleted", "curriculum", "courseCompleteUrl"],
+                        onSuccess: (page) => {
+                            // Present only when this quiz finished the course.
+                            const courseCompleteUrl =
+                                page?.props?.courseCompleteUrl;
+                            if (courseCompleteUrl) {
+                                openingCourseSummary = true;
+                                router.visit(courseCompleteUrl);
+                            }
+                        },
                         onFinish: () => {
                             setIsSubmitting(false);
-                            if (onComplete) onComplete();
+                            if (!openingCourseSummary && onComplete) {
+                                onComplete();
+                            }
                         },
                     },
                 );

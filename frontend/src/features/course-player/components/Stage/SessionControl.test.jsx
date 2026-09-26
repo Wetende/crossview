@@ -87,6 +87,30 @@ describe("SessionControl", () => {
         expect(screen.getByRole("button", { name: "Completed" })).toBeDisabled();
     });
 
+    it("offers the course summary on the finished last lesson of a completed course", () => {
+        const onViewSummary = vi.fn();
+        renderControl({ isCompleted: true, nextNode: null, onViewSummary });
+
+        fireEvent.click(
+            screen.getByRole("button", { name: "View course summary" }),
+        );
+
+        expect(onViewSummary).toHaveBeenCalledTimes(1);
+        expect(
+            screen.queryByRole("button", { name: "Completed" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("keeps Next ahead of the summary while lessons remain", () => {
+        const { onNavigate } = renderControl({
+            isCompleted: true,
+            onViewSummary: vi.fn(),
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+        expect(onNavigate).toHaveBeenCalledWith(nextNode);
+    });
+
     it("still lets the learner move on when completion is blocked", () => {
         const reason = "Watch at least 80% of the video to mark complete";
         const { onComplete, onNavigate } = renderControl({
