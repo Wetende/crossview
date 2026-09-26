@@ -63,7 +63,7 @@ const VideoBlockEditor = ({ data, onChange }) => {
                     }}
                 >
                     <LazyReactPlayer
-                        url={url}
+                        src={url}
                         width="100%"
                         height="100%"
                         light
