@@ -22,6 +22,7 @@ nh3==0.3.7
 
 # Database
 pymysql>=1.1.0
+psycopg[binary]>=3.2.0
 
 
 
@@ -40,3 +41,6 @@ python-dotenv>=1.0.0
 
 # Utilities
 python-dateutil>=2.8.2
+
+# Email
+django-anymail[brevo]>=10.3
