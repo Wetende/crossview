@@ -74,7 +74,7 @@ const previewCurriculum = [
         nodeType: "Module",
         isLocked: true,
         lockReason: "enrollment_required",
-        lockReasonText: "Enrol to unlock",
+        lockReasonText: "Enroll to unlock",
         url: null,
         children: [
             {
@@ -97,7 +97,7 @@ const previewCurriculum = [
                 isPreview: false,
                 isLocked: true,
                 lockReason: "enrollment_required",
-                lockReasonText: "Enrol to unlock",
+                lockReasonText: "Enroll to unlock",
                 url: null,
                 children: [],
             },
@@ -107,7 +107,7 @@ const previewCurriculum = [
 
 const preview = {
     programUrl: "/programs/preview-course/",
-    enrolCta: { label: "Enroll now", href: "/programs/preview-course/" },
+    enrollCta: { label: "ENROLL NOW", href: "/programs/preview-course/" },
 };
 
 describe("CourseSidebar preview mode", () => {
@@ -134,7 +134,7 @@ describe("CourseSidebar preview mode", () => {
         expect(screen.getByRole("link", { name: "Overview" })).toBeInTheDocument();
     });
 
-    it("locks enrolled-only lessons and offers enrolment in preview mode", () => {
+    it("locks enrolled-only lessons and offers enrollment in preview mode", () => {
         render(
             <CourseSidebar
                 program={{ id: 3, name: "Preview Course" }}
@@ -159,10 +159,10 @@ describe("CourseSidebar preview mode", () => {
         );
 
         const lockedRow = screen.getByText("Deep dive").closest("li");
-        expect(within(lockedRow).getByText("Enrol to unlock")).toBeInTheDocument();
+        expect(within(lockedRow).getByText("Enroll to unlock")).toBeInTheDocument();
         expect(within(lockedRow).queryByRole("link")).not.toBeInTheDocument();
 
-        expect(screen.getByRole("link", { name: "Enroll now" })).toHaveAttribute(
+        expect(screen.getByRole("link", { name: "ENROLL NOW" })).toHaveAttribute(
             "href",
             "/programs/preview-course/",
         );

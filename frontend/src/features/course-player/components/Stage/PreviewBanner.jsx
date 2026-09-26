@@ -3,12 +3,13 @@ import { Box, Button, Stack, Typography } from "@mui/material";
 import { VisibilityOutlined } from "@mui/icons-material";
 
 /**
- * Persistent notice shown above a free preview lesson, with the enrol CTA
- * decided by the server (same decision as the public course page).
+ * Persistent notice shown above a free preview lesson, with the enroll CTA
+ * (same enrollment decision and wording as the public course page).
  */
-const PreviewBanner = ({ enrolCta = null }) => (
+const PreviewBanner = ({ enrollCta = null }) => (
     <Box
-        role="status"
+        component="section"
+        aria-label="Free preview"
         sx={{
             flexShrink: 0,
             px: { xs: 2, sm: 3 },
@@ -38,15 +39,15 @@ const PreviewBanner = ({ enrolCta = null }) => (
                     You&apos;re previewing a free lesson
                 </Typography>
             </Stack>
-            {enrolCta?.href && (
+            {enrollCta?.href && (
                 <Button
                     component={Link}
-                    href={enrolCta.href}
+                    href={enrollCta.href}
                     variant="contained"
                     size="small"
                     sx={{ textTransform: "none", flexShrink: 0 }}
                 >
-                    {enrolCta.label}
+                    {enrollCta.label}
                 </Button>
             )}
         </Stack>

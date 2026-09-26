@@ -79,7 +79,8 @@ function CourseDetailsSidebar({
     const progressPercent = enrollmentData?.progressPercent || 0;
     const priceDisplay = resolvePriceDisplay(program);
 
-    // Determine CTA button text based on enrollment mode
+    // Determine CTA button text based on enrollment mode (shared with the
+    // free preview player through primaryCta.js).
     const getCtaText = () =>
         getEnrollCtaLabel({
             ctaState,

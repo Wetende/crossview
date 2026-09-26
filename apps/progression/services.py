@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.curriculum.models import CurriculumNode
+from apps.curriculum.preview import is_public_preview_lesson
 from apps.progression.models import NodeCompletion, Enrollment
 from apps.assessments.official_results import (
     assignment_attempt_passed,
@@ -195,9 +196,8 @@ class ScheduleLockChecker:
         """
         from datetime import timedelta
 
-        # Preview access (Phase 2)
-        if hasattr(node, 'is_preview') and node.is_preview and not enrollment:
-             # Logic for preview access - simplified for now as service expects enrollment usually
+        # Free preview lessons are open to visitors (apps.curriculum.preview)
+        if not enrollment and is_public_preview_lesson(node):
              return AccessResult(can_access=True, status='preview')
 
         if not enrollment:
@@ -569,7 +569,7 @@ class ProgressionEngine:
             AccessResult indicating if access is allowed
         """
         if not enrollment:
-            if node.is_preview:
+            if is_public_preview_lesson(node):
                 return AccessResult(can_access=True, status='preview')
             return AccessResult(can_access=False, status='locked', lock_reason='enrollment_required')
 

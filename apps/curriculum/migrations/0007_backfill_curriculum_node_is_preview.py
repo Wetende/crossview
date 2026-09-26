@@ -1,4 +1,5 @@
 from django.db import migrations
+from django.db.models import Q
 
 TRUE_STRINGS = {"true", "1", "yes", "on"}
 BATCH_SIZE = 500
@@ -16,23 +17,38 @@ def _preview_flag(properties) -> bool:
 
 
 def backfill_is_preview(apps, schema_editor):
-    """Copy the builder's properties.is_preview toggle into the column."""
+    """Copy the builder's properties.is_preview toggle into the column.
+
+    Only rows that carry the key or already have the column set can change, so
+    the rest of the table is never loaded; candidates are paged by primary key.
+    """
     CurriculumNode = apps.get_model("curriculum", "CurriculumNode")
+    candidates = (
+        CurriculumNode.objects.filter(
+            Q(properties__has_key="is_preview") | Q(is_preview=True)
+        )
+        .only("id", "properties", "is_preview")
+        .order_by("pk")
+    )
 
-    enable_ids = []
-    disable_ids = []
-    nodes = CurriculumNode.objects.only("id", "properties", "is_preview").iterator()
-    for node in nodes:
-        flag = _preview_flag(node.properties)
-        if flag == node.is_preview:
-            continue
-        (enable_ids if flag else disable_ids).append(node.pk)
+    last_pk = 0
+    while True:
+        batch = list(candidates.filter(pk__gt=last_pk)[:BATCH_SIZE])
+        if not batch:
+            break
+        last_pk = batch[-1].pk
 
-    for ids, flag in ((enable_ids, True), (disable_ids, False)):
-        for start in range(0, len(ids), BATCH_SIZE):
-            CurriculumNode.objects.filter(pk__in=ids[start : start + BATCH_SIZE]).update(
-                is_preview=flag
-            )
+        enable_ids = []
+        disable_ids = []
+        for node in batch:
+            flag = _preview_flag(node.properties)
+            if flag != node.is_preview:
+                (enable_ids if flag else disable_ids).append(node.pk)
+
+        if enable_ids:
+            CurriculumNode.objects.filter(pk__in=enable_ids).update(is_preview=True)
+        if disable_ids:
+            CurriculumNode.objects.filter(pk__in=disable_ids).update(is_preview=False)
 
 
 class Migration(migrations.Migration):

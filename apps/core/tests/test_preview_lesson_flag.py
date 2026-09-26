@@ -1,5 +1,8 @@
 """CurriculumNode.is_preview is the single source of truth for free previews."""
 
+from importlib import import_module
+from unittest import mock
+
 import pytest
 from django.contrib.auth.models import Group
 from django.db import connection
@@ -13,6 +16,7 @@ from apps.core.views import _clone_node, build_curriculum_tree
 from apps.curriculum.models import CurriculumNode
 from apps.curriculum.preview import coerce_preview_flag, is_previewable_activity
 from apps.progression.models import InstructorAssignment
+from apps.progression.services import ProgressionEngine, ScheduleLockChecker
 from apps.progression.tests.factories import ProgramFactory
 
 
@@ -139,6 +143,79 @@ class TestBuilderSyncsPreviewColumn:
         assert cloned_lesson.is_preview is True
 
 
+@pytest.mark.django_db
+class TestModelSavesPreviewColumn:
+    def test_save_derives_the_column_from_properties(self, program):
+        unit = CurriculumNode.objects.create(
+            program=program, title="Unit 1", node_type="Unit"
+        )
+        lesson = CurriculumNode.objects.create(
+            program=program,
+            parent=unit,
+            title="Free intro",
+            node_type="Session",
+            properties={"lesson_type": "text", "is_preview": True},
+        )
+        assert lesson.is_preview is True
+
+        lesson.properties = {"lesson_type": "text", "is_preview": False}
+        lesson.is_preview = True  # a stray direct write cannot win
+        lesson.save()
+
+        lesson.refresh_from_db()
+        assert lesson.is_preview is False
+
+    def test_update_fields_with_properties_also_write_the_column(self, program):
+        lesson = CurriculumNode.objects.create(
+            program=program,
+            title="Free intro",
+            node_type="Session",
+            properties={"lesson_type": "text"},
+        )
+
+        lesson.properties = {"lesson_type": "text", "is_preview": True}
+        lesson.save(update_fields=["properties"])
+
+        assert CurriculumNode.objects.get(pk=lesson.pk).is_preview is True
+
+
+@pytest.mark.django_db
+class TestEngineVisitorAccess:
+    def test_visitor_access_follows_the_public_preview_rules(self, program):
+        unit = CurriculumNode.objects.create(
+            program=program, title="Unit 1", node_type="Unit"
+        )
+        text = CurriculumNode.objects.create(
+            program=program,
+            parent=unit,
+            title="Free intro",
+            node_type="Session",
+            properties={"lesson_type": "text", "is_preview": True},
+        )
+        quiz = CurriculumNode.objects.create(
+            program=program,
+            parent=unit,
+            title="Flagged quiz",
+            node_type="Session",
+            properties={"lesson_type": "quiz", "is_preview": True},
+        )
+        flagged_section = CurriculumNode.objects.create(
+            program=program,
+            title="Flagged section",
+            node_type="Session",
+            properties={"is_preview": True},
+        )
+        engine = ProgressionEngine()
+
+        assert engine.can_access(None, text).status == "preview"
+        for node in (quiz, flagged_section):
+            result = engine.can_access(None, node)
+            assert result.can_access is False
+            assert result.lock_reason == "enrollment_required"
+        assert ScheduleLockChecker().is_unlocked(None, quiz).can_access is False
+        assert ScheduleLockChecker().is_unlocked(None, text).can_access is True
+
+
 class TestPreviewRules:
     @pytest.mark.parametrize(
         "value, expected",
@@ -175,6 +252,11 @@ class TestPreviewRules:
             ("Lesson", {"lesson_type": "in_person_session"}, False),
             ("quiz", {"lesson_type": "text"}, False),
             ("assignment", {}, False),
+            ("Lesson", {"lesson_type": "practicum"}, False),
+            ("Lesson", {"lesson_type": "peer_review"}, False),
+            ("Section", {"lesson_type": "text"}, False),
+            ("Module", {}, False),
+            ("Unit", {}, False),
         ],
     )
     def test_only_self_contained_lessons_are_previewable(
@@ -195,8 +277,16 @@ class PreviewColumnBackfillMigrationTests(TransactionTestCase):
         self.latest_targets = executor.loader.graph.leaf_nodes()
         executor.migrate(self.migrate_from)
 
-        # 0007 is data-only, so the current models match the 0006 schema.
-        program = Program.objects.create(name="Backfill", code="BACKFILL-1")
+        # Historical models have no custom save(), so rows can hold stale
+        # column values exactly as production data does before 0007.
+        before_backfill = [
+            target for target in self.latest_targets if target[0] != "curriculum"
+        ] + self.migrate_from
+        old_apps = executor.loader.project_state(before_backfill).apps
+        self.node_model = old_apps.get_model("curriculum", "CurriculumNode")
+        program = old_apps.get_model("core", "Program").objects.create(
+            name="Backfill", code="BACKFILL-1", slug="backfill"
+        )
         self.flagged = self._node(program, "Flagged", {"is_preview": True})
         self.string_flag = self._node(program, "String flag", {"is_preview": "true"})
         self.unflagged = self._node(program, "Unflagged", {"is_preview": False})
@@ -204,17 +294,24 @@ class PreviewColumnBackfillMigrationTests(TransactionTestCase):
         self.stale_column = self._node(
             program, "Stale column", {"is_preview": False}, is_preview=True
         )
+        self.no_key_stale = self._node(
+            program, "No key stale", {"lesson_type": "text"}, is_preview=True
+        )
+        self.late_flagged = self._node(program, "Late flagged", {"is_preview": True})
 
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.migrate_to)
+        # Small batches prove the pk paging visits every candidate.
+        migration = import_module(
+            "apps.curriculum.migrations.0007_backfill_curriculum_node_is_preview"
+        )
+        with mock.patch.object(migration, "BATCH_SIZE", 2):
+            MigrationExecutor(connection).migrate(self.migrate_to)
 
     def tearDown(self):
         MigrationExecutor(connection).migrate(self.latest_targets)
         super().tearDown()
 
-    @staticmethod
-    def _node(program, title, properties, is_preview=False):
-        return CurriculumNode.objects.create(
+    def _node(self, program, title, properties, is_preview=False):
+        return self.node_model.objects.create(
             program=program,
             title=title,
             node_type="Lesson",
@@ -230,9 +327,11 @@ class PreviewColumnBackfillMigrationTests(TransactionTestCase):
 
         self.assertIs(column(self.flagged), True)
         self.assertIs(column(self.string_flag), True)
+        self.assertIs(column(self.late_flagged), True)
         self.assertIs(column(self.unflagged), False)
         self.assertIs(column(self.missing), False)
         self.assertIs(column(self.stale_column), False)
+        self.assertIs(column(self.no_key_stale), False)
         # properties are left untouched for the builder
         self.assertEqual(
             CurriculumNode.objects.get(pk=self.flagged.pk).properties,

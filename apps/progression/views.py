@@ -34,7 +34,11 @@ from apps.curriculum.activity_types import (
     normalize_activity_type,
     sanitize_student_block_data,
 )
-from apps.curriculum.preview import is_public_preview_lesson, public_preview_url
+from apps.curriculum.preview import (
+    preview_properties,
+    public_preview_lesson_ids,
+    public_preview_url,
+)
 from apps.assessments.models import AssessmentResult
 from apps.assessments.models import Rubric
 from apps.assessments.grading_rules import (
@@ -801,15 +805,16 @@ def unit_summary(request, pk: int, section_id: int):
 # Supplement blocks that submit learner work need an enrollment to function.
 ENROLLMENT_ONLY_BLOCK_TYPES = frozenset({"QUIZ", "ASSIGNMENT", "CODE"})
 PREVIEW_LOCK_REASON = "enrollment_required"
-PREVIEW_LOCK_REASON_TEXT = "Enrol to unlock"
+PREVIEW_LOCK_REASON_TEXT = "Enroll to unlock"
 
 
 def _build_player_node_payload(request, node, enrollment=None) -> dict:
     """Serialize a curriculum node for the Student/CoursePlayer page.
 
     Without an enrollment (public preview) the payload carries no learner state:
-    no quiz results, activity progress or live-session details, and none of the
-    supplement blocks that submit learner work.
+    no quiz results, activity progress or live-session details, none of the
+    supplement blocks that submit learner work, and only the allowlisted
+    properties the player needs for the lesson's activity type.
     """
     from apps.learning_operations.activity_progress import (
         get_completion_policy,
@@ -819,11 +824,13 @@ def _build_player_node_payload(request, node, enrollment=None) -> dict:
     from apps.live_sessions.models import ScheduledLearningSession
     from apps.live_sessions.services import serialize_session_for_student
 
-    # Hydrate properties for assessment nodes so quiz/assignment question paths render inline.
-    node_properties = _hydrate_assessment_node_properties(node)
-    if enrollment is not None:
+    activity_type, _ = resolve_activity_definition(node)
+    if enrollment is None:
+        node_properties = preview_properties(activity_type, node.properties)
+    else:
+        # Hydrate properties for assessment nodes so quiz/assignment question paths render inline.
         node_properties = _attach_quiz_results_for_request(
-            request, node, enrollment, node_properties
+            request, node, enrollment, _hydrate_assessment_node_properties(node)
         )
 
     blocks_data = [
@@ -836,7 +843,6 @@ def _build_player_node_payload(request, node, enrollment=None) -> dict:
         if enrollment is not None
         or str(block.block_type or "").upper() not in ENROLLMENT_ONLY_BLOCK_TYPES
     ]
-    activity_type, _ = resolve_activity_definition(node)
 
     activity_progress = None
     scheduled_session_payload = None
@@ -870,18 +876,36 @@ def _build_player_node_payload(request, node, enrollment=None) -> dict:
 def _build_preview_curriculum(program: Program) -> tuple[list, list]:
     """Return the visitor sidebar tree and the ordered preview lessons it links to.
 
+    Uses a fixed number of queries whatever the curriculum size: the published
+    nodes, the parents that have any children, and one legacy-block lookup.
     Rows expose titles, activity types and durations only. Every node that is
-    not a published public preview lesson is locked behind enrolment.
+    not a published public preview lesson is locked behind enrollment.
     """
+    nodes = list(
+        CurriculumNode.objects.filter(program=program, is_published=True).order_by(
+            "position", "id"
+        )
+    )
+    parents_with_children = set(
+        CurriculumNode.objects.filter(program=program, parent__isnull=False)
+        .values_list("parent_id", flat=True)
+        .distinct()
+    )
+    children_by_parent = {}
+    for node in nodes:
+        children_by_parent.setdefault(node.parent_id, []).append(node)
+    # Nodes under an unpublished ancestor are unreachable from the roots, so
+    # they are neither listed nor linked.
+    preview_ids = public_preview_lesson_ids(
+        nodes, parents_with_children=parents_with_children
+    )
     preview_lessons = []
 
-    def build(nodes):
+    def build(level_nodes):
         result = []
-        for node in nodes:
-            children = list(
-                node.children.filter(is_published=True).order_by("position")
-            )
-            is_preview = not children and is_public_preview_lesson(node)
+        for node in level_nodes:
+            children = children_by_parent.get(node.id, [])
+            is_preview = node.id in preview_ids
             url = public_preview_url(program, node.id) if is_preview else None
             if is_preview:
                 preview_lessons.append({"id": node.id, "title": node.title, "url": url})
@@ -907,7 +931,7 @@ def _build_preview_curriculum(program: Program) -> tuple[list, list]:
             )
         return result
 
-    return build(_get_published_root_nodes(program)), preview_lessons
+    return build(children_by_parent.get(None, [])), preview_lessons
 
 
 def _course_complete_url(enrollment: Enrollment) -> str:

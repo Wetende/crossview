@@ -34,7 +34,7 @@ from django.utils.http import (
     urlsafe_base64_encode,
 )
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe
 from inertia import render
 
 logger = logging.getLogger(__name__)
@@ -87,6 +87,7 @@ from apps.core.utils import (
     should_render_inertia_prop,
 )
 from apps.curriculum.preview import (
+    ancestors_published,
     coerce_preview_flag,
     is_public_preview_lesson,
     public_preview_url,
@@ -168,20 +169,13 @@ def _get_platform_pricing_context() -> dict:
     }
 
 
-ENROL_CTA_LABELS = {
-    "paid": "Get course",
-    "approval": "Request enrollment",
-    "free": "Enroll now",
-}
-
-
 def _program_enrollment_offer(
     program,
     pricing_context: dict | None = None,
     *,
     course_delivery_mode: str | None = None,
 ):
-    """Return ``(pricing, price_display, enrollment_mode)`` for public enrolment CTAs."""
+    """Return ``(pricing, price_display, enrollment_mode)`` for public enrollment CTAs."""
     context = pricing_context or _get_platform_pricing_context()
     pricing = get_program_pricing(
         program,
@@ -998,12 +992,14 @@ def public_program_detail(
     )
 
 
+@require_safe
 def public_preview_lesson(request, slug: str, node_id: int):
     """Read-only course player for a free preview lesson; no login required.
 
-    Only published preview lessons (see ``apps.curriculum.preview``) of a
-    published program open here; anything else is a 404. Enrolled learners are
-    sent to their real session instead.
+    Only published preview lessons (see ``apps.curriculum.preview``) under
+    published ancestors of a published program open here; anything else is a
+    404, decided with a few bounded queries before the curriculum is built.
+    Enrolled learners who can open the lesson are sent to their real session.
     """
     from django.shortcuts import get_object_or_404
 
@@ -1013,33 +1009,46 @@ def public_preview_lesson(request, slug: str, node_id: int):
         _build_player_node_payload,
         _build_preview_curriculum,
         _build_program_player_payload,
+        _check_unlock_status,
     )
 
     program = get_object_or_404(Program, slug=slug, is_published=True)
-    curriculum, preview_lessons = _build_preview_curriculum(program)
-    preview_ids = [lesson["id"] for lesson in preview_lessons]
-    if node_id not in preview_ids:
+    node = (
+        CurriculumNode.objects.select_related("parent")
+        .filter(pk=node_id, program=program, is_published=True, is_preview=True)
+        .first()
+    )
+    if (
+        node is None
+        or not is_public_preview_lesson(node)
+        or not ancestors_published(node)
+    ):
         raise Http404("This lesson is not available as a free preview.")
 
     if request.user.is_authenticated:
         enrollment = (
-            Enrollment.objects.filter(
+            Enrollment.objects.select_related("program")
+            .filter(
                 user=request.user,
                 program=program,
                 status__in=["active", "completed"],
             )
-            .only("id")
             .first()
         )
-        if enrollment:
+        # A learner whose lesson is still locked (drip, expiry, ...) keeps the
+        # free preview instead of bouncing off the session view.
+        if enrollment and _check_unlock_status(enrollment, node)["is_unlocked"]:
             return redirect(
-                "progression:student.session", pk=enrollment.id, node_id=node_id
+                "progression:student.session", pk=enrollment.id, node_id=node.id
             )
 
-    node = CurriculumNode.objects.get(pk=node_id, program=program)
-    index = preview_ids.index(node_id)
+    curriculum, preview_lessons = _build_preview_curriculum(program)
+    preview_ids = [lesson["id"] for lesson in preview_lessons]
+    if node.id not in preview_ids:
+        raise Http404("This lesson is not available as a free preview.")
+    index = preview_ids.index(node.id)
     program_url = _program_public_url(program)
-    _, _, enrollment_mode = _program_enrollment_offer(program)
+    _, price_display, enrollment_mode = _program_enrollment_offer(program)
 
     return render(
         request,
@@ -1068,9 +1077,17 @@ def public_preview_lesson(request, slug: str, node_id: int):
             "notes": [],
             "preview": {
                 "programUrl": program_url,
-                "enrolCta": {
-                    "label": ENROL_CTA_LABELS[enrollment_mode],
+                # Same inputs as the public page CTA; the label is composed by
+                # the shared frontend helper (getEnrollCtaLabel).
+                "enrollCta": {
                     "href": program_url,
+                    "ctaState": (
+                        "not_enrolled_paid"
+                        if enrollment_mode == "paid"
+                        else "not_enrolled"
+                    ),
+                    "enrollmentMode": enrollment_mode,
+                    "priceDisplay": price_display,
                 },
             },
         },

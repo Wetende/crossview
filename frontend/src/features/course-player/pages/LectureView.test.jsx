@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LectureView from "./LectureView";
@@ -35,7 +35,7 @@ const curriculum = [
         title: "Getting started",
         nodeType: "Module",
         isLocked: true,
-        lockReasonText: "Enrol to unlock",
+        lockReasonText: "Enroll to unlock",
         children: [
             {
                 id: 11,
@@ -51,7 +51,7 @@ const curriculum = [
                 activityType: "video",
                 isLocked: true,
                 lockReason: "enrollment_required",
-                lockReasonText: "Enrol to unlock",
+                lockReasonText: "Enroll to unlock",
                 url: null,
                 children: [],
             },
@@ -73,9 +73,11 @@ const renderPreview = (props = {}) =>
             activeView="preview"
             preview={{
                 programUrl: "/programs/preview-course/",
-                enrolCta: {
-                    label: "Enroll now",
+                enrollCta: {
                     href: "/programs/preview-course/",
+                    ctaState: "not_enrolled",
+                    enrollmentMode: "free",
+                    priceDisplay: { cardDisplay: "free", price: 0 },
                 },
             }}
             {...props}
@@ -96,15 +98,38 @@ describe("LectureView preview mode", () => {
         }));
     });
 
-    it("shows a persistent preview banner with the enrol CTA", () => {
+    it("shows a persistent preview banner with the enroll CTA", () => {
         renderPreview();
 
-        const banner = screen.getByRole("status");
+        const banner = screen.getByRole("region", { name: "Free preview" });
         expect(banner).toHaveTextContent("You're previewing a free lesson");
         expect(
-            screen.getAllByRole("link", { name: "Enroll now" })[0],
+            within(banner).getByRole("link", { name: "ENROLL NOW" }),
         ).toHaveAttribute("href", "/programs/preview-course/");
         expect(screen.getByText("Welcome aboard")).toBeInTheDocument();
+    });
+
+    it("words a paid offline CTA exactly like the public course page", () => {
+        renderPreview({
+            preview: {
+                programUrl: "/programs/preview-course/",
+                enrollCta: {
+                    href: "/programs/preview-course/",
+                    ctaState: "not_enrolled_paid",
+                    enrollmentMode: "paid",
+                    priceDisplay: {
+                        cardDisplay: "price",
+                        effectivePrice: 1500,
+                        paymentCollection: "offline",
+                    },
+                },
+            },
+        });
+
+        const banner = screen.getByRole("region", { name: "Free preview" });
+        expect(
+            within(banner).getByRole("link", { name: /^PAY OFFLINE - KSh.1,500$/ }),
+        ).toBeInTheDocument();
     });
 
     it("hides enrolled-only tools and learner completion", () => {
@@ -139,7 +164,9 @@ describe("LectureView preview mode", () => {
             enrollment: { id: 9, progressPercent: 0 },
         });
 
-        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole("region", { name: "Free preview" }),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole("button", { name: /Discussions/ }),
         ).toBeInTheDocument();

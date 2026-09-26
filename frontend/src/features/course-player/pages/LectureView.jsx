@@ -12,6 +12,8 @@ import CourseCompletionView from "../components/Stage/CourseCompletionView";
 import StageFlashMessages from "../components/Stage/StageFlashMessages";
 import PreviewBanner from "../components/Stage/PreviewBanner";
 import { ACTIVITY_TYPES, normalizeActivityType } from "@/lib/activityTypes";
+import { useCurrency } from "@/hooks/useCurrency";
+import { buildEnrollCta } from "@/utils/enrollCta";
 
 const lessonHasVideo = (node) =>
     Boolean(node) &&
@@ -56,6 +58,10 @@ const LectureView = ({
 
     // Free preview for visitors: read-only lesson, no learner tools.
     const isPreviewMode = activeView === "preview";
+    const { formatCurrency } = useCurrency();
+    const enrollCta = isPreviewMode
+        ? buildEnrollCta(preview?.enrollCta, formatCurrency)
+        : null;
 
     // Left Panel - Curriculum Sidebar
     const LeftPanel = (
@@ -67,7 +73,7 @@ const LectureView = ({
             enrollmentId={enrollment?.id}
             activeView={activeView}
             completionUrl={enrollment?.completionSummaryUrl}
-            preview={isPreviewMode ? preview || {} : null}
+            preview={isPreviewMode ? { enrollCta } : null}
         />
     );
 
@@ -112,7 +118,7 @@ const LectureView = ({
             backLabel={isPreviewMode ? "Back to course page" : "Back to dashboard"}
             Banner={
                 isPreviewMode ? (
-                    <PreviewBanner enrolCta={preview?.enrolCta} />
+                    <PreviewBanner enrollCta={enrollCta} />
                 ) : null
             }
             LeftPanel={LeftPanel}

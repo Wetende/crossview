@@ -8,7 +8,7 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
     const isCourseSummary = activeView === 'course_complete';
     const isPreviewMode = Boolean(preview);
     const overviewUrl = program?.id ? `/student/programs/${program.id}/` : '#';
-    const enrolCta = preview?.enrolCta;
+    const enrollCta = preview?.enrollCta;
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, bgcolor: 'background.paper' }}>
@@ -114,18 +114,18 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
                 />
             </Box>
 
-            {/* Enrol CTA for visitors */}
-            {isPreviewMode && enrolCta?.href && (
+            {/* Enroll CTA for visitors */}
+            {isPreviewMode && enrollCta?.href && (
                 <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
                     <Button
                         component={Link}
-                        href={enrolCta.href}
+                        href={enrollCta.href}
                         variant="contained"
                         size="small"
                         fullWidth
                         sx={{ textTransform: 'none' }}
                     >
-                        {enrolCta.label}
+                        {enrollCta.label}
                     </Button>
                 </Box>
             )}
