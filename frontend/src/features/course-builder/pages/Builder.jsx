@@ -24,6 +24,7 @@ import { useThemeMode } from "@/theme/index";
 import DOMPurify from "dompurify";
 import CourseBuilderLayout from "@/layouts/CourseBuilderLayout";
 import CurriculumTree, { flattenNodes } from "../components/CurriculumTree";
+import { findNodeVersion, hasEditConflict } from "../utils/editConflict";
 import EditorContainer from "../editors/EditorContainer";
 import SettingsPanel from "../components/SettingsPanel";
 import CoursePublicationControls from "../components/CoursePublicationControls";
@@ -76,6 +77,12 @@ export default function InstructorProgramBuilder({
     const [selectedNodeId, setSelectedNodeId] = useState(null);
     const [guideOpen, setGuideOpen] = useState(false);
     const [curriculum, setCurriculum] = useState(initialCurriculum);
+    // Version each editor was opened with, keyed by node ID. Saves always send
+    // this opening version (never a later one): the server only compares it
+    // with changes saved through AI apps, so the person's own saves never
+    // conflict, while an AI change the editor has not loaded always does.
+    const editorVersionsRef = useRef({});
+    const lastSelectedNodeIdRef = useRef(null);
     const activeEditorRef = useRef(null);
     const settingsPanelRef = useRef(null);
 
@@ -135,6 +142,17 @@ export default function InstructorProgramBuilder({
     const selectedNode = selectedNodeId ? findNode(selectedNodeId) : null;
 
     useEffect(() => {
+        if (!selectedNode) {
+            lastSelectedNodeIdRef.current = null;
+            return;
+        }
+        if (lastSelectedNodeIdRef.current !== selectedNode.id) {
+            lastSelectedNodeIdRef.current = selectedNode.id;
+            editorVersionsRef.current[selectedNode.id] = selectedNode.version;
+        }
+    }, [selectedNode]);
+
+    useEffect(() => {
         if (activeTab !== "curriculum" || typeof window === "undefined") {
             return;
         }
@@ -155,13 +173,26 @@ export default function InstructorProgramBuilder({
     }, [activeTab, curriculum, page.url]);
 
     const handleNodeSave = (nodeId, data, callbacks = {}) => {
-        router.post(`/instructor/nodes/${nodeId}/update/`, data, {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: callbacks.onSuccess,
-            onError: callbacks.onError,
-            onFinish: callbacks.onFinish,
-        });
+        const expectedVersion =
+            editorVersionsRef.current[nodeId] ?? findNodeVersion(curriculum, nodeId);
+        router.post(
+            `/instructor/nodes/${nodeId}/update/`,
+            { ...data, expected_version: expectedVersion },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: (page) => {
+                    if (hasEditConflict(page)) {
+                        // The flash message asks the person to reload.
+                        callbacks.onError?.({ conflict: true });
+                        return;
+                    }
+                    callbacks.onSuccess?.(page);
+                },
+                onError: callbacks.onError,
+                onFinish: callbacks.onFinish,
+            },
+        );
     };
 
     const flushActiveAutosave = useCallback(async () => {

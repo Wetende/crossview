@@ -15,6 +15,7 @@ import RateReviewIcon from "@mui/icons-material/RateReview";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import SchoolIcon from "@mui/icons-material/School";
 import SettingsIcon from "@mui/icons-material/Settings";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 
 export const ROLE_NAVIGATION = {
     student: [
@@ -163,6 +164,12 @@ export const ROLE_NAVIGATION = {
             items: [
                 { label: "Profile", href: "/profile/", icon: PersonIcon },
                 { label: "Settings", href: "/profile/", icon: SettingsIcon },
+                {
+                    label: "Connected AI apps",
+                    href: "/account/connected-apps/",
+                    icon: SmartToyOutlinedIcon,
+                    requiresAiConnector: true,
+                },
                 { label: "Logout", action: "logout", icon: LogoutIcon },
             ],
         },
@@ -258,16 +265,26 @@ export const ROLE_NAVIGATION = {
                     icon: SettingsIcon,
                     requiresCapability: "showAdminSettings",
                 },
+                {
+                    label: "Connected AI apps",
+                    href: "/account/connected-apps/",
+                    icon: SmartToyOutlinedIcon,
+                    requiresAiConnector: true,
+                },
             ],
         },
     ],
 };
 
-export const filterNavigation = (navigation, platform) =>
+export const filterNavigation = (navigation, platform, options = {}) =>
     navigation
         .map((section) => ({
             ...section,
             items: section.items.filter((item) => {
+                if (item.requiresAiConnector && !options.aiConnectorEnabled) {
+                    return false;
+                }
+
                 if (
                     item.requiresCapability &&
                     platform?.capabilities?.[item.requiresCapability] === false

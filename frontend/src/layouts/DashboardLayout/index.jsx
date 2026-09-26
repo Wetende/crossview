@@ -29,7 +29,8 @@ const DashboardLayout = ({ children, breadcrumbs = [], role: propRole }) => {
     const { isDark, toggleMode } = useThemeMode();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { props: pageProps, url = "" } = usePage();
-    const { auth, platform } = pageProps;
+    const { auth, platform, aiConnector } = pageProps;
+    const aiConnectorEnabled = aiConnector?.enabled === true;
     const [mobileOpen, setMobileOpen] = useState(false);
     const [anchorEl, setAnchorEl] = useState(null);
     const [collapsed, setCollapsed] = useState(() => {
@@ -60,8 +61,9 @@ const DashboardLayout = ({ children, breadcrumbs = [], role: propRole }) => {
             filterNavigation(
                 ROLE_NAVIGATION[role] || ROLE_NAVIGATION.student,
                 platform,
+                { aiConnectorEnabled },
             ),
-        [platform, role],
+        [platform, role, aiConnectorEnabled],
     );
 
     useEffect(() => {

@@ -1,0 +1,42 @@
+{% extends "ai_connector/_page.html" %}
+
+{% block content %}
+{% if not error %}
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}{% if field.is_hidden %}{{ field }}{% endif %}{% endfor %}
+    <h1>Connect {{ application.name|default:"this AI app" }} to your courses?</h1>
+    <p class="muted">
+      Signed in as {{ request.user.email|default:request.user.username }}.
+      {% if redirect_host %}After you choose, you return to <strong>{{ redirect_host }}</strong>.{% endif %}
+    </p>
+    <p>The app will be able to:</p>
+    <ul>
+      <li>Read the courses you can manage, including lessons, quizzes and answers.</li>
+      <li>Check courses against the publishing requirements.</li>
+    </ul>
+    {% if requests_write %}
+      <label class="choice">
+        <input type="checkbox" name="allow_write" value="1" checked>
+        <span>
+          <strong>Also allow saving course changes</strong><br>
+          <span class="muted">Every change is previewed in the chat and saved only after you confirm it.
+          The app cannot delete content, publish courses or change grading.</span>
+        </span>
+      </label>
+    {% endif %}
+    <p class="muted">You can disconnect the app at any time from Connected AI apps in your account.</p>
+    {{ form.non_field_errors }}
+    <div class="actions">
+      <button type="submit" class="secondary">Cancel</button>
+      <button type="submit" class="primary" name="allow" value="true">Connect</button>
+    </div>
+  </form>
+{% else %}
+  <div class="error" role="alert">
+    <h1>This connection request cannot be completed</h1>
+    <p>{{ error.description|default:error.error }}</p>
+  </div>
+  <p class="muted">Return to your AI app and start the connection again.</p>
+{% endif %}
+{% endblock %}

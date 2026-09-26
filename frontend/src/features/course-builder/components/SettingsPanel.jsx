@@ -49,6 +49,7 @@ import SidebarLayout from "./SidebarLayout";
 import AutosaveStatus from "./AutosaveStatus";
 import useAutosave from "../hooks/useAutosave";
 import { SETTINGS_SECTIONS } from "../utils/builderTabs";
+import { hasEditConflict } from "../utils/editConflict";
 import EngagementEditor from "./EngagementEditor";
 import CertificateTemplateSelector from "@/features/certifications/components/CertificateTemplateSelector";
 
@@ -102,6 +103,10 @@ const SettingsPanel = forwardRef(function SettingsPanel(
     const thumbnailInputRef = useRef(null);
     const fileInputRef = useRef(null);
     const dripEditorRef = useRef(null);
+    // Course version the form was opened with. It is sent unchanged with every
+    // main-section save so a course change saved through an AI app after the
+    // form opened is never overwritten; the person's own saves never conflict.
+    const mainFormVersionRef = useRef(program.version);
     const [selectedThumbnailPreviewUrl, setSelectedThumbnailPreviewUrl] =
         useState("");
 
@@ -277,6 +282,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     preview_description: currentData.preview_description,
                     lock_lessons_in_order: currentData.lock_lessons_in_order,
                     delivery_mode: currentData.delivery_mode,
+                    expected_version: mainFormVersionRef.current || "",
                 };
                 if (!hasExamBodies) {
                     payload.level = currentData.level;
@@ -398,7 +404,10 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         post(`/instructor/programs/${program.id}/manage/settings/`, {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
+                if (hasEditConflict(page)) {
+                    return;
+                }
                 setData((current) => ({
                     ...current,
                     deleteResourceIds:
@@ -1274,7 +1283,13 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     forceFormData: true,
                     preserveScroll: true,
                     preserveState: true,
-                    onSuccess: callbacks.onSuccess,
+                    onSuccess: (page) => {
+                        if (hasEditConflict(page)) {
+                            callbacks.onError?.({ conflict: true });
+                            return;
+                        }
+                        callbacks.onSuccess?.(page);
+                    },
                     onError: callbacks.onError,
                     onFinish: callbacks.onFinish,
                 },

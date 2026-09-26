@@ -73,14 +73,15 @@ export function getUserErrorMessage(input, fallback = DEFAULT_ERROR_MESSAGE) {
 }
 
 export function getFlashSeverity(type) {
-    const normalized = String(type || "")
+    // Django puts extra tags before the level ("edit-conflict error").
+    const tokens = String(type || "")
+        .toLowerCase()
         .split(" ")
-        .filter(Boolean)[0]
-        ?.toLowerCase();
+        .filter(Boolean);
 
-    if (normalized === "success") return "success";
-    if (normalized === "error" || normalized === "danger") return "error";
-    if (normalized === "warning") return "warning";
+    if (tokens.includes("error") || tokens.includes("danger")) return "error";
+    if (tokens.includes("warning")) return "warning";
+    if (tokens.includes("success")) return "success";
     return "info";
 }
 

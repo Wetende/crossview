@@ -262,4 +262,39 @@ describe("DashboardLayout logout", () => {
             screen.queryByText("Instructor Vetting"),
         ).not.toBeInTheDocument();
     });
+
+    test.each([
+        [true, true],
+        [false, false],
+    ])(
+        "shows Connected AI apps to instructors only when the connector is enabled (%s)",
+        (enabled, visible) => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    auth: {
+                        user: {
+                            firstName: "Ada",
+                            email: "ada@example.com",
+                            role: "instructor",
+                        },
+                    },
+                    platform: { institutionName: "Learning Platform", features: {} },
+                    aiConnector: { enabled },
+                },
+            });
+
+            render(
+                <DashboardLayout>
+                    <div>Dashboard content</div>
+                </DashboardLayout>,
+            );
+
+            const link = screen.queryByRole("link", { name: "Connected AI apps" });
+            if (visible) {
+                expect(link).toHaveAttribute("href", "/account/connected-apps/");
+            } else {
+                expect(link).not.toBeInTheDocument();
+            }
+        },
+    );
 });

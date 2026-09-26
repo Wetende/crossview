@@ -2,6 +2,7 @@
 Core middleware - Inertia shared data.
 """
 
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.contrib import messages
 from django.middleware.csrf import get_token
@@ -29,7 +30,9 @@ class InertiaShareMiddleware:
         share(request, csrfToken=csrf_token)
 
         # Share auth data
+        role = None
         if request.user.is_authenticated:
+            role = self._get_user_role(request.user)
             share(
                 request,
                 auth={
@@ -40,13 +43,21 @@ class InertiaShareMiddleware:
                         "lastName": request.user.last_name,
                         "fullName": request.user.get_full_name() or request.user.email,
                         "phone": getattr(request.user, "phone", "") or "",
-                        "role": self._get_user_role(request.user),
+                        "role": role,
                         "isSuperuser": request.user.is_superuser,
                     },
                 },
             )
         else:
             share(request, auth={"user": None})
+
+        share(
+            request,
+            aiConnector={
+                "enabled": bool(getattr(settings, "AI_CONNECTOR_ENABLED", False))
+                and role in {"instructor", "admin"},
+            },
+        )
 
         # Share platform branding from PlatformSettings
         try:

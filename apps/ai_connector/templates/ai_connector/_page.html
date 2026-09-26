@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>{% block title %}Connect an AI app{% endblock %} · {{ platform_branding.institution_name }}</title>
+  {% if platform_branding.favicon_url %}<link rel="icon" href="{{ platform_branding.favicon_url }}">{% endif %}
+  <style>
+    :root { --brand: {{ platform_branding.primary_color|default:"#1E40AF" }}; --ink: #1f2937; --muted: #6b7280; --line: #e5e7eb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+           font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: #f6f7f9; }
+    main { width: 100%; max-width: 480px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 32px 28px; }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .brand img { max-height: 40px; max-width: 160px; }
+    .brand span { font-weight: 600; }
+    h1 { font-size: 1.35rem; line-height: 1.3; margin: 0 0 8px; }
+    p { margin: 0 0 16px; }
+    .muted { color: var(--muted); font-size: 0.95rem; }
+    ul { margin: 0 0 20px; padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    .choice { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; }
+    .choice input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--brand); }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    button, .button { flex: 1 1 140px; min-height: 44px; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; padding: 10px 16px; }
+    .primary { background: var(--brand); color: #fff; border: 1px solid var(--brand); }
+    .secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    button:focus-visible, .button:focus-visible, input:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+    .error { border-left: 4px solid #b91c1c; padding-left: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      {% if platform_branding.logo_url %}<img src="{{ platform_branding.logo_url }}" alt="">{% endif %}
+      <span>{{ platform_branding.institution_name }}</span>
+    </div>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{% extends "ai_connector/_page.html" %}
+
+{% block title %}AI apps are not available{% endblock %}
+
+{% block content %}
+  <div class="error" role="alert">
+    <h1>AI apps are available to instructors only</h1>
+    <p>Your account, {{ request.user.email|default:request.user.username }}, cannot manage courses, so it cannot be connected to an AI app.</p>
+  </div>
+  <p class="muted">If you should have instructor access, ask an administrator to add it, then connect again.</p>
+  <div class="actions"><a class="button secondary" href="/dashboard/">Go to dashboard</a></div>
+{% endblock %}

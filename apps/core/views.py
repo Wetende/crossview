@@ -6120,6 +6120,7 @@ def serialize_program_data(program):
         "program": {
             "id": program.id,
             "slug": program.slug,
+            "version": program.updated_at.isoformat() if program.updated_at else None,
             "publicUrl": _program_public_url(program),
             "name": program.name,
             "code": program.code,
@@ -6289,6 +6290,7 @@ def build_curriculum_tree(program):
             "position",
             "unlock_date",
             "unlock_after_days",
+            "updated_at",
         )
     )
 
@@ -6334,6 +6336,8 @@ def build_curriculum_tree(program):
             "properties": node["properties"],
             "scheduledSession": scheduled_sessions.get(node_id),
             "position": node["position"],
+            # Sent back on save so edits made elsewhere are not overwritten.
+            "version": node["updated_at"].isoformat() if node["updated_at"] else None,
             "unlockDate": node["unlock_date"].isoformat()
             if node["unlock_date"]
             else None,
@@ -7394,7 +7398,31 @@ def instructor_node_update(request, node_id: int):
             messages.error(request, exc.messages[0])
             return redirect("core:instructor.program_manage", pk=node.program_id)
 
-    node.save()
+    from apps.ai_connector.conflicts import (
+        EDIT_CONFLICT_MESSAGE,
+        EDIT_CONFLICT_TAG,
+        save_unless_changed_by_ai,
+    )
+
+    is_quiz = (node.node_type or "").lower() == "quiz" or updated_lesson_type == "quiz"
+    with transaction.atomic():
+        if not save_unless_changed_by_ai(
+            node,
+            data.get("expected_version"),
+            program_id=node.program_id,
+            node_id=node.id,
+        ):
+            messages.error(request, EDIT_CONFLICT_MESSAGE, extra_tags=EDIT_CONFLICT_TAG)
+            # Keep the item selected so reloading, as the message asks, reopens it.
+            return redirect(
+                f"/instructor/programs/{node.program_id}/manage/?tab=curriculum&node={node.id}"
+            )
+
+        # The builder sends a complete question list. Keep its destructive
+        # synchronisation under the same node lock as the stale-edit check so
+        # an AI question cannot be added between the check and this write.
+        if is_quiz:
+            _sync_quiz_questions(node, node.properties.get("questions", []))
 
     if updated_lesson_type in {
         "live_class",
@@ -7427,15 +7455,9 @@ def instructor_node_update(request, node_id: int):
         elif session.provider_event_id:
             enqueue_session_job(session, "update", actor=request.user)
 
-    # Sync quiz questions to proper database tables if this is a quiz node
+    # Sync assignment data to Assignment table
     node_type = (node.node_type or "").lower()
     lesson_type = (node.properties.get("lesson_type") or "").lower()
-
-    if node_type == "quiz" or lesson_type == "quiz":
-        questions_data = node.properties.get("questions", [])
-        _sync_quiz_questions(node, questions_data)
-
-    # Sync assignment data to Assignment table
     if node_type == "assignment" or lesson_type == "assignment":
         _sync_assignment(node)
 
@@ -7968,6 +7990,22 @@ def instructor_program_update_settings(request, pk: int):
         program.drip_mode = drip_mode
 
     with transaction.atomic():
+        if active_tab == "settings" and settings_section == "main":
+            from apps.ai_connector.conflicts import (
+                EDIT_CONFLICT_MESSAGE,
+                EDIT_CONFLICT_TAG,
+                changed_by_ai_since,
+            )
+
+            # Lock the row so an AI change cannot land between check and save.
+            Program.objects.select_for_update().only("pk").get(pk=program.pk)
+            if changed_by_ai_since(
+                program.pk, data.get("expected_version"), course_fields=True
+            ):
+                messages.error(
+                    request, EDIT_CONFLICT_MESSAGE, extra_tags=EDIT_CONFLICT_TAG
+                )
+                return _redirect_to_builder()
         program.save()
 
         if certificate_selection is not None:

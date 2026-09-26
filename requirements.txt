@@ -14,6 +14,12 @@ requests>=2.31.0
 # Inertia.js for Django
 inertia-django==1.2.0
 
+# AI course-authoring connector (remote MCP server with OAuth)
+django-oauth-toolkit==3.4.1
+django-mcp-server==0.5.7
+mcp==1.30.0
+nh3==0.3.7
+
 # Database
 pymysql>=1.1.0
 
