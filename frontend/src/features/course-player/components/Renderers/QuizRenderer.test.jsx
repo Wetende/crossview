@@ -303,6 +303,77 @@ describe("QuizRenderer", () => {
         expect(result.score).toBe(33.29);
     });
 
+    test("reveals a question hint only when the learner asks for it", () => {
+        render(
+            <QuizRenderer
+                node={{
+                    id: 3,
+                    title: "Hints",
+                    properties: {
+                        questions: [
+                            {
+                                id: 301,
+                                type: "mcq",
+                                text: "How many cores?",
+                                options: ["Two", "Four"],
+                                correct: 1,
+                                hint: "<p>Count the <strong>chips</strong>.</p><script>window.hinted = true</script>",
+                            },
+                            {
+                                id: 302,
+                                type: "true_false",
+                                text: "No hint here",
+                                correct: 0,
+                                hint: "<p></p>",
+                            },
+                        ],
+                    },
+                }}
+                enrollmentId={55}
+            />,
+        );
+
+        const toggle = screen.getByRole("button", { name: "Show hint" });
+        expect(toggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByText("chips")).not.toBeInTheDocument();
+
+        fireEvent.click(toggle);
+
+        expect(screen.getByText("chips").tagName).toBe("STRONG");
+        expect(
+            screen.getByRole("button", { name: "Hide hint" }),
+        ).toHaveAttribute("aria-expanded", "true");
+        expect(document.querySelector("script")).toBeNull();
+        expect(window.hinted).toBeUndefined();
+
+        fireEvent.click(screen.getByLabelText("Four"));
+        fireEvent.click(screen.getByRole("button", { name: "Next Question" }));
+
+        expect(screen.getByText("No hint here")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: /hint/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    test("keeps rich explanations and hints when normalising questions", () => {
+        const [question] = normalizeQuestions([
+            {
+                id: 1,
+                type: "short_answer",
+                text: "<p>Explain</p>",
+                explanation:
+                    '<p>Because <span data-type="inline-math" data-latex="x^2"></span></p>',
+                hint: "<p><br></p>",
+            },
+        ]);
+
+        expect(question.text).toBe("Explain");
+        expect(question.explanation).toBe(
+            '<p>Because <span data-type="inline-math" data-latex="x^2"></span></p>',
+        );
+        expect(question.hint).toBe("");
+    });
+
     test("uses backend-compatible true/false values when options are omitted", () => {
         const normalized = normalizeQuestions([
             {

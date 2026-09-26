@@ -15,6 +15,7 @@ import {
     AssessmentResultHero,
     AttemptHistory,
 } from "@/features/learning-experience/components";
+import QuestionExplanation from "@/features/quizzes/components/QuestionExplanation";
 import { formatPoints } from "@/lib/formatPoints";
 
 const formatReviewValue = (value, fallback) => {
@@ -348,6 +349,13 @@ const QuizResultsRenderer = ({
                                             {formatPoints(item.pointsPossible)}
                                         </Typography>
                                     </Stack>
+                                    {/* Explanations follow the same release rule as correct answers. */}
+                                    {correctAnswersReleased && (
+                                        <QuestionExplanation
+                                            explanation={item.explanation}
+                                            ariaLabel={`Explanation for question ${index + 1}`}
+                                        />
+                                    )}
                                 </Paper>
                             );
                         })}

@@ -40,6 +40,7 @@ from inertia import render
 logger = logging.getLogger(__name__)
 
 from apps.assessments.text_normalization import (
+    normalize_assessment_rich_text,
     normalize_assessment_text,
     normalize_assessment_text_list,
     normalize_assessment_text_mapping,
@@ -6980,6 +6981,10 @@ def _sync_quiz_questions(node, questions_data: list, *, actor=None):
         backend_type = type_mapping.get(question_type, question_type)
 
         question_text = _normalize_question_text(q_data.get("text", ""))
+        question_explanation = normalize_assessment_rich_text(
+            q_data.get("explanation", "")
+        )
+        question_hint = normalize_assessment_rich_text(q_data.get("hint", ""))
 
         def normalize_gaps(raw_gaps):
             if not isinstance(raw_gaps, list):
@@ -7119,6 +7124,8 @@ def _sync_quiz_questions(node, questions_data: list, *, actor=None):
                 points=q_data.get("points", 1),
                 position=idx,
                 answer_data=answer_data,
+                explanation=question_explanation,
+                hint=question_hint,
                 source_bank_entry=source_entry,
                 source_bank_entry_version=source_entry_version,
             )
@@ -7195,6 +7202,8 @@ def _sync_quiz_questions(node, questions_data: list, *, actor=None):
                 points=q_data.get("points", 1),
                 position=idx,
                 answer_data=answer_data,
+                explanation=question_explanation,
+                hint=question_hint,
                 source_bank_entry=source_entry,
                 source_bank_entry_version=source_entry_version,
             )
@@ -7299,6 +7308,8 @@ def _sync_quiz_questions(node, questions_data: list, *, actor=None):
             "type": q.question_type,
             "text": q.text,  # Already normalized via _normalize_question_text
             "points": q.points,
+            "explanation": q.explanation,
+            "hint": q.hint,
         }
         if q.source_bank_entry_id:
             q_entry["libraryEntryId"] = q.source_bank_entry_id
@@ -9053,6 +9064,8 @@ def _clone_quiz(source_quiz, new_node):
             points=q.points,
             position=q.position,
             answer_data=copy.deepcopy(q.answer_data),
+            explanation=q.explanation,
+            hint=q.hint,
         )
 
         # Clone options for MCQ

@@ -182,7 +182,6 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
     const normalizeQuestion = (question) => {
         if (!question) return question;
         const normalized = { ...question };
-        normalized.required = normalized.required ?? true;
         if (normalized.type === "mcq_multi") {
             normalized.correct_indices = getCorrectIndices(normalized);
             delete normalized.correctAnswers;
@@ -581,12 +580,12 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
             options: ["", "", "", ""],
             correct: 0,
             correct_indices: [],
-            categories: [],
-            required: true,
             keywords: [],
             pairs: [],
             gaps: [],
             items: ["", "", "", ""],
+            explanation: "",
+            hint: "",
             isNew: true, // Flag for expanded state
         };
         setQuestions([...questions, newQuestionItem]);
@@ -729,8 +728,6 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                 // A new client id remounts the card so it shows the new content.
                 id: `${question.db_id || question.id}-v${entry.snapshot_version}`,
                 db_id: question.db_id,
-                required: question.required,
-                categories: question.categories,
                 isNew: false,
             });
             setQuestions((current) =>
@@ -1020,7 +1017,6 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                             onSaveToLibrary={isQuiz ? setQuestionToSave : undefined}
                             libraryStatus={libraryStatusFor(q)}
                             onUpdateFromLibrary={handleUpdateFromLibrary}
-                            categories={categories}
                             defaultExpanded={q.isNew || false}
                             isNew={q.isNew || false}
                         />

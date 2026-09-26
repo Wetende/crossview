@@ -1,26 +1,28 @@
+import { useMemo } from 'react';
 import { Paper, Typography } from '@mui/material';
-import DOMPurify from 'dompurify';
 import {
-    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
     RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE,
-    renderRichTextImageCaptions,
     richTextImageFigureSx,
     richTextImageSx,
 } from '@/utils/richTextImages';
 import { richTextContentSx } from '@/components/rich-text/richTextEditorConfig';
 import { lessonRichTextSx } from './lessonRichTextSx';
+import {
+    sanitizeRichTextHtml,
+    useRichTextMath,
+} from '@/components/rich-text/richTextMath';
 
 const TextRenderer = ({ content }) => {
     // If content is just a string, treat it as HTML
-    // If it's an object (from Draft.js/Editor.js), we might need parsing. 
+    // If it's an object (from Draft.js/Editor.js), we might need parsing.
     // Assuming HTML string for now based on previous patterns.
     const htmlContent = typeof content === 'string' ? content : (content?.html || '');
 
-    const sanitizedContent = renderRichTextImageCaptions(
-        DOMPurify.sanitize(htmlContent, {
-            ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
-        }),
+    const sanitizedContent = useMemo(
+        () => sanitizeRichTextHtml(htmlContent),
+        [htmlContent],
     );
+    const renderedContent = useRichTextMath(sanitizedContent);
 
     if (!sanitizedContent) {
         return (
@@ -56,7 +58,7 @@ const TextRenderer = ({ content }) => {
                 },
             }}
         >
-            <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+            <div dangerouslySetInnerHTML={{ __html: renderedContent }} />
         </Paper>
     );
 };

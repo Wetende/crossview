@@ -121,8 +121,6 @@ export default function EntryEditorDialog({
                             key={question.id}
                             question={question}
                             onChange={handleQuestionChange}
-                            categories={categories}
-                            showCategories={false}
                             isNew
                             defaultExpanded
                         />

@@ -3563,9 +3563,8 @@ def instructor_gradebook_student(request, pk: int, enrollment_id: int):
                             .values_list("text", flat=True)
                         ),
                         "points": question.points,
-                        "explanation": (question.answer_data or {}).get(
-                            "explanation", ""
-                        ),
+                        "explanation": question.explanation
+                        or (question.answer_data or {}).get("explanation", ""),
                         "orderingExplanations": (question.answer_data or {}).get(
                             "explanations", {}
                         ),

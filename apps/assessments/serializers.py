@@ -12,6 +12,7 @@ from apps.assessments.models import (
     Rubric
 )
 from apps.assessments.text_normalization import (
+    normalize_assessment_rich_text,
     normalize_assessment_text,
     normalize_assessment_text_list,
     normalize_question_answer_data,
@@ -216,7 +217,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             'id', 'quiz', 'question_type', 'text', 'points', 'position', 'answer_data',
-            'options', 'matching_pairs', 'gap_answers', 'created_at'
+            'explanation', 'hint', 'options', 'matching_pairs', 'gap_answers', 'created_at'
         ]
 
     def validate(self, attrs):
@@ -225,6 +226,9 @@ class QuestionSerializer(serializers.ModelSerializer):
 
         if "text" in attrs:
             attrs["text"] = normalize_assessment_text(attrs["text"])
+        for field in ("explanation", "hint"):
+            if field in attrs:
+                attrs[field] = normalize_assessment_rich_text(attrs[field])
         if "answer_data" in attrs:
             attrs["answer_data"] = normalize_question_answer_data(
                 question_type,

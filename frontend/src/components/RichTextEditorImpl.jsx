@@ -16,18 +16,22 @@ import "@fontsource/albert-sans/400.css";
 import "@fontsource/albert-sans/500.css";
 import "@fontsource/albert-sans/600.css";
 import "@fontsource/albert-sans/700.css";
+import "katex/dist/katex.min.css";
 
 import {
     RichTextImageDialog,
     RichTextLinkDialog,
+    RichTextMathDialog,
 } from "./rich-text/RichTextEditorDialogs";
 import { RichTextEditorToolbar } from "./rich-text/RichTextEditorToolbar";
 import {
     EMPTY_IMAGE_VALUE,
     EMPTY_LINK_VALUE,
+    EMPTY_MATH_VALUE,
     LMS_RICH_TEXT_FONT_FAMILY,
     richTextContentSx,
 } from "./rich-text/richTextEditorConfig";
+import { createRichTextMathExtensions } from "./rich-text/richTextMathExtensions";
 import {
     DEFAULT_RICH_TEXT_IMAGE_ATTRIBUTES,
     RICH_TEXT_IMAGE_CAPTION_ATTRIBUTE,
@@ -298,10 +302,29 @@ export default function RichTextEditorImpl({
     minHeight = 150,
     imageUploadUrl,
     onImageUploadError,
+    enableMath = true,
 }) {
     const editorRef = React.useRef(null);
     const imageUploadUrlRef = React.useRef(imageUploadUrl);
     const onImageUploadErrorRef = React.useRef(onImageUploadError);
+    const editMathRef = React.useRef(null);
+    const editorExtensions = React.useMemo(
+        () =>
+            enableMath
+                ? [
+                      ...extensions,
+                      ...createRichTextMathExtensions({
+                          onEdit: (target) => editMathRef.current?.(target),
+                      }),
+                  ]
+                : extensions,
+        [enableMath],
+    );
+    const [mathDialog, setMathDialog] = React.useState({
+        open: false,
+        value: EMPTY_MATH_VALUE,
+        target: null,
+    });
     const [, refreshToolbar] = React.useReducer((count) => count + 1, 0);
     const [uploadingImageCount, setUploadingImageCount] = React.useState(0);
     const [imageInsertError, setImageInsertError] = React.useState("");
@@ -395,7 +418,7 @@ export default function RichTextEditorImpl({
     );
 
     const editor = useEditor({
-        extensions,
+        extensions: editorExtensions,
         content: value || "",
         onUpdate: ({ editor: currentEditor }) =>
             onChange?.(currentEditor.getHTML()),
@@ -524,6 +547,88 @@ export default function RichTextEditorImpl({
         setImageDialog((current) => ({ ...current, open: false }));
     };
 
+    // target: { type: "inline" | "block", latex, pos } for an existing formula.
+    const openMathDialog = (target = null) => {
+        let mathTarget = target;
+        if (!mathTarget) {
+            const selectedType = editor.isActive("blockMath")
+                ? "block"
+                : editor.isActive("inlineMath")
+                  ? "inline"
+                  : null;
+            if (selectedType) {
+                mathTarget = {
+                    type: selectedType,
+                    latex:
+                        editor.getAttributes(
+                            selectedType === "block"
+                                ? "blockMath"
+                                : "inlineMath",
+                        ).latex || "",
+                    pos: editor.state.selection.from,
+                };
+            }
+        }
+        const { from, to } = editor.state.selection;
+        setMathDialog({
+            open: true,
+            target: mathTarget,
+            value: mathTarget
+                ? {
+                      latex: mathTarget.latex,
+                      display: mathTarget.type === "block",
+                      isExisting: true,
+                  }
+                : {
+                      ...EMPTY_MATH_VALUE,
+                      latex: editor.state.doc.textBetween(from, to, " "),
+                  },
+        });
+    };
+    editMathRef.current = openMathDialog;
+
+    const closeMathDialog = () =>
+        setMathDialog((current) => ({ ...current, open: false }));
+
+    const removeMath = () => {
+        const { target } = mathDialog;
+        if (target) {
+            const chain = editor.chain().focus();
+            (target.type === "block"
+                ? chain.deleteBlockMath({ pos: target.pos })
+                : chain.deleteInlineMath({ pos: target.pos })
+            ).run();
+        }
+        closeMathDialog();
+    };
+
+    const saveMath = ({ latex, display }) => {
+        const { target } = mathDialog;
+        const insert = (options) => {
+            const chain = editor.chain().focus();
+            (display
+                ? chain.insertBlockMath(options)
+                : chain.insertInlineMath(options)
+            ).run();
+        };
+        if (target && (target.type === "block") === display) {
+            const chain = editor.chain().focus();
+            (display
+                ? chain.updateBlockMath({ latex, pos: target.pos })
+                : chain.updateInlineMath({ latex, pos: target.pos })
+            ).run();
+        } else if (target) {
+            removeMath();
+            insert({ latex, pos: target.pos });
+        } else {
+            if (!editor.state.selection.empty) {
+                editor.chain().focus().deleteSelection().run();
+            }
+            insert({ latex });
+        }
+        closeMathDialog();
+    };
+
     return (
         <>
             <Paper
@@ -545,6 +650,7 @@ export default function RichTextEditorImpl({
                     editor={editor}
                     onOpenLink={openLinkDialog}
                     onOpenImage={openImageDialog}
+                    onOpenMath={enableMath ? () => openMathDialog() : undefined}
                     imageAttributes={activeImageAttributes}
                     onUpdateImage={updateSelectedImage}
                     onDeleteImage={deleteSelectedImage}
@@ -607,6 +713,27 @@ export default function RichTextEditorImpl({
                                         : "grey.100",
                                 padding: "0.1em 0.3em",
                                 borderRadius: "3px",
+                                fontFamily: "monospace",
+                            },
+                            "& .tiptap-mathematics-render": {
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                "&:hover": { bgcolor: "action.hover" },
+                            },
+                            "& .tiptap-mathematics-render[data-type='block-math']":
+                                {
+                                    display: "block",
+                                    my: 1,
+                                    px: 1,
+                                    overflowX: "auto",
+                                },
+                            "& .tiptap-mathematics-render.ProseMirror-selectednode":
+                                {
+                                    outline: `2px solid ${theme.palette.primary.main}`,
+                                    outlineOffset: 2,
+                                },
+                            "& .inline-math-error, & .block-math-error": {
+                                color: "error.main",
                                 fontFamily: "monospace",
                             },
                             "& a": { color: "primary.main" },
@@ -702,6 +829,15 @@ export default function RichTextEditorImpl({
                 onSave={saveImage}
                 onDelete={deleteSelectedImage}
             />
+            {enableMath && (
+                <RichTextMathDialog
+                    open={mathDialog.open}
+                    initialValue={mathDialog.value}
+                    onClose={closeMathDialog}
+                    onSave={saveMath}
+                    onRemove={removeMath}
+                />
+            )}
         </>
     );
 }

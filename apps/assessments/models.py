@@ -220,6 +220,10 @@ class Question(TimeStampedModel):
     # T/F: {"correct": true}
     # Short Answer: {"keywords": ["term1", "term2"], "manual_grading": false}
     answer_data = models.JSONField()
+    # Rich text (HTML, sanitised on display). The explanation follows the quiz's
+    # answer-release policy; the hint is shown to learners before they answer.
+    explanation = models.TextField(blank=True, default="")
+    hint = models.TextField(blank=True, default="")
     source_bank_entry = models.ForeignKey(
         "assessments.QuestionBankEntry",
         on_delete=models.SET_NULL,

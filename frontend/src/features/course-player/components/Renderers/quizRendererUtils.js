@@ -1,3 +1,5 @@
+import { hasRichTextContent } from '@/components/rich-text/richTextMath';
+
 const decodeHtmlEntities = (value) => {
     const raw = String(value ?? '');
 
@@ -25,6 +27,10 @@ export const normalizeText = (value, fallback = '') => {
     const text = decoded.replace(/<[^>]*>/g, '').trim();
     return text || fallback;
 };
+
+// Explanations and hints are rich text; they are sanitised when displayed.
+const normalizeRichText = (value) =>
+    hasRichTextContent(value) ? String(value).trim() : '';
 
 const toNumberOrNull = (value) => {
     const parsed = Number(value);
@@ -346,10 +352,10 @@ export const normalizeQuestions = (rawQuestions = []) => {
                 type,
                 text: normalizeText(rawQuestion?.text ?? rawQuestion?.question, 'Untitled question'),
                 points,
-                explanation: normalizeText(
+                explanation: normalizeRichText(
                     rawQuestion?.explanation ?? rawQuestion?.answer_data?.explanation,
-                    '',
                 ),
+                hint: normalizeRichText(rawQuestion?.hint),
                 options,
                 pairs,
                 items,

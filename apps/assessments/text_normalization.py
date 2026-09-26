@@ -1,3 +1,4 @@
+import re
 from html import unescape
 
 from django.utils.html import strip_tags
@@ -6,6 +7,24 @@ from django.utils.html import strip_tags
 def normalize_assessment_text(value) -> str:
     decoded = unescape(str(value or "")).replace("\xa0", " ")
     return " ".join(strip_tags(decoded).split())
+
+
+_RICH_TEXT_MEDIA = re.compile(r"<img\b|\bdata-latex\s*=", re.IGNORECASE)
+
+
+def normalize_assessment_rich_text(value) -> str:
+    """
+    Keep authored rich text (explanations, hints) as HTML.
+
+    The HTML is sanitised with DOMPurify wherever it is displayed, like other
+    LMS rich text. An empty editor (``<p></p>``, ``<p><br></p>``) becomes "".
+    """
+    html = str(value or "").strip()
+    if not html:
+        return ""
+    if not normalize_assessment_text(html) and not _RICH_TEXT_MEDIA.search(html):
+        return ""
+    return html
 
 
 def normalize_assessment_text_list(values) -> list[str]:

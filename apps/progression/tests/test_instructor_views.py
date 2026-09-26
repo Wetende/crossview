@@ -322,6 +322,65 @@ class TestInstructorGradebook:
         assert result["pointsEarned"] == 8.0
         assert result["gradingFeedback"] == "Clear explanation."
 
+    def test_student_progress_exposes_question_explanation(
+        self, client, instructor, assignment, enrollment
+    ):
+        node = CurriculumNodeFactory(
+            program=assignment.program,
+            node_type="Session",
+            properties={"lesson_type": "quiz"},
+            is_published=True,
+        )
+        quiz = Quiz.objects.create(node=node, title="Explained quiz")
+        node.properties = {"lesson_type": "quiz", "quiz_id": quiz.id}
+        node.save(update_fields=["properties"])
+        question = Question.objects.create(
+            quiz=quiz,
+            question_type="true_false",
+            text="The sky is blue.",
+            points=1,
+            position=0,
+            answer_data={"correct": True},
+            explanation="<p>Rayleigh scattering.</p>",
+            hint="<p>Look up.</p>",
+        )
+        QuizAttempt.objects.create(
+            enrollment=enrollment,
+            quiz=quiz,
+            attempt_number=1,
+            started_at=timezone.now() - timedelta(minutes=5),
+            submitted_at=timezone.now(),
+            answers={str(question.id): True},
+        )
+        client.force_login(instructor)
+
+        response = client.get(
+            reverse(
+                "progression:instructor.gradebook.student",
+                kwargs={
+                    "pk": assignment.program.id,
+                    "enrollment_id": enrollment.id,
+                },
+            ),
+            HTTP_X_INERTIA="true",
+        )
+
+        assert response.status_code == 200
+
+        def find_node(nodes):
+            for item in nodes:
+                if item.get("id") == node.id:
+                    return item
+                found = find_node(item.get("children") or [])
+                if found:
+                    return found
+            return None
+
+        curriculum_node = find_node(response.json()["props"]["curriculum"])
+        assert curriculum_node["questions"][0]["explanation"] == (
+            "<p>Rayleigh scattering.</p>"
+        )
+
     def test_gradebook_save_creates_results(
         self, client, instructor, assignment, enrollment
     ):
