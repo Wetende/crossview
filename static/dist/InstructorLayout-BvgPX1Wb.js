@@ -1,1 +1,0 @@
-import{j as t}from"./vendor-motion-BY_BPgwm.js";import{D as s}from"./index-B3ahscQm.js";function n({children:r,breadcrumbs:o=[]}){return t.jsx(s,{role:"instructor",breadcrumbs:o,children:r})}export{n as I};
