@@ -1046,7 +1046,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                 <Typography color="primary" sx={{ fontWeight: 500 }}>
                                     Questions Bank
                                 </Typography>
-                                <Stack direction="row" spacing={1} alignItems="center">
+                                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                     <Typography variant="body2">
                                         {bank.name}
                                     </Typography>

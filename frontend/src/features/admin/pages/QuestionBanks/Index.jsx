@@ -83,7 +83,7 @@ export default function QuestionBanksIndex({
                 <Typography variant="h4" component="h1">
                     Question Banks
                 </Typography>
-                <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
+                <Typography color="textSecondary" sx={{ maxWidth: 760 }}>
                     Shared banks are available to every instructor in every course. Only
                     administrators can edit them.
                 </Typography>
@@ -149,7 +149,7 @@ export default function QuestionBanksIndex({
                                 {promotableBanks.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={6}>
-                                            <Typography color="text.secondary" sx={{ py: 2 }}>
+                                            <Typography color="textSecondary" sx={{ py: 2 }}>
                                                 No other banks to share.
                                             </Typography>
                                         </TableCell>

@@ -22,7 +22,7 @@ export default function QuestionLibraryIndex({
                 <Typography variant="h4" component="h1">
                     Question Library
                 </Typography>
-                <Typography color="text.secondary" sx={{ maxWidth: 760 }}>
+                <Typography color="textSecondary" sx={{ maxWidth: 760 }}>
                     Reuse questions across every course you teach. Course banks belong to one
                     course, your library follows you into any course, and shared banks are
                     managed by administrators for everyone.

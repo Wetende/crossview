@@ -106,7 +106,7 @@ export default function QuestionBankDialog({
                             >
                                 {banks.map((bank) => (
                                     <MenuItem key={bank.id} value={bank.id}>
-                                        <Stack direction="row" spacing={1} alignItems="center">
+                                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                             <span>
                                                 {bank.name} ({bank.entries_count} questions)
                                             </span>

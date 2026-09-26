@@ -258,15 +258,23 @@ export default function QuestionLibraryWorkspace({
     const readOnly = selectedBank && !selectedBank.can_edit;
 
     return (
-        <Stack direction={{ xs: "column", lg: "row" }} spacing={3} alignItems="flex-start">
+        <Stack
+            direction={{ xs: "column", lg: "row" }}
+            spacing={3}
+            sx={{ alignItems: "flex-start" }}
+        >
             <Paper variant="outlined" sx={{ width: { xs: "100%", lg: 320 }, flexShrink: 0 }}>
                 <Stack
                     direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
+                    sx={{
+                        p: 2,
+                        borderBottom: 1,
+                        borderColor: "divider",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                    }}
                 >
-                    <Typography variant="subtitle1" fontWeight={600}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                         Banks
                     </Typography>
                     <Button
@@ -306,7 +314,7 @@ export default function QuestionLibraryWorkspace({
                     })}
                     {shownBanks.length === 0 && (
                         <Box sx={{ p: 3 }}>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 No banks yet. Create one to start collecting reusable questions.
                             </Typography>
                         </Box>
@@ -329,7 +337,7 @@ export default function QuestionLibraryWorkspace({
             <Paper variant="outlined" sx={{ flex: 1, width: "100%", minWidth: 0 }}>
                 {!selectedBank ? (
                     <Box sx={{ p: 4 }}>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Select a bank to see its questions.
                         </Typography>
                     </Box>
@@ -338,16 +346,25 @@ export default function QuestionLibraryWorkspace({
                         <Stack
                             direction={{ xs: "column", sm: "row" }}
                             spacing={1}
-                            alignItems={{ sm: "center" }}
-                            justifyContent="space-between"
-                            sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
+                            sx={{
+                                p: 2,
+                                borderBottom: 1,
+                                borderColor: "divider",
+                                alignItems: { sm: "center" },
+                                justifyContent: "space-between",
+                            }}
                         >
-                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                useFlexGap
+                                sx={{ alignItems: "center", flexWrap: "wrap" }}
+                            >
                                 <Typography variant="h6">{selectedBank.name}</Typography>
                                 <BankScopeChip scope={selectedBank.scope} />
                                 {readOnly && <Chip size="small" label="Read only" />}
                             </Stack>
-                            <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                                 {selectedBank.can_edit && (
                                     <>
                                         <Tooltip title="Edit bank">
@@ -453,7 +470,7 @@ export default function QuestionLibraryWorkspace({
                         )}
                         {!loading && !loadError && entries.length === 0 && (
                             <Box sx={{ px: 2, pb: 4 }}>
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     {debouncedSearch || questionType
                                         ? "No questions match your filters."
                                         : "This bank has no questions yet."}
@@ -478,17 +495,15 @@ export default function QuestionLibraryWorkspace({
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
                                             <Typography
                                                 variant="body2"
-                                                fontWeight={500}
-                                                sx={{ overflowWrap: "anywhere" }}
+                                                sx={{ fontWeight: 500, overflowWrap: "anywhere" }}
                                             >
                                                 {entry.question_data?.text || "Untitled question"}
                                             </Typography>
                                             <Stack
                                                 direction="row"
                                                 spacing={0.5}
-                                                sx={{ mt: 0.75 }}
-                                                flexWrap="wrap"
                                                 useFlexGap
+                                                sx={{ mt: 0.75, flexWrap: "wrap" }}
                                             >
                                                 <Chip
                                                     size="small"
@@ -498,7 +513,7 @@ export default function QuestionLibraryWorkspace({
                                                 {(entry.tags || []).map((tag) => (
                                                     <Chip key={tag} size="small" variant="outlined" label={tag} />
                                                 ))}
-                                                <Typography variant="caption" color="text.secondary" sx={{ alignSelf: "center" }}>
+                                                <Typography variant="caption" color="textSecondary" sx={{ alignSelf: "center" }}>
                                                     Used {entry.usage_count || 0} time{entry.usage_count === 1 ? "" : "s"} · version{" "}
                                                     {entry.snapshot_version || 1}
                                                 </Typography>
