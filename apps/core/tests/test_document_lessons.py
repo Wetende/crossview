@@ -311,6 +311,71 @@ def test_document_strict_mode_blocks_node_save_without_ready_conversion(
     assert document_node.title == "Document Lesson"
 
 
+def _post_node_update(client, node, properties):
+    return client.post(
+        reverse("core:instructor.node_update", kwargs={"node_id": node.id}),
+        data=json.dumps({"title": "Updated Title", "properties": properties}),
+        content_type="application/json",
+    )
+
+
+@pytest.mark.django_db
+def test_document_save_without_upload_returns_inertia_errors_to_open_editor(
+    client, instructor, assigned_instructor, program, document_node
+):
+    client.force_login(instructor)
+
+    response = _post_node_update(
+        client, document_node, {"lesson_type": "document", "document": {}}
+    )
+
+    manage_url = reverse("core:instructor.program_manage", kwargs={"pk": program.id})
+    assert response.status_code == 302
+    assert response["Location"] == f"{manage_url}?node={document_node.id}"
+
+    page = client.get(response["Location"], HTTP_X_INERTIA="true").json()
+    message = "Document lesson requires a primary document upload before saving."
+    assert page["component"] == "Instructor/Program/Manage"
+    assert page["props"]["errors"] == {"properties": message}
+    assert page["props"]["flash"] == [{"type": "error", "message": message}]
+
+    # Errors are one-shot: the next visit is clean.
+    next_page = client.get(manage_url, HTTP_X_INERTIA="true").json()
+    assert next_page["props"]["errors"] == {}
+
+    document_node.refresh_from_db()
+    assert document_node.title == "Document Lesson"
+
+
+@pytest.mark.django_db
+def test_document_strict_save_before_conversion_returns_inertia_errors(
+    client, instructor, assigned_instructor, program, document_node
+):
+    client.force_login(instructor)
+
+    response = _post_node_update(
+        client,
+        document_node,
+        {
+            "lesson_type": "document",
+            "document": {
+                "original_url": "/media/documents/source.docx",
+                "strict_completion": True,
+                "conversion_status": "processing",
+            },
+        },
+    )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith(f"?node={document_node.id}")
+    page = client.get(response["Location"], HTTP_X_INERTIA="true").json()
+    assert page["props"]["errors"] == {
+        "properties": (
+            "Document lesson strict mode requires a converted document before saving."
+        )
+    }
+
+
 @pytest.mark.django_db
 def test_publish_validation_flags_document_without_primary_file(program, document_node):
     result = CoursePublishValidationService().validate_for_publish(program)

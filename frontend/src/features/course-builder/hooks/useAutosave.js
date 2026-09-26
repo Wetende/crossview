@@ -38,8 +38,15 @@ const normalizeForHash = (value, seen = new WeakSet()) => {
 export const stableSerialize = (value) =>
     JSON.stringify(normalizeForHash(value));
 
+// `enabled` turns autosave on or off; edits made while it is off are treated
+// as already handled. `canSave` only pauses it: edits stay "dirty" and are
+// saved as soon as `canSave` turns true again (for example once a lesson
+// meets the server's save rules). Forced flushes ignore `canSave`; other
+// flushes skipped by the pause resolve `{ skipped: true, paused: true }` so
+// callers can warn that edits are not saved.
 export default function useAutosave({
     enabled = true,
+    canSave = true,
     value,
     buildPayload,
     save,
@@ -56,10 +63,19 @@ export default function useAutosave({
     const lastSavedHashRef = useRef(valueHash);
     const latestRef = useRef({
         enabled,
+        canSave,
         valueHash,
         buildPayload,
         save,
     });
+
+    const hasPendingSaveableChange = useCallback(
+        () =>
+            latestRef.current.enabled &&
+            latestRef.current.canSave &&
+            latestRef.current.valueHash !== lastSavedHashRef.current,
+        [],
+    );
 
     const safeSetState = useCallback((updater) => {
         if (mountedRef.current) {
@@ -70,11 +86,12 @@ export default function useAutosave({
     useEffect(() => {
         latestRef.current = {
             enabled,
+            canSave,
             valueHash,
             buildPayload,
             save,
         };
-    }, [buildPayload, enabled, save, valueHash]);
+    }, [buildPayload, canSave, enabled, save, valueHash]);
 
     useEffect(() => {
         if (timerRef.current) {
@@ -96,6 +113,7 @@ export default function useAutosave({
         } = {}) => {
             const {
                 enabled: currentEnabled,
+                canSave: currentCanSave,
                 valueHash: currentHash,
                 buildPayload: currentBuildPayload,
                 save: currentSave,
@@ -111,6 +129,10 @@ export default function useAutosave({
 
             if (!force && currentHash === lastSavedHashRef.current) {
                 return Promise.resolve({ skipped: true });
+            }
+
+            if (!currentCanSave && !force) {
+                return Promise.resolve({ skipped: true, paused: true });
             }
 
             if (timerRef.current) {
@@ -195,14 +217,11 @@ export default function useAutosave({
                 clearTimeout(timerRef.current);
                 timerRef.current = null;
             }
-            if (
-                latestRef.current.enabled &&
-                latestRef.current.valueHash !== lastSavedHashRef.current
-            ) {
+            if (hasPendingSaveableChange()) {
                 void runSave();
             }
         };
-    }, [runSave]);
+    }, [hasPendingSaveableChange, runSave]);
 
     useEffect(() => {
         if (!enabled) {
@@ -227,6 +246,10 @@ export default function useAutosave({
         setError(null);
         if (timerRef.current) {
             clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+        if (!canSave) {
+            return undefined;
         }
         timerRef.current = setTimeout(() => {
             void runSave();
@@ -238,7 +261,7 @@ export default function useAutosave({
                 timerRef.current = null;
             }
         };
-    }, [debounceMs, enabled, runSave, valueHash]);
+    }, [canSave, debounceMs, enabled, runSave, valueHash]);
 
     useEffect(() => {
         if (typeof window === "undefined") {
@@ -246,10 +269,7 @@ export default function useAutosave({
         }
 
         const flushPending = () => {
-            if (
-                latestRef.current.enabled &&
-                latestRef.current.valueHash !== lastSavedHashRef.current
-            ) {
+            if (hasPendingSaveableChange()) {
                 void runSave();
             }
         };
@@ -269,7 +289,7 @@ export default function useAutosave({
                 handleVisibilityChange,
             );
         };
-    }, [runSave]);
+    }, [hasPendingSaveableChange, runSave]);
 
     return {
         status,

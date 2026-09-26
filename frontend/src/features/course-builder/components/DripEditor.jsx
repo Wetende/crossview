@@ -42,6 +42,116 @@ const getDripItems = (nodes = [], depth = 0) => {
     return items;
 };
 
+const isFilled = (value) => value !== undefined && value !== null && value !== "";
+
+// Inputs hold strings, the server sends numbers/null: compare as strings.
+const normalize = (value) => (isFilled(value) ? String(value) : "");
+
+const VALUE_FIELDS = ["unlockAfterDays", "unlockDate"];
+
+const modeField = (scheduleMode) =>
+    scheduleMode === "date" ? "unlockDate" : "unlockAfterDays";
+
+// A row counts as scheduled on the server when the field for the current
+// schedule mode is set; the other mode's saved value is kept but not shown.
+const toServerScheduleRow = (item, scheduleMode) => {
+    const row = {
+        unlockAfterDays: normalize(item.unlockAfterDays),
+        unlockDate: item.unlockDate ? String(item.unlockDate).slice(0, 10) : "",
+    };
+    return { ...row, active: isFilled(row[modeField(scheduleMode)]) };
+};
+
+const buildInitialSchedule = (dripItems, scheduleMode) => {
+    const rows = {};
+    dripItems.forEach((item) => {
+        rows[item.id] = toServerScheduleRow(item, scheduleMode);
+    });
+    return { rows, baseline: rows };
+};
+
+/*
+ * Reconcile a refreshed curriculum prop with local rows.
+ *
+ * `baseline` is what we believe the server holds for each row: the last
+ * curriculum prop, advanced to the values we sent when a save goes out. A
+ * field takes the server's value only when the server changed it relative to
+ * the baseline (another instructor, or a save we did not make) AND the local
+ * field still equals the baseline (no unsaved edit). Otherwise local wins.
+ * So the echo of our own save never undoes an edit made after sending it,
+ * while an untouched row still follows another instructor's clear.
+ */
+const reconcileSchedule = (prev, dripItems, scheduleMode) => {
+    const rows = {};
+    const baseline = {};
+    const field = modeField(scheduleMode);
+    dripItems.forEach((item) => {
+        const server = toServerScheduleRow(item, scheduleMode);
+        const local = prev.rows[item.id];
+        const base = prev.baseline[item.id];
+        if (!local || !base) {
+            rows[item.id] = server;
+            baseline[item.id] = server;
+            return;
+        }
+
+        const next = { ...local };
+        VALUE_FIELDS.forEach((name) => {
+            const serverChanged =
+                normalize(server[name]) !== normalize(base[name]);
+            if (serverChanged && normalize(local[name]) === normalize(base[name])) {
+                next[name] = server[name];
+            }
+        });
+
+        // The server stores no "on" flag: a row is on when its value is set.
+        // Follow a server-side change of the value only if the instructor has
+        // not flipped the switch since the baseline.
+        const serverValueChanged =
+            normalize(server[field]) !== normalize(base[field]);
+        const followServer = serverValueChanged && local.active === base.active;
+        if (followServer) {
+            next.active = server.active;
+        }
+
+        rows[item.id] = next;
+        baseline[item.id] = {
+            unlockAfterDays: server.unlockAfterDays,
+            unlockDate: server.unlockDate,
+            active: followServer ? server.active : base.active,
+        };
+    });
+    return { rows, baseline };
+};
+
+// A save is going out: from now on its values are what the server holds.
+const markScheduleSent = (prev, sentRows) => {
+    const baseline = { ...prev.baseline };
+    sentRows.forEach((sent) => {
+        const name = "unlock_date" in sent ? "unlockDate" : "unlockAfterDays";
+        const value = "unlock_date" in sent ? sent.unlock_date : sent.unlock_after_days;
+        baseline[sent.node_id] = {
+            ...(baseline[sent.node_id] || { unlockAfterDays: "", unlockDate: "" }),
+            [name]: normalize(value),
+            active: Boolean(prev.rows[sent.node_id]?.active),
+        };
+    });
+    return { ...prev, baseline };
+};
+
+// Switching mode shows the other field: a row is on when that field is set.
+const switchScheduleMode = (prev, scheduleMode) => {
+    const field = modeField(scheduleMode);
+    const remap = (map) =>
+        Object.fromEntries(
+            Object.entries(map).map(([id, row]) => [
+                id,
+                { ...row, active: isFilled(row[field]) },
+            ]),
+        );
+    return { rows: remap(prev.rows), baseline: remap(prev.baseline) };
+};
+
 const DripEditor = forwardRef(function DripEditor(
     { program, curriculum, onSave },
     ref,
@@ -59,40 +169,19 @@ const DripEditor = forwardRef(function DripEditor(
         [curriculum],
     );
 
-    const [scheduleByNodeId, setScheduleByNodeId] = useState(() => {
-        const map = {};
-        dripItems.forEach((item) => {
-            map[item.id] = {
-                unlockAfterDays: item.unlockAfterDays ?? "",
-                unlockDate: item.unlockDate
-                    ? String(item.unlockDate).slice(0, 10)
-                    : "",
-                active: Boolean(
-                    (item.unlockAfterDays ?? null) || (item.unlockDate ?? null),
-                ),
-            };
-        });
-        return map;
-    });
+    const [schedule, setSchedule] = useState(() =>
+        buildInitialSchedule(dripItems, scheduleMode),
+    );
+    const scheduleByNodeId = schedule.rows;
 
     useEffect(() => {
-        setScheduleByNodeId(() => {
-            const next = {};
-            dripItems.forEach((item) => {
-                next[item.id] = {
-                    unlockAfterDays: item.unlockAfterDays ?? "",
-                    unlockDate: item.unlockDate
-                        ? String(item.unlockDate).slice(0, 10)
-                        : "",
-                    active: Boolean(
-                        (item.unlockAfterDays ?? null) ||
-                            (item.unlockDate ?? null),
-                    ),
-                };
-            });
-            return next;
-        });
-    }, [dripItems]);
+        setSchedule((prev) => reconcileSchedule(prev, dripItems, scheduleMode));
+    }, [dripItems, scheduleMode]);
+
+    const handleScheduleModeChange = (nextMode) => {
+        setScheduleMode(nextMode);
+        setSchedule((prev) => switchScheduleMode(prev, nextMode));
+    };
 
     const dripMode = useMemo(() => {
         if (!dripEnabled) return "none";
@@ -100,34 +189,42 @@ const DripEditor = forwardRef(function DripEditor(
     }, [dripEnabled, scheduleMode]);
 
     const handleScheduleChange = (nodeId, patch) => {
-        setScheduleByNodeId((prev) => ({
+        setSchedule((prev) => ({
             ...prev,
-            [nodeId]: {
-                ...(prev[nodeId] || {
-                    unlockAfterDays: "",
-                    unlockDate: "",
-                    active: false,
-                }),
-                ...patch,
+            rows: {
+                ...prev.rows,
+                [nodeId]: {
+                    ...(prev.rows[nodeId] || {
+                        unlockAfterDays: "",
+                        unlockDate: "",
+                        active: false,
+                    }),
+                    ...patch,
+                },
             },
         }));
     };
 
     const buildSavePayload = useCallback(() => {
+        // Send only the current mode's field per row: the server leaves the
+        // other field untouched, so switching modes never wipes saved values.
         const drip_schedule = dripEnabled
             ? dripItems.map((item) => {
                   const row = scheduleByNodeId[item.id] || {};
+                  if (scheduleMode === "date") {
+                      return {
+                          node_id: item.id,
+                          unlock_date:
+                              row.active && isFilled(row.unlockDate)
+                                  ? row.unlockDate
+                                  : null,
+                      };
+                  }
                   return {
                       node_id: item.id,
                       unlock_after_days:
-                          scheduleMode === "sequence" &&
-                          row.active &&
-                          row.unlockAfterDays !== ""
+                          row.active && isFilled(row.unlockAfterDays)
                               ? Number(row.unlockAfterDays)
-                              : null,
-                      unlock_date:
-                          scheduleMode === "date" && row.active && row.unlockDate
-                              ? row.unlockDate
                               : null,
                   };
               })
@@ -143,6 +240,11 @@ const DripEditor = forwardRef(function DripEditor(
     const savePayload = useCallback(
         (payload, callbacks = {}) => {
             if (!onSave) return;
+            if (payload.drip_schedule?.length) {
+                setSchedule((prev) =>
+                    markScheduleSent(prev, payload.drip_schedule),
+                );
+            }
             onSave(payload, callbacks);
         },
         [onSave],
@@ -231,7 +333,7 @@ const DripEditor = forwardRef(function DripEditor(
                             <Select
                                 value={scheduleMode}
                                 onChange={(e) =>
-                                    setScheduleMode(e.target.value)
+                                    handleScheduleModeChange(e.target.value)
                                 }
                                 label="Schedule Mode"
                             >

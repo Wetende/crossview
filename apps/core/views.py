@@ -59,6 +59,7 @@ from apps.certifications.services import (
     VerificationService,
     serialize_verification_result,
 )
+from apps.core.inertia_errors import flash_inertia_errors
 from apps.core.learning_outcomes import (
     extract_learning_outcome_items_from_html,
     resolve_learning_outcomes_html,
@@ -3433,6 +3434,9 @@ def instructor_student_detail(request, pk: int):
 
     from django.shortcuts import get_object_or_404
 
+    from apps.learning_operations.learner_management import (
+        ALLOWED_ENROLLMENT_STATUS_TRANSITIONS,
+    )
     from apps.progression.models import Enrollment, NodeCompletion
 
     program_ids = get_instructor_program_ids(request.user)
@@ -3452,6 +3456,10 @@ def instructor_student_detail(request, pk: int):
                 "programId": e.program.id,
                 "programName": e.program.name,
                 "status": e.status,
+                # The server owns legal transitions; the dialog only offers these.
+                "allowedStatuses": sorted(
+                    ALLOWED_ENROLLMENT_STATUS_TRANSITIONS.get(e.status, set())
+                ),
                 "completions": completions,
                 "enrolledAt": e.enrolled_at.isoformat(),
             }
@@ -3473,7 +3481,12 @@ def instructor_student_detail(request, pk: int):
 
 @login_required
 def instructor_enrollment_status(request, enrollment_id: int):
-    """Update enrollment status (active, suspended, withdrawn, completed)."""
+    """
+    Change an enrollment's status and return to the student's page.
+
+    Only transitions in ALLOWED_ENROLLMENT_STATUS_TRANSITIONS are accepted;
+    anything else is reported back as ``errors.status``.
+    """
     if not is_instructor(request.user):
         return redirect("/dashboard/")
 
@@ -3492,22 +3505,29 @@ def instructor_enrollment_status(request, enrollment_id: int):
     )
 
     data = get_post_data(request)
-    new_status = data.get("status", "")
+    new_status = str(data.get("status") or "")
 
-    valid_statuses = ["active", "suspended", "withdrawn", "completed"]
-    if new_status in valid_statuses:
+    try:
+        # change_enrollment_status owns validity and legal transitions.
         change_enrollment_status(
             enrollment=enrollment,
             status=new_status,
             actor=request.user,
             reason=str(data.get("reason") or ""),
         )
-        NotificationService.notify_enrollment_status_changed(enrollment, new_status)
-        messages.success(request, f"Enrollment status updated to {new_status}")
+    except ValidationError as exc:
+        error_message = exc.messages[0]
+        messages.error(request, error_message)
+        flash_inertia_errors(request, {"status": error_message})
     else:
-        messages.error(request, "Invalid status")
+        transaction.on_commit(
+            lambda: NotificationService.notify_enrollment_status_changed(
+                enrollment, new_status
+            )
+        )
+        messages.success(request, f"Enrollment status updated to {new_status}")
 
-    return redirect("core:instructor.students")
+    return redirect("core:instructor.student", pk=enrollment.user_id)
 
 
 def _get_students_for_program(program_id: int, user) -> list:
@@ -6334,7 +6354,9 @@ def build_curriculum_tree(program):
             "properties": node["properties"],
             "scheduledSession": scheduled_sessions.get(node_id),
             "position": node["position"],
-            "unlockDate": node["unlock_date"].isoformat()
+            # The builder edits a calendar date; send the local date so a
+            # midnight unlock in the site timezone does not show a day early.
+            "unlockDate": timezone.localtime(node["unlock_date"]).date().isoformat()
             if node["unlock_date"]
             else None,
             "unlockAfterDays": node["unlock_after_days"],
@@ -6566,16 +6588,6 @@ def instructor_node_create(request, program_id: int):
         messages.success(
             request, f"{success_label} '{node.title}' created successfully"
         )
-
-        # Build updated curriculum tree and return as Inertia response
-        curriculum = build_curriculum_tree(program)
-
-        # Serialize program data using shared helper
-        response_data = serialize_program_data(program)
-        response_data["curriculum"] = curriculum
-        response_data.update(_builder_question_bank_props(request, program))
-
-        return render(request, "Instructor/Program/Manage", response_data)
     except Exception as e:
         import traceback
         import logging
@@ -6588,6 +6600,14 @@ def instructor_node_create(request, program_id: int):
             "Could not create this item right now. Please review the form and try again.",
         )
         return redirect("core:instructor.program_manage", pk=program_id)
+
+    # POST never renders a page: redirect to the builder GET so the URL,
+    # refreshes and the full prop set (question library etc.) stay correct.
+    # Sections are edited inline in the tree, so only lessons open by ?node=.
+    manage_url = reverse("core:instructor.program_manage", kwargs={"pk": program_id})
+    if parent is not None:
+        manage_url = f"{manage_url}?node={node.id}"
+    return redirect(manage_url)
 
 
 def _resolve_library_link(node, q_data, *, actor=None, existing_link=None):
@@ -7365,6 +7385,16 @@ def _sync_assignment(node, *, actor=None):
         _sync_quiz_questions(node, questions_data, actor=actor)
 
 
+def _reject_node_update(request, node, message: str):
+    """Reject a lesson save: flash the error and reopen that lesson's editor."""
+    messages.error(request, message)
+    flash_inertia_errors(request, {"properties": message})
+    manage_url = reverse(
+        "core:instructor.program_manage", kwargs={"pk": node.program_id}
+    )
+    return redirect(f"{manage_url}?node={node.id}")
+
+
 @login_required
 def instructor_node_update(request, node_id: int):
     """Update node details (title, description, properties)."""
@@ -7398,11 +7428,11 @@ def instructor_node_update(request, node_id: int):
             document = {}
 
         if not str(document.get("original_url") or "").strip():
-            messages.error(
+            return _reject_node_update(
                 request,
+                node,
                 "Document lesson requires a primary document upload before saving.",
             )
-            return redirect("core:instructor.program_manage", pk=node.program_id)
 
         strict_completion = _coerce_bool(document.get("strict_completion"), True)
         if strict_completion:
@@ -7415,11 +7445,11 @@ def instructor_node_update(request, node_id: int):
                 page_count = 0
 
             if status != "ready" or not viewer_pdf_url or page_count <= 0:
-                messages.error(
+                return _reject_node_update(
                     request,
+                    node,
                     "Document lesson strict mode requires a converted document before saving.",
                 )
-                return redirect("core:instructor.program_manage", pk=node.program_id)
 
     if updated_lesson_type in {
         "live_class",
@@ -7433,8 +7463,7 @@ def instructor_node_update(request, node_id: int):
         try:
             validate_session_properties(node_props)
         except ValidationError as exc:
-            messages.error(request, exc.messages[0])
-            return redirect("core:instructor.program_manage", pk=node.program_id)
+            return _reject_node_update(request, node, exc.messages[0])
 
     node.save()
 
@@ -8105,33 +8134,52 @@ def instructor_program_update_settings(request, pk: int):
 
         if "drip_schedule" in data:
             updates = []
+            rows_by_node_id = {}
             for row in drip_schedule:
                 if not isinstance(row, dict):
                     continue
                 node_id = _to_int(row.get("node_id") or row.get("nodeId"))
                 if not node_id:
                     continue
-                unlock_after_days = _to_int(
-                    row.get("unlock_after_days")
-                    if "unlock_after_days" in row
-                    else row.get("unlockAfterDays")
-                )
-                unlock_date = _parse_unlock_date(
-                    row.get("unlock_date")
-                    if "unlock_date" in row
-                    else row.get("unlockDate")
-                )
+                # The drip editor sends only the active schedule mode's field.
+                # A field missing from the row keeps its saved value.
+                if not any(
+                    key in row
+                    for key in (
+                        "unlock_after_days",
+                        "unlockAfterDays",
+                        "unlock_date",
+                        "unlockDate",
+                    )
+                ):
+                    continue
+                rows_by_node_id[node_id] = row
 
-                node = CurriculumNode.objects.filter(pk=node_id, program_id=pk).first()
+            nodes_by_id = CurriculumNode.objects.filter(program_id=pk).in_bulk(
+                list(rows_by_node_id)
+            )
+            for node_id, row in rows_by_node_id.items():
+                node = nodes_by_id.get(node_id)
                 if not node:
                     continue
 
-                node.unlock_after_days = (
-                    unlock_after_days
-                    if unlock_after_days and unlock_after_days > 0
-                    else None
-                )
-                node.unlock_date = unlock_date
+                if "unlock_after_days" in row or "unlockAfterDays" in row:
+                    unlock_after_days = _to_int(
+                        row.get("unlock_after_days")
+                        if "unlock_after_days" in row
+                        else row.get("unlockAfterDays")
+                    )
+                    node.unlock_after_days = (
+                        unlock_after_days
+                        if unlock_after_days and unlock_after_days > 0
+                        else None
+                    )
+                if "unlock_date" in row or "unlockDate" in row:
+                    node.unlock_date = _parse_unlock_date(
+                        row.get("unlock_date")
+                        if "unlock_date" in row
+                        else row.get("unlockDate")
+                    )
                 node.updated_at = timezone.now()
                 updates.append(node)
 

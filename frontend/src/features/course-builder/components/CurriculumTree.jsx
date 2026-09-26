@@ -275,9 +275,11 @@ export default function CurriculumTree({
         setExpandedSections((prev) => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    const handleSelect = (node) => {
+    // The builder may refuse the switch (unsaved lesson edits the instructor
+    // chose to keep); only highlight the node once it has agreed.
+    const handleSelect = async (node) => {
+        if (onNodeSelect && (await onNodeSelect(node)) === false) return;
         setSelectedNodeId(node.id);
-        if (onNodeSelect) onNodeSelect(node);
     };
 
     const openCreateSection = () => {
@@ -1132,7 +1134,8 @@ export default function CurriculumTree({
                 programId={program.id}
                 onImportComplete={() => {
                     // Refresh the curriculum after import
-                    router.reload({ only: ["curriculum"] });
+                    // Include errors so stale validation errors are cleared.
+                    router.reload({ only: ["curriculum", "errors"] });
                 }}
             />
 

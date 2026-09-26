@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.core.cache import cache
 from django.http import Http404
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -4585,25 +4586,64 @@ def instructor_enrollment_request_approve(request, pk: int, request_id: int):
         messages.error(request, prerequisite_evaluation.blocking_message)
         return redirect("progression:instructor.enrollment_requests", pk=pk)
 
-    # Create enrollment
-    enrollment = Enrollment.objects.create(
-        user=enrollment_request.user,
-        program=enrollment_request.program,
-        status="active",
-        enrolled_at=timezone.now(),
-    )
-    NotificationService.notify_enrollment_approved(enrollment)
+    from apps.learning_operations.learner_management import ensure_active_enrollment
 
-    # Update request
-    enrollment_request.status = "approved"
-    enrollment_request.reviewed_by = user
-    enrollment_request.reviewed_at = timezone.now()
-    enrollment_request.save()
+    learner = enrollment_request.user
+    learner_name = learner.get_full_name() or learner.email
+    requests_url = reverse("progression:instructor.enrollment_requests", kwargs={"pk": pk})
+    with transaction.atomic():
+        # Lock the request so two reviewers cannot approve it twice.
+        enrollment_request = (
+            EnrollmentRequest.objects.select_for_update()
+            .select_related("user", "program")
+            .filter(pk=enrollment_request.pk, program_id=pk, status="pending")
+            .first()
+        )
+        if enrollment_request is None:
+            messages.info(request, "This enrollment request was already reviewed.")
+            return redirect(requests_url)
 
-    messages.success(
-        request,
-        f"Approved enrollment for {enrollment_request.user.get_full_name() or enrollment_request.user.email}",
-    )
+        # Enrollment is unique per (user, program): reuse the existing row.
+        existing = (
+            Enrollment.objects.select_for_update()
+            .filter(user=learner, program=enrollment_request.program)
+            .first()
+        )
+        if existing and existing.status == "suspended":
+            messages.error(
+                request,
+                f"{learner_name} is suspended in this course. Restore the learner "
+                "from the learner list instead of approving this request.",
+            )
+            return redirect(requests_url)
+
+        previous_status = existing.status if existing else None
+        enrollment, created = ensure_active_enrollment(
+            user=learner,
+            program=enrollment_request.program,
+            actor=user,
+            access_source="approval",
+            audit_action="approve_request",
+        )
+        access_granted = created or previous_status == "withdrawn"
+
+        enrollment_request.status = "approved"
+        enrollment_request.reviewed_by = user
+        enrollment_request.reviewed_at = timezone.now()
+        enrollment_request.save()
+
+        if access_granted:
+            transaction.on_commit(
+                lambda: NotificationService.notify_enrollment_approved(enrollment)
+            )
+
+    if access_granted:
+        messages.success(request, f"Approved enrollment for {learner_name}")
+    else:
+        messages.success(
+            request,
+            f"Approved the request; {learner_name} was already enrolled",
+        )
 
     return redirect("progression:instructor.enrollment_requests", pk=pk)
 
