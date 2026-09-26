@@ -1033,6 +1033,7 @@ def public_preview_lesson(request, slug: str, node_id: int):
                 program=program,
                 status__in=["active", "completed"],
             )
+            .order_by("-id")
             .first()
         )
         # A learner whose lesson is still locked (drip, expiry, ...) keeps the

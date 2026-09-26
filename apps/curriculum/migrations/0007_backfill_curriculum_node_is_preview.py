@@ -52,6 +52,9 @@ def backfill_is_preview(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # Batched, idempotent backfill: run outside one long transaction.
+    atomic = False
+
     dependencies = [("curriculum", "0006_promote_google_meet_lesson_type")]
 
     operations = [
