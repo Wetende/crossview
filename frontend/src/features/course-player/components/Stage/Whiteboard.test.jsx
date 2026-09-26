@@ -12,7 +12,11 @@ const { stub } = vi.hoisted(() => ({
     stub: (name) => ({ default: () => <div data-testid={name} /> }),
 }));
 vi.mock("../Renderers/BlockRenderer", () => stub("block"));
-vi.mock("../Renderers/VideoRenderer", () => stub("video"));
+vi.mock("../Renderers/VideoRenderer", () => ({
+    default: ({ requiredProgress }) => (
+        <div data-testid="video" data-required-progress={requiredProgress} />
+    ),
+}));
 vi.mock("../Renderers/TextRenderer", () => stub("text"));
 vi.mock("../Renderers/AssessmentRenderer", () => stub("assessment"));
 vi.mock("../Renderers/DocumentLessonRenderer", () => stub("document"));
@@ -166,5 +170,74 @@ describe("Whiteboard completion", () => {
         });
 
         expect(screen.getByTestId("quiz-results")).toHaveTextContent(summaryUrl);
+    });
+});
+
+describe("Whiteboard read-only preview", () => {
+    const previewNext = {
+        id: 13,
+        title: "Course tour",
+        url: "/programs/preview-course/preview/13/",
+    };
+
+    beforeEach(() => {
+        router.post.mockReset();
+        router.visit.mockReset();
+    });
+
+    test("shows the lesson without completion and navigates by preview URL", () => {
+        renderWhiteboard({
+            courseId: undefined,
+            nextNode: previewNext,
+            readOnly: true,
+        });
+
+        expect(screen.getByTestId("text")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: /complete/i }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+        expect(router.visit).toHaveBeenCalledWith(
+            "/programs/preview-course/preview/13/",
+        );
+        expect(router.post).not.toHaveBeenCalled();
+    });
+
+    test("disables Next on the last preview lesson", () => {
+        renderWhiteboard({ courseId: undefined, nextNode: null, readOnly: true });
+
+        expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+        expect(
+            screen.queryByRole("button", { name: /complete|summary/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    test("drops the viewing requirement from a read-only video lesson", () => {
+        renderWhiteboard({
+            courseId: undefined,
+            nextNode: previewNext,
+            readOnly: true,
+            node: {
+                ...node,
+                activityType: "video",
+                properties: {
+                    lesson_type: "video",
+                    video_url: "https://www.youtube.com/watch?v=abc123",
+                },
+                completionPolicy: {
+                    kind: "active_time_percentage",
+                    requiredPercent: 90,
+                    automatic: true,
+                },
+            },
+        });
+
+        expect(screen.getByTestId("video")).toHaveAttribute(
+            "data-required-progress",
+            "0",
+        );
     });
 });

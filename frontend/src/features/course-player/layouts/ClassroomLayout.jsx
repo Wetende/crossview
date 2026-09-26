@@ -40,6 +40,8 @@ const ClassroomLayoutInner = ({
     children,
     programTitle,
     backLink,
+    backLabel = "Back to dashboard",
+    Banner = null,
     RightPanel,
     LeftPanel,
     isSidebarOpen,
@@ -95,6 +97,7 @@ const ClassroomLayoutInner = ({
                             size="small"
                             component={Link}
                             href={backLink}
+                            aria-label={backLabel}
                             sx={{ color: "text.secondary" }}
                         >
                             <ArrowBack fontSize="small" />
@@ -199,6 +202,9 @@ const ClassroomLayoutInner = ({
                     </Box>
                 </Toolbar>
             </AppBar>
+
+            {/* Persistent notice under the header (e.g. free preview) */}
+            {Banner}
 
             {/* Main Content Area */}
             <Box

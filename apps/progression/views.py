@@ -30,7 +30,15 @@ from apps.progression.models import (
     NodeCompletion,
 )
 from apps.content.models import ContentBlock
-from apps.curriculum.activity_types import sanitize_student_block_data
+from apps.curriculum.activity_types import (
+    normalize_activity_type,
+    sanitize_student_block_data,
+)
+from apps.curriculum.preview import (
+    preview_properties,
+    public_preview_lesson_ids,
+    public_preview_url,
+)
 from apps.assessments.models import AssessmentResult
 from apps.assessments.models import Rubric
 from apps.assessments.grading_rules import (
@@ -794,6 +802,138 @@ def unit_summary(request, pk: int, section_id: int):
     )
 
 
+# Supplement blocks that submit learner work need an enrollment to function.
+ENROLLMENT_ONLY_BLOCK_TYPES = frozenset({"QUIZ", "ASSIGNMENT", "CODE"})
+PREVIEW_LOCK_REASON = "enrollment_required"
+PREVIEW_LOCK_REASON_TEXT = "Enroll to unlock"
+
+
+def _build_player_node_payload(request, node, enrollment=None) -> dict:
+    """Serialize a curriculum node for the Student/CoursePlayer page.
+
+    Without an enrollment (public preview) the payload carries no learner state:
+    no quiz results, activity progress or live-session details, none of the
+    supplement blocks that submit learner work, and only the allowlisted
+    properties the player needs for the lesson's activity type.
+    """
+    from apps.learning_operations.activity_progress import (
+        get_completion_policy,
+        resolve_activity_definition,
+        serialize_activity_progress,
+    )
+    from apps.live_sessions.models import ScheduledLearningSession
+    from apps.live_sessions.services import serialize_session_for_student
+
+    activity_type, _ = resolve_activity_definition(node)
+    if enrollment is None:
+        node_properties = preview_properties(activity_type, node.properties)
+    else:
+        # Hydrate properties for assessment nodes so quiz/assignment question paths render inline.
+        node_properties = _attach_quiz_results_for_request(
+            request, node, enrollment, _hydrate_assessment_node_properties(node)
+        )
+
+    blocks_data = [
+        {
+            "id": block.id,
+            "type": block.block_type,
+            "data": sanitize_student_block_data(block.block_type, block.data),
+        }
+        for block in ContentBlock.objects.filter(node=node).order_by("position")
+        if enrollment is not None
+        or str(block.block_type or "").upper() not in ENROLLMENT_ONLY_BLOCK_TYPES
+    ]
+
+    activity_progress = None
+    scheduled_session_payload = None
+    if enrollment is not None:
+        activity_progress = serialize_activity_progress(enrollment, node)
+        scheduled_session_payload = serialize_session_for_student(
+            ScheduledLearningSession.objects.filter(node=node).first(),
+            enrollment=enrollment,
+        )
+
+    return {
+        "id": node.id,
+        "title": node.title,
+        "type": node.node_type,
+        "properties": node_properties,
+        "contentHtml": node_properties.get("content_html", ""),
+        "description": node.description or "",
+        "blocks": blocks_data,
+        "activityType": activity_type,
+        "primaryActivity": {
+            "type": activity_type,
+            "properties": node_properties,
+        },
+        "supplements": blocks_data,
+        "completionPolicy": get_completion_policy(node),
+        "activityProgress": activity_progress,
+        "scheduledSession": scheduled_session_payload,
+    }
+
+
+def _build_preview_curriculum(program: Program) -> tuple[list, list]:
+    """Return the visitor sidebar tree and the ordered preview lessons it links to.
+
+    Uses a fixed number of queries whatever the curriculum size: the published
+    nodes, the parents that have any children, and one legacy-block lookup.
+    Rows expose titles, activity types and durations only. Every node that is
+    not a published public preview lesson is locked behind enrollment.
+    """
+    nodes = list(
+        CurriculumNode.objects.filter(program=program, is_published=True).order_by(
+            "position", "id"
+        )
+    )
+    parents_with_children = set(
+        CurriculumNode.objects.filter(program=program, parent__isnull=False)
+        .values_list("parent_id", flat=True)
+        .distinct()
+    )
+    children_by_parent = {}
+    for node in nodes:
+        children_by_parent.setdefault(node.parent_id, []).append(node)
+    # Nodes under an unpublished ancestor are unreachable from the roots, so
+    # they are neither listed nor linked.
+    preview_ids = public_preview_lesson_ids(
+        nodes, parents_with_children=parents_with_children
+    )
+    preview_lessons = []
+
+    def build(level_nodes):
+        result = []
+        for node in level_nodes:
+            children = children_by_parent.get(node.id, [])
+            is_preview = node.id in preview_ids
+            url = public_preview_url(program, node.id) if is_preview else None
+            if is_preview:
+                preview_lessons.append({"id": node.id, "title": node.title, "url": url})
+            properties = node.properties if isinstance(node.properties, dict) else {}
+            result.append(
+                {
+                    "id": node.id,
+                    "title": node.title,
+                    "nodeType": node.node_type,
+                    "activityType": normalize_activity_type(node.node_type, properties),
+                    "duration": properties.get("duration") or None,
+                    "status": "preview" if is_preview else "locked",
+                    "isCompleted": False,
+                    "isPreview": is_preview,
+                    "isLocked": not is_preview,
+                    "lockReason": None if is_preview else PREVIEW_LOCK_REASON,
+                    "lockReasonText": None if is_preview else PREVIEW_LOCK_REASON_TEXT,
+                    "unlocksAt": None,
+                    "hasChildren": bool(children),
+                    "children": build(children) if children else [],
+                    "url": url,
+                }
+            )
+        return result
+
+    return build(children_by_parent.get(None, [])), preview_lessons
+
+
 def _course_complete_url(enrollment: Enrollment) -> str:
     return reverse("progression:student.course.complete", args=[enrollment.id])
 
@@ -1175,31 +1315,7 @@ def session_viewer(request, pk: int, node_id: int):
     # Get siblings for navigation
     siblings = _get_sibling_navigation(node, enrollment.id)
 
-    # Hydrate properties for assessment nodes so quiz/assignment question paths render inline.
-    node_properties = _attach_quiz_results_for_request(
-        request,
-        node,
-        enrollment,
-        _hydrate_assessment_node_properties(node),
-    )
-    from apps.learning_operations.activity_progress import (
-        get_completion_policy,
-        resolve_activity_definition,
-        serialize_activity_progress,
-    )
-
-    completion_policy = get_completion_policy(node)
-    activity_progress = serialize_activity_progress(enrollment, node)
-    from apps.live_sessions.models import ScheduledLearningSession
-    from apps.live_sessions.services import serialize_session_for_student
-
-    scheduled_session = ScheduledLearningSession.objects.filter(node=node).first()
-    scheduled_session_payload = serialize_session_for_student(
-        scheduled_session, enrollment=enrollment
-    )
-
-    # Get content from properties
-    content_html = node_properties.get("content_html", "")
+    node_payload = _build_player_node_payload(request, node, enrollment)
 
     # Get curriculum tree for Sidebar
     root_nodes = _get_published_root_nodes(enrollment.program)
@@ -1217,18 +1333,6 @@ def session_viewer(request, pk: int, node_id: int):
     completed_count = len(completions)
     progress = (completed_count / total_nodes * 100) if total_nodes > 0 else 0
     primary_instructor = _get_primary_instructor_payload(enrollment.program)
-
-    # Get content blocks
-    blocks = ContentBlock.objects.filter(node=node).order_by("position")
-    activity_type, _ = resolve_activity_definition(node)
-    blocks_data = [
-        {
-            "id": block.id,
-            "type": block.block_type,
-            "data": sanitize_student_block_data(block.block_type, block.data),
-        }
-        for block in blocks
-    ]
 
     # Get discussions for this node
     from apps.discussions.models import DiscussionThread
@@ -1291,24 +1395,7 @@ def session_viewer(request, pk: int, node_id: int):
         "Student/CoursePlayer",
         {
             "activeView": None,
-            "node": {
-                "id": node.id,
-                "title": node.title,
-                "type": node.node_type,
-                "properties": node_properties,
-                "contentHtml": content_html,
-                "description": node.description or "",
-                "blocks": blocks_data,
-                "activityType": activity_type,
-                "primaryActivity": {
-                    "type": activity_type,
-                    "properties": node_properties,
-                },
-                "supplements": blocks_data,
-                "completionPolicy": completion_policy,
-                "activityProgress": activity_progress,
-                "scheduledSession": scheduled_session_payload,
-            },
+            "node": node_payload,
             "program": _build_program_player_payload(enrollment.program, enrollment),
             "instructor": primary_instructor,
             "enrollment": _build_enrollment_player_payload(enrollment, progress),

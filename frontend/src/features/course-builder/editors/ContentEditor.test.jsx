@@ -201,3 +201,59 @@ describe("ContentEditor saving", () => {
         ).toBeInTheDocument();
     });
 });
+
+describe("ContentEditor free preview toggle", () => {
+    test("offers the preview switch for a text lesson", () => {
+        renderEditor({
+            id: 50,
+            title: "Intro to circuits",
+            description: validDescription,
+            properties: validTextLessonProperties,
+        });
+
+        expect(screen.getByText("Lesson preview")).toBeInTheDocument();
+        expect(screen.getByRole("switch")).not.toBeChecked();
+    });
+
+    test.each(["quiz", "assignment", "live_stream"])(
+        "hides the preview switch for a %s lesson",
+        (lessonType) => {
+            renderEditor({
+                id: 51,
+                title: "Not previewable",
+                properties: { lesson_type: lessonType, is_preview: true },
+            });
+
+            expect(screen.queryByText("Lesson preview")).not.toBeInTheDocument();
+        },
+    );
+
+    test("hides the preview switch for a Google Meet lesson and saves it as non-preview", async () => {
+        const onSave = vi.fn((_nodeId, _payload, callbacks) => {
+            callbacks?.onSuccess?.();
+            callbacks?.onFinish?.();
+        });
+        const ref = createRef();
+        renderEditor(
+            {
+                ...meetLessonWithoutTimezone,
+                properties: {
+                    ...meetLessonWithoutTimezone.properties,
+                    timezone: "Africa/Nairobi",
+                    is_preview: true,
+                },
+            },
+            onSave,
+            ref,
+        );
+
+        expect(screen.queryByText("Lesson preview")).not.toBeInTheDocument();
+
+        await act(async () => {
+            await ref.current.flushAutosave({ force: true });
+        });
+
+        expect(onSave).toHaveBeenCalled();
+        expect(onSave.mock.calls.at(-1)[1].properties.is_preview).toBe(false);
+    });
+});

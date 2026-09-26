@@ -63,6 +63,7 @@ const NodeItem = ({
     isExpanded,
     activeNodeId,
     enrollmentId,
+    previewMode = false, // Visitors: no progress, no unit summaries
 }) => {
     const isSection =
         node.nodeType === "section" ||
@@ -202,9 +203,11 @@ const NodeItem = ({
                                 color: sectionHeaderMutedText,
                             }}
                         >
-                            <Typography variant="caption" color="inherit">
-                                {getChildCount()}
-                            </Typography>
+                            {!previewMode && (
+                                <Typography variant="caption" color="inherit">
+                                    {getChildCount()}
+                                </Typography>
+                            )}
                             {isExpanded ? (
                                 <KeyboardArrowUp fontSize="small" />
                             ) : (
@@ -228,54 +231,57 @@ const NodeItem = ({
                                     isExpanded={true}
                                     onToggle={onToggle}
                                     enrollmentId={enrollmentId}
+                                    previewMode={previewMode}
                                 />
                             ))}
-                            <ListItem disablePadding>
-                                <ListItemButton
-                                    component={Link}
-                                    href={`/student/programs/${enrollmentId}/unit/${node.id}/`}
-                                    sx={{
-                                        py: 0.75,
-                                        pr: 2,
-                                        pl: iconInset,
-                                        gap: 1,
-                                        "&:hover": { bgcolor: "action.hover" },
-                                    }}
-                                >
-                                    <ListItemIcon
-                                        sx={{ minWidth: ICON_COLUMN_WIDTH - 8 }}
+                            {!previewMode && (
+                                <ListItem disablePadding>
+                                    <ListItemButton
+                                        component={Link}
+                                        href={`/student/programs/${enrollmentId}/unit/${node.id}/`}
+                                        sx={{
+                                            py: 0.75,
+                                            pr: 2,
+                                            pl: iconInset,
+                                            gap: 1,
+                                            "&:hover": { bgcolor: "action.hover" },
+                                        }}
                                     >
-                                        {unitComplete ? (
-                                            <CheckIcon
-                                                sx={{
-                                                    fontSize: 16,
-                                                    color: "success.main",
-                                                }}
-                                            />
-                                        ) : (
-                                            <FlagIcon
-                                                sx={{
-                                                    fontSize: 16,
-                                                    color: "text.secondary",
-                                                }}
-                                            />
-                                        )}
-                                    </ListItemIcon>
-                                    <Typography
-                                        variant="caption"
-                                        color="textSecondary"
-                                        sx={{ flexGrow: 1, fontWeight: 600 }}
-                                    >
-                                        End of unit
-                                    </Typography>
-                                    <Typography
-                                        variant="caption"
-                                        color="textSecondary"
-                                    >
-                                        {`${leafCompletion.completed}/${leafCompletion.total} completed`}
-                                    </Typography>
-                                </ListItemButton>
-                            </ListItem>
+                                        <ListItemIcon
+                                            sx={{ minWidth: ICON_COLUMN_WIDTH - 8 }}
+                                        >
+                                            {unitComplete ? (
+                                                <CheckIcon
+                                                    sx={{
+                                                        fontSize: 16,
+                                                        color: "success.main",
+                                                    }}
+                                                />
+                                            ) : (
+                                                <FlagIcon
+                                                    sx={{
+                                                        fontSize: 16,
+                                                        color: "text.secondary",
+                                                    }}
+                                                />
+                                            )}
+                                        </ListItemIcon>
+                                        <Typography
+                                            variant="caption"
+                                            color="textSecondary"
+                                            sx={{ flexGrow: 1, fontWeight: 600 }}
+                                        >
+                                            End of unit
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="textSecondary"
+                                        >
+                                            {`${leafCompletion.completed}/${leafCompletion.total} completed`}
+                                        </Typography>
+                                    </ListItemButton>
+                                </ListItem>
+                            )}
                         </List>
                     </Collapse>
                 )}
@@ -335,8 +341,10 @@ const NodeItem = ({
                 }}
             />
 
-            {/* Right: completion status (locked rows show the lock instead) */}
+            {/* Right: completion status (locked rows show the lock instead;
+                visitors in a free preview have no progress to show) */}
             {!node.isLocked &&
+                !previewMode &&
                 (node.isCompleted ? (
                     <CheckIcon
                         data-testid="lesson-status-complete"

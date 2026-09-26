@@ -10,7 +10,10 @@ import PlayerSupportStrip from "../components/PlayerSupportStrip";
 import UnitCompletionView from "../components/Stage/UnitCompletionView";
 import CourseCompletionView from "../components/Stage/CourseCompletionView";
 import StageFlashMessages from "../components/Stage/StageFlashMessages";
+import PreviewBanner from "../components/Stage/PreviewBanner";
 import { ACTIVITY_TYPES, normalizeActivityType } from "@/lib/activityTypes";
+import { useCurrency } from "@/hooks/useCurrency";
+import { buildEnrollCta } from "@/utils/enrollCta";
 
 const lessonHasVideo = (node) =>
     Boolean(node) &&
@@ -36,6 +39,7 @@ const LectureView = ({
     announcements = [],
     courseCompletion = null,
     courseCompleteUrl = null,
+    preview = null,
 }) => {
     const { flash } = usePage().props;
 
@@ -52,6 +56,13 @@ const LectureView = ({
         setCurrentVideoTimestamp(Math.floor(state.playedSeconds));
     };
 
+    // Free preview for visitors: read-only lesson, no learner tools.
+    const isPreviewMode = activeView === "preview";
+    const { formatCurrency } = useCurrency();
+    const enrollCta = isPreviewMode
+        ? buildEnrollCta(preview?.enrollCta, formatCurrency)
+        : null;
+
     // Left Panel - Curriculum Sidebar
     const LeftPanel = (
         <CourseSidebar
@@ -62,6 +73,7 @@ const LectureView = ({
             enrollmentId={enrollment?.id}
             activeView={activeView}
             completionUrl={enrollment?.completionSummaryUrl}
+            preview={isPreviewMode ? { enrollCta } : null}
         />
     );
 
@@ -89,7 +101,7 @@ const LectureView = ({
     const isLessonView = !isSummaryView && Boolean(node);
 
     const messageInstructorHref =
-        isLessonView && instructor?.id
+        isLessonView && !isPreviewMode && instructor?.id
             ? `/messages/new/?recipient_id=${instructor.id}&draft=${encodeURIComponent(
                   `Question about "${node.title}" in ${program?.name || "this course"}:\n\n`,
               )}`
@@ -98,9 +110,19 @@ const LectureView = ({
     return (
         <ClassroomLayout
             programTitle={program?.name || "Loading Course..."}
-            backLink="/dashboard/"
+            backLink={
+                isPreviewMode
+                    ? preview?.programUrl || "/programs/"
+                    : "/dashboard/"
+            }
+            backLabel={isPreviewMode ? "Back to course page" : "Back to dashboard"}
+            Banner={
+                isPreviewMode ? (
+                    <PreviewBanner enrollCta={enrollCta} />
+                ) : null
+            }
             LeftPanel={LeftPanel}
-            RightPanel={isSummaryView ? null : RightPanel}
+            RightPanel={isSummaryView || isPreviewMode ? null : RightPanel}
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isDiscussionsOpen={isDiscussionsOpen}
@@ -121,9 +143,9 @@ const LectureView = ({
 
             {isSummaryView && <StageFlashMessages flash={flash} />}
 
-            <PlayerSupportStrip
-                gamification={enrollment?.gamification}
-            />
+            {!isPreviewMode && (
+                <PlayerSupportStrip gamification={enrollment?.gamification} />
+            )}
 
             {/* Main Stage */}
             {isOverview ? (
@@ -150,11 +172,12 @@ const LectureView = ({
                     nextNode={nextNode}
                     courseId={enrollment?.id}
                     isCompleted={isCompleted}
-                    discussions={discussions}
+                    discussions={isPreviewMode ? [] : discussions}
                     onVideoProgress={handleVideoProgress}
                     seekRef={seekRef}
                     courseCompleteUrl={courseCompleteUrl}
                     courseSummaryUrl={enrollment?.completionSummaryUrl}
+                    readOnly={isPreviewMode}
                 />
             ) : (
                 <Box sx={{ p: 4, textAlign: "center" }}>

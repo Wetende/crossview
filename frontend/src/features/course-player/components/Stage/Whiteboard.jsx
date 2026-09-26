@@ -26,6 +26,7 @@ const Whiteboard = ({
     seekRef = null,
     courseCompleteUrl = null,
     courseSummaryUrl = null,
+    readOnly = false, // Free preview: content only, no learner state is written
 }) => {
     const nodeId = node?.id;
     const [videoRequirementMet, setVideoRequirementMet] = useState(false);
@@ -34,7 +35,8 @@ const Whiteboard = ({
 
     const handleNavigate = (destination) => {
         router.visit(
-            `/student/programs/${courseId}/session/${destination.id}/`,
+            destination.url ||
+                `/student/programs/${courseId}/session/${destination.id}/`,
         );
     };
 
@@ -43,7 +45,7 @@ const Whiteboard = ({
     // if the server refuses completion: its access checks still gate the
     // destination.
     const handleComplete = (destination = null) => {
-        if (isCompleted || completionInFlightRef.current) return;
+        if (readOnly || isCompleted || completionInFlightRef.current) return;
         completionInFlightRef.current = true;
 
         // POST to mark complete
@@ -167,6 +169,7 @@ const Whiteboard = ({
                 onVideoRequirementMet={handleVideoRequirementMet}
                 activityProgress={node.activityProgress}
                 seekRef={seekRef}
+                readOnly={readOnly}
             />
         ));
     };
@@ -217,9 +220,11 @@ const Whiteboard = ({
                     url={node.properties?.video_url}
                     onProgress={onVideoProgress}
                     requiredProgress={
-                        node.completionPolicy?.requiredPercent ||
-                        node.properties?.required_progress ||
-                        0
+                        readOnly
+                            ? 0
+                            : node.completionPolicy?.requiredPercent ||
+                              node.properties?.required_progress ||
+                              0
                     }
                     onRequirementMet={handleVideoRequirementMet}
                     enrollmentId={courseId}
@@ -346,6 +351,7 @@ const Whiteboard = ({
                 onComplete={handleComplete}
                 onNavigate={handleNavigate}
                 canComplete={canComplete}
+                showCompletion={!readOnly}
                 completionTooltip={completionTooltip}
                 completionLabel={
                     node.completionPolicy?.learnerCanComplete === false

@@ -5,6 +5,7 @@ Migrated from Laravel CurriculumNode model.
 from django.db import models
 from django.core.exceptions import ValidationError
 from apps.core.models import TimeStampedModel
+from apps.curriculum.preview import coerce_preview_flag
 
 
 class CurriculumNode(TimeStampedModel):
@@ -36,6 +37,7 @@ class CurriculumNode(TimeStampedModel):
     # Scheduling Fields (Phase 2)
     unlock_date = models.DateTimeField(null=True, blank=True, help_text='Absolute date when content unlocks')
     unlock_after_days = models.PositiveIntegerField(null=True, blank=True, help_text='Days after enrollment to unlock')
+    # Derived from properties.is_preview in save(); see apps.curriculum.preview.
     is_preview = models.BooleanField(default=False, help_text='Allow non-enrolled users to view')
 
     class Meta:
@@ -107,6 +109,14 @@ class CurriculumNode(TimeStampedModel):
                 )
 
     def save(self, *args, **kwargs):
+        # The builder's properties.is_preview toggle is the only writer of the
+        # free-preview column, so the two can never drift apart.
+        properties = self.properties if isinstance(self.properties, dict) else {}
+        self.is_preview = coerce_preview_flag(properties.get('is_preview'))
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'properties' in update_fields:
+            kwargs['update_fields'] = {*update_fields, 'is_preview'}
+
         # Skip validation if skip_validation is passed
         if not kwargs.pop('skip_validation', False):
             self.full_clean()

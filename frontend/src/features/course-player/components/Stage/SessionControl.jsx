@@ -25,6 +25,8 @@ export const SESSION_CONTROL_HEIGHT = 64;
  * move on with "Next"; on the last lesson the completion button stays
  * disabled. Either way the reason is shown as a visible caption.
  * `completionLabel` replaces the not-completed label (e.g. "Attendance pending").
+ * `showCompletion={false}` (free preview) drops completion entirely: the
+ * primary action is a plain "Next", disabled on the last preview lesson.
  */
 const SessionControl = ({
     prevNode,
@@ -36,14 +38,24 @@ const SessionControl = ({
     completionTooltip = "",
     completionLabel = null,
     onViewSummary = null,
+    showCompletion = true, // false: read-only preview, navigation only
 }) => {
     const reasonId = useId();
-    const isBlocked = !isCompleted && canComplete === false;
+    const isBlocked = showCompletion && !isCompleted && canComplete === false;
     const blockedReason = isBlocked
         ? completionTooltip || completionLabel || ""
         : "";
 
     const primaryAction = (() => {
+        if (!showCompletion) {
+            return {
+                label: "Next",
+                onClick: nextNode ? () => onNavigate(nextNode) : undefined,
+                disabled: !nextNode,
+                endIcon: <NavigateNext />,
+            };
+        }
+
         if (isCompleted || (isBlocked && nextNode)) {
             return nextNode
                 ? {

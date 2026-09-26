@@ -120,9 +120,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
     const [activeTab, setActiveTab] = useState("lesson");
     const [description, setDescription] = useState(node.description || "");
     const [duration, setDuration] = useState(node.properties?.duration || "");
-    const [isPreview, setIsPreview] = useState(
-        node.properties?.is_preview || false,
-    );
     const [files, setFiles] = useState(node.properties?.files || []);
 
     // ── Code Lab specific fields ──
@@ -254,7 +251,8 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                 show_console: showConsole,
                 layout,
                 duration,
-                is_preview: isPreview,
+                // Code labs need an enrollment, so they are never free previews.
+                is_preview: false,
                 ...(featureFlags.gamification && {
                     gamification: gamificationSettings,
                 }),
@@ -267,7 +265,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
             featureFlags.gamification,
             gamificationSettings,
             instructions,
-            isPreview,
             language,
             layout,
             node.properties,
@@ -291,7 +288,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
             description,
             duration,
             gamificationSettings,
-            isPreview,
             language,
             layout,
             showConsole,
@@ -304,7 +300,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
             description,
             duration,
             gamificationSettings,
-            isPreview,
             language,
             layout,
             showConsole,
@@ -749,43 +744,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 <Typography variant="body2">
                                     Show console output
                                 </Typography>
-                            }
-                        />
-
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={isPreview}
-                                    onChange={(e) =>
-                                        setIsPreview(e.target.checked)
-                                    }
-                                />
-                            }
-                            label={
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                    }}
-                                >
-                                    <Typography variant="body2">
-                                        Lesson preview
-                                    </Typography>
-                                    <Tooltip
-                                        title="Allow non-enrolled users to preview this lesson"
-                                        arrow
-                                    >
-                                        <InfoIcon
-                                            fontSize="small"
-                                            sx={{
-                                                ml: 0.5,
-                                                color: "primary.main",
-                                                fontSize: 16,
-                                                cursor: "help",
-                                            }}
-                                        />
-                                    </Tooltip>
-                                </Box>
                             }
                         />
                     </Stack>

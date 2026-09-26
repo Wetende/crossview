@@ -45,6 +45,7 @@ import DocumentPrimaryUploader from "../components/DocumentPrimaryUploader";
 import AutosaveStatus from "../components/AutosaveStatus";
 import ScheduledSessionFields from "../components/ScheduledSessionFields";
 import useAutosave from "../hooks/useAutosave";
+import { ACTIVITY_TYPES, normalizeActivityType } from "@/lib/activityTypes";
 import {
     Article as ArticleIcon,
     OndemandVideo as VideoIcon,
@@ -66,6 +67,15 @@ const SCHEDULED_LESSON_TYPES = [
     "live_stream",
     "in_person_session",
 ];
+
+// Mirrors PREVIEWABLE_ACTIVITY_TYPES in apps/curriculum/preview.py: only
+// self-contained lessons can be opened by visitors as free previews.
+const PREVIEWABLE_LESSON_TYPES = new Set([
+    ACTIVITY_TYPES.TEXT,
+    ACTIVITY_TYPES.VIDEO,
+    ACTIVITY_TYPES.DOCUMENT,
+    ACTIVITY_TYPES.AUDIO,
+]);
 
 const inferSessionKind = (properties = {}) => {
     const configured = (
@@ -237,6 +247,9 @@ const ContentEditor = forwardRef(function ContentEditor(
 
     const lessonType = (node.properties?.lesson_type || "text").toLowerCase();
     const isScheduledLesson = SCHEDULED_LESSON_TYPES.includes(lessonType);
+    const canBePreview = PREVIEWABLE_LESSON_TYPES.has(
+        normalizeActivityType({ properties: { lesson_type: lessonType } }),
+    );
     const hasPersistedNodeId =
         Boolean(node.id) && !String(node.id).startsWith("temp_");
     const inlineImageUploadUrl = hasPersistedNodeId
@@ -568,7 +581,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                           endTime,
                       )
                     : duration,
-                is_preview: isPreview,
+                // The server never previews other lesson types.
+                is_preview: canBePreview && isPreview,
                 video_source: videoSource,
                 video_url: sessionKind === "in_person_session" ? "" : videoUrl,
                 ...(isScheduledLesson && {
@@ -621,6 +635,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         endTime,
         featureFlags.gamification,
         gamificationSettings,
+        canBePreview,
         isPreview,
         isScheduledLesson,
         lessonType,
@@ -1187,8 +1202,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                         </Box>
                     )}
 
-                    {/* Common Toggles */}
-                    {!isScheduledLesson && (
+                    {/* Free preview toggle (previewable lesson types only) */}
+                    {canBePreview && (
                         <Box
                             sx={{
                                 display: "flex",

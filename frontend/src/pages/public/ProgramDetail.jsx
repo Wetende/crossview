@@ -49,6 +49,8 @@ import {
     getEnrollCtaLabel,
     getProgramResumeHref,
 } from "@/features/programs/utils/primaryCta";
+import PreviewCourseButton from "@/features/programs/components/PreviewCourseButton";
+import { findFirstPreviewUrl } from "@/features/programs/utils/previewLessons";
 import EnrollmentIntentDialog from "@/features/enrollment-intents/components/EnrollmentIntentDialog";
 
 // --- Helper Components ---
@@ -68,6 +70,7 @@ function CourseDetailsSidebar({
     onToggleWishlist,
     wishlisted,
     isPreview = false,
+    previewLessonUrl = null,
 }) {
     const theme = useTheme();
     const { formatCurrency } = useCurrency();
@@ -76,7 +79,8 @@ function CourseDetailsSidebar({
     const progressPercent = enrollmentData?.progressPercent || 0;
     const priceDisplay = resolvePriceDisplay(program);
 
-    // Determine CTA button text based on enrollment mode
+    // Determine CTA button text based on enrollment mode (shared with the
+    // free preview player through primaryCta.js).
     const getCtaText = () =>
         getEnrollCtaLabel({
             ctaState,
@@ -445,6 +449,10 @@ function CourseDetailsSidebar({
                     </>
                 ))}
 
+                {!isPreview && !isEnrolled && (
+                    <PreviewCourseButton href={previewLessonUrl} sx={{ mb: 3 }} />
+                )}
+
                 <CourseDetailsPanel program={program} />
             </CardContent>
         </Card>
@@ -671,6 +679,7 @@ export default function ProgramDetail({
                                 onToggleWishlist={handleToggleWishlist}
                                 wishlisted={isWishlisted}
                                 isPreview={isPreview}
+                                previewLessonUrl={findFirstPreviewUrl(curriculum)}
                             />
                             <PopularCourses courses={popularPrograms} />
                         </Grid>
