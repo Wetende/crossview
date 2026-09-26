@@ -261,5 +261,36 @@ describe("DashboardLayout logout", () => {
         expect(
             screen.queryByText("Instructor Vetting"),
         ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole("link", { name: "Question Banks" }),
+        ).toHaveAttribute("href", "/admin/question-banks/");
+    });
+
+    test("instructor navigation links to the question library", () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                auth: {
+                    user: {
+                        firstName: "Ada",
+                        email: "ada@example.com",
+                        role: "instructor",
+                    },
+                },
+                platform: {
+                    institutionName: "Learning Platform",
+                    features: {},
+                },
+            },
+        });
+
+        render(
+            <DashboardLayout role="instructor">
+                <div>Dashboard content</div>
+            </DashboardLayout>,
+        );
+
+        expect(
+            screen.getByRole("link", { name: "Question Library" }),
+        ).toHaveAttribute("href", "/instructor/question-library/");
     });
 });
