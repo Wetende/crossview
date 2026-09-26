@@ -62,6 +62,16 @@ export function formatCourseDuration(value, unitCase = "lower") {
     return `${formatMetricNumber(number)} ${label}`;
 }
 
+export function resolveCourseMetricAvailability(source = {}) {
+    const hasAny = (fields) => firstNumber(source, fields) !== null;
+    return {
+        hasLectures:
+            hasAny(LESSON_COUNT_FIELDS) || hasAny(ASSESSMENT_COUNT_FIELDS),
+        hasDuration:
+            hasAny(DURATION_HOURS_FIELDS) || hasAny(DURATION_MINUTES_FIELDS),
+    };
+}
+
 export function resolveCourseMetrics(source = {}) {
     const lessonsCount = firstNumber(source, LESSON_COUNT_FIELDS) ?? 0;
     const assessmentsCount = firstNumber(source, ASSESSMENT_COUNT_FIELDS) ?? 0;

@@ -26,7 +26,7 @@ from .models import (
     CertificateTemplateVersion,
     VerificationLog,
 )
-from .assignments import resolve_certificate_template
+from .assignments import program_issues_certificate, resolve_certificate_template
 from .rendering import render_layout_pdf
 
 
@@ -91,6 +91,17 @@ class TemplateGenerator:
             raise TemplateValidationError("No default template configured")
         return default
 
+    def has_template_for_program(self, program, resolved=None) -> bool:
+        """Whether get_template_for_enrollment would find a template."""
+        if resolved is None:
+            resolved = resolve_certificate_template(program)
+        if resolved.version:
+            return True
+        blueprint = program.blueprint
+        if blueprint and CertificateTemplate.objects.filter(blueprint=blueprint).exists():
+            return True
+        return self.get_default_template() is not None
+
     def generate(
         self,
         template: CertificateTemplate,
@@ -137,6 +148,18 @@ class TemplateGenerator:
             HTML(string=html_content, base_url=settings.MEDIA_ROOT).write_pdf(full_path)
 
         return pdf_path
+
+
+def program_offers_certificate(program) -> bool:
+    """Whether completing the course can issue a certificate right now.
+
+    The course must allow certificates and a template must actually resolve,
+    the same lookup certificate generation uses.
+    """
+    resolved = resolve_certificate_template(program)
+    return program_issues_certificate(
+        program, resolved
+    ) and TemplateGenerator().has_template_for_program(program, resolved)
 
 
 class SerialNumberGenerator:
@@ -649,10 +672,8 @@ class CertificateEligibilityService:
             progress_ok = enrollment.status == "completed"
 
         enrollment_complete = enrollment.status == "completed"
-        certificate_enabled = bool(
-            blueprint
-            and blueprint.certificate_enabled
-            and resolved_template.enabled
+        certificate_enabled = program_issues_certificate(
+            enrollment.program, resolved_template
         )
 
         eligible = (

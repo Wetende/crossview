@@ -129,6 +129,20 @@ def resolve_inherited_certificate_template(program) -> ResolvedCertificateTempla
     return ResolvedCertificateTemplate(None, "unconfigured", True)
 
 
+def program_issues_certificate(program, resolved=None) -> bool:
+    """Whether completing the course can earn a certificate.
+
+    This is the configuration gate used by certificate eligibility: the
+    blueprint enables certificates and the course has not opted out.
+    """
+    blueprint = getattr(program, "blueprint", None)
+    if not (blueprint and blueprint.certificate_enabled):
+        return False
+    if resolved is None:
+        resolved = resolve_certificate_template(program)
+    return bool(resolved.enabled)
+
+
 def _validate_published_version(version):
     if version is None or not version.is_published:
         raise ValidationError(

@@ -60,6 +60,7 @@ from apps.certifications.services import (
     serialize_verification_result,
 )
 from apps.core.inertia_errors import flash_inertia_errors
+from apps.core.intro_video import validate_intro_video_url
 from apps.core.learning_outcomes import (
     extract_learning_outcome_items_from_html,
     resolve_learning_outcomes_html,
@@ -571,6 +572,64 @@ def public_programs_list(request):
     )
 
 
+def _public_instructor_name(user) -> str:
+    """Public display name; never falls back to the email address."""
+    return user.get_full_name().strip() or "Instructor"
+
+
+def _public_program_instructor(assignment) -> dict | None:
+    """Present the course's primary instructor on the public course page.
+
+    Only reviewed profile details are public: the legacy instructor profile is
+    application data, so draft, pending and rejected profiles stay private.
+    """
+    from apps.core.models import InstructorProfile
+
+    if assignment is None:
+        return None
+
+    user = assignment.instructor
+    profile = (
+        InstructorProfile.objects.filter(user=user, status="approved")
+        .only("job_title", "bio", "linkedin_url")
+        .first()
+    )
+    return {
+        "name": _public_instructor_name(user),
+        "jobTitle": profile.job_title if profile else "",
+        "bio": profile.bio if profile else "",
+        "linkedinUrl": profile.linkedin_url if profile else "",
+        "avatar": None,
+    }
+
+
+def _public_program_facts(
+    program,
+    *,
+    delivery_profile,
+    enrollment_mode: str,
+    lesson_count: int,
+    duration_hours,
+) -> dict:
+    """Key facts shown in the public course details panel."""
+    from apps.certifications.services import program_offers_certificate
+
+    return {
+        "certificateOnCompletion": program_offers_certificate(program),
+        "examBody": program.exam_body or "",
+        "awardType": program.award_type or "",
+        "deliveryMode": delivery_profile.delivery_mode,
+        "deliveryModeLabel": delivery_profile.get_delivery_mode_display(),
+        # Access expiry is only applied to paid access grants.
+        "accessDurationDays": (
+            program.access_duration_days if enrollment_mode == "paid" else None
+        ),
+        "level": program.level or "",
+        "durationHours": duration_hours,
+        "lessonCount": lesson_count,
+    }
+
+
 def public_program_detail(
     request,
     slug: str | None = None,
@@ -653,21 +712,21 @@ def public_program_detail(
         total_nodes_filter["is_published"] = True
     total_nodes = CurriculumNode.objects.filter(**total_nodes_filter).count()
 
-    # Get instructor info
+    # Get instructor info, primary instructor first
     instructors_data = []
     # Use InstructorAssignment model to get correctly assigned instructors
     from apps.progression.models import InstructorAssignment
 
-    assignments = InstructorAssignment.objects.filter(program=program).select_related(
-        "instructor"
+    assignments = list(
+        InstructorAssignment.objects.filter(program=program)
+        .select_related("instructor")
+        .order_by("-is_primary", "assigned_at", "id")
     )
 
     for assignment in assignments:
-        instructor = assignment.instructor
         instructors_data.append(
             {
-                "id": instructor.id,
-                "name": instructor.get_full_name() or instructor.email,
+                "name": _public_instructor_name(assignment.instructor),
                 "avatar": None,  # TODO: Add avatar field
                 "role": assignment.role,  # Include role (e.g. "Primary Instructor")
             }
@@ -715,7 +774,7 @@ def public_program_detail(
                 "id": review.user_id,
                 "name": review.user.get_full_name()
                 or review.user.username
-                or review.user.email,
+                or "Learner",
             },
             "updatedAt": review.updated_at.isoformat() if review.updated_at else None,
         }
@@ -766,11 +825,15 @@ def public_program_detail(
         ).exists()
 
     # Calculate price display and enrollment mode
+    from apps.learning_operations.services import get_course_delivery_profile
+
+    delivery_profile = get_course_delivery_profile(program)
     pricing = get_program_pricing(
         program,
         deployment_mode=pricing_context["deployment_mode"],
         platform_features=pricing_context["platform_features"],
         currency_code=pricing_context["currency_code"],
+        course_delivery_mode=delivery_profile.delivery_mode,
     )
     price_display = serialize_price_display(pricing)
     price = pricing.get("effective_price", pricing.get("price", 0))
@@ -839,6 +902,19 @@ def public_program_detail(
         "notices": program.notices or [],
         "what_you_learn": program.what_you_learn_items or [],
         "what_you_learn_html": program.what_you_learn_html or "",
+        "introVideoUrl": program.intro_video_url or "",
+        "requirementsHtml": program.requirements_html or "",
+        "audienceHtml": program.audience_html or "",
+        "instructor": _public_program_instructor(
+            assignments[0] if assignments else None
+        ),
+        "facts": _public_program_facts(
+            program,
+            delivery_profile=delivery_profile,
+            enrollment_mode=enrollment_mode,
+            lesson_count=lesson_count,
+            duration_hours=duration_hours,
+        ),
         "resources": [
             {
                 "id": r.id,
@@ -6205,6 +6281,9 @@ def serialize_program_data(program):
                 program.what_you_learn_html,
                 program.what_you_learn_items,
             ),
+            "introVideoUrl": program.intro_video_url or "",
+            "requirementsHtml": program.requirements_html or "",
+            "audienceHtml": program.audience_html or "",
             "resources": [
                 {
                     "id": r.id,
@@ -7744,6 +7823,22 @@ def instructor_program_update_settings(request, pk: int):
         )
 
     # --- Settings tab: main public course content ---
+    # Validate the intro video first: the delivery mode below is saved as soon
+    # as it is read, so a rejected link must stop the request before that.
+    if (
+        active_tab == "settings"
+        and settings_section == "main"
+        and "intro_video_url" in data
+    ):
+        try:
+            program.intro_video_url = validate_intro_video_url(
+                data.get("intro_video_url")
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            flash_inertia_errors(request, {"intro_video_url": exc.messages[0]})
+            return _redirect_to_builder()
+
     if active_tab == "settings" and settings_section == "main" and "name" in data:
         name_val = str(data.get("name", "")).strip()
         if not name_val:
@@ -7843,6 +7938,12 @@ def instructor_program_update_settings(request, pk: int):
         program.what_you_learn_items = extract_learning_outcome_items_from_html(
             what_you_learn_raw
         )
+
+    if active_tab == "settings" and settings_section == "main" and "requirements_html" in data:
+        program.requirements_html = str(data.get("requirements_html") or "").strip()
+
+    if active_tab == "settings" and settings_section == "main" and "audience_html" in data:
+        program.audience_html = str(data.get("audience_html") or "").strip()
 
     # --- Settings tab: academic blueprint and instructor metadata ---
     if active_tab == "settings" and settings_section == "academic" and "code" in data:

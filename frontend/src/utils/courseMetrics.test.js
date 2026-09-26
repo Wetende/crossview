@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
     formatCourseDuration,
     formatMetricNumber,
+    resolveCourseMetricAvailability,
     resolveCourseMetrics,
 } from "./courseMetrics";
 
@@ -53,5 +54,29 @@ describe("course metric helpers", () => {
         expect(formatMetricNumber(1.5)).toBe("1.5");
         expect(formatCourseDuration(1.5)).toBe("1.5 hours");
         expect(formatCourseDuration(1, "title")).toBe("1 Hour");
+    });
+});
+
+describe("resolveCourseMetricAvailability", () => {
+    test("treats explicit zero values as present", () => {
+        expect(
+            resolveCourseMetricAvailability({
+                lecture_count: 0,
+                duration_hours: 0,
+            }),
+        ).toEqual({ hasLectures: true, hasDuration: true });
+    });
+
+    test("reports metrics missing from the payload", () => {
+        expect(resolveCourseMetricAvailability({ name: "Wishlist item" })).toEqual({
+            hasLectures: false,
+            hasDuration: false,
+        });
+        expect(
+            resolveCourseMetricAvailability({
+                assessmentCount: 2,
+                duration_minutes: null,
+            }),
+        ).toEqual({ hasLectures: true, hasDuration: false });
     });
 });

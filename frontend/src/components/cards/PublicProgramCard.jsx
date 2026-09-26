@@ -214,6 +214,8 @@ export default function PublicProgramCard({
 
                 <CourseMetricStrip
                     source={program}
+                    level={program.level}
+                    hideMissing
                     sx={{
                         mb: 1.5,
                         borderColor: "#E5E7EB",

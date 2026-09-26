@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import DOMPurify from "dompurify";
 import {
     Accordion,
@@ -30,6 +30,8 @@ import {
     IconPlayerPlay,
 } from "@tabler/icons-react";
 
+import { htmlToPlainText } from "@/utils/htmlText";
+import InstructorCard from "./InstructorCard";
 import {
     curriculumAccordionSx,
     curriculumSummarySx,
@@ -87,6 +89,25 @@ function SanitizedHtml({ html, sx }) {
                 __html: DOMPurify.sanitize(html || ""),
             }}
         />
+    );
+}
+
+function hasRichTextContent(html) {
+    return Boolean(htmlToPlainText(html)) || /<img\b/i.test(String(html || ""));
+}
+
+function OverviewSection({ title, html }) {
+    const headingId = useId();
+
+    if (!hasRichTextContent(html)) return null;
+
+    return (
+        <Box component="section" aria-labelledby={headingId} sx={{ mt: 4 }}>
+            <Typography id={headingId} variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+                {title}
+            </Typography>
+            <SanitizedHtml html={html} sx={learningOutcomesSx} />
+        </Box>
     );
 }
 
@@ -288,6 +309,12 @@ export default function CourseContentTabs({
                         <SanitizedHtml html={program.what_you_learn_html} sx={learningOutcomesSx} />
                     </Box>
                 ) : null}
+                <OverviewSection title="Requirements" html={program.requirementsHtml} />
+                <OverviewSection
+                    title="Who this course is for"
+                    html={program.audienceHtml}
+                />
+                <InstructorCard instructor={program.instructor} />
             </TabPanel>
 
             <TabPanel value={value} index={1}>
