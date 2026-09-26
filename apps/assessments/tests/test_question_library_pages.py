@@ -106,8 +106,12 @@ class BuilderQuestionBankPropsTests(TestCase):
             HTTP_X_INERTIA="true",
         )
 
-        self.assertEqual(response.status_code, 200)
-        props = response.json()["props"]
+        # Node creation redirects to the manage page; the follow-up GET
+        # carries the question bank props.
+        self.assertEqual(response.status_code, 302)
+        page = self.client.get(response["Location"], HTTP_X_INERTIA="true").json()
+        self.assertEqual(page["component"], "Instructor/Program/Manage")
+        props = page["props"]
         self.assertEqual([bank["name"] for bank in props["questionBanks"]], ["My circuits"])
         self.assertIn("questionCategories", props)
         self.assertIn("questionLibraryVersions", props)
