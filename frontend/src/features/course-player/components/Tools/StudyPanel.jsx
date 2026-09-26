@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import {
     Close as CloseIcon,
-    AddCircleOutline,
+    AddCircleOutlined,
     Send as SendIcon,
     Delete as DeleteIcon,
     NoteAlt as NoteIcon,
@@ -337,7 +337,7 @@ const StudyPanel = ({
                                 variant="outlined"
                                 size="small"
                                 startIcon={
-                                    <AddCircleOutline sx={{ fontSize: 16 }} />
+                                    <AddCircleOutlined sx={{ fontSize: 16 }} />
                                 }
                                 onClick={() => setIsComposing(true)}
                                 sx={{
@@ -445,7 +445,7 @@ const StudyPanel = ({
                         {notes.length === 0 ? (
                             <Box sx={{ p: 3, textAlign: "center" }}>
                                 <Typography
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     variant="body2"
                                 >
                                     No notes yet. Add your first note!
@@ -510,10 +510,12 @@ const StudyPanel = ({
                                                         )}
                                                     </>
                                                 }
-                                                primaryTypographyProps={{
-                                                    variant: "body2",
-                                                    sx: {
-                                                        whiteSpace: "pre-wrap",
+                                                slotProps={{
+                                                    primary: {
+                                                        variant: "body2",
+                                                        sx: {
+                                                            whiteSpace: "pre-wrap",
+                                                        },
                                                     },
                                                 }}
                                             />

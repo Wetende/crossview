@@ -68,7 +68,7 @@ export default function Events({ events }) {
                     }}
                 >
                     <Container maxWidth="lg">
-                        <Grid container spacing={6} alignItems="center" justifyContent="space-between">
+                        <Grid container spacing={6} sx={{ alignItems: "center", justifyContent: "space-between" }}>
                             {/* Title Side */}
                             <Grid size={{ xs: 12, md: 4 }}>
                                 <motion.div
@@ -139,11 +139,11 @@ export default function Events({ events }) {
                         </motion.div>
                     ) : (
                         <motion.div {...fadeInUp}>
-                            <Stack alignItems="center" spacing={2} sx={{ py: 10 }}>
-                                <Typography variant="h5" color="text.secondary" fontWeight={600}>
+                            <Stack spacing={2} sx={{ alignItems: "center", py: 10 }}>
+                                <Typography variant="h5" color="textSecondary" sx={{ fontWeight: 600 }}>
                                     No upcoming events
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary">
+                                <Typography variant="body1" color="textSecondary">
                                     Check back later for new events and workshops.
                                 </Typography>
                             </Stack>

@@ -230,16 +230,18 @@ export default function SearchMaterialsModal({
                         fullWidth
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    {loading ? (
-                                        <CircularProgress size={20} />
-                                    ) : (
-                                        <SearchIcon color="action" />
-                                    )}
-                                </InputAdornment>
-                            ),
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        {loading ? (
+                                            <CircularProgress size={20} />
+                                        ) : (
+                                            <SearchIcon color="action" />
+                                        )}
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
                     />
                     <FormControl size="small" sx={{ minWidth: 120 }}>
@@ -266,7 +268,7 @@ export default function SearchMaterialsModal({
                 {/* Materials List */}
                 <Typography
                     variant="overline"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ mb: 1, display: "block" }}
                 >
                     AVAILABLE MATERIALS
@@ -333,8 +335,10 @@ export default function SearchMaterialsModal({
                                                     }}
                                                 />
                                             }
-                                            primaryTypographyProps={{
-                                                variant: "body2",
+                                            slotProps={{
+                                                primary: {
+                                                    variant: "body2",
+                                                },
                                             }}
                                         />
                                         <Checkbox

@@ -44,8 +44,7 @@ const DismissibleNotice = ({ notice, index }) => {
             {title && (
                 <Typography
                     variant="subtitle2"
-                    fontWeight={800}
-                    sx={{ mb: 0.5 }}
+                    sx={{ fontWeight: 800, mb: 0.5 }}
                 >
                     {title}
                 </Typography>
@@ -76,11 +75,7 @@ const CourseOverview = ({
     return (
         <Box sx={{ maxWidth: 1180, mx: "auto" }}>
             <Box sx={{ mb: { xs: 2.5, md: 3 } }}>
-                <Typography
-                    component="p"
-                    variant="overline"
-                    color="primary.main"
-                >
+                <Typography component="p" variant="overline" color="primary">
                     Course overview
                 </Typography>
                 <Typography
@@ -130,10 +125,12 @@ const CourseOverview = ({
                     >
                         <Stack
                             direction={{ xs: "column", sm: "row" }}
-                            alignItems={{ sm: "baseline" }}
-                            justifyContent="space-between"
                             spacing={0.5}
-                            sx={{ mb: 1.5 }}
+                            sx={{
+                                alignItems: { sm: "baseline" },
+                                justifyContent: "space-between",
+                                mb: 1.5,
+                            }}
                         >
                             <Typography
                                 id="learning-units-title"
@@ -142,7 +139,7 @@ const CourseOverview = ({
                             >
                                 Learning units
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 {units.length}{" "}
                                 {units.length === 1 ? "unit" : "units"}
                             </Typography>
@@ -171,7 +168,7 @@ const CourseOverview = ({
                         ) : (
                             <Card variant="outlined" sx={{ borderRadius: 2.5 }}>
                                 <CardContent>
-                                    <Typography color="text.secondary">
+                                    <Typography color="textSecondary">
                                         Course content will appear here when it
                                         is published.
                                     </Typography>
@@ -211,8 +208,7 @@ const CourseOverview = ({
                                 <Stack
                                     direction="row"
                                     spacing={1}
-                                    alignItems="center"
-                                    sx={{ mb: 1.5 }}
+                                    sx={{ alignItems: "center", mb: 1.5 }}
                                 >
                                     <CheckIcon
                                         color="success"
@@ -254,8 +250,11 @@ const CourseOverview = ({
                                                     </ListItemIcon>
                                                     <ListItemText
                                                         primary={item}
-                                                        primaryTypographyProps={{
-                                                            variant: "body2",
+                                                        slotProps={{
+                                                            primary: {
+                                                                variant:
+                                                                    "body2",
+                                                            },
                                                         }}
                                                     />
                                                 </ListItem>

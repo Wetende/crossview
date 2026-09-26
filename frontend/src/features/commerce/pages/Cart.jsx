@@ -86,14 +86,14 @@ export default function Cart() {
             <Container maxWidth="md" sx={{ py: 4 }}>
                 <Head title="Shopping Cart" />
 
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <IconShoppingCart size={24} />
-                        <Typography variant="h5" fontWeight={700}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
                             Shopping Cart
                         </Typography>
                         {cart?.itemCount > 0 && (
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 ({cart.itemCount} {cart.itemCount === 1 ? "item" : "items"})
                             </Typography>
                         )}
@@ -163,7 +163,7 @@ export default function Cart() {
                             <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
                                 Your cart is empty
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
                                 Browse our programs and add them to your cart to get started.
                             </Typography>
                             <Button
@@ -184,14 +184,14 @@ export default function Cart() {
                         {items.map((item) => (
                             <Card key={item.id}>
                                 <CardContent>
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                                         <Box sx={{ flex: 1 }}>
                                             <Typography
                                                 variant="subtitle1"
-                                                fontWeight={600}
                                                 component={Link}
                                                 href={item.program.publicUrl}
                                                 sx={{
+                                                    fontWeight: 600,
                                                     textDecoration: "none",
                                                     color: "text.primary",
                                                     "&:hover": { color: "primary.main" },
@@ -200,23 +200,23 @@ export default function Cart() {
                                                 {item.program.name}
                                             </Typography>
                                             {item.program.code && (
-                                                <Typography variant="caption" color="text.secondary">
+                                                <Typography variant="caption" color="textSecondary">
                                                     {item.program.code}
                                                 </Typography>
                                             )}
                                         </Box>
-                                        <Stack direction="row" spacing={2} alignItems="center">
-                                            <Stack spacing={0} alignItems="flex-end">
+                                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                                            <Stack spacing={0} sx={{ alignItems: "flex-end" }}>
                                                 {item.priceChanged && item.previousAmountMinor !== null && (
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                         sx={{ textDecoration: "line-through" }}
                                                     >
                                                         {formatMinorCurrency(item.previousAmountMinor)}
                                                     </Typography>
                                                 )}
-                                                <Typography variant="subtitle1" fontWeight={700}>
+                                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                                                     {formatMinorCurrency(item.amountMinor)}
                                                 </Typography>
                                             </Stack>
@@ -239,11 +239,11 @@ export default function Cart() {
                         {/* Cart summary */}
                         <Card>
                             <CardContent>
-                                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                    <Typography variant="subtitle1" fontWeight={600}>
+                                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                         Subtotal
                                     </Typography>
-                                    <Typography variant="h6" fontWeight={700}>
+                                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                         {formatMinorCurrency(cart?.totalMinor)}
                                     </Typography>
                                 </Stack>

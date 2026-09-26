@@ -50,7 +50,7 @@ const EmptyState = ({ hasFilter }) => (
         <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
             {hasFilter ? "No matching courses" : "No enrollments yet"}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
             {hasFilter
                 ? "Choose a different status to see more courses."
                 : "Your enrolled courses will appear here."}
@@ -88,16 +88,18 @@ const ProgramList = ({ enrollments = [] }) => {
 
             <Stack
                 direction={{ xs: "column", md: "row" }}
-                justifyContent="space-between"
-                alignItems={{ md: "flex-end" }}
                 spacing={2}
-                sx={{ mb: 3 }}
+                sx={{
+                    justifyContent: "space-between",
+                    alignItems: { md: "flex-end" },
+                    mb: 3,
+                }}
             >
                 <Box>
                     <Typography component="h1" variant="h4" sx={{ mb: 0.5 }}>
                         My courses
                     </Typography>
-                    <Typography color="text.secondary">
+                    <Typography color="textSecondary">
                         Continue learning, review progress, and revisit
                         completed work.
                     </Typography>

@@ -126,11 +126,14 @@ const DashboardSidebar = ({
                                             primary={item.label}
                                             slotProps={{
                                                 primary: {
-                                                    fontSize: "0.93rem",
-                                                    fontWeight: active
-                                                        ? 700
-                                                        : 500,
-                                                    letterSpacing: "0.005em",
+                                                    sx: {
+                                                        fontSize: "0.93rem",
+                                                        fontWeight: active
+                                                            ? 700
+                                                            : 500,
+                                                        letterSpacing:
+                                                            "0.005em",
+                                                    },
                                                 },
                                             }}
                                         />

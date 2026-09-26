@@ -69,8 +69,10 @@ export default function LeaveReviewModal({
             onClose={handleClose}
             maxWidth="sm"
             fullWidth
-            PaperProps={{
-                sx: { borderRadius: 3, p: 1 }
+            slotProps={{
+                paper: {
+                    sx: { borderRadius: 3, p: 1 }
+                },
             }}
         >
             <IconButton
@@ -81,7 +83,7 @@ export default function LeaveReviewModal({
             </IconButton>
 
             <DialogContent sx={{ py: 4 }}>
-                <Typography variant="h5" fontWeight={600} textAlign="center" sx={{ mb: 3 }}>
+                <Typography variant="h5" sx={{ fontWeight: 600, textAlign: 'center', mb: 3 }}>
                     Leave your review
                 </Typography>
 
@@ -109,12 +111,12 @@ export default function LeaveReviewModal({
                         placeholder="Write your review here..."
                     />
                 </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right', mb: 3 }}>
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', textAlign: 'right', mb: 3 }}>
                     {reviewWordCount} words
                 </Typography>
 
                 {/* Action Buttons */}
-                <Stack direction="row" spacing={2} justifyContent="center">
+                <Stack direction="row" spacing={2} sx={{ justifyContent: 'center' }}>
                     <Button
                         variant="outlined"
                         onClick={onBack || handleClose}

@@ -65,10 +65,10 @@ export default function EnrollmentCreate({
             >
               Back to Enrollments
             </Button>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Enroll Student
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Enroll a student in a program
             </Typography>
           </Box>

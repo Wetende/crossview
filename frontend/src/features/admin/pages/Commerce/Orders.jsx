@@ -287,10 +287,10 @@ export default function AdminOrders() {
             <Container maxWidth="xl" sx={{ py: 4 }}>
                 <Head title="Orders — Admin" />
 
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <IconReceipt size={24} />
-                        <Typography variant="h5" fontWeight={700}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
                             Orders
                         </Typography>
                     </Stack>
@@ -390,7 +390,7 @@ export default function AdminOrders() {
                                 {!loading && orders.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                                            <Typography color="text.secondary">
+                                            <Typography color="textSecondary">
                                                 No orders found.
                                             </Typography>
                                         </TableCell>
@@ -404,7 +404,7 @@ export default function AdminOrders() {
                                     return (
                                     <TableRow key={order.id} hover>
                                         <TableCell>
-                                            <Typography variant="body2" fontWeight={600} sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: "monospace", fontSize: "0.75rem" }}>
                                                 {order.reference}
                                             </Typography>
                                         </TableCell>
@@ -431,11 +431,11 @@ export default function AdminOrders() {
                                             </Typography>
                                         </TableCell>
                                         <TableCell align="right">
-                                            <Typography variant="body2" fontWeight={600}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                 {formatAmount(order.totalMinor, order.currency)}
                                             </Typography>
                                             {order.refundedMinor > 0 && (
-                                                <Typography variant="caption" color="error.main">
+                                                <Typography variant="caption" color="error">
                                                     -{formatAmount(order.refundedMinor, order.currency)}
                                                 </Typography>
                                             )}
@@ -446,7 +446,7 @@ export default function AdminOrders() {
                                             </Typography>
                                         </TableCell>
                                         <TableCell align="right">
-                                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                            <Stack direction="row" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
                                                 {order.status === "pending_manual_payment" && (
                                                     <Button
                                                         size="small"
@@ -508,11 +508,9 @@ export default function AdminOrders() {
                     <CardContent>
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{ mb: 2 }}
+                            sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}
                         >
-                            <Typography variant="h6" fontWeight={700}>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                 Payout Queue
                             </Typography>
                             <Button onClick={() => openDialog("payout", null)}>
@@ -520,7 +518,7 @@ export default function AdminOrders() {
                             </Button>
                         </Stack>
 
-                        <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2, rowGap: 1 }}>
+                        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 2, rowGap: 1 }}>
                             {settlementParties.map((party) => {
                                 const balances = Object.entries(party.balances || {});
                                 return (
@@ -565,7 +563,7 @@ export default function AdminOrders() {
                                     {!payoutLoading && payouts.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
-                                                <Typography color="text.secondary">
+                                                <Typography color="textSecondary">
                                                     No payouts created yet.
                                                 </Typography>
                                             </TableCell>
@@ -632,7 +630,7 @@ export default function AdminOrders() {
                         Confirm that payment has been received for order{" "}
                         <strong>{dialog.order?.reference}</strong>?
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                         This will grant program access to the student.
                     </Typography>
                 </DialogContent>
@@ -698,11 +696,11 @@ export default function AdminOrders() {
                                 />
                             }
                             label={
-                                <Stack direction="row" spacing={1} alignItems="center">
+                                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                     <Typography variant="body2">
                                         {item.program?.name}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography variant="caption" color="textSecondary">
                                         {formatAmount(item.amountMinor, item.currency)}
                                     </Typography>
                                     {item.status === "refunded" && (

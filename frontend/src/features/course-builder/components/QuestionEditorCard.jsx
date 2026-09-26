@@ -384,7 +384,7 @@ export default function QuestionEditorCard({
                         <Box sx={{ flex: 1 }}>
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 gutterBottom
                             >
                                 Enter your question
@@ -392,7 +392,7 @@ export default function QuestionEditorCard({
                             {localData.type === "fill_blank" ? (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ mt: 1 }}
                                 >
                                     Use the “Fill in the Blank” editor below to
@@ -408,7 +408,7 @@ export default function QuestionEditorCard({
                             )}
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ float: "right", mt: 0.5 }}
                             >
                                 {wordCount} words
@@ -420,8 +420,7 @@ export default function QuestionEditorCard({
                     <Stack
                         direction="row"
                         spacing={2}
-                        alignItems="center"
-                        sx={{ mb: 3, mt: 4 }}
+                        sx={{ alignItems: "center", mb: 3, mt: 4 }}
                     >
                         {/* Question Type */}
                         <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -545,7 +544,7 @@ export default function QuestionEditorCard({
                                 )
                             }
                             sx={{ width: 80 }}
-                            InputProps={{ inputProps: { min: 1 } }}
+                            slotProps={{ input: { inputProps: { min: 1 } } }}
                         />
                     </Stack>
 
@@ -568,7 +567,7 @@ export default function QuestionEditorCard({
                                 </Typography>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {localData.type === "mcq"
                                         ? "Single choice: select one correct answer"
@@ -613,8 +612,10 @@ export default function QuestionEditorCard({
                                                 )
                                             }
                                             variant="standard"
-                                            InputProps={{
-                                                disableUnderline: true,
+                                            slotProps={{
+                                                input: {
+                                                    disableUnderline: true,
+                                                },
                                             }}
                                         />
                                         <IconButton size="small">
@@ -629,7 +630,7 @@ export default function QuestionEditorCard({
                                         >
                                             <Typography
                                                 variant="caption"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Correct
                                             </Typography>
@@ -692,7 +693,7 @@ export default function QuestionEditorCard({
                                     size="small"
                                     placeholder="Add new answer"
                                     variant="standard"
-                                    InputProps={{ disableUnderline: true }}
+                                    slotProps={{ input: { disableUnderline: true } }}
                                     onKeyPress={(e) => {
                                         if (
                                             e.key === "Enter" &&
@@ -758,11 +759,9 @@ export default function QuestionEditorCard({
                                         }}
                                     >
                                         <Typography
-                                            fontWeight={
-                                                localData.correct === idx
+                                            sx={{ fontWeight: localData.correct === idx
                                                     ? 600
-                                                    : 400
-                                            }
+                                                    : 400 }}
                                         >
                                             {label}
                                         </Typography>

@@ -49,7 +49,7 @@ const EnrollmentIntentDialog = ({
                 <DialogContent>
                     <Stack spacing={2.5} sx={{ pt: 1 }}>
                         <Alert severity="success">{success.message}</Alert>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Your sign-in details were sent to <strong>{success.email}</strong>.
                             Use those details to continue securely.
                         </Typography>
@@ -82,7 +82,7 @@ const EnrollmentIntentDialog = ({
                 <DialogTitle>Continue enrollment</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2.5} sx={{ pt: 1 }}>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Enter your details for {program.name}. We will save your place and
                             continue with account verification, free access, or secure checkout.
                         </Typography>

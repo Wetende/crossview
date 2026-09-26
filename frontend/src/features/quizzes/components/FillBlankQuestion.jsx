@@ -37,7 +37,7 @@ export default function FillBlankQuestion({ question, onChange, value = {} }) {
 
   return (
     <Box>
-      <Typography fontWeight="medium" gutterBottom sx={{ mb: 2 }}>Fill in the blanks:</Typography>
+      <Typography gutterBottom sx={{ fontWeight: 'medium', mb: 2 }}>Fill in the blanks:</Typography>
       {renderContent()}
     </Box>
   );

@@ -83,12 +83,12 @@ export default function Landing() {
             >
                 {/* Default landing for unconfigured instances */}
                 <Container maxWidth="lg" sx={{ py: 20, textAlign: "center" }}>
-                    <Typography variant="h2" fontWeight={700} gutterBottom>
+                    <Typography variant="h2" sx={{ fontWeight: 700 }} gutterBottom>
                         Welcome to the LMS
                     </Typography>
                     <Typography
                         variant="h5"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mb: 4 }}
                     >
                         Please complete the setup wizard to configure your
@@ -209,7 +209,7 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                             <Stack
                                 direction="row"
                                 spacing={2}
-                                alignItems="center"
+                                sx={{ alignItems: "center" }}
                             >
                                 <PlatformLogo
                                     platform={platform}
@@ -251,7 +251,7 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                             <Stack
                                 direction="row"
                                 spacing={2}
-                                alignItems="center"
+                                sx={{ alignItems: "center" }}
                             >
                                 {user ? (
                                     /* Logged In State */
@@ -299,7 +299,7 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                                                 onClose={() => setUserMenuAnchor(null)}
                                                 anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                                                 transformOrigin={{ vertical: "top", horizontal: "right" }}
-                                                PaperProps={{ sx: { mt: 1, minWidth: 180 } }}
+                                                slotProps={{ paper: { sx: { mt: 1, minWidth: 180 } } }}
                                             >
                                                 <MenuItem
                                                     component={Link}
@@ -390,7 +390,7 @@ function PlatformLanding({ platform, programs = [], stats = {} }) {
                     anchor="right"
                     open={mobileMenuOpen}
                     onClose={() => setMobileMenuOpen(false)}
-                    PaperProps={{ sx: { width: 280, p: 2 } }}
+                    slotProps={{ paper: { sx: { width: 280, p: 2 } } }}
                 >
                     <Box
                         sx={{

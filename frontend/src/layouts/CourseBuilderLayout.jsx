@@ -87,10 +87,9 @@ const CourseBuilderLayout = ({ children, program, activeTab = 'curriculum', ...p
                         >
                             <Typography
                                 variant="h6"
-                                fontWeight={600}
                                 noWrap
                                 title={program.name}
-                                sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                                sx={{ fontWeight: 600, fontSize: { xs: '1rem', sm: '1.25rem' } }}
                             >
                                 {program.name}
                             </Typography>

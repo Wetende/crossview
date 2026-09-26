@@ -35,10 +35,10 @@ const dateTime = (value, fallback = "Not recorded") =>
 function DetailField({ label, children }) {
     return (
         <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
                 {label}
             </Typography>
-            <Typography variant="body2" fontWeight={600}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 {children}
             </Typography>
         </Box>
@@ -54,8 +54,7 @@ function Section({ title, children }) {
             <Typography
                 id={`learner-panel-${title.replaceAll(" ", "-")}`}
                 variant="subtitle1"
-                fontWeight={700}
-                sx={{ mb: 1 }}
+                sx={{ fontWeight: 700, mb: 1 }}
             >
                 {title}
             </Typography>
@@ -194,12 +193,12 @@ export default function LearnerDetailPanel({
                             <Typography
                                 id="learner-detail-title"
                                 variant="h5"
-                                fontWeight={700}
+                                sx={{ fontWeight: 700 }}
                                 noWrap={!mobile}
                             >
                                 {content?.name || "Learner details"}
                             </Typography>
-                            <Typography color="text.secondary" variant="body2">
+                            <Typography color="textSecondary" variant="body2">
                                 {content?.email}
                             </Typography>
                         </Box>
@@ -216,7 +215,7 @@ export default function LearnerDetailPanel({
                     {loading ? (
                         <Stack spacing={2} sx={{ py: 8, alignItems: "center" }}>
                             <CircularProgress aria-label="Loading learner details" />
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 Loading learner details…
                             </Typography>
                         </Stack>
@@ -238,7 +237,7 @@ export default function LearnerDetailPanel({
                                     }
                                 >
                                     <Typography
-                                        fontWeight={700}
+                                        sx={{ fontWeight: 700 }}
                                         variant="body2"
                                     >
                                         {detail.attention.title}
@@ -278,7 +277,7 @@ export default function LearnerDetailPanel({
                                             </Typography>
                                             <Typography
                                                 variant="body2"
-                                                fontWeight={700}
+                                                sx={{ fontWeight: 700 }}
                                             >
                                                 {detail?.progressPercent || 0}%
                                             </Typography>
@@ -353,7 +352,7 @@ export default function LearnerDetailPanel({
                                     </List>
                                 ) : (
                                     <Typography
-                                        color="text.secondary"
+                                        color="textSecondary"
                                         variant="body2"
                                     >
                                         No upcoming deadlines.
@@ -387,7 +386,7 @@ export default function LearnerDetailPanel({
                                     </List>
                                 ) : (
                                     <Typography
-                                        color="text.secondary"
+                                        color="textSecondary"
                                         variant="body2"
                                     >
                                         No published grades yet.
@@ -425,7 +424,7 @@ export default function LearnerDetailPanel({
                                     </List>
                                 ) : (
                                     <Typography
-                                        color="text.secondary"
+                                        color="textSecondary"
                                         variant="body2"
                                     >
                                         No learning activity recorded.

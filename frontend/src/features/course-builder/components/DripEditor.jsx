@@ -195,10 +195,10 @@ const DripEditor = forwardRef(function DripEditor(
                 }}
             >
                 <Box>
-                    <Typography variant="h6" fontWeight="bold">
+                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                         Drip Content Schedule
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Control when students can access modules and lessons.
                     </Typography>
                 </Box>
@@ -218,8 +218,7 @@ const DripEditor = forwardRef(function DripEditor(
                     <Paper variant="outlined" sx={{ p: 3, bgcolor: "#f8f9fa" }}>
                         <Typography
                             variant="subtitle2"
-                            fontWeight="bold"
-                            sx={{ mb: 2 }}
+                            sx={{ fontWeight: "bold", mb: 2 }}
                         >
                             Global Settings
                         </Typography>
@@ -242,7 +241,7 @@ const DripEditor = forwardRef(function DripEditor(
                                 <MenuItem value="date">Specific Date</MenuItem>
                             </Select>
                         </FormControl>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {scheduleMode === "sequence"
                                 ? "Content unlocks X days after the student enrolls."
                                 : "Content unlocks on a specific calendar date for all students."}
@@ -290,7 +289,7 @@ const DripEditor = forwardRef(function DripEditor(
                                             >
                                                 <Typography
                                                     variant="body2"
-                                                    fontWeight={500}
+                                                    sx={{ fontWeight: 500 }}
                                                 >
                                                     {item.title}
                                                 </Typography>
@@ -423,10 +422,10 @@ const DripEditor = forwardRef(function DripEditor(
                     <TimeIcon
                         sx={{ fontSize: 48, color: "text.secondary", mb: 2 }}
                     />
-                    <Typography color="text.secondary">
+                    <Typography color="textSecondary">
                         Drip content is currently disabled.
                     </Typography>
-                    <Typography variant="caption" color="text.disabled">
+                    <Typography variant="caption" color="textDisabled">
                         Enable it to schedule content availability.
                     </Typography>
                 </Box>

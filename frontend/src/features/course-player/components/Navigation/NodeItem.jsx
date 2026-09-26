@@ -168,10 +168,12 @@ const NodeItem = ({
                     >
                         <ListItemText
                             primary={node.title}
-                            primaryTypographyProps={{
-                                variant: "subtitle2",
-                                fontWeight: 600,
-                                color: "text.primary",
+                            slotProps={{
+                                primary: {
+                                    variant: "subtitle2",
+                                    color: "textPrimary",
+                                    sx: { fontWeight: 600 },
+                                },
                             }}
                         />
 
@@ -183,7 +185,7 @@ const NodeItem = ({
                                 gap: 1,
                             }}
                         >
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 {getChildCount()}
                             </Typography>
                             {isExpanded ? (
@@ -244,12 +246,14 @@ const NodeItem = ({
                                     <ListItemText
                                         primary="End of unit"
                                         secondary={`${leafCompletion.completed}/${leafCompletion.total} completed`}
-                                        primaryTypographyProps={{
-                                            variant: "body2",
-                                            fontWeight: 700,
-                                        }}
-                                        secondaryTypographyProps={{
-                                            variant: "caption",
+                                        slotProps={{
+                                            primary: {
+                                                variant: "body2",
+                                                sx: { fontWeight: 700 },
+                                            },
+                                            secondary: {
+                                                variant: "caption",
+                                            },
                                         }}
                                     />
                                 </ListItemButton>
@@ -295,14 +299,16 @@ const NodeItem = ({
                 <ListItemText
                     primary={node.title}
                     secondary={getDuration()}
-                    primaryTypographyProps={{
-                        variant: "body2",
-                        fontWeight: isNodeActive ? 600 : 400,
-                        color: isNodeActive ? "primary.main" : "text.primary",
-                    }}
-                    secondaryTypographyProps={{
-                        variant: "caption",
-                        color: "text.secondary",
+                    slotProps={{
+                        primary: {
+                            variant: "body2",
+                            color: isNodeActive ? "primary" : "textPrimary",
+                            sx: { fontWeight: isNodeActive ? 600 : 400 },
+                        },
+                        secondary: {
+                            variant: "caption",
+                            color: "textSecondary",
+                        },
                     }}
                 />
 
@@ -331,7 +337,7 @@ const NodeItem = ({
                     />
                     <Typography
                         variant="caption"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mt: 0.5, display: "block" }}
                     >
                         Last attempt #
@@ -360,7 +366,7 @@ const NodeItem = ({
                     {bestAttempt && (
                         <Typography
                             variant="caption"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mt: 0.25, display: "block", fontWeight: 600 }}
                         >
                             Best: {Math.round(bestAttempt.score || 0)}%

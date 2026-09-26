@@ -3,7 +3,7 @@ import { Grid, Box, Skeleton, Stack } from "@mui/material";
 export default function ProgramSkeleton() {
     return (
         <Box sx={{ py: { xs: 10, md: 14 }, bgcolor: "#FAFAFA" }}>
-            <Stack spacing={2} alignItems="center" sx={{ mb: 8 }}>
+            <Stack spacing={2} sx={{ alignItems: "center", mb: 8 }}>
                 <Skeleton variant="rounded" width={120} height={24} />
                 <Skeleton variant="text" width={300} height={60} />
                 <Skeleton variant="text" width={500} height={24} />

@@ -13,7 +13,7 @@ const QuizBlock = ({ data }) => (
             <QuizIcon color="primary" fontSize="large" />
             <Box>
                 <Typography variant="h6">Quiz: {data.quiz_title || 'Attached Quiz'}</Typography>
-                <Typography variant="body2" color="text.secondary">Test your knowledge.</Typography>
+                <Typography variant="body2" color="textSecondary">Test your knowledge.</Typography>
             </Box>
             <Box sx={{ flexGrow: 1 }} />
             {data.quiz_id && (
@@ -35,7 +35,7 @@ const AssignmentBlock = ({ data }) => (
             <AssignmentIcon color="warning" fontSize="large" />
             <Box>
                 <Typography variant="h6">Assignment: {data.assignment_title || 'Attached Assignment'}</Typography>
-                <Typography variant="body2" color="text.secondary">Submit your work.</Typography>
+                <Typography variant="body2" color="textSecondary">Submit your work.</Typography>
             </Box>
             <Box sx={{ flexGrow: 1 }} />
             {data.assignment_id && (

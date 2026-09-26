@@ -85,21 +85,20 @@ export default function FAQSection({ platform, faqs }) {
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#F8FAFC" }}>
             <Container maxWidth="md">
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
+                <Stack spacing={2} sx={{ textAlign: "center", mb: 8 }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
                             FAQ
                         </SectionLabel>
                         <Typography
                             variant="h2"
-                            fontWeight={700}
-                            sx={{ mb: 2 }}
+                            sx={{ fontWeight: 700, mb: 2 }}
                         >
                             Frequently Asked Questions
                         </Typography>
                         <Typography
                             variant="body1"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ maxWidth: 600, mx: "auto" }}
                         >
                             Find answers to common questions about our programs
@@ -151,8 +150,8 @@ export default function FAQSection({ platform, faqs }) {
                                 >
                                     <Typography
                                         variant="subtitle1"
-                                        fontWeight={600}
                                         sx={{
+                                            fontWeight: 600,
                                             color: expanded === idx 
                                                 ? primaryColor 
                                                 : "text.primary",
@@ -164,7 +163,7 @@ export default function FAQSection({ platform, faqs }) {
                                 <AccordionDetails sx={{ px: 3, pb: 3 }}>
                                     <Typography
                                         variant="body2"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                         sx={{ lineHeight: 1.8 }}
                                     >
                                         {faq.answer}

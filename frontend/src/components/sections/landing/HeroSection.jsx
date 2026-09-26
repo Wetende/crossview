@@ -120,13 +120,11 @@ function StatsHighlightCard({ primaryColor }) {
         >
             <Typography
                 variant="h5"
-                fontWeight={800}
-                mb={1}
-                sx={{ color: "#1F2937" }}
+                sx={{ fontWeight: 800, mb: 1, color: "#1F2937" }}
             >
                 What We Offer
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 4 }}>
                 Quality education designed for your success.
             </Typography>
 
@@ -140,7 +138,7 @@ function StatsHighlightCard({ primaryColor }) {
                         viewport={{ once: true }}
                         transition={{ delay: index * 0.1 }}
                     >
-                        <Stack direction="row" spacing={2} alignItems="center">
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                             <Box
                                 sx={{
                                     width: 48,
@@ -158,14 +156,13 @@ function StatsHighlightCard({ primaryColor }) {
                             <Box>
                                 <Typography
                                     variant="h5"
-                                    fontWeight={700}
-                                    sx={{ color: "#1F2937" }}
+                                    sx={{ fontWeight: 700, color: "#1F2937" }}
                                 >
                                     {item.value}
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {item.label}
                                 </Typography>
@@ -285,8 +282,7 @@ export default function HeroSection({ platform }) {
                 <Grid
                     container
                     spacing={{ xs: 4, md: 8 }}
-                    alignItems="center"
-                    justifyContent="space-between"
+                    sx={{ alignItems: "center", justifyContent: "space-between" }}
                 >
                     <Grid size={{ xs: 12, md: 6 }}>
                         <motion.div {...fadeInUp}>
@@ -402,19 +398,18 @@ export default function HeroSection({ platform }) {
                             <Stack
                                 direction="row"
                                 spacing={4}
-                                flexWrap="wrap"
+                                sx={{ flexWrap: "wrap" }}
                                 useFlexGap
                             >
                                 <Stack
                                     direction="row"
                                     spacing={1}
-                                    alignItems="center"
-                                    sx={{ color: "white" }}
+                                    sx={{ alignItems: "center", color: "white" }}
                                 >
                                     <IconCheck size={20} />
                                     <Typography
                                         variant="body2"
-                                        fontWeight={500}
+                                        sx={{ fontWeight: 500 }}
                                     >
                                         Quality Education
                                     </Typography>
@@ -422,13 +417,12 @@ export default function HeroSection({ platform }) {
                                 <Stack
                                     direction="row"
                                     spacing={1}
-                                    alignItems="center"
-                                    sx={{ color: "white" }}
+                                    sx={{ alignItems: "center", color: "white" }}
                                 >
                                     <IconCheck size={20} />
                                     <Typography
                                         variant="body2"
-                                        fontWeight={500}
+                                        sx={{ fontWeight: 500 }}
                                     >
                                         Verified Certificates
                                     </Typography>
@@ -436,13 +430,12 @@ export default function HeroSection({ platform }) {
                                 <Stack
                                     direction="row"
                                     spacing={1}
-                                    alignItems="center"
-                                    sx={{ color: "white" }}
+                                    sx={{ alignItems: "center", color: "white" }}
                                 >
                                     <IconCheck size={20} />
                                     <Typography
                                         variant="body2"
-                                        fontWeight={500}
+                                        sx={{ fontWeight: 500 }}
                                     >
                                         Expert Instructors
                                     </Typography>

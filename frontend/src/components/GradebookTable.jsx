@@ -74,7 +74,7 @@ function SummativeGradebook({ students, components, passMark, onChange }) {
             {components.map(comp => (
               <TableCell key={comp.key} align="center">
                 {comp.label || comp.name || comp.key}
-                <Typography variant="caption" display="block" color="text.secondary">
+                <Typography variant="caption" sx={{ display: 'block' }} color="textSecondary">
                   ({formatWeight(comp.weight).toFixed(0)}%)
                 </Typography>
               </TableCell>
@@ -91,10 +91,10 @@ function SummativeGradebook({ students, components, passMark, onChange }) {
             return (
               <TableRow key={student.enrollmentId}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     {student.name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="textSecondary">
                     {student.email}
                   </Typography>
                 </TableCell>
@@ -107,14 +107,14 @@ function SummativeGradebook({ students, components, passMark, onChange }) {
                         size="small"
                         value={student.grades?.components?.[compKey] || ''}
                         onChange={(e) => handleScoreChange(student.enrollmentId, compKey, e.target.value)}
-                        inputProps={{ min: 0, max: 100, step: 0.5 }}
+                        slotProps={{ htmlInput: { min: 0, max: 100, step: 0.5 } }}
                         sx={{ width: 80 }}
                       />
                     </TableCell>
                   );
                 })}
                 <TableCell align="center">
-                  <Typography variant="body2" fontWeight="bold">
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                     {total}
                   </Typography>
                 </TableCell>
@@ -170,7 +170,7 @@ function CBETGradebook({ students, components, onChange }) {
             return (
               <TableRow key={student.enrollmentId}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     {student.name}
                   </Typography>
                 </TableCell>
@@ -250,7 +250,7 @@ function RubricGradebook({ students, levels, competencies, onChange }) {
             return (
               <TableRow key={student.enrollmentId}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     {student.name}
                   </Typography>
                 </TableCell>
@@ -264,14 +264,14 @@ function RubricGradebook({ students, levels, competencies, onChange }) {
                         max={4}
                         onChange={(e, newValue) => handleLevelChange(student.enrollmentId, comp, newValue)}
                       />
-                      <Typography variant="caption" display="block">
+                      <Typography variant="caption" sx={{ display: 'block' }}>
                         {currentLevel > 0 ? getLevelLabel(currentLevel) : '-'}
                       </Typography>
                     </TableCell>
                   );
                 })}
                 <TableCell align="center">
-                  <Typography variant="body2" fontWeight="bold">
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                     {avgLevel > 0 ? avgLevel.toFixed(1) : '-'}
                   </Typography>
                 </TableCell>
@@ -315,10 +315,10 @@ function PercentageGradebook({ students, passMark, onChange }) {
             return (
               <TableRow key={student.enrollmentId}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     {student.name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="textSecondary">
                     {student.email}
                   </Typography>
                 </TableCell>
@@ -328,7 +328,7 @@ function PercentageGradebook({ students, passMark, onChange }) {
                     size="small"
                     value={score || ''}
                     onChange={(e) => handleScoreChange(student.enrollmentId, e.target.value)}
-                    inputProps={{ min: 0, max: 100, step: 1 }}
+                    slotProps={{ htmlInput: { min: 0, max: 100, step: 1 } }}
                     sx={{ width: 100 }}
                   />
                 </TableCell>
@@ -384,7 +384,7 @@ function ChecklistGradebook({ students, items, onChange }) {
             return (
               <TableRow key={student.enrollmentId}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     {student.name}
                   </Typography>
                 </TableCell>
@@ -442,15 +442,15 @@ function PassFailGradebook({ students, onChange }) {
             return (
               <TableRow key={student.enrollmentId}>
                 <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     {student.name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="textSecondary">
                     {student.email}
                   </Typography>
                 </TableCell>
                 <TableCell align="center">
-                  <Stack direction="row" spacing={1} justifyContent="center">
+                  <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
                     <Chip
                       label="Pass"
                       size="small"

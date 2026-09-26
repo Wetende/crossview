@@ -111,8 +111,8 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
       label: 'Name',
       render: (row) => (
         <Box>
-          <Typography fontWeight="medium">{row.fullName}</Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography sx={{ fontWeight: 'medium' }}>{row.fullName}</Typography>
+          <Typography variant="caption" color="textSecondary">
             {row.email}
           </Typography>
         </Box>
@@ -215,10 +215,10 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Users
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Manage students, instructors, and administrators
             </Typography>
           </Box>
@@ -249,7 +249,7 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
             <Stack 
               direction={{ xs: 'column', md: 'row' }} 
               spacing={2} 
-              alignItems={{ xs: 'stretch', md: 'flex-end' }}
+              sx={{ alignItems: { xs: 'stretch', md: 'flex-end' } }}
             >
               <TextField
                 label="Search"
@@ -261,8 +261,10 @@ export default function UsersIndex({ users = [], filters = {}, pagination = {} }
                   minWidth: { xs: '100%', md: 200 },
                   maxWidth: { md: 300 },
                 }}
-                InputProps={{
-                  startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
+                slotProps={{
+                  input: {
+                    startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
+                  },
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleFilter()}
               />

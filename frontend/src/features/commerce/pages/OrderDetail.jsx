@@ -144,12 +144,12 @@ export default function OrderDetail({ orderId: propOrderId }) {
                         {/* Order header */}
                         <Card>
                             <CardContent>
-                                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
                                     <Box>
-                                        <Typography variant="h6" fontWeight={700}>
+                                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                             Order {order.reference}
                                         </Typography>
-                                        <Typography variant="body2" color="text.secondary">
+                                        <Typography variant="body2" color="textSecondary">
                                             {order.createdAt
                                                 ? new Date(order.createdAt).toLocaleDateString("en-GB", {
                                                     day: "numeric",
@@ -172,41 +172,41 @@ export default function OrderDetail({ orderId: propOrderId }) {
 
                                 <Stack direction="row" spacing={4}>
                                     <Box>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" color="textSecondary">
                                             Provider
                                         </Typography>
-                                        <Stack direction="row" spacing={0.5} alignItems="center">
+                                        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                                             {order.provider === "paystack" ? (
                                                 <IconCreditCard size={16} />
                                             ) : (
                                                 <IconBuildingBank size={16} />
                                             )}
-                                            <Typography variant="body2" fontWeight={600}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                 {order.provider === "paystack" ? "Paystack" : "Bank Transfer"}
                                             </Typography>
                                         </Stack>
                                     </Box>
                                     <Box>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" color="textSecondary">
                                             Total
                                         </Typography>
-                                        <Typography variant="body2" fontWeight={700}>
+                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                             {formatMinorCurrency(order.totalMinor)}
                                         </Typography>
                                     </Box>
                                     {order.refundedMinor > 0 && (
                                         <Box>
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 Refunded
                                             </Typography>
-                                            <Typography variant="body2" fontWeight={600} color="error.main">
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }} color="error">
                                                 {formatMinorCurrency(order.refundedMinor)}
                                             </Typography>
                                         </Box>
                                     )}
                                     {order.paidAt && (
                                         <Box>
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 Paid
                                             </Typography>
                                             <Typography variant="body2">
@@ -245,7 +245,7 @@ export default function OrderDetail({ orderId: propOrderId }) {
                         {/* Order items */}
                         <Card>
                             <CardContent>
-                                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
                                     Items
                                 </Typography>
                                 <Table size="small">
@@ -260,11 +260,11 @@ export default function OrderDetail({ orderId: propOrderId }) {
                                         {(order.items || []).map((item) => (
                                             <TableRow key={item.id}>
                                                 <TableCell>
-                                                    <Typography variant="body2" fontWeight={600}>
+                                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                         {item.program?.name || item.programName}
                                                     </Typography>
                                                     {item.program?.code && (
-                                                        <Typography variant="caption" color="text.secondary">
+                                                        <Typography variant="caption" color="textSecondary">
                                                             {item.program.code}
                                                         </Typography>
                                                     )}
@@ -291,19 +291,19 @@ export default function OrderDetail({ orderId: propOrderId }) {
                         {order.refunds && order.refunds.length > 0 && (
                             <Card>
                                 <CardContent>
-                                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
                                         Refunds
                                     </Typography>
                                     {order.refunds.map((refund) => (
                                         <Card key={refund.id} variant="outlined" sx={{ mb: 1.5 }}>
                                             <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
-                                                <Stack direction="row" justifyContent="space-between">
+                                                <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                                                     <Box>
-                                                        <Typography variant="body2" fontWeight={600}>
+                                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                             {formatMinorCurrency(refund.amountMinor)}
                                                         </Typography>
                                                         {refund.reason && (
-                                                            <Typography variant="caption" color="text.secondary">
+                                                            <Typography variant="caption" color="textSecondary">
                                                                 {refund.reason}
                                                             </Typography>
                                                         )}

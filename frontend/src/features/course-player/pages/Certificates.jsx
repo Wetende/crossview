@@ -124,7 +124,7 @@ function CertificateCard({ certificate }) {
 
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 gutterBottom
                             >
                                 Awarded to: {certificate.studentName}
@@ -134,13 +134,13 @@ function CertificateCard({ certificate }) {
                                 <Box>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Serial Number
                                     </Typography>
                                     <Typography
                                         variant="body2"
-                                        fontFamily="monospace"
+                                        sx={{ fontFamily: "monospace" }}
                                     >
                                         {certificate.serialNumber || "Pending release"}
                                     </Typography>
@@ -148,7 +148,7 @@ function CertificateCard({ certificate }) {
                                 <Box>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Completion Date
                                     </Typography>
@@ -163,7 +163,7 @@ function CertificateCard({ certificate }) {
                                 <Box>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Issue Date
                                     </Typography>
@@ -238,7 +238,7 @@ export default function Certificates({ certificates }) {
                         <Typography variant="h4" component="h1" gutterBottom>
                             My Certificates
                         </Typography>
-                        <Typography variant="body1" color="text.secondary">
+                        <Typography variant="body1" color="textSecondary">
                             View, download, and share your earned certificates
                         </Typography>
                     </motion.div>

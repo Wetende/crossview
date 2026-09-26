@@ -112,8 +112,7 @@ function InstructorCard({ instructor, primaryColor }) {
             <Box sx={{ p: 2, textAlign: "left", flexGrow: 1 }}>
                 <Typography
                     variant="h6"
-                    fontWeight={700}
-                    sx={{ color: "#1F2937", fontSize: "0.95rem" }}
+                    sx={{ fontWeight: 700, color: "#1F2937", fontSize: "0.95rem" }}
                 >
                     {instructor.name}
                 </Typography>
@@ -153,21 +152,20 @@ export default function InstructorsSection({ platform }) {
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#F8FAFC" }}>
             <Container maxWidth="lg">
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
+                <Stack spacing={2} sx={{ textAlign: "center", mb: 8 }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
                             Our Experts
                         </SectionLabel>
                         <Typography
                             variant="h2"
-                            fontWeight={700}
-                            sx={{ mb: 2 }}
+                            sx={{ fontWeight: 700, mb: 2 }}
                         >
                             Learn from the Best
                         </Typography>
                         <Typography
                             variant="body1"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ maxWidth: 600, mx: "auto" }}
                         >
                             Our dedicated team of instructors are industry

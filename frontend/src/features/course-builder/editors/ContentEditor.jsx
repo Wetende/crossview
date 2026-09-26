@@ -56,7 +56,7 @@ import {
     PushPin as PinIcon,
     Lock as LockIcon,
     LockOpen as LockOpenIcon,
-    ChatBubbleOutline as ChatIcon,
+    ChatBubbleOutlined as ChatIcon,
 } from "@mui/icons-material";
 
 const SCHEDULED_LESSON_TYPES = [
@@ -817,7 +817,9 @@ const ContentEditor = forwardRef(function ContentEditor(
                     fullWidth
                     error={!!titleErrorMessage}
                     helperText={titleErrorMessage}
-                    InputProps={{ sx: { fontSize: "1.2rem", fontWeight: 500 } }}
+                    slotProps={{
+                        input: { sx: { fontSize: "1.2rem", fontWeight: 500 } },
+                    }}
                 />
                 <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
                     <AutosaveStatus
@@ -1130,7 +1132,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                             color={
                                 descriptionErrorMessage
                                     ? "error"
-                                    : "text.secondary"
+                                    : "textSecondary"
                             }
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
@@ -1158,7 +1160,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 {descriptionErrorMessage}
                             </FormHelperText>
                         )}
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {descriptionTextLength} characters
                         </Typography>
                     </Box>
@@ -1171,7 +1173,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 color={
                                     getFieldError("document")
                                         ? "error"
-                                        : "text.secondary"
+                                        : "textSecondary"
                                 }
                                 sx={{ mb: 1, fontWeight: "bold" }}
                             >
@@ -1233,7 +1235,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 color={
                                     requiresLessonContent && contentErrorMessage
                                         ? "error"
-                                        : "text.secondary"
+                                        : "textSecondary"
                                 }
                                 sx={{ mb: 1, fontWeight: "bold" }}
                             >
@@ -1263,10 +1265,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                     {contentErrorMessage}
                                 </FormHelperText>
                             )}
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 {contentTextLength} characters
                             </Typography>
                         </Box>
@@ -1276,7 +1275,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                     <Box sx={{ mt: 3 }}>
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mb: 1 }}
                         >
                             Lesson materials
@@ -1580,13 +1579,13 @@ function QATab({ nodeId, discussions: initialDiscussions = [] }) {
                                     >
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {d.author}
                                         </Typography>
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {formatDate(d.created_at)}
                                         </Typography>

@@ -90,7 +90,7 @@ function AnimatedCounter({ value, suffix = "", duration = 2 }) {
         : count.toLocaleString();
 
     return (
-        <Typography ref={ref} variant="h2" fontWeight={800} color="primary.main">
+        <Typography ref={ref} variant="h2" sx={{ fontWeight: 800 }} color="primary">
             {isInView ? displayValue : 0}{suffix}
         </Typography>
     );
@@ -205,7 +205,7 @@ export default function About() {
                     }}
                 >
                     <Container maxWidth="lg">
-                        <Grid container spacing={6} alignItems="center" justifyContent="space-between">
+                        <Grid container spacing={6} sx={{ alignItems: "center", justifyContent: "space-between" }}>
                             {/* Title Side */}
                             <Grid size={{ xs: 12, md: 4 }}>
                                 <motion.div
@@ -395,7 +395,7 @@ export default function About() {
                     <Container maxWidth="lg">
                         {/* Section Header */}
                         <motion.div {...fadeInUp}>
-                            <Stack spacing={2} textAlign="center" sx={{ mb: { xs: 6, md: 10 } }}>
+                            <Stack spacing={2} sx={{ textAlign: "center", mb: { xs: 6, md: 10 } }}>
                                 <Typography
                                     variant="h2"
                                     sx={{
@@ -423,8 +423,7 @@ export default function About() {
                         {impactSchools.length > 0 && (
                             <Stack
                                 spacing={2}
-                                alignItems="center"
-                                sx={{ mb: { xs: 5, md: 7 } }}
+                                sx={{ alignItems: "center", mb: { xs: 5, md: 7 } }}
                             >
                                 <Typography
                                     variant="overline"
@@ -440,8 +439,7 @@ export default function About() {
                                     direction="row"
                                     spacing={2}
                                     useFlexGap
-                                    flexWrap="wrap"
-                                    justifyContent="center"
+                                    sx={{ flexWrap: "wrap", justifyContent: "center" }}
                                 >
                                     {impactSchools.map((school) => (
                                         <Box
@@ -470,7 +468,7 @@ export default function About() {
                         )}
 
                         {/* Stats Grid */}
-                        <Grid container spacing={3} justifyContent="center">
+                        <Grid container spacing={3} sx={{ justifyContent: "center" }}>
                             {stats.map((stat, idx) => (
                                 <Grid size={{ xs: 6, sm: 3 }} key={idx}>
                                     <motion.div
@@ -543,7 +541,7 @@ export default function About() {
 
                     <Container maxWidth="md" sx={{ position: "relative", zIndex: 1 }}>
                         <motion.div {...fadeInUp}>
-                            <Stack spacing={4} textAlign="center" alignItems="center">
+                            <Stack spacing={4} sx={{ textAlign: "center", alignItems: "center" }}>
                                 <Typography
                                     variant="overline"
                                     sx={{

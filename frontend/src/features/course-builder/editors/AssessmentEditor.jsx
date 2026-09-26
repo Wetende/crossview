@@ -898,8 +898,8 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                         )}
                         <Typography
                             variant="body2"
-                            color="primary.main"
-                            fontWeight={500}
+                            color="primary"
+                            sx={{ fontWeight: 500 }}
                         >
                             {isQuiz ? "Quiz" : "Assignment"}
                         </Typography>
@@ -910,9 +910,11 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         sx={{ flex: 1, maxWidth: 400 }}
-                        InputProps={{
-                            sx: { fontSize: "1rem" },
-                            disableUnderline: true,
+                        slotProps={{
+                            input: {
+                                sx: { fontSize: "1rem" },
+                                disableUnderline: true,
+                            },
                         }}
                     />
                 </Box>
@@ -990,7 +992,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                             }}
                         >
                             <Box>
-                                <Typography color="primary" fontWeight={500}>
+                                <Typography color="primary" sx={{ fontWeight: 500 }}>
                                     Questions Bank
                                 </Typography>
                                 <Typography variant="body2">
@@ -1034,10 +1036,10 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                 bgcolor: "action.hover",
                             }}
                         >
-                            <Typography color="text.secondary" paragraph>
+                            <Typography color="textSecondary" sx={{ marginBottom: "16px" }}>
                                 No questions yet.
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 Add questions manually or import from library
                             </Typography>
                         </Paper>
@@ -1124,11 +1126,11 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                     }
                                     placeholder="Leave empty for unlimited"
                                     fullWidth
-                                    InputProps={{ inputProps: { min: 1 } }}
+                                    slotProps={{ input: { inputProps: { min: 1 } } }}
                                     helperText="Leave empty for unlimited attempts"
                                 />
                             </Box>
-                            <Stack direction="row" spacing={2} flexWrap="wrap">
+                            <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }}>
                                 <FormControl sx={{ minWidth: 220 }}>
                                     <InputLabel>Submission type</InputLabel>
                                     <Select
@@ -1181,14 +1183,14 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                     }
                                     disabled={assignmentSubmissionType === "text"}
                                     sx={{ width: 180 }}
-                                    InputProps={{ inputProps: { min: 1, max: 500 } }}
+                                    slotProps={{ input: { inputProps: { min: 1, max: 500 } } }}
                                 />
                             </Stack>
                             <Box>
                                 <Typography
                                     variant="subtitle2"
                                     gutterBottom
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Assignment content
                                 </Typography>
@@ -1203,8 +1205,8 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                     color={
                                         getPlainTextLength(assessmentPrompt) ===
                                         0
-                                            ? "error.main"
-                                            : "text.secondary"
+                                            ? "error"
+                                            : "textSecondary"
                                     }
                                 >
                                     {getPlainTextLength(assessmentPrompt)} characters
@@ -1222,7 +1224,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                 <Typography
                                     variant="subtitle2"
                                     gutterBottom
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Assessment Description
                                 </Typography>
@@ -1234,7 +1236,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                 />
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {getPlainTextLength(description)} characters
                                 </Typography>
@@ -1251,7 +1253,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                         )
                                     }
                                     sx={{ width: 160 }}
-                                    InputProps={{ inputProps: { min: 1 } }}
+                                    slotProps={{ input: { inputProps: { min: 1 } } }}
                                 />
                                 <TextField
                                     label="Passing Grade (%)"
@@ -1263,8 +1265,10 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                         )
                                     }
                                     sx={{ width: 180 }}
-                                    InputProps={{
-                                        inputProps: { min: 0, max: 100 },
+                                    slotProps={{
+                                        input: {
+                                            inputProps: { min: 0, max: 100 },
+                                        },
                                     }}
                                 />
                                 <TextField
@@ -1277,7 +1281,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                         )
                                     }
                                     sx={{ width: 150 }}
-                                    InputProps={{ inputProps: { min: 1 } }}
+                                    slotProps={{ input: { inputProps: { min: 1 } } }}
                                 />
                                 <TextField
                                     label="Weight (%)"
@@ -1296,7 +1300,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                         )
                                     }
                                     sx={{ width: 150 }}
-                                    InputProps={{ inputProps: { min: 0, max: 100 } }}
+                                    slotProps={{ input: { inputProps: { min: 0, max: 100 } } }}
                                 />
                             </Stack>
 
@@ -1419,7 +1423,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                     <Box>
                         <Typography
                             variant="subtitle1"
-                            fontWeight={500}
+                            sx={{ fontWeight: 500 }}
                             gutterBottom
                         >
                             Ask or answer learner questions
@@ -1455,7 +1459,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                         {(!node?.id || String(node.id).startsWith("temp_")) && (
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ display: "block", mt: 1 }}
                             >
                                 Save this quiz first to enable live Q&A.
@@ -1477,7 +1481,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                         <Stack spacing={2}>
                             <Typography
                                 variant="subtitle2"
-                                color="text.secondary"
+                                color="textSecondary"
                             >
                                 Questions ({qaThreads.length})
                             </Typography>
@@ -1498,7 +1502,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                         >
                                             <Typography
                                                 variant="body1"
-                                                fontWeight={500}
+                                                sx={{ fontWeight: 500 }}
                                             >
                                                 Q{idx + 1}: {thread.content || thread.title || "Untitled question"}
                                             </Typography>
@@ -1544,7 +1548,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
 
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             Asked by {thread.author || "Learner"}
                                         </Typography>
@@ -1568,7 +1572,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                                         >
                                                             <Typography
                                                                 variant="caption"
-                                                                color="text.secondary"
+                                                                color="textSecondary"
                                                             >
                                                                 {post.is_instructor
                                                                     ? "Instructor"
@@ -1585,7 +1589,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                         ) : (
                                             <Typography
                                                 variant="body2"
-                                                color="warning.main"
+                                                color="warning"
                                             >
                                                 Awaiting instructor answer...
                                             </Typography>
@@ -1652,7 +1656,7 @@ const AssessmentEditor = forwardRef(function AssessmentEditor(
                                 bgcolor: "action.hover",
                             }}
                         >
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 No questions yet. Learners will ask here,
                                 and you can answer directly.
                             </Typography>

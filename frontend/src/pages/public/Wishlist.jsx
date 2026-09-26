@@ -68,8 +68,8 @@ export default function Wishlist() {
                 <PublicNavbar activeLink="/programs/" auth={auth} />
 
                 <Container maxWidth="lg" sx={{ pt: 14, pb: 8 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-                        <Typography variant="h4" fontWeight={700}>Wishlist</Typography>
+                    <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>Wishlist</Typography>
                         <Button component={Link} href="/programs/" endIcon={<IconArrowRight size={16} />}>
                             Browse Programs
                         </Button>
@@ -80,7 +80,7 @@ export default function Wishlist() {
                             <CardContent sx={{ textAlign: "center", py: 8 }}>
                                 <IconHeartOff size={48} />
                                 <Typography variant="h6" sx={{ mt: 2 }}>Your wishlist is empty</Typography>
-                                <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
+                                <Typography color="textSecondary" sx={{ mt: 1, mb: 3 }}>
                                     Save programs here to revisit and purchase later.
                                 </Typography>
                                 <Button component={Link} href="/programs/" variant="contained">

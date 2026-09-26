@@ -190,7 +190,7 @@ export default function DataTable({
                 >
                   <Box sx={{ py: 6 }}>
                     <Typography
-                      color="text.secondary"
+                      color="textSecondary"
                       sx={{ fontSize: '0.9rem' }}
                     >
                       {emptyMessage}
@@ -288,31 +288,31 @@ export default function DataTable({
       {pagination && pagination.totalPages > 1 && (
         <Stack
           direction="row"
-          justifyContent="space-between"
-          alignItems="center"
           sx={{
+            justifyContent: 'space-between',
+            alignItems: 'center',
             mt: 2,
             px: 1,
           }}
         >
           <Typography
             variant="body2"
-            color="text.secondary"
+            color="textSecondary"
             sx={{ fontSize: '0.8rem' }}
           >
             Showing{' '}
-            <Box component="span" fontWeight={600} color="text.primary">
+            <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {(pagination.page - 1) * pagination.perPage + 1}
             </Box>
             –
-            <Box component="span" fontWeight={600} color="text.primary">
+            <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {Math.min(
                 pagination.page * pagination.perPage,
                 pagination.total,
               )}
             </Box>{' '}
             of{' '}
-            <Box component="span" fontWeight={600} color="text.primary">
+            <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {pagination.total}
             </Box>
           </Typography>
@@ -418,9 +418,10 @@ export default function DataTable({
                   )}
                   <ListItemText
                     primary={label}
-                    primaryTypographyProps={{
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
+                    slotProps={{
+                      primary: {
+                        sx: { fontSize: '0.85rem', fontWeight: 500 },
+                      },
                     }}
                   />
                 </MenuItem>

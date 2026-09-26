@@ -34,10 +34,14 @@ export default function InvitationAccept({ invitation, token }) {
                 <Head title="Invitation unavailable" />
                 <Card sx={{ width: "100%", maxWidth: 480 }}>
                     <CardContent sx={{ p: 4, textAlign: "center" }}>
-                        <Typography variant="h5" fontWeight={700} gutterBottom>
+                        <Typography
+                            variant="h5"
+                            sx={{ fontWeight: 700 }}
+                            gutterBottom
+                        >
                             Invitation unavailable
                         </Typography>
-                        <Typography color="text.secondary" sx={{ mb: 3 }}>
+                        <Typography color="textSecondary" sx={{ mb: 3 }}>
                             This invitation has expired, was replaced, or has
                             already been used.
                         </Typography>
@@ -97,12 +101,11 @@ export default function InvitationAccept({ invitation, token }) {
                             />
                             <Typography
                                 variant="h4"
-                                fontWeight={700}
-                                sx={{ mt: 2 }}
+                                sx={{ fontWeight: 700, mt: 2 }}
                             >
                                 Course invitation
                             </Typography>
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 You were invited to join{" "}
                                 {invitation.program.name} as {invitation.email}.
                             </Typography>

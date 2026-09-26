@@ -138,8 +138,8 @@ export const PricingEditor = ({
     return (
         <Stack spacing={3}>
             <Box>
-                <Typography variant="h5" fontWeight="bold">Pricing</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Pricing</Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
                     Configure what learners see and how payment is collected for this course.
                 </Typography>
             </Box>
@@ -270,12 +270,12 @@ export const FAQEditor = ({ data, onChange }) => {
     return (
         <Stack spacing={3}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" fontWeight="bold">Frequently Asked Questions</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Frequently Asked Questions</Typography>
                 <Button startIcon={<AddIcon />} variant="outlined" onClick={handleAdd}>Add FAQ</Button>
             </Box>
             
             {items.length === 0 && (
-                <Typography color="text.secondary" align="center" py={4}>No FAQs added yet.</Typography>
+                <Typography color="textSecondary" align="center" sx={{ py: 4 }}>No FAQs added yet.</Typography>
             )}
 
             {items.map((item, index) => (
@@ -332,18 +332,18 @@ export const NoticeEditor = ({ data, onChange }) => {
     return (
         <Stack spacing={3}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" fontWeight="bold">Program Notices</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Program Notices</Typography>
                 <Button startIcon={<AddIcon />} variant="outlined" onClick={handleAdd}>Add Notice</Button>
             </Box>
 
              {items.length === 0 && (
-                <Typography color="text.secondary" align="center" py={4}>No notices added yet.</Typography>
+                <Typography color="textSecondary" align="center" sx={{ py: 4 }}>No notices added yet.</Typography>
             )}
 
              {items.map((item, index) => (
                 <Paper key={index} variant="outlined" sx={{ p: 2, bgcolor: '#fff8e1' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="caption" fontWeight="bold" color="warning.dark">NOTICE {index + 1}</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'warning.dark' }}>NOTICE {index + 1}</Typography>
                         <IconButton size="small" color="error" onClick={() => handleDelete(index)}>
                             <DeleteIcon fontSize="small" />
                         </IconButton>

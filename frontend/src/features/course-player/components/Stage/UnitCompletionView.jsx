@@ -56,24 +56,20 @@ const UnitCompletionView = ({ unit }) => {
                             placeItems: "center",
                         }}
                     >
-                        <Typography variant="h5" fontWeight={800}>
+                        <Typography variant="h5" sx={{ fontWeight: 800 }}>
                             {unit.completedCount}/{unit.totalCount}
                         </Typography>
                     </Box>
                 </Box>
 
-                <Typography
-                    component="p"
-                    variant="overline"
-                    color="primary.main"
-                >
+                <Typography component="p" variant="overline" color="primary">
                     End of unit
                 </Typography>
                 <Typography component="h1" variant="h4" sx={{ mb: 1 }}>
                     {complete ? "Unit complete" : "Keep going"}
                 </Typography>
                 <Typography
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ maxWidth: 560, mx: "auto" }}
                 >
                     {complete
@@ -83,9 +79,8 @@ const UnitCompletionView = ({ unit }) => {
 
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
-                    justifyContent="center"
                     spacing={1}
-                    sx={{ mt: 3 }}
+                    sx={{ justifyContent: "center", mt: 3 }}
                 >
                     {unit.reviewUrl && (
                         <Button
@@ -154,7 +149,9 @@ const UnitCompletionView = ({ unit }) => {
                                         ? "Completed"
                                         : "Not completed"
                                 }
-                                primaryTypographyProps={{ fontWeight: 700 }}
+                                slotProps={{
+                                    primary: { sx: { fontWeight: 700 } },
+                                }}
                             />
                         </ListItem>
                     ))}

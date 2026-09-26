@@ -513,13 +513,13 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         <Box>
             {renderFieldLabel("Owner")}
             {program.owner ? (
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                     <Avatar>{program.owner.name?.charAt(0) || "I"}</Avatar>
                     <Box>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                             {program.owner.name}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {program.owner.email}
                         </Typography>
                     </Box>
@@ -544,7 +544,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     renderValue={(selected) => {
                         if (selected.length === 0) {
                             return (
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     Choose instructor
                                 </Typography>
                             );
@@ -583,7 +583,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
             <TextField
                 fullWidth
                 value={value || "Not set"}
-                InputProps={{ readOnly: true }}
+                slotProps={{ input: { readOnly: true } }}
                 sx={{
                     "& .MuiInputBase-input": {
                         color: value ? "text.primary" : "text.secondary",
@@ -664,7 +664,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             <MenuItem value="in_person">In person</MenuItem>
                         </Select>
                     </FormControl>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         {program.deliveryModeLocked
                             ? "Delivery mode is controlled by platform policy."
                             : "Used for online learning, engagement, pricing, and integrations."}
@@ -693,7 +693,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             }}
                         />
                     )}
-                    <Stack direction="row" spacing={1} alignItems="center">
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <Button
                             variant="outlined"
                             component="label"
@@ -728,7 +728,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("duration_hours", event.target.value)
                             }
-                            inputProps={{ min: 0 }}
+                            slotProps={{ htmlInput: { min: 0 } }}
                             helperText="Total course duration in hours."
                         />
                     </Box>
@@ -741,7 +741,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("video_hours", event.target.value)
                             }
-                            inputProps={{ min: 0 }}
+                            slotProps={{ htmlInput: { min: 0 } }}
                             helperText="Video content duration in hours."
                         />
                     </Box>
@@ -967,7 +967,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                                             : "",
                                     )
                                 }
-                                inputProps={{ min: 1 }}
+                                slotProps={{ htmlInput: { min: 1 } }}
                                 error={!formData.access_duration_days}
                                 helperText={
                                     !formData.access_duration_days
@@ -999,7 +999,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                         onChange={(event) =>
                             setData("prerequisite_passing_percent", event.target.value)
                         }
-                        inputProps={{ min: 0, max: 100 }}
+                        slotProps={{ htmlInput: { min: 0, max: 100 } }}
                         helperText="Use 0 when completion alone is enough."
                     />
                 </Box>
@@ -1019,7 +1019,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             renderValue={(selected) => {
                                 if (selected.length === 0) {
                                     return (
-                                        <Typography color="text.secondary">
+                                        <Typography color="textSecondary">
                                             Select prerequisite courses
                                         </Typography>
                                     );
@@ -1077,7 +1077,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     >
                         <Typography
                             variant="body1"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ maxWidth: 500, lineHeight: 1.5 }}
                         >
                             Upload syllabus, reading lists, or other downloadable
@@ -1101,7 +1101,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     onChange={handleResourceUpload}
                 />
                 {formData.materials.length > 0 && (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         {formData.materials.length} file
                         {formData.materials.length === 1 ? "" : "s"} ready to upload.
                     </Typography>
@@ -1132,7 +1132,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                                         secondary={
                                             resource.ext ? `.${resource.ext}` : ""
                                         }
-                                        primaryTypographyProps={{ variant: "body2" }}
+                                        slotProps={{ primary: { variant: "body2" } }}
                                     />
                                 </ListItem>
                             ))}
@@ -1201,7 +1201,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("rating_average", event.target.value)
                             }
-                            inputProps={{ min: 0, max: 5, step: 0.1 }}
+                            slotProps={{ htmlInput: { min: 0, max: 5, step: 0.1 } }}
                             error={Boolean(errors.rating_average)}
                             helperText={
                                 errors.rating_average ||
@@ -1218,7 +1218,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("rating_count", event.target.value)
                             }
-                            inputProps={{ min: 0, step: 1 }}
+                            slotProps={{ htmlInput: { min: 0, step: 1 } }}
                             error={Boolean(errors.rating_count)}
                             helperText={
                                 errors.rating_count ||
@@ -1459,7 +1459,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
             case "practicum":
                 return (
                     <Stack spacing={3}>
-                        <Typography variant="h5" fontWeight="bold">
+                        <Typography variant="h5" sx={{ fontWeight: "bold" }}>
                             Practicum Settings
                         </Typography>
                         <Alert severity="info">

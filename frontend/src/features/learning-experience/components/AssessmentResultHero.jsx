@@ -55,7 +55,7 @@ const AssessmentResultHero = ({
             <Stack
                 direction={{ xs: "column", md: "row" }}
                 spacing={{ xs: 2.5, md: 4 }}
-                alignItems={{ md: "center" }}
+                sx={{ alignItems: { md: "center" } }}
             >
                 <Box sx={{ minWidth: { md: 205 } }}>
                     <Chip
@@ -75,13 +75,16 @@ const AssessmentResultHero = ({
                     <Typography
                         component="p"
                         variant="h2"
-                        color={`${presentation.color}.main`}
-                        sx={{ my: 0.75, fontWeight: 800 }}
+                        sx={{
+                            color: `${presentation.color}.main`,
+                            my: 0.75,
+                            fontWeight: 800,
+                        }}
                     >
                         {scoreLabel}
                     </Typography>
                     {attemptLabel && (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {attemptLabel}
                         </Typography>
                     )}
@@ -106,15 +109,14 @@ const AssessmentResultHero = ({
                                     <Typography
                                         component="dt"
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         {metric.label}
                                     </Typography>
                                     <Typography
                                         component="dd"
                                         variant="body1"
-                                        fontWeight={800}
-                                        sx={{ m: 0 }}
+                                        sx={{ fontWeight: 800, m: 0 }}
                                     >
                                         {metric.value}
                                     </Typography>

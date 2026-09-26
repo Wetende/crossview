@@ -6,9 +6,8 @@ const LessonHeader = ({ title }) => {
             {/* Lesson Title */}
             <Typography 
                 variant="h4" 
-                component="h1" 
-                fontWeight={700}
-                sx={{ lineHeight: 1.3 }}
+                component="h1"
+                sx={{ fontWeight: 700, lineHeight: 1.3 }}
             >
                 {title}
             </Typography>

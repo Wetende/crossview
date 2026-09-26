@@ -28,7 +28,7 @@ export default function Assessments() {
                     <Typography variant="h4" component="h1" gutterBottom>
                         Assessment Center
                     </Typography>
-                    <Typography variant="body1" color="text.secondary">
+                    <Typography variant="body1" color="textSecondary">
                         Assessment pages are now split into Assignments and
                         Quizzes.
                     </Typography>

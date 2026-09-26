@@ -91,7 +91,7 @@ export default function FileUpload({
 
   return (
     <Stack spacing={2}>
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         Allowed: {allowedTypes.join(', ').toUpperCase()} • Max size: {maxSizeMb}MB
       </Typography>
 
@@ -123,7 +123,7 @@ export default function FileUpload({
         />
 
         {file ? (
-          <Stack alignItems="center" spacing={1}>
+          <Stack sx={{ alignItems: 'center' }} spacing={1}>
             <Box sx={{ position: 'relative' }}>
               <FileIcon sx={{ fontSize: 48, color: 'primary.main' }} />
               {!uploading && (
@@ -146,12 +146,12 @@ export default function FileUpload({
               )}
             </Box>
             <Typography variant="body1">{file.name}</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               {formatFileSize(file.size)}
             </Typography>
           </Stack>
         ) : (
-          <Stack alignItems="center" spacing={1}>
+          <Stack sx={{ alignItems: 'center' }} spacing={1}>
             <UploadIcon sx={{ fontSize: 48, color: 'grey.400' }} />
             <Typography variant="body1">
               Drag and drop your file here, or click to browse
@@ -167,7 +167,7 @@ export default function FileUpload({
       {uploading && (
         <Box>
           <LinearProgress variant="determinate" value={uploadProgress} />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
             Uploading... {uploadProgress}%
           </Typography>
         </Box>

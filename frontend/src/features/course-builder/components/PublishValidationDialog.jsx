@@ -191,7 +191,7 @@ export default function PublishValidationDialog({
             fullWidth
         >
             <DialogTitle>
-                <Stack direction="row" alignItems="center" spacing={1}>
+                <Stack direction="row" sx={{ alignItems: 'center' }} spacing={1}>
                     {validation?.is_valid ? (
                         <CheckIcon color="success" />
                     ) : (
@@ -249,7 +249,7 @@ export default function PublishValidationDialog({
                         {/* Warnings */}
                         {validation?.warnings?.length > 0 && (
                             <Box sx={{ mb: 2 }}>
-                                <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                                <Typography variant="subtitle2" color="warning" gutterBottom>
                                     Recommended improvements
                                 </Typography>
                                 <List dense>

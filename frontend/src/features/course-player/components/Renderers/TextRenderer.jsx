@@ -24,7 +24,7 @@ const TextRenderer = ({ content }) => {
     if (!sanitizedContent) {
         return (
             <Paper elevation={0} sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 2 }}>
-                <Typography color="text.secondary">
+                <Typography color="textSecondary">
                     No text content available for this lesson.
                 </Typography>
             </Paper>

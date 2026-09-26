@@ -29,7 +29,7 @@ export default function GamificationSettings({ properties, onChange }) {
         <Paper variant="outlined" sx={{ p: 2, mt: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <TrophyIcon sx={{ mr: 1, color: 'warning.main' }} />
-                <Typography variant="subtitle2" fontWeight="bold">
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                     Gamification Settings
                 </Typography>
             </Box>
@@ -92,7 +92,7 @@ export default function GamificationSettings({ properties, onChange }) {
                 )}
             </Box>
             
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 2 }}>
                 These lesson values apply when gamification is eligible for the course and enabled by the platform.
             </Typography>
         </Paper>

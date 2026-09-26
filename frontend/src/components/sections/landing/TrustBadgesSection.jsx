@@ -48,8 +48,7 @@ export default function TrustBadgesSection({ platform, stats }) {
                     <Grid
                         container
                         spacing={4}
-                        justifyContent="center"
-                        alignItems="center"
+                        sx={{ justifyContent: "center", alignItems: "center" }}
                     >
                         {[
                             {
@@ -77,9 +76,11 @@ export default function TrustBadgesSection({ platform, stats }) {
                                 <Stack
                                     direction="row"
                                     spacing={2}
-                                    alignItems="center"
-                                    justifyContent="center"
-                                    sx={{ textAlign: "left" }}
+                                    sx={{
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "left",
+                                    }}
                                 >
                                     <Box
                                         sx={{
@@ -102,14 +103,16 @@ export default function TrustBadgesSection({ platform, stats }) {
                                     <Box>
                                         <Typography
                                             variant="subtitle2"
-                                            fontWeight={700}
-                                            sx={{ lineHeight: 1.2 }}
+                                            sx={{
+                                                fontWeight: 700,
+                                                lineHeight: 1.2,
+                                            }}
                                         >
                                             {badge.label}
                                         </Typography>
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {badge.sublabel}
                                         </Typography>

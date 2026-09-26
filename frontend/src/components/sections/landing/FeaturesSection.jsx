@@ -108,15 +108,14 @@ function FeatureCard({ feature, primaryColor }) {
             </Box>
             <Typography
                 variant="h6"
-                fontWeight={700}
                 gutterBottom
-                sx={{ color: "text.primary", fontSize: "1rem" }}
+                sx={{ fontWeight: 700, color: "text.primary", fontSize: "1rem" }}
             >
                 {feature.title}
             </Typography>
             <Typography
                 variant="body2"
-                color="text.secondary"
+                color="textSecondary"
                 sx={{ lineHeight: 1.6, fontSize: "0.85rem" }}
             >
                 {feature.description}
@@ -132,15 +131,14 @@ export default function FeaturesSection({ platform }) {
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#F8FAFC" }}>
             <Container maxWidth="lg">
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
+                <Stack spacing={2} sx={{ textAlign: "center", mb: 8 }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
                             Our Features
                         </SectionLabel>
                         <Typography
                             variant="h2"
-                            fontWeight={700}
-                            sx={{ mb: 2, color: "text.primary" }}
+                            sx={{ fontWeight: 700, mb: 2, color: "text.primary" }}
                         >
                             What Makes Us Different
                         </Typography>

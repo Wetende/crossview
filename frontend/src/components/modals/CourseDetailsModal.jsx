@@ -95,8 +95,10 @@ export default function CourseDetailsModal({
             onClose={handleClose}
             maxWidth="sm"
             fullWidth
-            PaperProps={{
-                sx: { borderRadius: 3, overflow: 'hidden' }
+            slotProps={{
+                paper: {
+                    sx: { borderRadius: 3, overflow: 'hidden' }
+                },
             }}
         >
             <IconButton
@@ -113,7 +115,7 @@ export default function CourseDetailsModal({
                         {/* Left content */}
                         <Box sx={{ flex: 1, p: 4, textAlign: 'center' }}>
                             {/* Score with check icon */}
-                            <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} sx={{ mb: 1 }}>
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center', mb: 1 }}>
                                 <Box
                                     sx={{
                                         width: 40,
@@ -131,37 +133,37 @@ export default function CourseDetailsModal({
                                     />
                                 </Box>
                                 <Box>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                                         Your score
                                     </Typography>
                                     <Typography 
                                         variant="h3" 
-                                        fontWeight={700} 
-                                        color={isCompleted ? 'success.main' : 'primary.main'}
+                                        sx={{ fontWeight: 700 }}
+                                        color={isCompleted ? 'success' : 'primary'}
                                     >
                                         {Math.round(progressPercent)}%
                                     </Typography>
                                 </Box>
                             </Stack>
 
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
                                 {isCompleted 
                                     ? 'You have successfully completed the course'
                                     : 'Keep going! You\'re making great progress'}
                             </Typography>
-                            <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
                                 {program?.name}
                             </Typography>
 
                             {/* Stats */}
                             <Stack spacing={1} sx={{ mb: 3 }}>
-                                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                                     <IconVideo size={18} color={theme.palette.primary.main} />
                                     <Typography variant="body2">
                                         Media: <strong>{enrollmentData?.completedNodes || 0}/{enrollmentData?.totalNodes || 0}</strong>
                                     </Typography>
                                 </Stack>
-                                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
                                     <IconFile size={18} color={theme.palette.primary.main} />
                                     <Typography variant="body2">
                                         Pages: <strong>{enrollmentData?.completedNodes || 0}/{enrollmentData?.totalNodes || 0}</strong>
@@ -170,7 +172,7 @@ export default function CourseDetailsModal({
                             </Stack>
 
                             {/* Action Buttons */}
-                            <Stack direction="row" spacing={1.5} justifyContent="center" flexWrap="wrap">
+                            <Stack direction="row" spacing={1.5} sx={{ justifyContent: 'center', flexWrap: 'wrap' }}>
                                 {isCompleted && onViewCertificate && (
                                     <Button
                                         variant="contained"
@@ -224,7 +226,7 @@ export default function CourseDetailsModal({
                 ) : (
                     /* ========== REVIEW VIEW ========== */
                     <Box sx={{ p: 4 }}>
-                        <Typography variant="h5" fontWeight={600} textAlign="center" sx={{ mb: 3 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 600, textAlign: 'center', mb: 3 }}>
                             Leave your review
                         </Typography>
 
@@ -271,12 +273,12 @@ export default function CourseDetailsModal({
                                 direction="row" 
                                 spacing={0.5} 
                                 sx={{ 
+                                    alignItems: 'center',
                                     p: 1, 
                                     borderBottom: 1, 
                                     borderColor: 'divider',
                                     bgcolor: 'grey.50',
                                 }}
-                                alignItems="center"
                             >
                                 <IconButton size="small" onClick={() => applyFormat('bold')}>
                                     <IconBold size={18} />
@@ -301,7 +303,7 @@ export default function CourseDetailsModal({
                                     <IconLink size={18} />
                                 </IconButton>
                                 <Box sx={{ flex: 1 }} />
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="textSecondary">
                                     {wordCount} words
                                 </Typography>
                             </Stack>
@@ -325,7 +327,7 @@ export default function CourseDetailsModal({
                         </Box>
 
                         {/* Action Buttons */}
-                        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
+                        <Stack direction="row" spacing={2} sx={{ justifyContent: 'center', mt: 3 }}>
                             <Button
                                 variant="outlined"
                                 onClick={() => setView('details')}

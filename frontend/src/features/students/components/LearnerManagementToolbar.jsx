@@ -310,7 +310,7 @@ export default function LearnerManagementToolbar({
                             py: 0.75,
                         }}
                     >
-                        <Typography variant="body2" fontWeight={700}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
                             {selectedEnrollmentIds.length} learner
                             {selectedEnrollmentIds.length === 1 ? "" : "s"}{" "}
                             selected
@@ -371,7 +371,7 @@ export default function LearnerManagementToolbar({
                 <DialogContent>
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mb: 2 }}
                     >
                         Existing accounts are enrolled immediately. New learners
@@ -460,7 +460,7 @@ export default function LearnerManagementToolbar({
                 <DialogContent>
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mb: 2 }}
                     >
                         Nothing is imported until you confirm this preview.
@@ -536,7 +536,7 @@ export default function LearnerManagementToolbar({
                             )}
                         {!bulkDialog?.preview &&
                             bulkDialog?.action !== "withdraw" && (
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     Checking which selected learners are
                                     eligible…
                                 </Typography>

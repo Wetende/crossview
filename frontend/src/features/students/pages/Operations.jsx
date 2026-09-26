@@ -31,14 +31,13 @@ export default function LearnerOperations({ program, learner }) {
             <Stack spacing={3}>
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
-                    justifyContent="space-between"
-                    gap={2}
+                    sx={{ justifyContent: "space-between", gap: 2 }}
                 >
                     <div>
-                        <Typography variant="h4" fontWeight={700}>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
                             {learner.name}
                         </Typography>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             {learner.email}
                         </Typography>
                     </div>
@@ -83,12 +82,12 @@ export default function LearnerOperations({ program, learner }) {
                             new Date(learner.enrolledAt).toLocaleString(),
                         ],
                     ].map(([title, value]) => (
-                        <Grid item xs={12} sm={6} md={4} key={title}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={title}>
                             <Card sx={{ height: "100%" }}>
                                 <CardContent>
                                     <Typography
                                         variant="overline"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         {title}
                                     </Typography>
@@ -108,7 +107,10 @@ export default function LearnerOperations({ program, learner }) {
                                 Published grades
                             </Typography>
                             {Object.keys(learner.grades || {}).length ? (
-                                <Stack direction="row" flexWrap="wrap" gap={1}>
+                                <Stack
+                                    direction="row"
+                                    sx={{ flexWrap: "wrap", gap: 1 }}
+                                >
                                     {Object.entries(learner.grades).map(
                                         ([name, value]) => (
                                             <Chip
@@ -119,7 +121,7 @@ export default function LearnerOperations({ program, learner }) {
                                     )}
                                 </Stack>
                             ) : (
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     No published grades yet.
                                 </Typography>
                             )}

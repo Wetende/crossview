@@ -54,23 +54,23 @@ export default function WeightSummaryCard({ assignments = [], quizzes = [] }) {
     return (
         <Card variant="outlined">
             <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
                     <AssessmentIcon color="primary" />
-                    <Typography variant="subtitle1" fontWeight={600}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                         Assessment Weights
                     </Typography>
                 </Stack>
                 
                 {/* Progress bar */}
                 <Box sx={{ mb: 2 }}>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                        <Typography variant="body2" color="text.secondary">
+                    <Stack direction="row" sx={{ justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="body2" color="textSecondary">
                             Total Weight
                         </Typography>
                         <Typography 
                             variant="body2" 
-                            fontWeight={600}
-                            color={isValid ? 'success.main' : totalWeight > 100 ? 'error.main' : 'warning.main'}
+                            sx={{ fontWeight: 600 }}
+                            color={isValid ? 'success' : totalWeight > 100 ? 'error' : 'warning'}
                         >
                             {totalWeight}%
                         </Typography>
@@ -91,23 +91,23 @@ export default function WeightSummaryCard({ assignments = [], quizzes = [] }) {
                 {/* Items breakdown */}
                 {hasItems && (
                     <Stack spacing={1}>
-                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        <Typography variant="caption" color="textSecondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                             Breakdown
                         </Typography>
                         {allItems.map((item, idx) => (
                             <Stack 
                                 key={idx} 
-                                direction="row" 
-                                justifyContent="space-between" 
-                                alignItems="center"
+                                direction="row"
                                 sx={{ 
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
                                     py: 0.5, 
                                     px: 1, 
                                     bgcolor: 'action.hover', 
                                     borderRadius: 1 
                                 }}
                             >
-                                <Stack direction="row" alignItems="center" spacing={1}>
+                                <Stack direction="row" sx={{ alignItems: 'center' }} spacing={1}>
                                     <Chip 
                                         label={item.type === 'assignment' ? 'A' : 'Q'} 
                                         size="small" 
@@ -118,7 +118,7 @@ export default function WeightSummaryCard({ assignments = [], quizzes = [] }) {
                                         {item.title}
                                     </Typography>
                                 </Stack>
-                                <Typography variant="body2" fontWeight={500}>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                     {item.weight}%
                                 </Typography>
                             </Stack>

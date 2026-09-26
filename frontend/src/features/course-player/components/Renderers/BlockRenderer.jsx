@@ -142,7 +142,7 @@ const BlockRenderer = ({
             // Missing quiz configuration.
             return (
                 <Paper sx={{ p: 3, mb: 3, textAlign: "center" }}>
-                    <Typography color="text.secondary">
+                    <Typography color="textSecondary">
                         Quiz block is not configured.
                     </Typography>
                 </Paper>
@@ -203,7 +203,10 @@ const BlockRenderer = ({
                 >
                     <DocumentIcon color="primary" />
                     <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="subtitle1" fontWeight={600}>
+                        <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: 600 }}
+                        >
                             {data?.title || "Document"}
                         </Typography>
                         {data?.file_path && (
@@ -250,7 +253,7 @@ const BlockRenderer = ({
                             }}
                         >
                             <ImageIcon color="action" />
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 Image not available
                             </Typography>
                         </Paper>
@@ -258,7 +261,7 @@ const BlockRenderer = ({
                     {data?.caption && (
                         <Typography
                             variant="caption"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mt: 1, display: "block" }}
                         >
                             {data.caption}
@@ -292,7 +295,7 @@ const BlockRenderer = ({
                         }}
                     >
                         <EmbedIcon color="primary" fontSize="small" />
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             Embedded Content
                         </Typography>
                     </Box>
@@ -332,7 +335,7 @@ const BlockRenderer = ({
                             Embed from this domain is not allowed
                         </Typography>
                     ) : (
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Embed not available
                         </Typography>
                     )}
@@ -361,7 +364,7 @@ const BlockRenderer = ({
             }
             return (
                 <Paper sx={{ p: 2, mb: 3, bgcolor: "grey.100" }}>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         Unsupported block type: {blockType}
                     </Typography>
                 </Paper>

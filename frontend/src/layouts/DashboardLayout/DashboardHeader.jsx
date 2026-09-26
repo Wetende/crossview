@@ -196,7 +196,7 @@ const DashboardHeader = ({
                                         component={Link}
                                         href={crumb.href}
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                         sx={{ textDecoration: "none" }}
                                     >
                                         {crumb.label}
@@ -205,7 +205,7 @@ const DashboardHeader = ({
                                     <Typography
                                         key={`${crumb.label}-${index}`}
                                         variant="caption"
-                                        color="text.primary"
+                                        color="textPrimary"
                                     >
                                         {crumb.label}
                                     </Typography>
@@ -283,7 +283,7 @@ const DashboardHeader = ({
                         }}
                     >
                         <MenuItem disabled>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 {auth?.user?.email}
                             </Typography>
                         </MenuItem>

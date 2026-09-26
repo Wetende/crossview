@@ -169,7 +169,7 @@ const AssessmentRenderer = ({
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, mb: 2 }}>
                 <Stack spacing={2}>
                     <Box>
-                        <Typography variant="h6" fontWeight={700}>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
                             Requirements
                         </Typography>
                         {stripHtml(assessmentPrompt) ? (
@@ -186,7 +186,7 @@ const AssessmentRenderer = ({
                         )}
                     </Box>
 
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         {assignmentAttempts && assignmentAttempts > 0
                             ? `Attempts allowed: ${assignmentAttempts}`
                             : "Attempts allowed: Unlimited"}
@@ -206,7 +206,7 @@ const AssessmentRenderer = ({
 
                     {stripHtml(instructions) ? (
                         <Box>
-                            <Typography variant="subtitle2" fontWeight={700}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                                 Instructions
                             </Typography>
                             <Box
@@ -219,11 +219,11 @@ const AssessmentRenderer = ({
                     ) : null}
 
                     <Box>
-                        <Typography variant="subtitle2" fontWeight={700}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                             Materials
                         </Typography>
                         {materials.length === 0 ? (
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 No materials attached.
                             </Typography>
                         ) : (
@@ -236,7 +236,7 @@ const AssessmentRenderer = ({
                                             key={file?.id || `${url}-${index}`}
                                             direction="row"
                                             spacing={2}
-                                            alignItems="center"
+                                            sx={{ alignItems: "center" }}
                                         >
                                             <Typography variant="body2">
                                                 {file?.name || `Material ${index + 1}`}
@@ -269,7 +269,7 @@ const AssessmentRenderer = ({
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2 }}>
                 <Stack spacing={2}>
                     <Box>
-                        <Typography variant="h6" fontWeight={700}>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
                             {node?.title || "Assignment Submission"}
                         </Typography>
                     </Box>

@@ -319,6 +319,7 @@ export default function Checkout({ paystack }) {
                 {step === STEP_REVIEW && (
                     <Button
                         component={Link}
+                        nativeButton={false}
                         href={isDirectMode ? directProgramUrl : "/programs/"}
                         startIcon={<IconArrowLeft size={18} />}
                         disabled={isDirectMode && !directProgramUrl}
@@ -333,12 +334,11 @@ export default function Checkout({ paystack }) {
                         <Typography
                             component="h1"
                             variant="h4"
-                            fontWeight={750}
-                            letterSpacing="-0.025em"
+                            sx={{ fontWeight: 750, letterSpacing: "-0.025em" }}
                         >
                             Complete your enrollment
                         </Typography>
-                        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                        <Typography color="textSecondary" sx={{ mt: 0.75 }}>
                             Choose how you would like to pay. Your payment is processed securely by Paystack.
                         </Typography>
                     </Box>
@@ -402,10 +402,10 @@ export default function Checkout({ paystack }) {
                             {order.status !== "paid" && (
                                 <>
                                     <IconDeviceMobile size={48} color="#10B981" style={{ marginBottom: 16 }} />
-                                    <Typography variant="h5" fontWeight={700} gutterBottom>
+                                    <Typography variant="h5" sx={{ fontWeight: 700 }} gutterBottom>
                                         Check your phone
                                     </Typography>
-                                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+                                    <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
                                         {statusText}
                                     </Typography>
                                 </>
@@ -452,10 +452,10 @@ export default function Checkout({ paystack }) {
                             }}
                         >
                             <CardContent>
-                                <Typography variant="overline" color="text.secondary" fontWeight={700}>
+                                <Typography variant="overline" color="textSecondary" sx={{ fontWeight: 700 }}>
                                     Your order
                                 </Typography>
-                                <Typography variant="h6" fontWeight={700} sx={{ mb: 2.25 }}>
+                                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.25 }}>
                                     Order Summary
                                 </Typography>
 
@@ -479,30 +479,29 @@ export default function Checkout({ paystack }) {
                                             <Stack
                                                 key={item.id}
                                                 direction="row"
-                                                justifyContent="space-between"
                                                 spacing={2}
-                                                sx={{ py: 1 }}
+                                                sx={{ justifyContent: "space-between", py: 1 }}
                                             >
-                                                <Typography variant="body2" fontWeight={600}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                     {item.program?.name}
                                                 </Typography>
-                                                <Typography variant="body2" fontWeight={700} sx={{ whiteSpace: "nowrap" }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
                                                     {formatMinorCurrency(item.amountMinor)}
                                                 </Typography>
                                             </Stack>
                                         ))}
                                         <Divider sx={{ my: 1.5 }} />
-                                        <Stack direction="row" justifyContent="space-between">
-                                            <Typography variant="subtitle1" fontWeight={700}>
+                                        <Stack direction="row" sx={{ justifyContent: "space-between" }}>
+                                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                                                 Total
                                             </Typography>
-                                            <Typography variant="h6" fontWeight={800} color="primary.main">
+                                            <Typography variant="h6" sx={{ fontWeight: 800 }} color="primary">
                                                 {formatMinorCurrency(totalMinor)}
                                             </Typography>
                                         </Stack>
-                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2.5 }}>
+                                        <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 2.5 }}>
                                             <IconLock size={15} />
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 Secure payment powered by Paystack
                                             </Typography>
                                         </Stack>
@@ -522,10 +521,10 @@ export default function Checkout({ paystack }) {
                                 }}
                             >
                                 <CardContent sx={{ p: { xs: 2.5, sm: 3.5 }, "&:last-child": { pb: { xs: 2.5, sm: 3.5 } } }}>
-                                    <Typography variant="h5" fontWeight={750} letterSpacing="-0.015em">
+                                    <Typography variant="h5" sx={{ fontWeight: 750, letterSpacing: "-0.015em" }}>
                                         Choose a payment method
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2.5 }}>
+                                    <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5, mb: 2.5 }}>
                                         Select one of the secure payment options below.
                                     </Typography>
                                     {availablePaymentMethods.length === 0 && (
@@ -554,7 +553,7 @@ export default function Checkout({ paystack }) {
                                                             value="mpesa"
                                                             control={<Radio slotProps={{ input: { "aria-label": "M-Pesa" } }} />}
                                                             label={(
-                                                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                                                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                                                                     <Box
                                                                         sx={{
                                                                             width: 38,
@@ -569,8 +568,8 @@ export default function Checkout({ paystack }) {
                                                                         <IconDeviceMobile size={20} />
                                                                     </Box>
                                                                     <Box>
-                                                                        <Typography fontWeight={700}>M-Pesa</Typography>
-                                                                        <Typography variant="body2" color="text.secondary">
+                                                                        <Typography sx={{ fontWeight: 700 }}>M-Pesa</Typography>
+                                                                        <Typography variant="body2" color="textSecondary">
                                                                             Receive a payment prompt on your phone
                                                                         </Typography>
                                                                     </Box>
@@ -612,7 +611,7 @@ export default function Checkout({ paystack }) {
                                                             value="card"
                                                             control={<Radio slotProps={{ input: { "aria-label": "Credit or debit card" } }} />}
                                                             label={(
-                                                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                                                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                                                                     <Box
                                                                         sx={{
                                                                             width: 38,
@@ -627,8 +626,8 @@ export default function Checkout({ paystack }) {
                                                                         <IconCreditCard size={20} />
                                                                     </Box>
                                                                     <Box>
-                                                                        <Typography fontWeight={700}>Credit or debit card</Typography>
-                                                                        <Typography variant="body2" color="text.secondary">
+                                                                        <Typography sx={{ fontWeight: 700 }}>Credit or debit card</Typography>
+                                                                        <Typography variant="body2" color="textSecondary">
                                                                             Pay securely using your bank card
                                                                         </Typography>
                                                                     </Box>
@@ -653,11 +652,11 @@ export default function Checkout({ paystack }) {
                                                         value="offline_bank_transfer"
                                                         control={<Radio slotProps={{ input: { "aria-label": "Bank transfer" } }} />}
                                                         label={(
-                                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                                                                 <IconBuildingBank size={22} />
                                                                 <Box>
-                                                                    <Typography fontWeight={700}>Bank transfer</Typography>
-                                                                    <Typography variant="body2" color="text.secondary">
+                                                                    <Typography sx={{ fontWeight: 700 }}>Bank transfer</Typography>
+                                                                    <Typography variant="body2" color="textSecondary">
                                                                         Receive instructions after placing your order
                                                                     </Typography>
                                                                 </Box>
@@ -689,9 +688,9 @@ export default function Checkout({ paystack }) {
                                               : "Pay with card"}
                                     </Button>
                                     {paymentMethod === "mpesa" && (
-                                        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mt: 1.5 }}>
+                                        <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", mt: 1.5 }}>
                                             <IconLock size={15} style={{ marginTop: 2, flexShrink: 0 }} />
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 You will receive a prompt on your phone to confirm
                                                 {` ${formatMinorCurrency(totalMinor)}`}.
                                             </Typography>

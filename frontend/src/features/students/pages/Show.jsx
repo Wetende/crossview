@@ -82,24 +82,24 @@ export default function InstructorStudentShow({
         <motion.div {...fadeInUp}>
           <Card>
             <CardContent>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ sm: 'center' }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} sx={{ alignItems: { sm: 'center' } }}>
                 <Avatar sx={{ width: 80, height: 80, bgcolor: 'secondary.main', fontSize: 28 }}>
                   {initials}
                 </Avatar>
-                <Box flex={1}>
-                  <Typography variant="h5" fontWeight="bold" gutterBottom>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 'bold' }} gutterBottom>
                     {student.name}
                   </Typography>
-                  <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap' }} useFlexGap>
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                       <EmailIcon fontSize="small" color="action" />
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         {student.email}
                       </Typography>
                     </Stack>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                       <CalendarIcon fontSize="small" color="action" />
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         Enrolled {new Date(student.enrolledAt).toLocaleDateString()}
                       </Typography>
                     </Stack>
@@ -116,11 +116,11 @@ export default function InstructorStudentShow({
                   >
                     Message Student
                   </Button>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
                     Overall Progress
                   </Typography>
                   <ProgressBar value={progress.overall} showLabel />
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="textSecondary">
                     {progress.completedNodes} of {progress.totalNodes} nodes completed
                   </Typography>
                 </Box>
@@ -131,7 +131,7 @@ export default function InstructorStudentShow({
         
         <Grid container spacing={3}>
           {/* Curriculum Progress */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <motion.div {...fadeInUp} transition={{ delay: 0.1 }}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
@@ -147,7 +147,7 @@ export default function InstructorStudentShow({
                       variant="progress"
                     />
                   ) : (
-                    <Typography color="text.secondary">
+                    <Typography color="textSecondary">
                       No curriculum content.
                     </Typography>
                   )}
@@ -157,7 +157,7 @@ export default function InstructorStudentShow({
           </Grid>
           
           {/* Assessment Results & Practicum */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Stack spacing={3}>
               {/* Assessment Results */}
               <motion.div {...fadeInUp} transition={{ delay: 0.2 }}>
@@ -187,7 +187,7 @@ export default function InstructorStudentShow({
                                   </Typography>
                                 </TableCell>
                                 <TableCell align="center">
-                                  <Typography variant="body2" fontWeight="medium">
+                                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                                     {result.total ?? '-'}
                                   </Typography>
                                 </TableCell>
@@ -208,7 +208,7 @@ export default function InstructorStudentShow({
                         </Table>
                       </TableContainer>
                     ) : (
-                      <Typography color="text.secondary" variant="body2">
+                      <Typography color="textSecondary" variant="body2">
                         No assessment results yet.
                       </Typography>
                     )}
@@ -242,7 +242,7 @@ export default function InstructorStudentShow({
                                   <Typography variant="body2">
                                     {submission.nodeTitle}
                                   </Typography>
-                                  <Typography variant="caption" color="text.secondary">
+                                  <Typography variant="caption" color="textSecondary">
                                     {new Date(submission.submittedAt).toLocaleDateString()}
                                   </Typography>
                                 </TableCell>
@@ -264,7 +264,7 @@ export default function InstructorStudentShow({
                         </Table>
                       </TableContainer>
                     ) : (
-                      <Typography color="text.secondary" variant="body2">
+                      <Typography color="textSecondary" variant="body2">
                         No practicum submissions yet.
                       </Typography>
                     )}

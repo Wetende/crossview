@@ -166,7 +166,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                     >
                         <MeetingIcon sx={{ fontSize: 38 }} />
                     </Box>
-                    <Typography variant="h6" fontWeight={600}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         {session.isJoinable
                             ? "Ready to join your class"
                             : ended
@@ -236,7 +236,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                 <Divider />
 
                 <Stack spacing={0.75}>
-                    <Typography fontWeight={700}>
+                    <Typography sx={{ fontWeight: 700 }}>
                         {start?.toLocaleString(undefined, {
                             weekday: "long",
                             month: "long",
@@ -416,12 +416,15 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
                                     <MeetingIcon color="primary" />
                                 )}
                                 <Box>
-                                    <Typography variant="h6" fontWeight={700}>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{ fontWeight: 700 }}
+                                    >
                                         {session.title}
                                     </Typography>
                                     <Typography
                                         variant="body2"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         {PROVIDER_LABELS[session.provider] ||
                                             session.provider}
@@ -450,10 +453,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
                                     timeZoneName: "short",
                                 })}
                             </Typography>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 Scheduled in {session.timezone}; displayed in
                                 your local time.
                             </Typography>
@@ -461,7 +461,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
 
                         {isInPerson && (
                             <Stack spacing={0.5}>
-                                <Typography fontWeight={700}>
+                                <Typography sx={{ fontWeight: 700 }}>
                                     {session.venue}
                                 </Typography>
                                 {session.room && (
@@ -469,7 +469,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
                                 )}
                                 <Typography>{session.address}</Typography>
                                 {session.directions && (
-                                    <Typography color="text.secondary">
+                                    <Typography color="textSecondary">
                                         {session.directions}
                                     </Typography>
                                 )}
