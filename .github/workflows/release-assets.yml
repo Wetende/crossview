@@ -1,0 +1,82 @@
+# Builds the frontend after every change to main and commits static/dist.
+# Pull requests carry source only, so they never conflict on generated files.
+# Deploy main only after this run has finished for the merged commit.
+name: Release assets
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "static/dist/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-assets
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check the build output
+        run: |
+          outside=$(git status --porcelain | grep -v ' static/dist/' || true)
+          if [ -n "$outside" ]; then
+            echo "::error::The build changed files outside static/dist:"
+            echo "$outside"
+            exit 1
+          fi
+          python3 - <<'EOF'
+          import json, pathlib, sys
+          dist = pathlib.Path("static/dist")
+          path = next(p for p in (dist / "manifest.json", dist / ".vite" / "manifest.json") if p.exists())
+          manifest = json.loads(path.read_text())
+          refs = {f for entry in manifest.values()
+                  for f in [entry.get("file"), *entry.get("css", []), *entry.get("assets", [])] if f}
+          missing = sorted(f for f in refs if not (dist / f).exists())
+          print(f"{path}: {len(refs)} referenced files, {len(missing)} missing")
+          sys.exit(1 if missing else 0)
+          EOF
+
+      - name: Commit and push the assets
+        run: |
+          git add -A static/dist
+          if git diff --cached --quiet; then
+            echo "static/dist already matches main."
+            exit 0
+          fi
+          source_sha=$(git rev-parse HEAD)
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "build: release assets for ${source_sha::8}"
+          if git push origin HEAD:main; then
+            exit 0
+          fi
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$source_sha" ]; then
+            echo "::notice::main moved during the build; the run for the newer commit rebuilds the assets."
+            exit 0
+          fi
+          echo "::error::Pushing the built assets to main failed."
+          exit 1
