@@ -61,6 +61,8 @@ const featureMap = {
     "Instructor/Programs/Create": "./features/admin/pages/Programs/Form.jsx",
     "Instructor/Programs/Detail": "./features/programs/pages/Detail.jsx",
     "Instructor/Programs/Show": "./features/programs/pages/Show.jsx",
+    "Instructor/Programs/Analytics": "./features/programs/pages/Analytics.jsx",
+    "Instructor/Analytics/Index": "./features/programs/pages/AnalyticsIndex.jsx",
     "Instructor/Gradebook/Index": "./features/gradebook/pages/Index.jsx",
     "Instructor/Gradebook": "./features/gradebook/pages/Detail.jsx",
     "Instructor/Gradebook/StudentProgress":

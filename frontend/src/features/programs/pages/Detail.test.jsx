@@ -45,6 +45,9 @@ describe("instructor course detail", () => {
         expect(
             screen.getByRole("link", { name: /manage learners/i }),
         ).toHaveAttribute("href", "/instructor/programs/42/students/");
+        expect(
+            screen.getByRole("link", { name: /analytics/i }),
+        ).toHaveAttribute("href", "/instructor/programs/42/analytics/");
         expect(screen.getByText("Total learners")).toBeInTheDocument();
         expect(screen.getByText("Needs attention")).toBeInTheDocument();
         expect(screen.getByText("Completed")).toBeInTheDocument();

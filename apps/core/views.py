@@ -3462,6 +3462,70 @@ def instructor_program_detail(request, pk: int):
 
 
 @login_required
+def instructor_analytics_index(request):
+    """List the instructor's courses, each linking to its analytics page."""
+    if not is_instructor(request.user):
+        return redirect("/dashboard/")
+
+    programs = (
+        Program.objects.filter(id__in=get_instructor_program_ids(request.user))
+        .annotate(learner_count=Count("enrollments"))
+        .order_by("name", "id")
+    )
+    return render(
+        request,
+        "Instructor/Analytics/Index",
+        {
+            "programs": [
+                {
+                    "id": program.id,
+                    "title": program.name,
+                    "code": program.code or "",
+                    "isPublished": program.is_published,
+                    "learnerCount": program.learner_count,
+                    "analyticsUrl": f"/instructor/programs/{program.id}/analytics/",
+                }
+                for program in programs
+            ]
+        },
+    )
+
+
+@login_required
+def instructor_program_analytics(request, pk: int):
+    """Course analytics for an assigned instructor (or staff)."""
+    from django.shortcuts import get_object_or_404
+
+    from apps.learning_operations.analytics import (
+        ANALYTICS_RANGES,
+        get_course_analytics,
+        parse_analytics_range,
+    )
+
+    program = get_object_or_404(
+        Program, pk=pk, id__in=get_instructor_program_ids(request.user)
+    )
+    range_key = parse_analytics_range(request.GET.get("range"))
+    base_url = f"/instructor/programs/{program.id}/"
+    return render(
+        request,
+        "Instructor/Programs/Analytics",
+        {
+            "program": {"id": program.id, "title": program.name, "url": base_url},
+            "range": range_key,
+            "ranges": list(ANALYTICS_RANGES),
+            **get_course_analytics(program, range_key),
+            "links": {
+                "overview": base_url,
+                "roster": f"{base_url}students/",
+                "gradebook": f"{base_url}gradebook/",
+                "builder": f"{base_url}manage/",
+            },
+        },
+    )
+
+
+@login_required
 def instructor_students(request):
     """List all students enrolled in instructor's programs."""
     if not is_instructor(request.user):
