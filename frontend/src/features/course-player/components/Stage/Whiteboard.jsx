@@ -23,6 +23,7 @@ const Whiteboard = ({
     isCompleted = false,
     discussions = [],
     onVideoProgress,
+    seekRef = null,
 }) => {
     const nodeId = node?.id;
     const [videoRequirementMet, setVideoRequirementMet] = useState(false);
@@ -35,7 +36,11 @@ const Whiteboard = ({
         );
     };
 
-    const handleComplete = () => {
+    // `destination` is passed by "Complete & Next"; activity renderers call
+    // this without arguments and stay on the lesson. The learner moves on even
+    // if the server refuses completion: its access checks still gate the
+    // destination.
+    const handleComplete = (destination = null) => {
         if (isCompleted || completionInFlightRef.current) return;
         completionInFlightRef.current = true;
 
@@ -47,7 +52,17 @@ const Whiteboard = ({
             },
             {
                 preserveScroll: true,
-                only: ["isCompleted", "curriculum"],
+                only: [
+                    "isCompleted",
+                    "curriculum",
+                    "enrollment",
+                    "nextNode",
+                    "prevNode",
+                ],
+                onSuccess: (page) => {
+                    if (!destination?.id) return;
+                    handleNavigate(page?.props?.nextNode || destination);
+                },
                 onFinish: () => {
                     completionInFlightRef.current = false;
                 },
@@ -141,6 +156,7 @@ const Whiteboard = ({
                 onVideoProgress={onVideoProgress}
                 onVideoRequirementMet={handleVideoRequirementMet}
                 activityProgress={node.activityProgress}
+                seekRef={seekRef}
             />
         ));
     };
@@ -198,6 +214,7 @@ const Whiteboard = ({
                     enrollmentId={courseId}
                     nodeId={nodeId}
                     activityProgress={node.activityProgress}
+                    seekRef={seekRef}
                 />
             );
         }
@@ -299,8 +316,8 @@ const Whiteboard = ({
         <Box
             sx={{ display: "flex", flexDirection: "column", minHeight: "100%" }}
         >
-            {/* Header: Lesson title */}
-            <LessonHeader title={node.title} />
+            {/* Header: activity eyebrow + lesson title */}
+            <LessonHeader node={node} />
 
             {/* Content Area */}
             <Box sx={{ flexGrow: 1 }}>
@@ -322,7 +339,7 @@ const Whiteboard = ({
                 completionLabel={
                     node.completionPolicy?.learnerCanComplete === false
                         ? "Attendance pending"
-                        : "Mark Complete"
+                        : null
                 }
             />
         </Box>

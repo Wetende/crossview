@@ -11,8 +11,10 @@ import componentsOverride from "./overrides";
 
 /**
  * Inner ThemeProvider - Creates MUI theme based on current mode
+ * `extendTheme(theme)` returns theme options merged in last, so a surface
+ * can adjust the shared theme without losing component overrides.
  */
-function ThemeProviderInner({ children }) {
+function ThemeProviderInner({ children, extendTheme }) {
     const { mode, platformColors } = useThemeMode();
 
     const theme = useMemo(() => {
@@ -46,8 +48,15 @@ function ThemeProviderInner({ children }) {
         themeWithTypography.components =
             componentsOverride(themeWithTypography);
 
+        if (extendTheme) {
+            return createTheme(
+                themeWithTypography,
+                extendTheme(themeWithTypography),
+            );
+        }
+
         return themeWithTypography;
-    }, [mode, platformColors]);
+    }, [mode, platformColors, extendTheme]);
 
     return (
         <MuiThemeProvider theme={theme}>
@@ -67,6 +76,7 @@ export default function ThemeProvider({
     platform = null,
     forcedMode = null,
     storageKey = undefined,
+    extendTheme = null,
 }) {
     return (
         <ThemeModeProvider
@@ -74,7 +84,9 @@ export default function ThemeProvider({
             forcedMode={forcedMode}
             storageKey={storageKey}
         >
-            <ThemeProviderInner>{children}</ThemeProviderInner>
+            <ThemeProviderInner extendTheme={extendTheme}>
+                {children}
+            </ThemeProviderInner>
         </ThemeModeProvider>
     );
 }

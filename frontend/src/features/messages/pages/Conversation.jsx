@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
 import {
     Alert,
@@ -21,10 +22,24 @@ function formatTimestamp(dateString) {
     return date.toLocaleString();
 }
 
-export default function Conversation({ conversation, messages = [], errorMessage = null }) {
+export default function Conversation({
+    conversation,
+    messages = [],
+    errorMessage = null,
+    draftContent = "",
+}) {
     const { data, setData, post, processing, reset } = useForm({
-        content: "",
+        content: draftContent || "",
     });
+
+    useEffect(() => {
+        // A draft (e.g. from the course player) only fills an empty reply box.
+        if (draftContent && !data.content) {
+            setData("content", draftContent);
+        }
+        // Only a new draft prop should seed the field; typing must not.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftContent]);
 
     const handleSubmit = (event) => {
         event.preventDefault();

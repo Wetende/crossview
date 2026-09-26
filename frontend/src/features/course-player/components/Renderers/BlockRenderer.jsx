@@ -67,6 +67,7 @@ const BlockRenderer = ({
     onVideoProgress,
     onVideoRequirementMet,
     activityProgress,
+    seekRef = null,
 }) => {
     const documentSessionRef = useRef(createActivitySessionId());
     const documentSequenceRef = useRef(0);
@@ -88,6 +89,7 @@ const BlockRenderer = ({
                         enrollmentId={enrollmentId}
                         nodeId={nodeId}
                         activityProgress={activityProgress}
+                        seekRef={seekRef}
                     />
                 </Box>
             );

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import {
     Box,
@@ -14,10 +14,14 @@ import {
     ListItemText,
     Divider,
     Alert,
+    InputAdornment,
+    useMediaQuery,
+    useTheme,
 } from "@mui/material";
 import {
     Close as CloseIcon,
-    AddCircleOutlined,
+    Add as AddIcon,
+    Search as SearchIcon,
     Send as SendIcon,
     Delete as DeleteIcon,
     NoteAlt as NoteIcon,
@@ -25,15 +29,29 @@ import {
 import DiscussionsList from "./DiscussionsList";
 import { getFlashMessages } from "@/utils/userMessages";
 
+const formatTimestamp = (totalSeconds) =>
+    `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
+
+const matchesQuery = (thread, query) =>
+    [
+        thread.title,
+        thread.content,
+        ...(thread.posts || []).map((post) => post.content),
+    ].some((text) => String(text || "").toLowerCase().includes(query));
+
 const StudyPanel = ({
     nodeId,
     enrollmentId,
     discussions = [],
     notes = [],
     currentVideoTimestamp,
+    onSeek,
     onClose,
 }) => {
     const { flash } = usePage().props;
+    const theme = useTheme();
+    // Matches ClassroomLayout, which shows this panel full screen below `sm`.
+    const isFullScreenPanel = useMediaQuery(theme.breakpoints.down("sm"));
     const [discussionItems, setDiscussionItems] = useState(
         Array.isArray(discussions) ? discussions : [],
     );
@@ -43,10 +61,22 @@ const StudyPanel = ({
     const [noteContent, setNoteContent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         setDiscussionItems(Array.isArray(discussions) ? discussions : []);
     }, [discussions]);
+
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const visibleDiscussions = useMemo(
+        () =>
+            normalizedQuery
+                ? discussionItems.filter((thread) =>
+                      matchesQuery(thread, normalizedQuery),
+                  )
+                : discussionItems,
+        [discussionItems, normalizedQuery],
+    );
 
     useEffect(() => {
         if (activeTab !== 0 || !nodeId || !enrollmentId) return;
@@ -209,6 +239,13 @@ const StudyPanel = ({
         setErrorMessage("");
     };
 
+    // On phones the panel is a full-screen drawer that hides the video, so
+    // close it after jumping to the note's timestamp.
+    const handleSeek = (seconds) => {
+        onSeek?.(seconds);
+        if (isFullScreenPanel) onClose?.();
+    };
+
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString("en-US", {
             month: "short",
@@ -224,7 +261,7 @@ const StudyPanel = ({
                 display: "flex",
                 flexDirection: "column",
                 height: "100%",
-                bgcolor: "#f8f9fb",
+                bgcolor: "background.default",
             }}
         >
             {/* Header */}
@@ -267,9 +304,68 @@ const StudyPanel = ({
             {activeTab === 0 ? (
                 /* Discussions Tab */
                 <>
-                    {/* Comment Section */}
-                    {isComposing ? (
-                        <Box sx={{ p: 2, bgcolor: "background.paper" }}>
+                    {/* Search + Comment */}
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            px: 1.5,
+                            py: 1.25,
+                            bgcolor: "background.paper",
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                        }}
+                    >
+                        <TextField
+                            size="small"
+                            fullWidth
+                            placeholder="Search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            slotProps={{
+                                htmlInput: {
+                                    "aria-label": "Search discussions",
+                                },
+                                input: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon
+                                                fontSize="small"
+                                                sx={{ color: "text.secondary" }}
+                                            />
+                                        </InputAdornment>
+                                    ),
+                                },
+                            }}
+                        />
+                        <Button
+                            variant="contained"
+                            size="small"
+                            disableElevation
+                            startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                            onClick={() => setIsComposing(true)}
+                            disabled={isComposing}
+                            sx={{
+                                flexShrink: 0,
+                                textTransform: "none",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            Comment
+                        </Button>
+                    </Box>
+
+                    {/* Comment composer */}
+                    {isComposing && (
+                        <Box
+                            sx={{
+                                p: 2,
+                                bgcolor: "background.paper",
+                                borderBottom: "1px solid",
+                                borderColor: "divider",
+                            }}
+                        >
                             <TextField
                                 multiline
                                 rows={4}
@@ -311,13 +407,14 @@ const StudyPanel = ({
                                 <IconButton
                                     onClick={handleSendDiscussion}
                                     disabled={!message.trim() || isSubmitting}
+                                    aria-label="Post comment"
                                     sx={{
                                         bgcolor: "primary.main",
-                                        color: "white",
+                                        color: "primary.contrastText",
                                         "&:hover": { bgcolor: "primary.dark" },
                                         "&.Mui-disabled": {
-                                            bgcolor: "grey.300",
-                                            color: "grey.500",
+                                            bgcolor: "action.disabledBackground",
+                                            color: "action.disabled",
                                         },
                                     }}
                                 >
@@ -325,41 +422,28 @@ const StudyPanel = ({
                                 </IconButton>
                             </Box>
                         </Box>
-                    ) : (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                justifyContent: "flex-end",
-                                p: 1.5,
-                            }}
-                        >
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                startIcon={
-                                    <AddCircleOutlined sx={{ fontSize: 16 }} />
-                                }
-                                onClick={() => setIsComposing(true)}
-                                sx={{
-                                    textTransform: "none",
-                                    borderRadius: 5,
-                                    px: 2,
-                                    py: 0.5,
-                                    fontSize: "0.813rem",
-                                    fontWeight: 500,
-                                }}
-                            >
-                                Comment
-                            </Button>
-                        </Box>
                     )}
 
                     <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
-                        <DiscussionsList
-                            discussions={discussionItems}
-                            onReply={handleSendReply}
-                            disabled={isSubmitting}
-                        />
+                        {normalizedQuery &&
+                        discussionItems.length > 0 &&
+                        visibleDiscussions.length === 0 ? (
+                            <Box sx={{ p: 3, textAlign: "center" }}>
+                                <Typography
+                                    variant="body2"
+                                    color="textSecondary"
+                                >
+                                    No discussions match &ldquo;
+                                    {searchQuery.trim()}&rdquo;.
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <DiscussionsList
+                                discussions={visibleDiscussions}
+                                onReply={handleSendReply}
+                                disabled={isSubmitting}
+                            />
+                        )}
                     </Box>
                 </>
             ) : (
@@ -486,28 +570,40 @@ const StudyPanel = ({
                                                         {formatDate(
                                                             note.createdAt,
                                                         )}
-                                                        {note.videoTimestamp && (
-                                                            <Typography
-                                                                component="span"
-                                                                variant="caption"
-                                                                color="primary"
-                                                                sx={{ ml: 1 }}
-                                                            >
-                                                                @{" "}
-                                                                {Math.floor(
-                                                                    note.videoTimestamp /
-                                                                        60,
-                                                                )}
-                                                                :
-                                                                {String(
-                                                                    note.videoTimestamp %
-                                                                        60,
-                                                                ).padStart(
-                                                                    2,
-                                                                    "0",
-                                                                )}
-                                                            </Typography>
-                                                        )}
+                                                        {note.videoTimestamp !=
+                                                            null &&
+                                                            (onSeek ? (
+                                                                <Link
+                                                                    component="button"
+                                                                    type="button"
+                                                                    variant="caption"
+                                                                    underline="hover"
+                                                                    onClick={() =>
+                                                                        handleSeek(
+                                                                            note.videoTimestamp,
+                                                                        )
+                                                                    }
+                                                                    aria-label={`Jump to ${formatTimestamp(note.videoTimestamp)} in the video`}
+                                                                    sx={{
+                                                                        ml: 1,
+                                                                        color: "primary.main",
+                                                                        fontWeight: 600,
+                                                                        verticalAlign:
+                                                                            "baseline",
+                                                                    }}
+                                                                >
+                                                                    {`@ ${formatTimestamp(note.videoTimestamp)}`}
+                                                                </Link>
+                                                            ) : (
+                                                                <Typography
+                                                                    component="span"
+                                                                    variant="caption"
+                                                                    color="primary"
+                                                                    sx={{ ml: 1 }}
+                                                                >
+                                                                    {`@ ${formatTimestamp(note.videoTimestamp)}`}
+                                                                </Typography>
+                                                            ))}
                                                     </>
                                                 }
                                                 slotProps={{

@@ -18,6 +18,7 @@ export default function NewConversation({
     recipients = [],
     preselectedRecipientId = null,
     submittedContent = "",
+    draftContent = "",
     formErrors = {},
 }) {
     const selectedRecipient = preselectedRecipientId
@@ -25,7 +26,7 @@ export default function NewConversation({
         : "";
     const { data, setData, post, processing } = useForm({
         recipient_id: selectedRecipient,
-        content: submittedContent || "",
+        content: submittedContent || draftContent || "",
     });
 
     useEffect(() => {
@@ -36,6 +37,15 @@ export default function NewConversation({
         // recipient prop is the only input that should resync this field.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedRecipient]);
+
+    useEffect(() => {
+        // A draft (e.g. from the course player) only fills an empty field.
+        if (draftContent && !data.content) {
+            setData("content", draftContent);
+        }
+        // Only a new draft prop should seed the field; typing must not.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftContent]);
 
     const handleSubmit = (event) => {
         event.preventDefault();

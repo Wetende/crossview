@@ -24,6 +24,7 @@ const VideoRenderer = ({
     enrollmentId,
     nodeId,
     activityProgress = {},
+    seekRef = null, // Receives a (seconds) => void seek function
 }) => {
     const [durationSeconds, setDurationSeconds] = useState(0);
     const [watchedSeconds, setWatchedSeconds] = useState(0);
@@ -183,6 +184,22 @@ const VideoRenderer = ({
         },
         [activityProgress?.resumePositionSeconds],
     );
+
+    // Let the notes panel jump to a saved timestamp. ReactPlayer v3 exposes
+    // the media element, so seek by setting currentTime (as resume does).
+    useEffect(() => {
+        if (!seekRef) return undefined;
+        const seek = (seconds) => {
+            const media = playerRef.current;
+            const target = Number(seconds);
+            if (!media || !Number.isFinite(target) || target < 0) return;
+            media.currentTime = target;
+        };
+        seekRef.current = seek;
+        return () => {
+            if (seekRef.current === seek) seekRef.current = null;
+        };
+    }, [seekRef]);
 
     const handleLoadedMetadata = useCallback(
         (event) => applyResume(event?.currentTarget),

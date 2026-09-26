@@ -4,6 +4,7 @@ import {
     Box,
     Card,
     CardContent,
+    Chip,
     List,
     ListItem,
     ListItemIcon,
@@ -11,8 +12,9 @@ import {
     Stack,
     Typography,
 } from "@mui/material";
-import { CheckCircle as CheckIcon } from "@mui/icons-material";
+import { CheckCircle as CheckIcon, PushPin } from "@mui/icons-material";
 import DOMPurify from "dompurify";
+import { formatDistanceToNow } from "date-fns";
 
 import { CourseUnitCard } from "@/features/learning-experience/components";
 import CourseOverviewRail from "./CourseOverviewRail";
@@ -59,11 +61,119 @@ const DismissibleNotice = ({ notice, index }) => {
     );
 };
 
+const formatRelativeDate = (value) => {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return "";
+    return formatDistanceToNow(date, { addSuffix: true });
+};
+
+// Rich text announcements are HTML; older plain-text ones keep their line breaks.
+const looksLikeHtml = (value) => /<[a-z][\s\S]*>/i.test(value || "");
+
+const AnnouncementsSection = ({ announcements }) => (
+    <Box component="section" aria-labelledby="course-announcements-title">
+        <Typography
+            id="course-announcements-title"
+            component="h2"
+            variant="h5"
+            sx={{ mb: 1.5 }}
+        >
+            Announcements
+        </Typography>
+        <Stack spacing={1.5}>
+            {announcements.map((announcement) => {
+                const meta = [
+                    announcement.author?.name,
+                    formatRelativeDate(announcement.createdAt),
+                ]
+                    .filter(Boolean)
+                    .join(" · ");
+                return (
+                    <Card
+                        key={announcement.id}
+                        component="article"
+                        variant="outlined"
+                        sx={{ borderRadius: 2.5 }}
+                    >
+                        <CardContent
+                            sx={{
+                                p: { xs: 2, md: 2.5 },
+                                "&:last-child": { pb: { xs: 2, md: 2.5 } },
+                            }}
+                        >
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                sx={{
+                                    alignItems: "center",
+                                    mb: 0.5,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                {announcement.isPinned && (
+                                    <Chip
+                                        icon={<PushPin sx={{ fontSize: 14 }} />}
+                                        label="Pinned"
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        sx={{ height: 22 }}
+                                    />
+                                )}
+                                <Typography
+                                    component="h3"
+                                    variant="subtitle1"
+                                    sx={{ fontWeight: 700 }}
+                                >
+                                    {announcement.title}
+                                </Typography>
+                            </Stack>
+                            {meta && (
+                                <Typography
+                                    variant="caption"
+                                    color="textSecondary"
+                                    sx={{ display: "block", mb: 1 }}
+                                >
+                                    {meta}
+                                </Typography>
+                            )}
+                            {/* Announcements are authored in the rich text editor. */}
+                            <Box
+                                data-testid="announcement-content"
+                                sx={{
+                                    typography: "body2",
+                                    color: "text.secondary",
+                                    overflowWrap: "anywhere",
+                                    whiteSpace: looksLikeHtml(
+                                        announcement.content,
+                                    )
+                                        ? "normal"
+                                        : "pre-line",
+                                    "& p": { mt: 0, mb: 1 },
+                                    "& p:last-child": { mb: 0 },
+                                    "& ul, & ol": { pl: 3, my: 0.5 },
+                                    "& a": { color: "primary.main" },
+                                }}
+                                dangerouslySetInnerHTML={{
+                                    __html: DOMPurify.sanitize(
+                                        announcement.content || "",
+                                    ),
+                                }}
+                            />
+                        </CardContent>
+                    </Card>
+                );
+            })}
+        </Stack>
+    </Box>
+);
+
 const CourseOverview = ({
     program,
     enrollment,
     resumeUrl,
     curriculum = [],
+    announcements = [],
 }) => {
     const progress = Number(enrollment?.progressPercent || 0);
     const hasStarted = progress > 0;
@@ -176,6 +286,10 @@ const CourseOverview = ({
                             </Card>
                         )}
                     </Box>
+
+                    {announcements.length > 0 && (
+                        <AnnouncementsSection announcements={announcements} />
+                    )}
 
                     {(program?.notices || []).length > 0 && (
                         <Stack

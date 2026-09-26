@@ -21,12 +21,14 @@ from inertia import render
 
 from apps.core.models import Program, User
 from apps.curriculum.models import CurriculumNode
-from apps.progression.models import Enrollment, NodeCompletion, InstructorAssignment
-from apps.content.models import ContentBlock
-from apps.curriculum.activity_types import (
-    normalize_activity_type,
-    sanitize_student_block_data,
+from apps.progression.models import (
+    Announcement,
+    Enrollment,
+    InstructorAssignment,
+    NodeCompletion,
 )
+from apps.content.models import ContentBlock
+from apps.curriculum.activity_types import sanitize_student_block_data
 from apps.assessments.models import AssessmentResult
 from apps.assessments.models import Rubric
 from apps.assessments.grading_rules import (
@@ -55,6 +57,16 @@ from apps.notifications.services import NotificationService
 
 
 logger = logging.getLogger(__name__)
+
+# Learner-facing copy for ProgressionEngine lock reasons.
+LOCK_REASON_TEXT = {
+    "sequential": "Complete earlier content first",
+    "prerequisite": "Complete prerequisites first",
+    "scheduled": "Scheduled content is not yet available",
+    "drip": "This content unlocks later",
+    "expired": "Enrollment access has expired",
+    "enrollment_required": "Enrollment is required to access this content",
+}
 
 
 def _redirect_if_course_prerequisites_unmet(request, enrollment: Enrollment):
@@ -103,6 +115,15 @@ def _get_primary_instructor_payload(program: Program) -> Optional[dict]:
         "name": instructor.get_full_name() or instructor.email,
         "email": instructor.email,
     }
+
+
+def _get_program_instructor_ids(program: Program) -> set[int]:
+    """Return ids of everyone who teaches the program (assigned or listed)."""
+    assigned_ids = InstructorAssignment.objects.filter(program=program).values_list(
+        "instructor_id", flat=True
+    )
+    listed_ids = program.instructors.values_list("id", flat=True)
+    return set(assigned_ids) | set(listed_ids)
 
 
 def _normalize_assignment_mode(props: dict) -> str:
@@ -498,6 +519,7 @@ def program_view(request, pk: int):
             "node": None,
             "activeView": "overview",
             "program": program_payload,
+            "announcements": _build_overview_announcements(program),
             "instructor": primary_instructor,
             "enrollment": _build_enrollment_player_payload(enrollment, progress),
             "curriculum": curriculum_tree,
@@ -512,6 +534,34 @@ def program_view(request, pk: int):
             "unlocksAt": None,
         },
     )
+
+
+def _build_overview_announcements(program: Program, limit: int = 5) -> list:
+    """Latest course announcements for the player overview, pinned first.
+
+    The newest `limit` announcements are chosen first and only then ordered
+    pinned-first, so older pinned posts never hide new ones.
+    """
+    latest = list(
+        Announcement.objects.filter(program=program)
+        .select_related("author")
+        .order_by("-created_at", "-id")[:limit]
+    )
+    latest.sort(key=lambda announcement: not announcement.is_pinned)
+    return [
+        {
+            "id": announcement.id,
+            "title": announcement.title,
+            "content": announcement.content,
+            "isPinned": announcement.is_pinned,
+            "createdAt": announcement.created_at.isoformat(),
+            "author": {
+                # Learners see a name only, never the author's email.
+                "name": announcement.author.get_full_name() or "Course team",
+            },
+        }
+        for announcement in latest
+    ]
 
 
 @login_required
@@ -541,8 +591,14 @@ def program_resume(request, pk: int):
         target_node = _find_first_leaf_node(root_nodes)
 
     if target_node:
-        return _render_course_player(
-            request, enrollment, target_node, completions, status_map
+        from apps.learning_operations.services import record_learning_activity
+
+        record_learning_activity(enrollment, "course_player")
+        # Redirect so the player (and its partial reloads) live on the session URL.
+        return redirect(
+            "progression:student.session",
+            pk=enrollment.id,
+            node_id=target_node.id,
         )
 
     # Fallback: no curriculum nodes — show the overview
@@ -726,116 +782,6 @@ def unit_summary(request, pk: int, section_id: int):
             "lockReason": None,
             "status": "unlocked",
             "unlocksAt": None,
-        },
-    )
-
-
-def _render_course_player(request, enrollment, node, completions, status_map):
-    """
-    Helper to render the course player with a specific node.
-    Extracted to share logic between program_view and session_viewer.
-    """
-    program = enrollment.program
-    from apps.learning_operations.services import record_learning_activity
-
-    record_learning_activity(enrollment, "course_player")
-
-    # Check if completed
-    is_completed = node.id in completions
-
-    # Check unlock status
-    unlock_status = _check_unlock_status(enrollment, node)
-
-    # Hydrate properties for assessment nodes so quiz/assignment question paths render inline.
-    node_properties = _attach_quiz_results_for_request(
-        request,
-        node,
-        enrollment,
-        _hydrate_assessment_node_properties(node),
-    )
-
-    # Get content from properties
-    content_html = node_properties.get("content_html", "")
-
-    # Get curriculum tree for Sidebar
-    root_nodes = _get_published_root_nodes(program)
-
-    curriculum_tree = _build_curriculum_tree(
-        root_nodes, completions, enrollment, status_map
-    )
-
-    # Get content blocks
-    blocks = ContentBlock.objects.filter(node=node).order_by("position")
-    activity_type = normalize_activity_type(node.node_type, node_properties)
-    from apps.learning_operations.activity_progress import (
-        get_completion_policy,
-        serialize_activity_progress,
-    )
-    from apps.live_sessions.models import ScheduledLearningSession
-    from apps.live_sessions.services import serialize_session_for_student
-
-    completion_policy = get_completion_policy(node)
-    activity_progress = serialize_activity_progress(enrollment, node)
-    scheduled_session = ScheduledLearningSession.objects.filter(node=node).first()
-    scheduled_session_payload = serialize_session_for_student(
-        scheduled_session,
-        enrollment=enrollment,
-    )
-    blocks_data = [
-        {
-            "id": block.id,
-            "type": block.block_type,
-            "data": sanitize_student_block_data(block.block_type, block.data),
-        }
-        for block in blocks
-    ]
-
-    # Get siblings for navigation
-    siblings = _get_sibling_navigation(node, enrollment.id)
-
-    # Calculate progress
-    total_nodes = _get_completable_nodes_count(program)
-    progress = (len(completions) / total_nodes * 100) if total_nodes > 0 else 0
-    primary_instructor = _get_primary_instructor_payload(program)
-
-    return render(
-        request,
-        "Student/CoursePlayer",
-        {
-            "activeView": None,
-            "node": {
-                "id": node.id,
-                "title": node.title,
-                "type": node.node_type,
-                "properties": node_properties,
-                "contentHtml": content_html,
-                "description": node.description or "",
-                "blocks": blocks_data,
-                "activityType": activity_type,
-                "primaryActivity": {
-                    "type": activity_type,
-                    "properties": node_properties,
-                },
-                "supplements": blocks_data,
-                "completionPolicy": completion_policy,
-                "activityProgress": activity_progress,
-                "scheduledSession": scheduled_session_payload,
-            },
-            "program": _build_program_player_payload(program, enrollment),
-            "instructor": primary_instructor,
-            "enrollment": _build_enrollment_player_payload(enrollment, progress),
-            "curriculum": curriculum_tree,
-            "prevNode": siblings.get("prev"),
-            "nextNode": siblings.get("next"),
-            "progress": round(progress, 1),
-            "isCompleted": is_completed,
-            "isLocked": not unlock_status["is_unlocked"],
-            "status": "completed"
-            if is_completed
-            else ("unlocked" if unlock_status.get("is_unlocked") else "locked"),
-            "lockReason": unlock_status.get("lock_reason"),
-            "lockReasonText": unlock_status.get("reason"),
-            "unlocksAt": unlock_status.get("unlocks_at"),
         },
     )
 
@@ -1106,6 +1052,7 @@ def session_viewer(request, pk: int, node_id: int):
         .prefetch_related("posts__user")
         .order_by("-is_pinned", "-created_at")
     )
+    instructor_ids = _get_program_instructor_ids(enrollment.program)
     discussions_data = [
         {
             "id": thread.id,
@@ -1117,6 +1064,7 @@ def session_viewer(request, pk: int, node_id: int):
             "user": {
                 "id": thread.user.id,
                 "name": thread.user.get_full_name() or thread.user.email,
+                "isInstructor": thread.user.id in instructor_ids,
             },
             "posts": [
                 {
@@ -1126,6 +1074,7 @@ def session_viewer(request, pk: int, node_id: int):
                     "user": {
                         "id": post.user.id,
                         "name": post.user.get_full_name() or post.user.email,
+                        "isInstructor": post.user.id in instructor_ids,
                     },
                 }
                 for post in thread.posts.all()
@@ -1610,6 +1559,7 @@ def _build_curriculum_tree(
             "isCompleted": is_completed,
             "isLocked": is_locked,
             "lockReason": node_status.get("lock_reason"),
+            "lockReasonText": LOCK_REASON_TEXT.get(node_status.get("lock_reason")),
             "unlocksAt": node_status.get("unlocks_at"),
             "hasChildren": has_children,
             "children": (
@@ -1657,18 +1607,9 @@ def _check_unlock_status(enrollment: Enrollment, node: CurriculumNode) -> dict:
     engine = ProgressionEngine()
     result = engine.can_access(enrollment, node)
 
-    lock_reason_map = {
-        "sequential": "Complete earlier content first",
-        "prerequisite": "Complete prerequisites first",
-        "scheduled": "Scheduled content is not yet available",
-        "drip": "This content unlocks later",
-        "expired": "Enrollment access has expired",
-        "enrollment_required": "Enrollment is required to access this content",
-    }
-
     return {
         "is_unlocked": result.can_access,
-        "reason": lock_reason_map.get(result.lock_reason),
+        "reason": LOCK_REASON_TEXT.get(result.lock_reason),
         "lock_reason": result.lock_reason,
         "unlocks_at": result.unlocks_at.isoformat() if result.unlocks_at else None,
     }

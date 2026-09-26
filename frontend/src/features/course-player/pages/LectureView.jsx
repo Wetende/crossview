@@ -1,13 +1,21 @@
-import { useState } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { useRef, useState } from "react";
+import { Head } from "@inertiajs/react";
 import ClassroomLayout from "../layouts/ClassroomLayout";
 import CourseSidebar from "../components/Navigation/CourseSidebar";
 import StudyPanel from "../components/Tools/StudyPanel";
 import Whiteboard from "../components/Stage/Whiteboard";
 import CourseOverview from "../components/Stage/CourseOverview";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import PlayerSupportStrip from "../components/PlayerSupportStrip";
 import UnitCompletionView from "../components/Stage/UnitCompletionView";
+import { ACTIVITY_TYPES, normalizeActivityType } from "@/lib/activityTypes";
+
+const lessonHasVideo = (node) =>
+    Boolean(node) &&
+    (normalizeActivityType(node) === ACTIVITY_TYPES.VIDEO ||
+        (node.supplements || node.blocks || []).some(
+            (block) => String(block?.type || "").toUpperCase() === "VIDEO",
+        ));
 
 const LectureView = ({
     program,
@@ -23,11 +31,14 @@ const LectureView = ({
     activeView = null,
     resumeUrl = null,
     unitSummary = null,
+    announcements = [],
 }) => {
     // Local State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isDiscussionsOpen, setIsDiscussionsOpen] = useState(false);
     const [currentVideoTimestamp, setCurrentVideoTimestamp] = useState(null);
+    // VideoRenderer assigns a (seconds) => void seek function here.
+    const seekRef = useRef(null);
 
     // Handle video progress updates
     const handleVideoProgress = (state) => {
@@ -55,12 +66,25 @@ const LectureView = ({
             discussions={discussions}
             notes={notes}
             currentVideoTimestamp={currentVideoTimestamp}
+            onSeek={
+                lessonHasVideo(node)
+                    ? (seconds) => seekRef.current?.(seconds)
+                    : undefined
+            }
             onClose={() => setIsDiscussionsOpen(false)}
         />
     );
 
     const isOverview = activeView === "overview";
     const isUnitSummary = activeView === "unit_summary";
+    const isLessonView = !isOverview && !isUnitSummary && Boolean(node);
+
+    const messageInstructorHref =
+        isLessonView && instructor?.id
+            ? `/messages/new/?recipient_id=${instructor.id}&draft=${encodeURIComponent(
+                  `Question about "${node.title}" in ${program?.name || "this course"}:\n\n`,
+              )}`
+            : null;
 
     return (
         <ClassroomLayout
@@ -72,6 +96,7 @@ const LectureView = ({
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isDiscussionsOpen={isDiscussionsOpen}
             onToggleDiscussions={() => setIsDiscussionsOpen(!isDiscussionsOpen)}
+            messageInstructorHref={messageInstructorHref}
         >
             <Head
                 title={
@@ -82,25 +107,6 @@ const LectureView = ({
                           : node?.title || program?.name || "Course Player"
                 }
             />
-
-            {!isOverview && !isUnitSummary && instructor?.id && (
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        mb: 1.5,
-                    }}
-                >
-                    <Button
-                        component={Link}
-                        href={`/messages/new/?recipient_id=${instructor.id}`}
-                        variant="outlined"
-                        size="small"
-                    >
-                        Message Instructor
-                    </Button>
-                </Box>
-            )}
 
             <PlayerSupportStrip
                 gamification={enrollment?.gamification}
@@ -113,6 +119,7 @@ const LectureView = ({
                     enrollment={enrollment}
                     resumeUrl={resumeUrl}
                     curriculum={curriculum}
+                    announcements={announcements}
                 />
             ) : isUnitSummary && unitSummary ? (
                 <UnitCompletionView unit={unitSummary} />
@@ -125,6 +132,7 @@ const LectureView = ({
                     isCompleted={isCompleted}
                     discussions={discussions}
                     onVideoProgress={handleVideoProgress}
+                    seekRef={seekRef}
                 />
             ) : (
                 <Box sx={{ p: 4, textAlign: "center" }}>
