@@ -37,6 +37,7 @@ import {
 } from "../utils/builderTabs";
 
 const RIGHT_DRAWER_WIDTH = 300;
+const EMPTY_LIBRARY_VERSIONS = {};
 const getInitialTab = (program) =>
     normalizeBuilderTab(program, getRequestedBuilderTab());
 
@@ -82,7 +83,8 @@ export default function InstructorProgramBuilder({
     // Get reactive page props for curriculum updates
     const page = usePage();
 
-    const questionLibrary = page.props.questionLibrary || [];
+    const questionLibraryVersions =
+        page.props.questionLibraryVersions || EMPTY_LIBRARY_VERSIONS;
     const questionCategories = page.props.questionCategories || [];
     const questionBanks = page.props.questionBanks || [];
 
@@ -284,8 +286,8 @@ export default function InstructorProgramBuilder({
                                         onSave={handleNodeSave}
                                         blueprint={program.blueprint}
                                         programId={program.id}
-                                        questionLibrary={questionLibrary}
                                         questionBanks={questionBanks}
+                                        questionLibraryVersions={questionLibraryVersions}
                                         categories={questionCategories}
                                     />
                                 ) : (

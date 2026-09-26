@@ -5,6 +5,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import GradingIcon from "@mui/icons-material/Grading";
+import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import LogoutIcon from "@mui/icons-material/Logout";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import PaymentsIcon from "@mui/icons-material/Payments";
@@ -109,6 +110,11 @@ export const ROLE_NAVIGATION = {
                     href: "/instructor/students/",
                     icon: PeopleIcon,
                 },
+                {
+                    label: "Question Library",
+                    href: "/instructor/question-library/",
+                    icon: LibraryBooksIcon,
+                },
             ],
         },
         {
@@ -189,6 +195,11 @@ export const ROLE_NAVIGATION = {
                     label: "Categories",
                     href: "/admin/program-categories/",
                     icon: CategoryIcon,
+                },
+                {
+                    label: "Question Banks",
+                    href: "/admin/question-banks/",
+                    icon: LibraryBooksIcon,
                 },
                 {
                     label: "Rubrics",

@@ -19,6 +19,7 @@ urlpatterns = [
 
     path("", include("apps.platform.urls")),  # Platform settings routes
     path("assessments/", include("apps.assessments.urls")),
+    path("", include("apps.assessments.page_urls")),  # Question library pages
     path("content/", include("apps.content.urls")),
     path("notifications/", include("apps.notifications.urls")),  # Inertia-based notifications
     path("api/notifications/", include("apps.notifications.api_urls")),  # REST notifications API
