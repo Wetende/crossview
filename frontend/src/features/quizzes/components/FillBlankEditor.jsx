@@ -113,7 +113,7 @@ export default function FillBlankEditor({ text, gaps, onTextChange, onGapsChange
         >
           Insert blank
         </Button>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="textSecondary">
           Place your cursor where the gap should be, then click “Insert blank”.
         </Typography>
       </Box>
@@ -121,7 +121,7 @@ export default function FillBlankEditor({ text, gaps, onTextChange, onGapsChange
       <Typography variant="subtitle2" gutterBottom>
         Correct answers for each blank
       </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+      <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1.5 }}>
         Type the marking answers below. Use commas for accepted variations (example: color, colour).
       </Typography>
       <Stack spacing={2}>

@@ -93,12 +93,14 @@ export default function DocumentLessonRenderer({
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
                     spacing={1}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    sx={{
+                        justifyContent: "space-between",
+                        alignItems: { xs: "flex-start", sm: "center" },
+                    }}
                 >
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <PdfIcon color="error" fontSize="small" />
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {documentData.original_name || "Document"}
                             {pageCount > 0 ? ` • ${pageCount} pages` : ""}
                         </Typography>

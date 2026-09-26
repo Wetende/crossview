@@ -93,7 +93,7 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
             >
               Back to Blueprint
             </Button>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Edit Blueprint
             </Typography>
           </Box>
@@ -129,7 +129,7 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
             >
               Back to Blueprint
             </Button>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Edit Blueprint
             </Typography>
           </Box>
@@ -140,7 +140,7 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
 
           <Grid container spacing={3}>
             {/* Basic Info */}
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -175,7 +175,7 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
             </Grid>
 
             {/* Features */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -212,7 +212,7 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
             </Grid>
 
             {/* Hierarchy */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -223,7 +223,7 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
                     <Typography variant="h6" gutterBottom>
                       Hierarchy Structure
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                       Define exactly 2 builder levels: Container → Content. Program Level is set on the Program form.
                     </Typography>
 
@@ -306,7 +306,7 @@ export default function BlueprintEdit({ blueprint, canEdit, errors = {} }) {
             </Grid>
 
             {/* Grading Config */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

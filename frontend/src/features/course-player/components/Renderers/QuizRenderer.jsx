@@ -543,7 +543,7 @@ const QuizRenderer = ({
                 elevation={0}
                 sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper" }}
             >
-                <Typography color="text.secondary">Loading quiz...</Typography>
+                <Typography color="textSecondary">Loading quiz...</Typography>
             </Paper>
         );
     }
@@ -590,10 +590,10 @@ const QuizRenderer = ({
                     textAlign: "center",
                 }}
             >
-                <Typography variant="h5" fontWeight={600} gutterBottom>
+                <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
                     {node?.title || "Quiz"}
                 </Typography>
-                <Typography color="text.secondary" sx={{ mb: 3 }}>
+                <Typography color="textSecondary" sx={{ mb: 3 }}>
                     Open this quiz when you are ready to begin.
                 </Typography>
                 <Button
@@ -619,10 +619,10 @@ const QuizRenderer = ({
                     bgcolor: "background.paper",
                 }}
             >
-                <Typography variant="h5" fontWeight={600} gutterBottom>
+                <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
                     Quiz
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography color="textSecondary">
                     No questions have been added to this quiz yet.
                 </Typography>
             </Paper>
@@ -647,24 +647,23 @@ const QuizRenderer = ({
                     }}
                 >
                     <Box sx={{ textAlign: "center", mb: 4 }}>
-                        <Typography variant="h4" fontWeight={700} gutterBottom>
+                        <Typography
+                            variant="h4"
+                            sx={{ fontWeight: 700 }}
+                            gutterBottom
+                        >
                             Quiz Completed
                         </Typography>
 
                         <Typography
                             variant="h2"
-                            color={
-                                resultSummary.passed
-                                    ? "success.main"
-                                    : "warning.main"
-                            }
-                            fontWeight={800}
-                            sx={{ mb: 1 }}
+                            color={resultSummary.passed ? "success" : "warning"}
+                            sx={{ fontWeight: 800, mb: 1 }}
                         >
                             {Math.round(resultSummary.score)}%
                         </Typography>
 
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Attempt #{resultSummary.attemptNumber}
                             {resultSummary.maxAttempts
                                 ? ` of ${resultSummary.maxAttempts}`
@@ -679,8 +678,7 @@ const QuizRenderer = ({
                     <Stack
                         direction="row"
                         spacing={1.5}
-                        justifyContent="center"
-                        flexWrap="wrap"
+                        sx={{ justifyContent: "center", flexWrap: "wrap" }}
                     >
                         {resultSummary.passed &&
                             resultSummary.nextNode?.url && (
@@ -702,7 +700,7 @@ const QuizRenderer = ({
                             runtimeAttemptsRemaining === 0 && (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ mt: 1 }}
                                 >
                                     No retakes remaining.
@@ -730,7 +728,11 @@ const QuizRenderer = ({
                 }}
             >
                 <Box sx={{ textAlign: "center", mb: 4 }}>
-                    <Typography variant="h4" fontWeight={700} gutterBottom>
+                    <Typography
+                        variant="h4"
+                        sx={{ fontWeight: 700 }}
+                        gutterBottom
+                    >
                         Quiz Completed
                     </Typography>
 
@@ -745,16 +747,19 @@ const QuizRenderer = ({
                             variant="h2"
                             color={
                                 resultSummary.score >= 70
-                                    ? "success.main"
-                                    : "warning.main"
+                                    ? "success"
+                                    : "warning"
                             }
-                            fontWeight={800}
+                            sx={{ fontWeight: 800 }}
                         >
                             {resultSummary.score}%
                         </Typography>
                     </Box>
 
-                    <Typography color="text.secondary" paragraph>
+                    <Typography
+                        color="textSecondary"
+                        sx={{ marginBottom: "16px" }}
+                    >
                         {resultSummary.score >= 70
                             ? "Great job. You've mastered this topic."
                             : "Review the answers below and try again to improve your score."}
@@ -772,7 +777,7 @@ const QuizRenderer = ({
                 </Box>
 
                 <Box sx={{ mb: 4 }}>
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                         Review Your Answers
                     </Typography>
 
@@ -880,7 +885,7 @@ const QuizRenderer = ({
                                     </Typography>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Question {index + 1}
                                     </Typography>
@@ -888,8 +893,7 @@ const QuizRenderer = ({
 
                                 <Typography
                                     variant="body1"
-                                    fontWeight={500}
-                                    sx={{ mb: 1 }}
+                                    sx={{ fontWeight: 500, mb: 1 }}
                                 >
                                     {question.text}
                                 </Typography>
@@ -911,7 +915,7 @@ const QuizRenderer = ({
                                     {correctAnswerDisplay && (
                                         <Typography
                                             variant="body2"
-                                            color="success.main"
+                                            color="success"
                                             sx={{ mb: 0.5 }}
                                         >
                                             Correct answer:{" "}
@@ -921,7 +925,7 @@ const QuizRenderer = ({
                                     {question.explanation && (
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                             sx={{ mt: 1, fontStyle: "italic" }}
                                         >
                                             Note: {question.explanation}
@@ -996,9 +1000,8 @@ const QuizRenderer = ({
 
             <Typography
                 variant="h5"
-                fontWeight={600}
                 gutterBottom
-                sx={{ mb: 3 }}
+                sx={{ fontWeight: 600, mb: 3 }}
             >
                 {currentQuestion.text}
             </Typography>
@@ -1012,7 +1015,7 @@ const QuizRenderer = ({
             <Stack
                 direction={{ xs: "column-reverse", sm: "row" }}
                 spacing={1}
-                justifyContent="space-between"
+                sx={{ justifyContent: "space-between" }}
             >
                 <Button
                     variant="outlined"

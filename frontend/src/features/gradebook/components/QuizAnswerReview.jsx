@@ -111,7 +111,7 @@ const ManualGradeForm = ({
                     minRows={2}
                     slotProps={{ htmlInput: { maxLength: 5000 } }}
                 />
-                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
                     <Button onClick={onCancel} disabled={saving}>
                         Cancel
                     </Button>
@@ -167,7 +167,7 @@ const QuestionReviewCard = ({
     ) => {
         if (answer === null || answer === undefined) {
             return (
-                <Typography color="text.secondary" fontStyle="italic">
+                <Typography color="textSecondary" sx={{ fontStyle: "italic" }}>
                     No answer provided
                 </Typography>
             );
@@ -301,7 +301,7 @@ const QuestionReviewCard = ({
                                         ] && (
                                             <Typography
                                                 variant="caption"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                                 sx={{ ml: 2 }}
                                             >
                                                 {question.orderingExplanations[
@@ -318,7 +318,7 @@ const QuestionReviewCard = ({
             case "fill_blank":
                 // Display blanks
                 return (
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
                         {(Array.isArray(answer) ? answer : [answer]).map(
                             (blank, idx) => (
                                 <Chip
@@ -360,7 +360,7 @@ const QuestionReviewCard = ({
                     bgcolor: bgColor,
                 }}
             >
-                <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Stack direction="row" sx={{ alignItems: "center" }} spacing={1.5}>
                     {isPending ? (
                         <IconClock size={24} />
                     ) : isManuallyGraded ? (
@@ -370,7 +370,7 @@ const QuestionReviewCard = ({
                     ) : (
                         <IconCircleX size={24} color="red" />
                     )}
-                    <Typography variant="subtitle1" fontWeight="bold">
+                    <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
                         Question {questionNumber}
                     </Typography>
                     <Chip
@@ -401,7 +401,7 @@ const QuestionReviewCard = ({
             {/* Content */}
             <Box sx={{ p: 2 }}>
                 {/* Question Text */}
-                <Typography variant="body1" fontWeight="medium" sx={{ mb: 2 }}>
+                <Typography variant="body1" sx={{ fontWeight: "medium", mb: 2 }}>
                     {question.text}
                 </Typography>
 
@@ -412,7 +412,7 @@ const QuestionReviewCard = ({
                     <Box>
                         <Typography
                             variant="caption"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mb: 1, display: "block" }}
                         >
                             {isPending
@@ -434,8 +434,8 @@ const QuestionReviewCard = ({
                         <Box>
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
-                                fontWeight="medium"
+                                color="textSecondary"
+                                sx={{ fontWeight: "medium" }}
                             >
                                 Student&apos;s Answer:
                             </Typography>
@@ -447,8 +447,8 @@ const QuestionReviewCard = ({
                             <Box>
                                 <Typography
                                     variant="caption"
-                                    color="success.main"
-                                    fontWeight="medium"
+                                    color="success"
+                                    sx={{ fontWeight: "medium" }}
                                 >
                                     Correct Answer:
                                 </Typography>
@@ -464,7 +464,7 @@ const QuestionReviewCard = ({
 
                 {isManuallyGraded && gradingFeedback && (
                     <Alert severity="info" sx={{ mt: 2 }}>
-                        <Typography variant="caption" fontWeight="bold">
+                        <Typography variant="caption" sx={{ fontWeight: "bold" }}>
                             Feedback to learner
                         </Typography>
                         <Typography variant="body2">{gradingFeedback}</Typography>
@@ -506,12 +506,12 @@ const QuestionReviewCard = ({
                     >
                         <Typography
                             variant="caption"
-                            color="info.main"
-                            fontWeight="bold"
+                            color="info"
+                            sx={{ fontWeight: "bold" }}
                         >
                             Explanation:
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {explanation}
                         </Typography>
                     </Box>
@@ -566,8 +566,8 @@ export default function QuizAnswerReview({
                     "&:hover": { bgcolor: "grey.100" },
                 }}
             >
-                <Stack direction="row" alignItems="center" spacing={2}>
-                    <Typography variant="subtitle2" fontWeight="bold">
+                <Stack direction="row" sx={{ alignItems: "center" }} spacing={2}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
                         Attempt #{attemptNumber}
                     </Typography>
                     <Chip
@@ -594,13 +594,13 @@ export default function QuizAnswerReview({
                         }
                         size="small"
                     />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         {pendingCount > 0
                             ? `${pendingCount} response${pendingCount === 1 ? "" : "s"} awaiting grading`
                             : `${correctCount}/${totalQuestions} correct`}
                     </Typography>
                     {completedAt && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {new Date(completedAt).toLocaleString()}
                         </Typography>
                     )}
@@ -619,7 +619,7 @@ export default function QuizAnswerReview({
                 <Box sx={{ p: 2 }}>
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mb: 2 }}
                     >
                         Detailed answers for this attempt:

@@ -63,12 +63,12 @@ export default function ForgotPassword({ success, errors = {} }) {
                                 <Typography
                                     variant="h4"
                                     color="primary"
-                                    fontWeight={700}
+                                    sx={{ fontWeight: 700 }}
                                     gutterBottom
                                 >
                                     Forgot Password?
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary">
+                                <Typography variant="body1" color="textSecondary">
                                     Enter your email and we&apos;ll send you a reset link.
                                 </Typography>
                             </Box>
@@ -101,12 +101,14 @@ export default function ForgotPassword({ success, errors = {} }) {
                                         margin="normal"
                                         autoComplete="email"
                                         autoFocus
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <IconMail size={20} />
-                                                </InputAdornment>
-                                            ),
+                                        slotProps={{
+                                            input: {
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <IconMail size={20} />
+                                                    </InputAdornment>
+                                                ),
+                                            },
                                         }}
                                     />
 

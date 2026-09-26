@@ -80,7 +80,7 @@ export default function AudioRenderer({
                 onEnded={() => void sendEvidence("ended")}
                 sx={{ width: "100%" }}
             />
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
                 Listened: {progress?.progressPercent || 0}%
             </Typography>
             <LinearProgress

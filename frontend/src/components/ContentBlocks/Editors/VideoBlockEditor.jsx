@@ -73,7 +73,7 @@ const VideoBlockEditor = ({ data, onChange }) => {
             )}
 
             {!url && (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                     Paste a URL to see a preview.
                 </Typography>
             )}

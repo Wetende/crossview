@@ -147,7 +147,7 @@ const AdminDashboard = ({ firstName, recentActivity = [], stats = {} }) => {
                                             slotProps={{
                                                 primary: {
                                                     variant: "body2",
-                                                    fontWeight: 700,
+                                                    sx: { fontWeight: 700 },
                                                 },
                                                 secondary: {
                                                     variant: "caption",
@@ -310,14 +310,14 @@ const AdminDashboard = ({ firstName, recentActivity = [], stats = {} }) => {
                             <Box sx={{ flex: 1 }}>
                                 <Typography
                                     variant="h5"
-                                    color="primary.main"
-                                    fontWeight={700}
+                                    color="primary"
+                                    sx={{ fontWeight: 700 }}
                                 >
                                     {stats.pendingEnrollmentRequests || 0}
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Pending enrolment requests
                                 </Typography>
@@ -353,14 +353,14 @@ const AdminDashboard = ({ firstName, recentActivity = [], stats = {} }) => {
                             <Box sx={{ flex: 1 }}>
                                 <Typography
                                     variant="h5"
-                                    color="primary.main"
-                                    fontWeight={700}
+                                    color="primary"
+                                    sx={{ fontWeight: 700 }}
                                 >
                                     {stats.pendingPracticumSubmissions || 0}
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Pending practical reviews
                                 </Typography>

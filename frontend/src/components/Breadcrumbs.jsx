@@ -36,8 +36,8 @@ export default function Breadcrumbs({ items = [] }) {
                             <Typography
                                 key={index}
                                 variant="body2"
-                                color="text.primary"
-                                fontWeight={500}
+                                color="textPrimary"
+                                sx={{ fontWeight: 500 }}
                             >
                                 {item.label}
                             </Typography>
@@ -55,7 +55,7 @@ export default function Breadcrumbs({ items = [] }) {
                         >
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{
                                     "&:hover": {
                                         color: "primary.main",

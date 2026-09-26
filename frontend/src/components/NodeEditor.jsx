@@ -203,7 +203,7 @@ export default function NodeEditor({
                         {parentNode && (
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                             >
                                 Parent: {parentNode.title}
                             </Typography>
@@ -263,7 +263,7 @@ export default function NodeEditor({
                     <Typography variant="subtitle2" gutterBottom>
                         Completion Rules
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         Define how students complete this node
                     </Typography>
                     <Stack spacing={2} sx={{ mt: 1 }}>
@@ -337,7 +337,7 @@ export default function NodeEditor({
                 <Stack
                     direction="row"
                     spacing={2}
-                    justifyContent="space-between"
+                    sx={{ justifyContent: "space-between" }}
                 >
                     <Box>
                         {!isCreate && onDelete && (

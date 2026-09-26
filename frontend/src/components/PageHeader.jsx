@@ -31,7 +31,7 @@ export default function PageHeader({
                         {title}
                     </Typography>
                     {subtitle && (
-                        <Typography variant="body1" color="text.secondary">
+                        <Typography variant="body1" color="textSecondary">
                             {subtitle}
                         </Typography>
                     )}

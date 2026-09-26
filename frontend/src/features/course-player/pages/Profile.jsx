@@ -26,8 +26,8 @@ function LabeledField({ label, required, helperText, errorText, ...props }) {
   return (
     <Stack spacing={1} sx={{ width: '100%' }}>
       {label && (
-        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: -0.5 }}>
-          {label} {required && <Typography component="span" color="error.main">*</Typography>}
+        <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, mb: -0.5 }}>
+          {label} {required && <Typography component="span" color="error">*</Typography>}
         </Typography>
       )}
       <TextField
@@ -43,7 +43,7 @@ function LabeledField({ label, required, helperText, errorText, ...props }) {
         }}
       />
       {(helperText || errorText) && (
-        <Typography variant="caption" color={errorText ? 'error.main' : 'text.secondary'} sx={{ mt: 0.5 }}>
+        <Typography variant="caption" color={errorText ? 'error' : 'textSecondary'} sx={{ mt: 0.5 }}>
           {errorText || helperText}
         </Typography>
       )}
@@ -69,7 +69,7 @@ function ProfileForm({ user, errors, success }) {
       <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
         <Typography 
           variant="overline" 
-          color="text.secondary" 
+          color="textSecondary"
           sx={{ fontWeight: 600, letterSpacing: 1, display: 'block', mb: 3 }}
         >
           Profile Information
@@ -118,7 +118,7 @@ function ProfileForm({ user, errors, success }) {
               errorText={errors?.phone}
             />
 
-            <Box pt={1}>
+            <Box sx={{ pt: 1 }}>
               <Button
                 type="submit"
                 variant="contained"
@@ -168,7 +168,7 @@ function PasswordForm({ errors }) {
       <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
         <Typography 
           variant="overline" 
-          color="text.secondary" 
+          color="textSecondary"
           sx={{ fontWeight: 600, letterSpacing: 1, display: 'block', mb: 3 }}
         >
           Change Password
@@ -214,7 +214,7 @@ function PasswordForm({ errors }) {
               />
             </Stack>
 
-            <Box pt={1}>
+            <Box sx={{ pt: 1 }}>
               <Button
                 type="submit"
                 variant="outlined"
@@ -252,12 +252,12 @@ export default function Profile({ user, errors = {}, success }) {
       <Container maxWidth="md" disableGutters sx={{ mt: 2, mb: 8 }}>
         <Stack spacing={4}>
           <motion.div {...fadeIn}>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <Box>
-                <Typography variant="h5" component="h1" fontWeight={700} gutterBottom>
+                <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }} gutterBottom>
                   Profile settings
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                   Manage your account details and security
                 </Typography>
               </Box>

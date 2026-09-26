@@ -104,8 +104,8 @@ export default function EnrollmentsIndex({
       label: 'Student',
       render: (row) => (
         <Box>
-          <Typography fontWeight="medium">{row.userName}</Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography sx={{ fontWeight: 'medium' }}>{row.userName}</Typography>
+          <Typography variant="caption" color="textSecondary">
             {row.userEmail}
           </Typography>
         </Box>
@@ -172,10 +172,10 @@ export default function EnrollmentsIndex({
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Enrollments
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Manage student enrollments in programs
             </Typography>
           </Box>
@@ -211,15 +211,17 @@ export default function EnrollmentsIndex({
         {/* Filters */}
         <Card>
           <CardContent>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-end">
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-end' }}>
               <TextField
                 label="Search Student"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 size="small"
                 sx={{ minWidth: 200 }}
-                InputProps={{
-                  startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
+                slotProps={{
+                  input: {
+                    startAdornment: <SearchIcon color="action" sx={{ mr: 1 }} />,
+                  },
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleFilter()}
               />

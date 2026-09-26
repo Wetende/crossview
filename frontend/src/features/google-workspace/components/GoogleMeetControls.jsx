@@ -207,7 +207,12 @@ const GoogleMeetControls = forwardRef(function GoogleMeetControls(
                             <Stack
                                 direction={{ xs: "column", sm: "row" }}
                                 spacing={1}
-                                alignItems={{ xs: "flex-start", sm: "center" }}
+                                sx={{
+                                    alignItems: {
+                                        xs: "flex-start",
+                                        sm: "center",
+                                    },
+                                }}
                             >
                                 <span>Google Meet ready.</span>
                                 {session.calendarHtmlLink && (

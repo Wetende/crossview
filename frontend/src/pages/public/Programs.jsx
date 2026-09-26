@@ -170,12 +170,12 @@ export default function Programs({
           />
           <Container maxWidth="lg">
             <motion.div {...fadeInUp}>
-              <Typography variant="h3" fontWeight={700} gutterBottom>
+              <Typography variant="h3" sx={{ fontWeight: 700 }} gutterBottom>
                 Explore Courses
               </Typography>
               <Typography
                 variant="h6"
-                color="text.secondary"
+                color="textSecondary"
                 sx={{ maxWidth: 600, mb: 4, fontWeight: 400 }}
               >
                 Discover our diverse range of programs designed to equip you
@@ -196,18 +196,20 @@ export default function Programs({
                     onChange={(e) => setSearch(e.target.value)}
                     size="small"
                     disabled={isLoadingPrograms}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <IconSearch
-                            size={20}
-                            color={theme.palette.text.secondary}
-                          />
-                        </InputAdornment>
-                      ),
-                      sx: {
-                        bgcolor: "background.paper",
-                        borderRadius: 2,
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <IconSearch
+                              size={20}
+                              color={theme.palette.text.secondary}
+                            />
+                          </InputAdornment>
+                        ),
+                        sx: {
+                          bgcolor: "background.paper",
+                          borderRadius: 2,
+                        },
                       },
                     }}
                   />
@@ -268,7 +270,7 @@ export default function Programs({
               ) : (
                 <IconBook size={48} color={theme.palette.grey[400]} />
               )}
-              <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
+              <Typography variant="h6" color="textSecondary" sx={{ mt: 2 }}>
                 {listState.message}
               </Typography>
               {listState.showClearFilters && (
@@ -289,14 +291,14 @@ export default function Programs({
           ) : (
             <Stack spacing={4}>
               {isLoadingPrograms && (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                   Updating programs...
                 </Typography>
               )}
               {groupsToRender.map((group) => (
                 <Fragment key={group.value || group.label}>
                   <Box>
-                    <Typography variant="subtitle2" fontWeight={700}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                       {group.label}
                     </Typography>
                   </Box>
@@ -317,7 +319,7 @@ export default function Programs({
                 />
               )}
               {pagination.totalPages > 1 && (
-                <Stack direction="row" justifyContent="center" sx={{ pt: 2 }}>
+                <Stack direction="row" sx={{ justifyContent: "center", pt: 2 }}>
                   <Pagination
                     page={pagination.page || 1}
                     count={pagination.totalPages}

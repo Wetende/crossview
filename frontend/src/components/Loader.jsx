@@ -37,7 +37,7 @@ export default function Loader({
             {message && (
                 <Typography
                     variant="body2"
-                    color="text.secondary"
+                    color="textSecondary"
                     aria-live="polite"
                 >
                     {message}

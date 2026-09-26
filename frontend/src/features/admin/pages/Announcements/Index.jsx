@@ -119,7 +119,7 @@ export default function Index({ announcements = [], programs = [] }) {
                 {announcements.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">
+                      <Typography color="textSecondary">
                         No announcements yet
                       </Typography>
                       <Button
@@ -139,13 +139,13 @@ export default function Index({ announcements = [], programs = [] }) {
                         <Chip label={a.programName} size="small" variant="outlined" />
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                           {a.isPinned && (
                             <Tooltip title="Pinned">
                               <IconPin size={14} color="#f59e0b" />
                             </Tooltip>
                           )}
-                          <Typography variant="body2" fontWeight={500}>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
                             {a.title}
                           </Typography>
                         </Stack>
@@ -165,16 +165,16 @@ export default function Index({ announcements = [], programs = [] }) {
                           }}
                         />
                         {!a.message && (
-                          <Typography color="text.secondary" variant="body2">—</Typography>
+                          <Typography color="textSecondary" variant="body2">—</Typography>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                           {a.authorName}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography color="text.secondary" variant="body2">
+                        <Typography color="textSecondary" variant="body2">
                           {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
                         </Typography>
                       </TableCell>

@@ -3,12 +3,12 @@ import { Grid, Box, Skeleton, Stack } from "@mui/material";
 export default function CardGridSkeleton({ count = 3, height = 300 }) {
     return (
         <Box sx={{ py: { xs: 10, md: 14 }, bgcolor: "white" }}>
-            <Stack spacing={2} alignItems="center" sx={{ mb: 8 }}>
+            <Stack spacing={2} sx={{ alignItems: "center", mb: 8 }}>
                 <Skeleton variant="rounded" width={120} height={24} />
                 <Skeleton variant="text" width={300} height={60} />
                 <Skeleton variant="text" width={500} height={24} />
             </Stack>
-            <Grid container spacing={3} justifyContent="center">
+            <Grid container spacing={3} sx={{ justifyContent: "center" }}>
                 {Array.from({ length: count }).map((_, idx) => (
                     <Grid size={{ xs: 12, sm: 4 }} key={idx}>
                         <Box
@@ -20,7 +20,7 @@ export default function CardGridSkeleton({ count = 3, height = 300 }) {
                                 boxShadow: 1,
                             }}
                         >
-                            <Stack alignItems="center" spacing={2}>
+                            <Stack sx={{ alignItems: "center" }} spacing={2}>
                                 <Skeleton
                                     variant="circular"
                                     width={64}

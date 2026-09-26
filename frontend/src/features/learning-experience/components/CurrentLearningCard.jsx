@@ -94,12 +94,11 @@ const CurrentLearningCard = ({ enrollment, featured = false }) => {
                 <Box>
                     <Stack
                         direction="row"
-                        alignItems="center"
                         spacing={0.75}
-                        sx={{ mb: 0.75 }}
+                        sx={{ alignItems: "center", mb: 0.75 }}
                     >
                         <SchoolOutlined color="primary" sx={{ fontSize: 18 }} />
-                        <Typography variant="overline" color="text.secondary">
+                        <Typography variant="overline" color="textSecondary">
                             {enrollment.category || "Current course"}
                         </Typography>
                     </Stack>
@@ -113,7 +112,7 @@ const CurrentLearningCard = ({ enrollment, featured = false }) => {
                     {currentPosition?.title && (
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mt: 0.75 }}
                         >
                             Continue with {currentPosition.title}
@@ -129,19 +128,23 @@ const CurrentLearningCard = ({ enrollment, featured = false }) => {
                 />
 
                 {deadline && (
-                    <Stack direction="row" alignItems="flex-start" spacing={1}>
+                    <Stack
+                        direction="row"
+                        sx={{ alignItems: "flex-start" }}
+                        spacing={1}
+                    >
                         <EventOutlined
                             color="warning"
                             sx={{ fontSize: 19, mt: 0.15 }}
                         />
                         <Box>
-                            <Typography variant="body2" fontWeight={700}>
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 700 }}
+                            >
                                 {deadline.title}
                             </Typography>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 {formatDeadline(deadline)}
                             </Typography>
                         </Box>

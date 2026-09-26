@@ -71,9 +71,9 @@ export default function RubricsIndex({
       label: 'Name',
       render: (row) => (
         <Box>
-          <Typography fontWeight="medium">{row.name}</Typography>
+          <Typography sx={{ fontWeight: 'medium' }}>{row.name}</Typography>
           {row.description && (
-            <Typography variant="caption" color="text.secondary" sx={{ 
+            <Typography variant="caption" color="textSecondary" sx={{
               display: '-webkit-box',
               WebkitLineClamp: 1,
               WebkitBoxOrient: 'vertical',
@@ -108,7 +108,7 @@ export default function RubricsIndex({
       id: 'createdAt',
       label: 'Created',
       render: (row) => (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="textSecondary">
           {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '-'}
         </Typography>
       ),
@@ -141,10 +141,10 @@ export default function RubricsIndex({
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Rubrics
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Create and manage grading rubrics for practicum submissions
             </Typography>
           </Box>
@@ -168,7 +168,7 @@ export default function RubricsIndex({
               <Typography variant="h6" gutterBottom>
                 No Rubrics Yet
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
                 Create your first rubric to start grading practicum submissions.
               </Typography>
               {canCreate && (

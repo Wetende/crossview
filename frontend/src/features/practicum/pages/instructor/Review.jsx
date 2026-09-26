@@ -96,7 +96,7 @@ export default function PracticumReview({
                       <Typography variant="h5" gutterBottom>
                         {submission.nodeTitle}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         {submission.programName}
                       </Typography>
                     </Box>
@@ -111,7 +111,7 @@ export default function PracticumReview({
 
                   <Stack direction="row" spacing={4}>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="textSecondary">
                         Student
                       </Typography>
                       <Typography variant="body2">
@@ -119,7 +119,7 @@ export default function PracticumReview({
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="textSecondary">
                         Submitted
                       </Typography>
                       <Typography variant="body2">
@@ -127,7 +127,7 @@ export default function PracticumReview({
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="textSecondary">
                         File Type
                       </Typography>
                       <Typography variant="body2">
@@ -140,7 +140,7 @@ export default function PracticumReview({
                     <>
                       <Divider />
                       <Box>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                           Student Notes
                         </Typography>
                         <Typography variant="body2">{submission.notes}</Typography>
@@ -196,7 +196,7 @@ export default function PracticumReview({
               {/* Action Buttons */}
               {!isAlreadyReviewed && (
                 <Paper sx={{ p: 3 }}>
-                  <Stack direction="row" spacing={2} justifyContent="flex-end">
+                  <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
                     <Button
                       variant="outlined"
                       color="error"
@@ -240,7 +240,7 @@ export default function PracticumReview({
                 </Typography>
 
                 {previousSubmissions.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="textSecondary">
                     This is the first submission
                   </Typography>
                 ) : (
@@ -251,7 +251,7 @@ export default function PracticumReview({
                           primary={`Version ${prev.version}`}
                           secondary={
                             <>
-                              <Typography variant="caption" display="block">
+                              <Typography variant="caption" sx={{ display: 'block' }}>
                                 {new Date(prev.submittedAt).toLocaleDateString()}
                               </Typography>
                               {prev.review && (
@@ -296,7 +296,7 @@ export default function PracticumReview({
                                 : 'error.main',
                           }}
                         >
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="textSecondary">
                             Version {prev.version} •{' '}
                             {new Date(prev.review.reviewedAt).toLocaleDateString()}
                           </Typography>
@@ -307,9 +307,7 @@ export default function PracticumReview({
                             <Typography
                               variant="caption"
                               color="primary"
-                              fontWeight="bold"
-                              display="block"
-                              sx={{ mt: 0.5 }}
+                              sx={{ fontWeight: 'bold', display: 'block', mt: 0.5 }}
                             >
                               Score: {prev.review.totalScore}%
                             </Typography>

@@ -97,12 +97,12 @@ export default function ProgramsIndex({
             href={`/admin/programs/${row.id}/`}
             style={{ textDecoration: "none" }}
           >
-            <Typography fontWeight={500} color="primary" fontSize="0.875rem">
+            <Typography sx={{ fontWeight: 500, fontSize: "0.875rem" }} color="primary">
               {row.name}
             </Typography>
           </Link>
           {row.code && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="textSecondary">
               {row.code}
             </Typography>
           )}
@@ -123,7 +123,7 @@ export default function ProgramsIndex({
       id: "enrollmentCount",
       label: "Enrollments",
       render: (row) => (
-        <Typography fontSize="0.875rem" fontWeight={500}>
+        <Typography sx={{ fontSize: "0.875rem", fontWeight: 500 }}>
           {row.enrollmentCount ?? 0}
         </Typography>
       ),
@@ -233,10 +233,10 @@ export default function ProgramsIndex({
           }}
         >
           <Box>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
               Programs
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Manage academic programs and courses
             </Typography>
           </Box>
@@ -268,7 +268,7 @@ export default function ProgramsIndex({
             <Stack
               direction={{ xs: "column", md: "row" }}
               spacing={2}
-              alignItems={{ xs: "stretch", md: "flex-end" }}
+              sx={{ alignItems: { xs: "stretch", md: "flex-end" } }}
             >
               <TextField
                 label="Search"
@@ -280,10 +280,12 @@ export default function ProgramsIndex({
                   minWidth: { xs: "100%", md: 200 },
                   maxWidth: { md: 300 },
                 }}
-                InputProps={{
-                  startAdornment: (
-                    <SearchIcon color="action" sx={{ mr: 1 }} />
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <SearchIcon color="action" sx={{ mr: 1 }} />
+                    ),
+                  },
                 }}
                 onKeyPress={(e) => e.key === "Enter" && handleFilter()}
               />

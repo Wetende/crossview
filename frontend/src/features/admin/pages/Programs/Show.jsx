@@ -91,7 +91,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
             ← Back to programmes
           </Typography>
 
-	          <Stack direction="row" gap={1.25} flexWrap="wrap">
+	          <Stack direction="row" sx={{ gap: 1.25, flexWrap: 'wrap' }}>
 	            <Button
 	              onClick={handleFeaturedToggle}
 	              variant="outlined"
@@ -192,7 +192,7 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                       <Typography sx={{ fontWeight: 600, fontSize: 38, color: tokens.ink, lineHeight: 1 }}>
                         {value}
                       </Typography>
-                      <Stack direction="row" alignItems="center" gap={1} mt={1.25}>
+                      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mt: 1.25 }}>
                         <Box sx={{ width: 10, height: 3, borderRadius: '1px', bgcolor: tick }} />
                         <Typography sx={{ fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: tokens.muted }}>
                           {label}
@@ -319,9 +319,11 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                                 <ListItemText
                                     primary={check.label}
                                   secondary={!check.passed && (check.error || "Please complete this requirement before publishing.")}
-                                    primaryTypographyProps={{
-                                        color: check.passed ? 'text.primary' : 'error.main',
-                                        fontWeight: check.passed ? 'medium' : 'bold'
+                                    slotProps={{
+                                      primary: {
+                                          color: check.passed ? 'textPrimary' : 'error',
+                                          sx: { fontWeight: check.passed ? 'medium' : 'bold' },
+                                        },
                                     }}
                                 />
                             </ListItem>
@@ -380,9 +382,9 @@ export default function ProgramShow({ program, stats, instructors = [], availabl
                 }}
               />
             )}
-            renderTags={(value, getTagProps) =>
+            renderValue={(value, getItemProps) =>
               value.map((option, index) => {
-                const { key, ...tagProps } = getTagProps({ index });
+                const { key, ...tagProps } = getItemProps({ index });
                 return (
                   <Chip
                     key={key}

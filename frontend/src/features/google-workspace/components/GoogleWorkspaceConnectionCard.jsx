@@ -53,10 +53,16 @@ export default function GoogleWorkspaceConnectionCard() {
             <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={2}
-                alignItems={{ xs: "flex-start", sm: "center" }}
-                justifyContent="space-between"
+                sx={{
+                    alignItems: { xs: "flex-start", sm: "center" },
+                    justifyContent: "space-between",
+                }}
             >
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ alignItems: "center" }}
+                >
                     <Box
                         sx={{
                             width: 42,
@@ -75,8 +81,12 @@ export default function GoogleWorkspaceConnectionCard() {
                         <CalendarMonthOutlinedIcon />
                     </Box>
                     <Box>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography fontWeight={700}>
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{ alignItems: "center" }}
+                        >
+                            <Typography sx={{ fontWeight: 700 }}>
                                 Google Calendar
                             </Typography>
                             {calendarAuthorized && (
@@ -87,7 +97,7 @@ export default function GoogleWorkspaceConnectionCard() {
                                 />
                             )}
                         </Stack>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {calendarAuthorized
                                 ? connection.googleEmail
                                 : "Connect once to create Google Meet lessons."}

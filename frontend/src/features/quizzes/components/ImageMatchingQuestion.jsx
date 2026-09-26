@@ -38,7 +38,7 @@ export default function ImageMatchingQuestion({
 
     return (
         <Box>
-            <Typography fontWeight="medium" gutterBottom>
+            <Typography sx={{ fontWeight: "medium" }} gutterBottom>
                 {question.text}
             </Typography>
             <Stack spacing={2} sx={{ mt: 2 }}>

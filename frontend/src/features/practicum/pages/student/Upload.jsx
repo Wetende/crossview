@@ -76,7 +76,7 @@ function RubricDisplay({ rubric }) {
                 {rubric.description && (
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mb: 2 }}
                     >
                         {rubric.description}
@@ -92,7 +92,7 @@ function RubricDisplay({ rubric }) {
                         </ListItem>
                     ))}
                 </List>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     Maximum Total Score: {rubric.maxScore}
                 </Typography>
             </CardContent>
@@ -120,13 +120,13 @@ function CurrentSubmission({ submission }) {
                     <StatusChip status={submission.status} />
                 </Box>
                 <Stack direction="row" spacing={2}>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Type: {submission.fileType.toUpperCase()}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Size: {formatFileSize(submission.fileSize)}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Submitted:{" "}
                         {new Date(submission.submittedAt).toLocaleDateString()}
                     </Typography>
@@ -257,7 +257,7 @@ export default function PracticumUpload({
                         {node.title}
                     </Typography>
                     {node.description && (
-                        <Typography variant="body1" color="text.secondary">
+                        <Typography variant="body1" color="textSecondary">
                             {node.description}
                         </Typography>
                     )}
@@ -282,7 +282,7 @@ export default function PracticumUpload({
 
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ mb: 2 }}
                                 >
                                     Allowed file types:{" "}
@@ -326,7 +326,10 @@ export default function PracticumUpload({
                                     />
 
                                     {data.file ? (
-                                        <Stack alignItems="center" spacing={1}>
+                                        <Stack
+                                            sx={{ alignItems: "center" }}
+                                            spacing={1}
+                                        >
                                             <FileIcon
                                                 sx={{
                                                     fontSize: 48,
@@ -338,13 +341,16 @@ export default function PracticumUpload({
                                             </Typography>
                                             <Typography
                                                 variant="body2"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 {formatFileSize(data.file.size)}
                                             </Typography>
                                         </Stack>
                                     ) : (
-                                        <Stack alignItems="center" spacing={1}>
+                                        <Stack
+                                            sx={{ alignItems: "center" }}
+                                            spacing={1}
+                                        >
                                             <UploadIcon
                                                 sx={{
                                                     fontSize: 48,
@@ -399,7 +405,7 @@ export default function PracticumUpload({
                                         />
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                             sx={{ mt: 1 }}
                                         >
                                             Uploading... {progress.percentage}%

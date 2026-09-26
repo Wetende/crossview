@@ -10,7 +10,7 @@ import {
     Button,
     TextField,
 } from "@mui/material";
-import { ChatBubbleOutline, PushPin } from "@mui/icons-material";
+import { ChatBubbleOutlined, PushPin } from "@mui/icons-material";
 
 const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
     const [replyOpenByThread, setReplyOpenByThread] = useState({});
@@ -54,14 +54,18 @@ const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
                         mb: 2,
                     }}
                 >
-                    <ChatBubbleOutline
+                    <ChatBubbleOutlined
                         sx={{ fontSize: 32, color: "primary.main" }}
                     />
                 </Box>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600 }}
+                    gutterBottom
+                >
                     No discussions yet...
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     Here you can ask a question or discuss a topic
                 </Typography>
             </Box>
@@ -105,13 +109,13 @@ const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
                                 <Box sx={{ flexGrow: 1 }}>
                                     <Typography
                                         variant="subtitle2"
-                                        fontWeight={600}
+                                        sx={{ fontWeight: 600 }}
                                     >
                                         {thread.user?.name || "Anonymous"}
                                     </Typography>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         {formatTime(thread.createdAt)}
                                     </Typography>
@@ -131,15 +135,14 @@ const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
                             {thread.title && (
                                 <Typography
                                     variant="subtitle2"
-                                    fontWeight={600}
-                                    sx={{ mb: 0.5 }}
+                                    sx={{ fontWeight: 600, mb: 0.5 }}
                                 >
                                     {thread.title}
                                 </Typography>
                             )}
                             <Typography
                                 variant="body2"
-                                color="text.primary"
+                                color="textPrimary"
                                 sx={{ mb: 1 }}
                             >
                                 {thread.content}
@@ -176,14 +179,14 @@ const DiscussionsList = ({ discussions = [], onReply, disabled = false }) => {
                                                 >
                                                     <Typography
                                                         variant="caption"
-                                                        fontWeight={600}
+                                                        sx={{ fontWeight: 600 }}
                                                     >
                                                         {post.user?.name ||
                                                             "Anonymous"}
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         {formatTime(
                                                             post.createdAt,

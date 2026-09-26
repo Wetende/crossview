@@ -112,7 +112,7 @@ export default function Grade({ submission, assignment }) {
             alignItems: 'center',
           }}
         >
-          <Stack direction="row" alignItems="center" spacing={2}>
+          <Stack direction="row" sx={{ alignItems: 'center' }} spacing={2}>
             <IconButton
               component={Link}
               href={`/instructor/assignments/${assignment.id}/submissions/`}
@@ -129,7 +129,7 @@ export default function Grade({ submission, assignment }) {
               </Typography>
             </Box>
           </Stack>
-          <Stack direction="row" alignItems="center" spacing={2}>
+          <Stack direction="row" sx={{ alignItems: 'center' }} spacing={2}>
             <Typography variant="body2">
               ATTEMPT: {submission.attemptNumber || 1}
             </Typography>
@@ -157,7 +157,7 @@ export default function Grade({ submission, assignment }) {
           )}
 
           {/* Student Answer Section */}
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+          <Typography variant="subtitle2" color="textSecondary" gutterBottom>
             Answered by student:
           </Typography>
 
@@ -188,8 +188,7 @@ export default function Grade({ submission, assignment }) {
                       key={media.id}
                       direction="row"
                       spacing={1}
-                      alignItems="center"
-                      justifyContent="space-between"
+                      sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                     >
                       <Typography>{media.name}</Typography>
                       <Button
@@ -206,7 +205,7 @@ export default function Grade({ submission, assignment }) {
                 </Stack>
               </Paper>
             ) : (
-              <Typography color="text.secondary" fontStyle="italic">
+              <Typography color="textSecondary" sx={{ fontStyle: 'italic' }}>
                 No response submitted
               </Typography>
             )}
@@ -221,8 +220,7 @@ export default function Grade({ submission, assignment }) {
                       key={media.id}
                       direction="row"
                       spacing={1}
-                      alignItems="center"
-                      justifyContent="space-between"
+                      sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                     >
                       <Typography>{media.name}</Typography>
                       <Button
@@ -304,7 +302,7 @@ export default function Grade({ submission, assignment }) {
               type="number"
               value={data.score}
               onChange={(e) => setData('score', e.target.value)}
-              inputProps={{ min: 0, max: 100, step: 0.5 }}
+              slotProps={{ htmlInput: { min: 0, max: 100, step: 0.5 } }}
               sx={{ mb: 3, maxWidth: 220 }}
             />
 
@@ -328,10 +326,10 @@ export default function Grade({ submission, assignment }) {
                   gap: 0.5,
                 }}
               >
-                <Typography variant="caption" color="text.secondary" sx={{ mr: 'auto' }}>
+                <Typography variant="caption" color="textSecondary" sx={{ mr: 'auto' }}>
                   Paragraph
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                   {data.feedback.split(/\s+/).filter(Boolean).length} words
                 </Typography>
               </Box>
@@ -399,8 +397,7 @@ export default function Grade({ submission, assignment }) {
                         key={media.id}
                         direction="row"
                         spacing={1}
-                        alignItems="center"
-                        justifyContent="space-between"
+                        sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                       >
                         <Typography>{media.name}</Typography>
                         <Button

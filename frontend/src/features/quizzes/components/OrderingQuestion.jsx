@@ -30,7 +30,7 @@ export default function OrderingQuestion({ question, onChange, value = [] }) {
 
   return (
     <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+      <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
         Arrange the items in the correct order.
       </Typography>
       <Stack spacing={1}>

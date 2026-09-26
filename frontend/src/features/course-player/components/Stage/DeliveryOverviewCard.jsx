@@ -85,10 +85,10 @@ export default function DeliveryOverviewCard({
                             color="primary"
                             sx={{ mb: 1 }}
                         />
-                        <Typography variant="h6" fontWeight={800}>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>
                             {mode.title}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {mode.description}
                         </Typography>
                     </Box>
@@ -127,10 +127,10 @@ export default function DeliveryOverviewCard({
                         direction="row"
                         sx={{ justifyContent: "space-between", mb: 0.5 }}
                     >
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             Course progress
                         </Typography>
-                        <Typography variant="caption" fontWeight={700}>
+                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
                             {Math.round(progressPercent)}%
                         </Typography>
                     </Stack>
@@ -163,14 +163,14 @@ export default function DeliveryOverviewCard({
                             <EventIcon color="primary" />
                         )}
                         <Box sx={{ minWidth: 0 }}>
-                            <Typography fontWeight={700}>
+                            <Typography sx={{ fontWeight: 700 }}>
                                 {next.title}
                             </Typography>
                             <Typography
                                 component="time"
                                 dateTime={next.startsAt}
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                             >
                                 {sessionDate(next.startsAt)}
                                 {isPhysical && next.venue

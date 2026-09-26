@@ -61,9 +61,9 @@ const CertificateThumbnail = ({ template }) => (
                 }}
             />
         ) : (
-            <Stack spacing={0.75} alignItems="center" color="text.disabled">
+            <Stack spacing={0.75} sx={{ alignItems: "center", color: "text.disabled" }}>
                 <CertificateIcon sx={{ fontSize: 34 }} />
-                <Typography variant="caption" color="inherit">
+                <Typography variant="caption" sx={{ color: "inherit" }}>
                     Linked outside this course
                 </Typography>
             </Stack>
@@ -125,7 +125,7 @@ const CertificateTile = ({
             <Box sx={{ px: 1.5, py: 1.25, minHeight: 66 }}>
                 <Typography
                     variant="body2"
-                    fontWeight={750}
+                    sx={{ fontWeight: 750 }}
                     noWrap
                     title={title}
                 >
@@ -133,7 +133,7 @@ const CertificateTile = ({
                 </Typography>
                 <Typography
                     variant="caption"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ display: "block", mt: 0.25 }}
                 >
                     {subtitle}
@@ -217,10 +217,10 @@ const CertificateTemplateSelector = ({
         <>
             <Stack spacing={1.5}>
                 <Box>
-                    <Typography variant="subtitle1" fontWeight={750}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 750 }}>
                         Choose a certificate design
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Select a thumbnail for this course. Previewing a design
                         does not change your selection.
                     </Typography>
@@ -278,7 +278,7 @@ const CertificateTemplateSelector = ({
                 </Box>
 
                 {!templates.length && (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         Publish a certificate template to make it available
                         here.
                     </Typography>

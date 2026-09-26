@@ -81,7 +81,7 @@ export const WelcomePanel = ({
                 </Typography>
                 <Typography
                     variant="body1"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ mt: 1, maxWidth: 650 }}
                 >
                     {subtitle}
@@ -164,7 +164,7 @@ export const MetricCard = ({
                     </Typography>
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mt: 0.4, fontWeight: 500 }}
                     >
                         {label}
@@ -222,7 +222,7 @@ export const SectionCard = ({
                 {subtitle ? (
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mt: 0.25 }}
                     >
                         {subtitle}
@@ -273,7 +273,7 @@ export const EmptyPanel = ({
         </Typography>
         <Typography
             variant="body2"
-            color="text.secondary"
+            color="textSecondary"
             sx={{ mt: 0.75, maxWidth: 420 }}
         >
             {description}

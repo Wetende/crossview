@@ -60,21 +60,20 @@ export default function ProgramsSection({ platform, programs = [] }) {
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "#FAFAFA" }}>
             <Container maxWidth="lg">
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
+                <Stack spacing={2} sx={{ textAlign: "center", mb: 8 }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
                             Our Programs
                         </SectionLabel>
                         <Typography
                             variant="h2"
-                            fontWeight={700}
-                            sx={{ mb: 2 }}
+                            sx={{ fontWeight: 700, mb: 2 }}
                         >
                             Explore Our Courses
                         </Typography>
                         <Typography
                             variant="body1"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ maxWidth: 600, mx: "auto" }}
                         >
                             Choose from our carefully designed programs to

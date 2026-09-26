@@ -104,9 +104,8 @@ function TemplateTile({
             {!add && showName && (
                 <Typography
                     variant="body2"
-                    fontWeight={650}
                     noWrap
-                    sx={{ mt: 1, px: 0.25 }}
+                    sx={{ fontWeight: 650, mt: 1, px: 0.25 }}
                 >
                     {template.name}
                 </Typography>
@@ -137,7 +136,7 @@ function TemplatePicker({
             <DialogContent>
                 <Typography
                     variant="body2"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ mb: 2.5 }}
                 >
                     Select one of the options to continue
@@ -191,8 +190,8 @@ function AssignmentRow({ title, subtitle, assignment, onChoose }) {
             }}
         >
             <Box sx={{ minWidth: 0 }}>
-                <Typography fontWeight={700}>{title}</Typography>
-                <Typography variant="body2" color="text.secondary" noWrap>
+                <Typography sx={{ fontWeight: 700 }}>{title}</Typography>
+                <Typography variant="body2" color="textSecondary" noWrap>
                     {assignment?.templateName || subtitle}
                 </Typography>
             </Box>
@@ -246,7 +245,7 @@ function LinkingPanel({
     return (
         <Stack spacing={4}>
             <Box>
-                <Typography variant="h5" fontWeight={750} sx={{ mb: 1.5 }}>
+                <Typography variant="h5" sx={{ fontWeight: 750, mb: 1.5 }}>
                     Default certificate
                 </Typography>
                 <AssignmentRow
@@ -258,7 +257,7 @@ function LinkingPanel({
             </Box>
 
             <Box>
-                <Typography variant="h5" fontWeight={750} sx={{ mb: 1.5 }}>
+                <Typography variant="h5" sx={{ fontWeight: 750, mb: 1.5 }}>
                     Course categories
                 </Typography>
                 <Stack spacing={1}>
@@ -277,7 +276,7 @@ function LinkingPanel({
                         );
                     })}
                     {!categories.length && (
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Add course categories in platform settings first.
                         </Typography>
                     )}
@@ -285,7 +284,7 @@ function LinkingPanel({
             </Box>
 
             <Box>
-                <Typography variant="h5" fontWeight={750} sx={{ mb: 1.5 }}>
+                <Typography variant="h5" sx={{ fontWeight: 750, mb: 1.5 }}>
                     Courses
                 </Typography>
                 <Stack spacing={1}>
@@ -388,11 +387,17 @@ export default function CertificateTemplatesIndex({
             <Stack spacing={3}>
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
-                    alignItems={{ xs: "stretch", sm: "center" }}
-                    justifyContent="space-between"
-                    gap={2}
+                    sx={{
+                        alignItems: { xs: "stretch", sm: "center" },
+                        justifyContent: "space-between",
+                        gap: 2,
+                    }}
                 >
-                    <Typography variant="h3" component="h1" fontWeight={760}>
+                    <Typography
+                        variant="h3"
+                        component="h1"
+                        sx={{ fontWeight: 760 }}
+                    >
                         Certificates
                     </Typography>
                     <Button

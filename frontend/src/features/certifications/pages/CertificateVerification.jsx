@@ -79,12 +79,12 @@ const CertificateDetails = ({ certificate }) => {
                     >
                         <Typography
                             variant="overline"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ letterSpacing: "0.12em" }}
                         >
                             {label}
                         </Typography>
-                        <Typography variant="body1" fontWeight={700}>
+                        <Typography variant="body1" sx={{ fontWeight: 700 }}>
                             {value || "Not available"}
                         </Typography>
                     </Box>
@@ -136,9 +136,7 @@ export default function CertificateVerification({
                 <Container maxWidth="lg">
                     <Stack
                         direction="row"
-                        alignItems="center"
-                        justifyContent="space-between"
-                        sx={{ minHeight: 76 }}
+                        sx={{ alignItems: "center", justifyContent: "space-between", minHeight: 76 }}
                     >
                         <PlatformLogo
                             platform={platform}
@@ -157,12 +155,11 @@ export default function CertificateVerification({
             <Container maxWidth="md" sx={{ py: { xs: 6, md: 10 } }}>
                 <Stack spacing={4}>
                     <Box sx={{ maxWidth: 700 }}>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                             <IconCertificate size={30} />
                             <Typography
                                 variant="overline"
-                                fontWeight={800}
-                                sx={{ letterSpacing: "0.16em" }}
+                                sx={{ fontWeight: 800, letterSpacing: "0.16em" }}
                             >
                                 Public credential check
                             </Typography>
@@ -181,7 +178,7 @@ export default function CertificateVerification({
                         </Typography>
                         <Typography
                             variant="h6"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mt: 2, maxWidth: 620, fontWeight: 400 }}
                         >
                             Enter the serial number printed on the certificate to
@@ -204,7 +201,7 @@ export default function CertificateVerification({
                                 <Stack
                                     direction={{ xs: "column", sm: "row" }}
                                     spacing={1.5}
-                                    alignItems="flex-start"
+                                    sx={{ alignItems: "flex-start" }}
                                 >
                                     <TextField
                                         label="Certificate serial number"
@@ -255,12 +252,11 @@ export default function CertificateVerification({
                                     >
                                         <Typography
                                             variant="overline"
-                                            fontWeight={800}
-                                            sx={{ letterSpacing: "0.11em" }}
+                                            sx={{ fontWeight: 800, letterSpacing: "0.11em" }}
                                         >
                                             {presentation.eyebrow}
                                         </Typography>
-                                        <Typography variant="h5" fontWeight={800}>
+                                        <Typography variant="h5" sx={{ fontWeight: 800 }}>
                                             {presentation.title}
                                         </Typography>
                                         <Typography variant="body2" sx={{ mt: 0.5 }}>
@@ -272,20 +268,19 @@ export default function CertificateVerification({
                                         <Box sx={{ mt: 3 }}>
                                             <Stack
                                                 direction={{ xs: "column", sm: "row" }}
-                                                justifyContent="space-between"
+                                                sx={{ justifyContent: "space-between" }}
                                                 spacing={1}
                                             >
                                                 <Box>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         Certificate serial
                                                     </Typography>
                                                     <Typography
                                                         variant="h6"
-                                                        fontWeight={800}
-                                                        sx={{ wordBreak: "break-word" }}
+                                                        sx={{ fontWeight: 800, wordBreak: "break-word" }}
                                                     >
                                                         {certificate.serialNumber}
                                                     </Typography>
@@ -320,8 +315,8 @@ export default function CertificateVerification({
 
                     <Typography
                         variant="body2"
-                        color="text.secondary"
-                        textAlign="center"
+                        color="textSecondary"
+                        sx={{ textAlign: "center" }}
                     >
                         Verification confirms only the record held by {institutionName} at
                         the time of this check.

@@ -100,10 +100,10 @@ export default function Footer() {
             <Container maxWidth="lg">
                 <Grid container spacing={6}>
                     {/* Brand & Description */}
-                    <Grid item xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <Stack spacing={3}>
                             {/* Logo */}
-                            <Stack direction="row" spacing={2} alignItems="center">
+                            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                                 <PlatformLogo
                                     platform={p}
                                     fallbackName={institutionName}
@@ -155,11 +155,10 @@ export default function Footer() {
                     </Grid>
 
                     {/* Quick Links */}
-                    <Grid item xs={6} sm={3} md={2}>
+                    <Grid size={{ xs: 6, sm: 3, md: 2 }}>
                         <Typography
                             variant="subtitle1"
-                            fontWeight={700}
-                            sx={{ mb: 3 }}
+                            sx={{ fontWeight: 700, mb: 3 }}
                         >
                             Quick Links
                         </Typography>
@@ -181,11 +180,10 @@ export default function Footer() {
                     </Grid>
 
                     {/* Support Links */}
-                    <Grid item xs={6} sm={3} md={2}>
+                    <Grid size={{ xs: 6, sm: 3, md: 2 }}>
                         <Typography
                             variant="subtitle1"
-                            fontWeight={700}
-                            sx={{ mb: 3 }}
+                            sx={{ fontWeight: 700, mb: 3 }}
                         >
                             Support
                         </Typography>
@@ -207,17 +205,16 @@ export default function Footer() {
                     </Grid>
 
                     {/* Contact Info */}
-                    <Grid item xs={12} sm={6} md={4}>
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }}>
                         <Typography
                             variant="subtitle1"
-                            fontWeight={700}
-                            sx={{ mb: 3 }}
+                            sx={{ fontWeight: 700, mb: 3 }}
                         >
                             Contact Us
                         </Typography>
                         <Stack spacing={2}>
                             {contactEmail && (
-                                <Stack direction="row" spacing={2} alignItems="center">
+                                <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                                     <IconMail size={18} color={primaryColor} />
                                     <Typography
                                         variant="body2"
@@ -228,7 +225,7 @@ export default function Footer() {
                                 </Stack>
                             )}
                             {contactPhone && (
-                                <Stack direction="row" spacing={2} alignItems="center">
+                                <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                                     <IconPhone size={18} color={primaryColor} />
                                     <Typography
                                         variant="body2"
@@ -239,7 +236,7 @@ export default function Footer() {
                                 </Stack>
                             )}
                             {contactAddress && (
-                                <Stack direction="row" spacing={2} alignItems="flex-start">
+                                <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start" }}>
                                     <IconMapPin size={18} color={primaryColor} style={{ marginTop: 4 }} />
                                     <Typography
                                         variant="body2"
@@ -266,8 +263,7 @@ export default function Footer() {
                 {/* Copyright */}
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
-                    justifyContent="space-between"
-                    alignItems="center"
+                    sx={{ justifyContent: "space-between", alignItems: "center" }}
                     spacing={2}
                 >
                     <Typography

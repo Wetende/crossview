@@ -74,11 +74,11 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
             >
               Back to Blueprints
             </Button>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               {blueprint.name}
             </Typography>
             {blueprint.description && (
-              <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body1" color="textSecondary" sx={{ mt: 1 }}>
                 {blueprint.description}
               </Typography>
             )}
@@ -115,7 +115,7 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
 
         <Grid container spacing={3}>
           {/* Configuration */}
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -128,15 +128,15 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
 
                   {/* Hierarchy */}
                   <Box sx={{ mb: 3 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                       Hierarchy Structure
                     </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       {blueprint.hierarchyLabels?.map((label, i) => (
                         <Box key={i} sx={{ display: 'flex', alignItems: 'center' }}>
                           <Chip label={label} color="primary" variant="outlined" />
                           {i < blueprint.hierarchyLabels.length - 1 && (
-                            <Typography sx={{ mx: 1 }} color="text.secondary">
+                            <Typography sx={{ mx: 1 }} color="textSecondary">
                               →
                             </Typography>
                           )}
@@ -149,12 +149,12 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
 
                   {/* Grading Config */}
                   <Box sx={{ mb: 3 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                       Grading Configuration
                     </Typography>
                     <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
+                      <Grid size={6}>
+                        <Typography variant="body2" color="textSecondary">
                           Mode
                         </Typography>
                         <Typography variant="body1">
@@ -162,8 +162,8 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
                         </Typography>
                       </Grid>
                       {blueprint.gradingConfig?.passingScore && (
-                        <Grid item xs={6}>
-                          <Typography variant="body2" color="text.secondary">
+                        <Grid size={6}>
+                          <Typography variant="body2" color="textSecondary">
                             Passing Score
                           </Typography>
                           <Typography variant="body1">
@@ -178,7 +178,7 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
 
                   {/* Features */}
                   <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                       Features
                     </Typography>
                     <Stack direction="row" spacing={2}>
@@ -202,7 +202,7 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
           </Grid>
 
           {/* Stats */}
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -216,10 +216,10 @@ export default function BlueprintShow({ blueprint, programs = [], canEdit }) {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <SchoolIcon color="primary" fontSize="large" />
                     <Box>
-                      <Typography variant="h4" fontWeight="bold">
+                      <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
                         {programs.length}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         Programs using this blueprint
                       </Typography>
                     </Box>

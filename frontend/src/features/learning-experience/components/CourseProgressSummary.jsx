@@ -20,22 +20,24 @@ const CourseProgressSummary = ({
         <Box>
             <Stack
                 direction="row"
-                alignItems="baseline"
-                justifyContent="space-between"
                 spacing={2}
-                sx={{ mb: compact ? 0.75 : 1 }}
+                sx={{
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    mb: compact ? 0.75 : 1,
+                }}
             >
                 <Typography
                     variant={compact ? "caption" : "body2"}
-                    color="text.secondary"
-                    fontWeight={600}
+                    color="textSecondary"
+                    sx={{ fontWeight: 600 }}
                 >
                     {label}
                 </Typography>
                 <Typography
                     variant={compact ? "caption" : "body2"}
-                    color="text.primary"
-                    fontWeight={800}
+                    color="textPrimary"
+                    sx={{ fontWeight: 800 }}
                 >
                     {Math.round(progress)}%
                 </Typography>
@@ -55,7 +57,7 @@ const CourseProgressSummary = ({
             {!compact && (
                 <Typography
                     variant="caption"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ display: "block", mt: 0.75 }}
                 >
                     {countLabel}

@@ -25,12 +25,14 @@ export default function CourseSearch({ value, onChange, placeholder = 'Enter key
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <SearchIcon fontSize="small" color="action" />
-            </InputAdornment>
-          ),
+        slotProps={{
+          input: {
+            endAdornment: (
+              <InputAdornment position="end">
+                <SearchIcon fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+          },
         }}
         sx={{
           minWidth: 200,

@@ -83,7 +83,7 @@ export default function Global({ assignments = [], search = '', filter = 'all' }
               <Divider sx={{ width: 40, borderBottomWidth: 3, borderColor: 'primary.main', mt: 1 }} />
             </Box>
 
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
               {/* Search */}
               <form onSubmit={handleSearch}>
                 <TextField
@@ -91,12 +91,14 @@ export default function Global({ assignments = [], search = '', filter = 'all' }
                   placeholder="Search by assignment"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconSearch size={18} style={{ opacity: 0.5 }} />
-                      </InputAdornment>
-                    ),
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconSearch size={18} style={{ opacity: 0.5 }} />
+                        </InputAdornment>
+                      ),
+                    },
                   }}
                   sx={{ minWidth: 200 }}
                 />
@@ -147,7 +149,7 @@ export default function Global({ assignments = [], search = '', filter = 'all' }
                 {assignments.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                      <Typography color="text.secondary">
+                      <Typography color="textSecondary">
                         No assignments found
                       </Typography>
                     </TableCell>
@@ -169,18 +171,18 @@ export default function Global({ assignments = [], search = '', filter = 'all' }
                           >
                             {assignment.title}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" color="textSecondary">
                             — {assignment.programName}
                           </Typography>
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                           Total: {assignment.totalCount}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
                           <IconCheck size={16} color="#10b981" />
                           <Typography sx={{ color: '#10b981' }}>
                             Passed: {assignment.passedCount}
@@ -188,7 +190,7 @@ export default function Global({ assignments = [], search = '', filter = 'all' }
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
                           <IconX size={16} color="#ef4444" />
                           <Typography sx={{ color: '#ef4444' }}>
                             Non passed: {assignment.failedCount}
@@ -196,9 +198,9 @@ export default function Global({ assignments = [], search = '', filter = 'all' }
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
                           <IconClock size={16} color="#6b7280" />
-                          <Typography color="text.secondary">
+                          <Typography color="textSecondary">
                             Pending: {assignment.pendingCount}
                           </Typography>
                         </Stack>

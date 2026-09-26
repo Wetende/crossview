@@ -126,7 +126,7 @@ function TestimonialCard({ testimonial, primaryColor }) {
                 "{testimonial.quote}"
             </Typography>
 
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                 <Avatar
                     sx={{
                         width: 48,
@@ -140,8 +140,7 @@ function TestimonialCard({ testimonial, primaryColor }) {
                 <Box>
                     <Typography
                         variant="subtitle2"
-                        fontWeight={700}
-                        sx={{ color: "#1F2937" }}
+                        sx={{ fontWeight: 700, color: "#1F2937" }}
                     >
                         {testimonial.name}
                     </Typography>
@@ -161,15 +160,14 @@ export default function TestimonialsSection({ platform }) {
     return (
         <Box sx={{ py: { xs: 6, md: 8 }, bgcolor: "white" }}>
             <Container maxWidth="lg">
-                <Stack spacing={2} textAlign="center" sx={{ mb: 8 }}>
+                <Stack spacing={2} sx={{ textAlign: "center", mb: 8 }}>
                     <motion.div {...fadeInUp}>
                         <SectionLabel color={primaryColor}>
                             Testimonials
                         </SectionLabel>
                         <Typography
                             variant="h2"
-                            fontWeight={700}
-                            sx={{ mb: 2 }}
+                            sx={{ fontWeight: 700, mb: 2 }}
                         >
                             What Our Students Say
                         </Typography>

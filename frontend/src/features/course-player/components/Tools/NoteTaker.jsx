@@ -82,7 +82,7 @@ const NoteTaker = ({ nodeId, enrollmentId, notes = [], currentTime = 0, onSeek }
             {/* Notes List */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
                 {(!notes || notes.length === 0) ? (
-                    <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
+                    <Typography variant="body2" color="textSecondary" align="center" sx={{ mt: 4 }}>
                         No notes yet. Start typing above to add one!
                     </Typography>
                 ) : (

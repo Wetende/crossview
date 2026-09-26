@@ -10,13 +10,13 @@ export default function Checkout({ program, price, pendingOrder }) {
             <Card>
                 <CardContent>
                     <Stack spacing={2.5}>
-                        <Typography variant="h5" fontWeight={700}>Checkout</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>Checkout</Typography>
                         <Typography variant="body1">{program?.name}</Typography>
                         <Typography variant="h6">
                             {price?.currency || "KES"} {amountDisplay}
                         </Typography>
                         {pendingOrder?.reference && (
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 Pending order: {pendingOrder.reference}
                             </Typography>
                         )}

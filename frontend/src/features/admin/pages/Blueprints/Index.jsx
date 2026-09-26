@@ -38,10 +38,10 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Academic Blueprints
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Configure academic structures, grading, and progression rules
             </Typography>
           </Box>
@@ -67,7 +67,7 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
           ) : (
             <Grid container spacing={2}>
               {blueprints.map((blueprint, index) => (
-                <Grid item xs={12} sm={6} md={4} key={blueprint.id}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={blueprint.id}>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -77,23 +77,23 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
                       <CardContent sx={{ flex: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
                           <ArchitectureIcon color="primary" />
-                          <Typography variant="h6" fontWeight="medium">
+                          <Typography variant="h6" sx={{ fontWeight: 'medium' }}>
                             {blueprint.name}
                           </Typography>
                         </Box>
 
                         {blueprint.description && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                             {blueprint.description}
                           </Typography>
                         )}
 
                         {/* Hierarchy Preview */}
                         <Box sx={{ mb: 2 }}>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="textSecondary">
                             Hierarchy
                           </Typography>
-                          <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mt: 0.5 }}>
                             {blueprint.hierarchyLabels?.map((label, i) => (
                               <Chip
                                 key={i}
@@ -110,7 +110,7 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
                         <Stack direction="row" spacing={2}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <SchoolIcon fontSize="small" color="action" />
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                               {blueprint.programCount} programs
                             </Typography>
                           </Box>
@@ -157,12 +157,12 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
             <Typography variant="h6" gutterBottom>
               Preset Blueprints
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
               Pre-configured blueprints for common educational models
             </Typography>
             <Grid container spacing={2}>
               {presets.map((preset, index) => (
-                <Grid item xs={12} sm={6} md={4} key={preset.id}>
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={preset.id}>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -182,11 +182,11 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
                           <VerifiedIcon color="success" />
                           <Box>
-                            <Typography variant="h6" fontWeight="medium">
+                            <Typography variant="h6" sx={{ fontWeight: 'medium' }}>
                               {preset.name}
                             </Typography>
                             {preset.regulatoryBody && (
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" color="textSecondary">
                                 {preset.regulatoryBody}
                               </Typography>
                             )}
@@ -194,17 +194,17 @@ export default function BlueprintsIndex({ blueprints = [], presets = [] }) {
                         </Box>
 
                         {preset.description && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                             {preset.description}
                           </Typography>
                         )}
 
                         {/* Hierarchy Preview */}
                         <Box>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="textSecondary">
                             Hierarchy
                           </Typography>
-                          <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
+                          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mt: 0.5 }}>
                             {preset.hierarchyLabels?.map((label, i) => (
                               <Chip
                                 key={i}

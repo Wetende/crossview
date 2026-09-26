@@ -76,7 +76,7 @@ export default function PublicLayout({
                         alignItems: "center",
                     }}
                 >
-                    <Stack direction="row" spacing={2} alignItems="center">
+                    <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                         <PlatformLogo
                             platform={platform}
                             showNameWhenLogo
@@ -86,7 +86,7 @@ export default function PublicLayout({
                             nameFontWeight={600}
                         />
                     </Stack>
-                    <Stack direction="row" spacing={2} alignItems="center">
+                    <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                         <Button
                             component={Link}
                             href="/login/"
@@ -120,7 +120,7 @@ export default function PublicLayout({
                         borderColor: "divider",
                     }}
                 >
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         {platform
                             ? `Powered by LMS`
                             : `© ${new Date().getFullYear()} LMS`}
@@ -162,7 +162,7 @@ function ErrorState({ title, message }) {
             <Container maxWidth="sm" sx={{ textAlign: "center" }}>
                 <Typography
                     variant="h4"
-                    fontWeight={600}
+                    sx={{ fontWeight: 600 }}
                     color="error"
                     gutterBottom
                 >
@@ -170,7 +170,7 @@ function ErrorState({ title, message }) {
                 </Typography>
                 <Typography
                     variant="body1"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ mb: 4 }}
                 >
                     {message}

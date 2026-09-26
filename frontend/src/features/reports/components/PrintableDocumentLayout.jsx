@@ -173,10 +173,10 @@ export default function PrintableDocumentLayout({
                 ))}
               </Box>
             </Box>
-            <Typography variant="h4" fontWeight={700}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
               {report?.title}
             </Typography>
-            <Typography className="report-meta" variant="body2" color="text.secondary">
+            <Typography className="report-meta" variant="body2" color="textSecondary">
               Generated {generatedAtDisplay} by {generatedBy}
             </Typography>
           </Box>
@@ -214,7 +214,7 @@ export default function PrintableDocumentLayout({
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} align="center" sx={{ py: 5 }}>
-                    <Typography color="text.secondary">No records found</Typography>
+                    <Typography color="textSecondary">No records found</Typography>
                   </TableCell>
                 </TableRow>
               ) : (

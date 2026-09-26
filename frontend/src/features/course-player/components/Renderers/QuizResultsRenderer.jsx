@@ -116,7 +116,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                 <Typography component="h1" variant="h5">
                     Quiz results
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     {quiz.title}
                     {quiz.nodeTitle ? ` · ${quiz.nodeTitle}` : ""}
                 </Typography>
@@ -159,7 +159,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                             direction={{ xs: "column", sm: "row" }}
                             spacing={1}
                             useFlexGap
-                            flexWrap="wrap"
+                            sx={{ flexWrap: "wrap" }}
                         >
                             {hasPassedQuiz && nextNode?.url && (
                                 <Button
@@ -195,7 +195,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                         {retryMessage() && (
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ mt: 1.5 }}
                             >
                                 {retryMessage()}
@@ -209,15 +209,17 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
                     spacing={0.5}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
-                    sx={{ mb: 1.5 }}
+                    sx={{
+                        justifyContent: "space-between",
+                        alignItems: { xs: "flex-start", sm: "center" },
+                        mb: 1.5,
+                    }}
                 >
                     <Typography component="h2" variant="h6">
                         Answer review
                     </Typography>
                     {activeAttempt && (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Reviewing attempt #{activeAttempt.attemptNumber}
                         </Typography>
                     )}
@@ -231,7 +233,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
 
                 {questionReview.length === 0 ? (
                     <Paper variant="outlined" sx={{ p: 2.5 }}>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Question-level review is not available for this
                             attempt.
                         </Typography>
@@ -261,20 +263,22 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                     <Stack
                                         direction={{ xs: "column", sm: "row" }}
                                         spacing={1}
-                                        justifyContent="space-between"
-                                        alignItems={{ sm: "flex-start" }}
-                                        sx={{ mb: 1.25 }}
+                                        sx={{
+                                            justifyContent: "space-between",
+                                            alignItems: { sm: "flex-start" },
+                                            mb: 1.25,
+                                        }}
                                     >
                                         <Box>
                                             <Typography
                                                 variant="overline"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Question {index + 1}
                                             </Typography>
                                             <Typography
                                                 variant="subtitle1"
-                                                fontWeight={800}
+                                                sx={{ fontWeight: 800 }}
                                             >
                                                 {item.questionText}
                                             </Typography>
@@ -291,7 +295,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                         <Typography variant="body2">
                                             <Box
                                                 component="span"
-                                                color="text.secondary"
+                                                sx={{ color: "text.secondary" }}
                                             >
                                                 Your answer:{" "}
                                             </Box>
@@ -303,8 +307,10 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                         {correctAnswersReleased && (
                                             <Typography
                                                 variant="body2"
-                                                color="success.dark"
-                                                fontWeight={700}
+                                                sx={{
+                                                    color: "success.dark",
+                                                    fontWeight: 700,
+                                                }}
                                             >
                                                 Correct answer:{" "}
                                                 {formatReviewValue(
@@ -315,7 +321,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                         )}
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             Points:{" "}
                                             {formatPoints(item.pointsEarned)} /{" "}

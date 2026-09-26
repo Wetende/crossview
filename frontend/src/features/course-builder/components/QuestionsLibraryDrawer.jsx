@@ -151,8 +151,10 @@ export default function QuestionsLibraryDrawer({
             anchor="right"
             open={open}
             onClose={handleClose}
-            PaperProps={{
-                sx: { width: { xs: "100%", sm: 380 } },
+            slotProps={{
+                paper: {
+                    sx: { width: { xs: "100%", sm: 380 } },
+                },
             }}
         >
             <Box
@@ -173,7 +175,7 @@ export default function QuestionsLibraryDrawer({
                         justifyContent: "space-between",
                     }}
                 >
-                    <Typography variant="h6" fontWeight={600}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         Questions Library
                     </Typography>
                     <IconButton onClick={handleClose} size="small">
@@ -210,15 +212,17 @@ export default function QuestionsLibraryDrawer({
                             placeholder="Search questions"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <SearchIcon
-                                            fontSize="small"
-                                            color="action"
-                                        />
-                                    </InputAdornment>
-                                ),
+                            slotProps={{
+                                input: {
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <SearchIcon
+                                                fontSize="small"
+                                                color="action"
+                                            />
+                                        </InputAdornment>
+                                    ),
+                                },
                             }}
                         />
                         <Stack direction="row" spacing={1}>
@@ -265,14 +269,14 @@ export default function QuestionsLibraryDrawer({
                 <Box sx={{ flex: 1, overflow: "auto", p: 0 }}>
                     {filteredQuestions.length === 0 ? (
                         <Box sx={{ p: 4, textAlign: "center" }}>
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 {preloadedQuestions.length === 0
                                     ? "No questions in library yet."
                                     : "No questions match your filters."}
                             </Typography>
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ mt: 1 }}
                             >
                                 Save questions from quizzes to reuse them here.
@@ -355,7 +359,7 @@ export default function QuestionsLibraryDrawer({
                                                         />
                                                         <Typography
                                                             variant="caption"
-                                                            color="text.secondary"
+                                                            color="textSecondary"
                                                         >
                                                             {entry.category ||
                                                                 "Demo Question"}

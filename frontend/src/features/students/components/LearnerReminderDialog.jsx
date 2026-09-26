@@ -94,7 +94,7 @@ export default function LearnerReminderDialog({
                 {loading ? (
                     <Stack spacing={2} sx={{ py: 5, alignItems: "center" }}>
                         <CircularProgress aria-label="Loading reminder preview" />
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Choosing the most useful reminder for each learner…
                         </Typography>
                     </Stack>
@@ -123,19 +123,19 @@ export default function LearnerReminderDialog({
                                     <Stack spacing={1}>
                                         <Typography
                                             variant="subtitle2"
-                                            fontWeight={700}
+                                            sx={{ fontWeight: 700 }}
                                         >
                                             {reminder.learnerName}
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            fontWeight={700}
+                                            sx={{ fontWeight: 700 }}
                                         >
                                             {reminder.title}
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {reminder.message}
                                         </Typography>
@@ -145,14 +145,14 @@ export default function LearnerReminderDialog({
                         {preview.reminders.length > 25 && (
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                             >
                                 Additional learners use the same contextual
                                 selection rules.
                             </Typography>
                         )}
                         {!preview.eligible && (
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 No messages will be sent from this selection.
                             </Typography>
                         )}

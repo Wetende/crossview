@@ -43,7 +43,7 @@ export default function Index({ program, assignments }) {
           transition={{ duration: 0.5 }}
         >
           {/* Header */}
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
             <Button
               component={Link}
               href={`/instructor/programs/${program.id}/`}
@@ -54,7 +54,7 @@ export default function Index({ program, assignments }) {
             </Button>
             <Box sx={{ flex: 1 }}>
               <Typography variant="h4">Assignments</Typography>
-              <Typography color="text.secondary">{program.name}</Typography>
+              <Typography color="textSecondary">{program.name}</Typography>
             </Box>
             <Button
               component={Link}
@@ -84,7 +84,7 @@ export default function Index({ program, assignments }) {
                 {assignments.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
+                      <Typography color="textSecondary">
                         No assignments yet.
                       </Typography>
                     </TableCell>
@@ -93,12 +93,12 @@ export default function Index({ program, assignments }) {
                   assignments.map((a) => (
                     <TableRow key={a.id} hover>
                       <TableCell>
-                        <Typography fontWeight="medium">{a.title}</Typography>
+                        <Typography sx={{ fontWeight: 'medium' }}>{a.title}</Typography>
                       </TableCell>
                       <TableCell>{a.weight}%</TableCell>
                       <TableCell>
                         {a.dueDate ? (
-                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <Stack direction="row" sx={{ alignItems: 'center' }} spacing={0.5}>
                             <IconClock size={14} />
                             <span>{new Date(a.dueDate).toLocaleDateString()}</span>
                           </Stack>
@@ -129,7 +129,7 @@ export default function Index({ program, assignments }) {
                           />
                         )}
                         {a.submissionCount === 0 && (
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="textSecondary">
                             None yet
                           </Typography>
                         )}
@@ -142,7 +142,7 @@ export default function Index({ program, assignments }) {
                         />
                       </TableCell>
                       <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                           <Button
                             component={Link}
                             href={

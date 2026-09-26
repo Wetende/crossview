@@ -193,7 +193,7 @@ export default function ProgramManageCard({
                 >
                     <Typography
                         variant="caption"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{
                             minWidth: 0,
                             overflow: "hidden",
@@ -222,8 +222,8 @@ export default function ProgramManageCard({
 
                 <Typography
                     variant="subtitle1"
-                    fontWeight={600}
                     sx={{
+                        fontWeight: 600,
                         mb: 1.5,
                         display: "-webkit-box",
                         WebkitLineClamp: 2,
@@ -254,18 +254,18 @@ export default function ProgramManageCard({
                         mb: 2,
                     }}
                 >
-                    <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                         <Rating
                             value={program.rating || 0}
                             precision={0.1}
                             size="small"
                             readOnly
                         />
-                        <Typography variant="body2" fontWeight={600} color="text.secondary">
+                        <Typography variant="body2" sx={{ fontWeight: 600 }} color="textSecondary">
                             {program.rating?.toFixed(1) || "0.0"} ({reviewCount})
                         </Typography>
                     </Stack>
-                    <Stack direction="column" alignItems="flex-end" spacing={-0.5}>
+                    <Stack direction="column" sx={{ alignItems: "flex-end" }} spacing={-0.5}>
                         {priceInfo.hasDiscount && (
                             <Typography
                                 variant="caption"
@@ -281,9 +281,8 @@ export default function ProgramManageCard({
                         )}
                         <Typography
                             variant="subtitle1"
-                            fontWeight={800}
-                            color="text.primary"
-                            sx={{ whiteSpace: "nowrap" }}
+                            color="textPrimary"
+                            sx={{ fontWeight: 800, whiteSpace: "nowrap" }}
                         >
                             {priceInfo.text}
                         </Typography>
@@ -302,7 +301,7 @@ export default function ProgramManageCard({
                 >
                     <Typography
                         variant="caption"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{
                             minWidth: 0,
                             overflow: "hidden",
@@ -336,9 +335,11 @@ export default function ProgramManageCard({
                         onClick={(event) => event.stopPropagation()}
                         transformOrigin={{ horizontal: "right", vertical: "bottom" }}
                         anchorOrigin={{ horizontal: "right", vertical: "top" }}
-                        PaperProps={{
-                            elevation: 3,
-                            sx: { mt: 0.5, minWidth: 190, borderRadius: 2 },
+                        slotProps={{
+                            paper: {
+                                elevation: 3,
+                                sx: { mt: 0.5, minWidth: 190, borderRadius: 2 },
+                            },
                         }}
                     >
                         {isPublished && (
@@ -346,7 +347,7 @@ export default function ProgramManageCard({
                                 <ListItemIcon>
                                     <IconFileDescription size={18} color={theme.palette.primary.main} />
                                 </ListItemIcon>
-                                <ListItemText primaryTypographyProps={{ variant: "body2", color: theme.palette.primary.main, fontWeight: 500 }}>
+                                <ListItemText slotProps={{ primary: { variant: "body2", sx: { color: theme.palette.primary.main, fontWeight: 500 } } }}>
                                     Move to drafts
                                 </ListItemText>
                             </MenuItem>
@@ -356,7 +357,7 @@ export default function ProgramManageCard({
                             <ListItemIcon>
                                 <IconPencil size={18} color={theme.palette.text.secondary} />
                             </ListItemIcon>
-                            <ListItemText primaryTypographyProps={{ variant: "body2", color: "text.secondary", fontWeight: 500 }}>
+                            <ListItemText slotProps={{ primary: { variant: "body2", color: "textSecondary", sx: { fontWeight: 500 } } }}>
                                 Edit
                             </ListItemText>
                         </MenuItem>

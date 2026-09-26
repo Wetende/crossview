@@ -84,10 +84,10 @@ export default function Register({
                     <motion.div {...fadeInUp}>
                         <Card sx={{ maxWidth: 440, width: "100%" }}>
                             <CardContent sx={{ p: 4, textAlign: "center" }}>
-                                <Typography variant="h5" fontWeight={600} gutterBottom>
+                                <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
                                     Registration Closed
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                                <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
                                     Self-registration is currently disabled for this institution.
                                     Please contact your administrator for access.
                                 </Typography>
@@ -135,12 +135,12 @@ export default function Register({
                                 <Typography
                                     variant="h4"
                                     color="primary"
-                                    fontWeight={700}
+                                    sx={{ fontWeight: 700 }}
                                     gutterBottom
                                 >
                                     {institutionName}
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary">
+                                <Typography variant="body1" color="textSecondary">
                                     Create your account to get started
                                 </Typography>
                             </Box>
@@ -164,7 +164,7 @@ export default function Register({
                                         />
                                     </Box>
                                     <Divider sx={{ mb: 2 }}>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" color="textSecondary">
                                             or create account with email
                                         </Typography>
                                     </Divider>
@@ -183,12 +183,14 @@ export default function Register({
                                         helperText={errors.first_name}
                                         margin="normal"
                                         autoFocus
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <IconUser size={20} />
-                                                </InputAdornment>
-                                            ),
+                                        slotProps={{
+                                            input: {
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <IconUser size={20} />
+                                                    </InputAdornment>
+                                                ),
+                                            },
                                         }}
                                     />
                                     <TextField
@@ -212,12 +214,14 @@ export default function Register({
                                     helperText={errors.email}
                                     margin="normal"
                                     autoComplete="email"
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconMail size={20} />
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconMail size={20} />
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
 
@@ -231,23 +235,25 @@ export default function Register({
                                     helperText={errors.password}
                                     margin="normal"
                                     autoComplete="new-password"
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconLock size={20} />
-                                            </InputAdornment>
-                                        ),
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    edge="end"
-                                                    aria-label={showPassword ? "Hide password" : "Show password"}
-                                                >
-                                                    {showPassword ? <IconEyeOff size={20} /> : <IconEye size={20} />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconLock size={20} />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        edge="end"
+                                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                                    >
+                                                        {showPassword ? <IconEyeOff size={20} /> : <IconEye size={20} />}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
 
@@ -260,7 +266,7 @@ export default function Register({
                                             color={passwordStrength.color}
                                             sx={{ height: 6, borderRadius: 3 }}
                                         />
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" color="textSecondary">
                                             {passwordStrength.label}
                                         </Typography>
                                     </Box>
@@ -276,28 +282,30 @@ export default function Register({
                                     helperText={errors.password_confirm}
                                     margin="normal"
                                     autoComplete="new-password"
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconLock size={20} />
-                                            </InputAdornment>
-                                        ),
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowConfirm(!showConfirm)}
-                                                    edge="end"
-                                                    aria-label={showConfirm ? "Hide password" : "Show password"}
-                                                >
-                                                    {showConfirm ? <IconEyeOff size={20} /> : <IconEye size={20} />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconLock size={20} />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={() => setShowConfirm(!showConfirm)}
+                                                        edge="end"
+                                                        aria-label={showConfirm ? "Hide password" : "Show password"}
+                                                    >
+                                                        {showConfirm ? <IconEyeOff size={20} /> : <IconEye size={20} />}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
 
                                 {/* Password Requirements */}
-                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, mb: 3 }}>
+                                <Typography variant="caption" color="textSecondary" sx={{ display: "block", mt: 1, mb: 3 }}>
                                     Password must be at least 8 characters with uppercase, lowercase, and a number.
                                 </Typography>
 
@@ -312,7 +320,7 @@ export default function Register({
                                     {processing ? "Creating Account..." : "Create Account"}
                                 </Button>
 
-                                <Typography variant="body2" textAlign="center" color="text.secondary">
+                                <Typography variant="body2" sx={{ textAlign: "center" }} color="textSecondary">
                                     Already have an account?{" "}
                                     <Link href={loginUrl} style={{ color: "inherit", fontWeight: 600 }}>
                                         Sign In

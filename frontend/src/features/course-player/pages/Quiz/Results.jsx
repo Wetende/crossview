@@ -40,7 +40,7 @@ export default function Results({ quiz, attempts, canRetry }) {
           transition={{ duration: 0.5 }}
         >
           {/* Header */}
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
             <Button
               component={Link}
               href="/dashboard/"
@@ -54,7 +54,7 @@ export default function Results({ quiz, attempts, canRetry }) {
           <Typography variant="h4" gutterBottom>
             Quiz Results
           </Typography>
-          <Typography color="text.secondary" gutterBottom>
+          <Typography color="textSecondary" gutterBottom>
             {quiz.title} • {quiz.nodeTitle}
           </Typography>
 
@@ -67,7 +67,7 @@ export default function Results({ quiz, attempts, canRetry }) {
                 bgcolor: bestAttempt.passed ? 'success.light' : 'error.light',
               }}
             >
-              <Stack direction="row" alignItems="center" spacing={3}>
+              <Stack direction="row" sx={{ alignItems: 'center' }} spacing={3}>
                 {bestAttempt.passed ? (
                   <IconCheck size={48} color="green" />
                 ) : (
@@ -83,11 +83,11 @@ export default function Results({ quiz, attempts, canRetry }) {
                   </Typography>
                 </Box>
                 <Box sx={{ flex: 1 }} />
-                <Box textAlign="right">
+                <Box sx={{ textAlign: 'right' }}>
                   <Typography variant="body2">
                     {formatPoints(bestAttempt.pointsEarned)} / {formatPoints(bestAttempt.pointsPossible)} points
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="textSecondary">
                     Best of {attempts.length} attempt{attempts.length > 1 ? 's' : ''}
                   </Typography>
                 </Box>

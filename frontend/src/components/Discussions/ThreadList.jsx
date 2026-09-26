@@ -149,7 +149,7 @@ const ThreadList = ({
                             >
                                 <Typography
                                     variant="subtitle1"
-                                    fontWeight="bold"
+                                    sx={{ fontWeight: "bold" }}
                                 >
                                     {thread.title}
                                 </Typography>
@@ -163,7 +163,7 @@ const ThreadList = ({
                             </Box>
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 noWrap
                             >
                                 {thread.content}

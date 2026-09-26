@@ -34,15 +34,13 @@ function CopyField({ label, value }) {
     return (
         <Stack
             direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            sx={{ py: 0.75 }}
+            sx={{ justifyContent: "space-between", alignItems: "center", py: 0.75 }}
         >
             <Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                     {label}
                 </Typography>
-                <Typography variant="body1" fontWeight={600}>
+                <Typography variant="body1" sx={{ fontWeight: 600 }}>
                     {value || "—"}
                 </Typography>
             </Box>
@@ -75,7 +73,7 @@ export default function OfflineInstructions({ offlinePayment, orderReference }) 
 
             <Card variant="outlined" sx={{ borderRadius: 2 }}>
                 <CardContent>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
                         Bank Transfer Details
                     </Typography>
 
@@ -96,7 +94,7 @@ export default function OfflineInstructions({ offlinePayment, orderReference }) 
 
                     <CopyField label="Payment Reference" value={orderReference} />
 
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                    <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: "block" }}>
                         Please include this reference in your transfer description
                         so we can match your payment.
                     </Typography>
@@ -106,12 +104,12 @@ export default function OfflineInstructions({ offlinePayment, orderReference }) 
             {instructions && (
                 <Card variant="outlined" sx={{ borderRadius: 2 }}>
                     <CardContent>
-                        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                             Additional Instructions
                         </Typography>
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ whiteSpace: "pre-wrap" }}
                         >
                             {instructions}

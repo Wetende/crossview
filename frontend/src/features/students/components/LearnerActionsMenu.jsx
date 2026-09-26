@@ -62,7 +62,9 @@ export default function LearnerActionsMenu({
                 anchorEl={anchor}
                 open={Boolean(anchor)}
                 onClose={() => setAnchor(null)}
-                MenuListProps={{ "aria-label": `Actions for ${learner.name}` }}
+                slotProps={{
+                    list: { "aria-label": `Actions for ${learner.name}` },
+                }}
             >
                 {actions.map((action, index) => [
                     index === 2 && actions.length > 2 ? (

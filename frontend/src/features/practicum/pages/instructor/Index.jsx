@@ -78,7 +78,7 @@ export default function PracticumIndex({ submissions, filters, programs }) {
             <Typography variant="h4" component="h1" gutterBottom>
               Practicum Submissions
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Review student practicum submissions
             </Typography>
           </Box>
@@ -137,7 +137,7 @@ export default function PracticumIndex({ submissions, filters, programs }) {
                 {submissions.results.map((submission) => (
                   <TableRow key={submission.id} hover>
                     <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
+                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                         {submission.studentName}
                       </Typography>
                     </TableCell>
@@ -176,7 +176,7 @@ export default function PracticumIndex({ submissions, filters, programs }) {
                 {submissions.results.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
+                      <Typography color="textSecondary">
                         No submissions found
                       </Typography>
                     </TableCell>

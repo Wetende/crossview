@@ -120,7 +120,7 @@ export default function View({
           transition={{ duration: 0.5 }}
         >
           {/* Header */}
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 3 }}>
             <Button
               component={Link}
               href={backUrl}
@@ -138,12 +138,12 @@ export default function View({
 
           <Grid container spacing={3}>
             {/* Main Content */}
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <Paper sx={{ p: 4 }}>
                 <Typography variant="h4" gutterBottom>
                   {assignment.title}
                 </Typography>
-                <Typography color="text.secondary" gutterBottom>
+                <Typography color="textSecondary" gutterBottom>
                   {assignment.programName} • Weight: {assignment.weight}%
                 </Typography>
 
@@ -176,7 +176,7 @@ export default function View({
                   Materials
                 </Typography>
                 {(assignment.materials || []).length === 0 ? (
-                  <Typography color="text.secondary">No materials attached.</Typography>
+                  <Typography color="textSecondary">No materials attached.</Typography>
                 ) : (
                   <Stack spacing={1}>
                     {(assignment.materials || []).map((material, idx) => {
@@ -202,14 +202,14 @@ export default function View({
             </Grid>
 
             {/* Sidebar */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Card sx={{ mb: 3 }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     Attempt Summary
                   </Typography>
                   <Stack spacing={1}>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                       {effectiveMaxAttempts === null
                         ? "Unlimited attempts"
                         : `${effectiveAttemptsRemaining ?? 0} of ${effectiveMaxAttempts} attempts remaining`}
@@ -228,7 +228,7 @@ export default function View({
                         )}
                       </>
                     ) : (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         No graded official result yet.
                       </Typography>
                     )}
@@ -259,11 +259,11 @@ export default function View({
                         }
                         color={submission.status === 'graded' ? 'success' : 'default'}
                       />
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         Attempt #{submission.attemptNumber}
                       </Typography>
                       {submission.submittedAt && (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                           Submitted: {new Date(submission.submittedAt).toLocaleString()}
                         </Typography>
                       )}
@@ -308,7 +308,7 @@ export default function View({
                       {attempts.map((attempt) => (
                         <Paper key={attempt.id} variant="outlined" sx={{ p: 1.5 }}>
                           <Stack spacing={1}>
-                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
                               <Typography variant="subtitle2">
                                 Attempt #{attempt.attemptNumber}
                               </Typography>
@@ -318,7 +318,7 @@ export default function View({
                               <Chip label={attempt.status} size="small" variant="outlined" />
                             </Stack>
                             {attempt.submittedAt && (
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" color="textSecondary">
                                 {new Date(attempt.submittedAt).toLocaleString()}
                               </Typography>
                             )}
@@ -334,8 +334,7 @@ export default function View({
                                     key={media.id}
                                     direction="row"
                                     spacing={1}
-                                    alignItems="center"
-                                    justifyContent="space-between"
+                                    sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                                   >
                                     <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
                                       {media.name}
@@ -421,12 +420,12 @@ export default function View({
                                 accept={assignment.allowedFileTypes?.map(t => `.${t}`).join(',')}
                               />
                               {assignment.allowedFileTypes?.length > 0 && (
-                                <Typography variant="caption" color="text.secondary" display="block">
+                                <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                                   Allowed: {assignment.allowedFileTypes.join(', ')}
                                 </Typography>
                               )}
                               {assignment.maxFileSizeMb ? (
-                                <Typography variant="caption" color="text.secondary" display="block">
+                                <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                                   Max size: {assignment.maxFileSizeMb} MB
                                 </Typography>
                               ) : null}

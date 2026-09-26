@@ -28,7 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
 import DashboardLayout from '@/layouts/DashboardLayout';
@@ -148,10 +148,10 @@ export default function RubricForm({
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               {mode === 'create' ? 'Create Rubric' : 'Edit Rubric'}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Define grading criteria for practicum submissions
             </Typography>
           </Box>
@@ -207,14 +207,14 @@ export default function RubricForm({
                   label="Scope"
                 >
                   <MenuItem value="course">
-                    <Stack direction="row" spacing={1} alignItems="center">
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <span>Course</span>
                       <Chip label="Your assignments" size="small" />
                     </Stack>
                   </MenuItem>
                   {canCreateProgram && (
                     <MenuItem value="program">
-                      <Stack direction="row" spacing={1} alignItems="center">
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <span>Program</span>
                         <Chip label="Program-wide" size="small" color="primary" />
                       </Stack>
@@ -222,7 +222,7 @@ export default function RubricForm({
                   )}
                   {canCreateGlobal && (
                     <MenuItem value="global">
-                      <Stack direction="row" spacing={1} alignItems="center">
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <span>Global</span>
                         <Chip label="System-wide" size="small" color="secondary" />
                       </Stack>
@@ -269,7 +269,7 @@ export default function RubricForm({
                 type="number"
                 value={maxScore}
                 onChange={(e) => setMaxScore(e.target.value)}
-                inputProps={{ min: 1, max: 1000 }}
+                slotProps={{ htmlInput: { min: 1, max: 1000 } }}
                 sx={{ maxWidth: 200 }}
                 helperText="Maximum possible score for this rubric"
               />
@@ -283,7 +283,7 @@ export default function RubricForm({
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Box>
                 <Typography variant="h6">Grading Dimensions</Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                   Define the criteria and their weights
                 </Typography>
               </Box>
@@ -315,7 +315,7 @@ export default function RubricForm({
                       variant="outlined" 
                       sx={{ p: 2, bgcolor: 'grey.50' }}
                     >
-                      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-start">
+                      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-start' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
                           <DragIndicatorIcon />
                         </Box>
@@ -338,7 +338,7 @@ export default function RubricForm({
                           onChange={(e) => handleDimensionChange(index, 'weight', e.target.value)}
                           size="small"
                           sx={{ width: 120 }}
-                          inputProps={{ min: 0, max: 1, step: 0.05 }}
+                          slotProps={{ htmlInput: { min: 0, max: 1, step: 0.05 } }}
                           helperText={`${(dim.weight * 100).toFixed(0)}%`}
                         />
                         
@@ -349,7 +349,7 @@ export default function RubricForm({
                           onChange={(e) => handleDimensionChange(index, 'max_score', e.target.value)}
                           size="small"
                           sx={{ width: 120 }}
-                          inputProps={{ min: 1, max: 1000 }}
+                          slotProps={{ htmlInput: { min: 1, max: 1000 } }}
                         />
                         
                         <IconButton 
@@ -358,7 +358,7 @@ export default function RubricForm({
                           disabled={dimensions.length <= 1}
                           sx={{ mt: { xs: 0, md: 0.5 } }}
                         >
-                          <DeleteOutlineIcon />
+                          <DeleteOutlinedIcon />
                         </IconButton>
                       </Stack>
                     </Paper>
@@ -372,8 +372,8 @@ export default function RubricForm({
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Typography 
                 variant="body2" 
-                color={weightWarning ? 'warning.main' : 'success.main'}
-                fontWeight="medium"
+                color={weightWarning ? 'warning' : 'success'}
+                sx={{ fontWeight: 'medium' }}
               >
                 Total Weight: {(totalWeight * 100).toFixed(0)}%
               </Typography>

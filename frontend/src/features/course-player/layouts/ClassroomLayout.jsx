@@ -17,7 +17,7 @@ import {
     Close as CloseIcon,
     DarkMode,
     LightMode,
-    ChatBubbleOutline,
+    ChatBubbleOutlined,
 } from "@mui/icons-material";
 import ThemeProvider, { useThemeMode } from "@/theme";
 
@@ -100,7 +100,7 @@ const ClassroomLayoutInner = ({
                         >
                             <MenuIcon fontSize="small" />
                             {!isMobile && (
-                                <Typography variant="body2" fontWeight={500}>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                     Curriculum
                                 </Typography>
                             )}
@@ -119,16 +119,15 @@ const ClassroomLayoutInner = ({
                             >
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ lineHeight: 1 }}
                                 >
                                     Course
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    fontWeight={600}
                                     noWrap
-                                    sx={{ maxWidth: 300, color: "text.primary" }}
+                                    sx={{ fontWeight: 600, maxWidth: 300, color: "text.primary" }}
                                 >
                                     {programTitle}
                                 </Typography>
@@ -153,7 +152,7 @@ const ClassroomLayoutInner = ({
                         {hasRightPanel && (
                             <Button
                                 size="small"
-                                startIcon={!isMobile && <ChatBubbleOutline fontSize="small" />}
+                                startIcon={!isMobile && <ChatBubbleOutlined fontSize="small" />}
                                 onClick={onToggleDiscussions}
                                 sx={{
                                     textTransform: "none",
@@ -164,7 +163,7 @@ const ClassroomLayoutInner = ({
                                     px: isMobile ? 1 : 2,
                                 }}
                             >
-                                {isMobile ? <ChatBubbleOutline fontSize="small" /> : 'Discussions'}
+                                {isMobile ? <ChatBubbleOutlined fontSize="small" /> : 'Discussions'}
                             </Button>
                         )}
                     </Box>

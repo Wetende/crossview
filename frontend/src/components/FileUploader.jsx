@@ -206,7 +206,7 @@ export default function FileUploader({
                 <UploadIcon
                     sx={{ fontSize: 40, color: "text.secondary", mb: 1 }}
                 />
-                <Typography variant="body2" color="text.secondary" gutterBottom>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
                     Drag & drop files here or click to browse
                 </Typography>
                 <Button
@@ -235,7 +235,7 @@ export default function FileUploader({
                         variant="determinate"
                         value={uploadProgress}
                     />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         Uploading...
                     </Typography>
                 </Box>
@@ -272,7 +272,7 @@ export default function FileUploader({
                             <ListItemText
                                 primary={file.name}
                                 secondary={formatFileSize(file.size)}
-                                primaryTypographyProps={{ noWrap: true }}
+                                slotProps={{ primary: { noWrap: true } }}
                             />
                             <ListItemSecondaryAction>
                                 <IconButton

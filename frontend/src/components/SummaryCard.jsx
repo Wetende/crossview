@@ -24,27 +24,28 @@ export default function SummaryCard({
             <CardContent>
                 <Stack
                     direction="row"
-                    justifyContent="space-between"
-                    alignItems="flex-start"
+                    sx={{
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                    }}
                 >
                     <Box>
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             gutterBottom
                         >
                             {title}
                         </Typography>
-                        <Typography variant="h4" fontWeight={700}>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
                             {value}
                         </Typography>
 
                         {trend && (
                             <Stack
                                 direction="row"
-                                alignItems="center"
                                 spacing={0.5}
-                                sx={{ mt: 1 }}
+                                sx={{ alignItems: "center", mt: 1 }}
                             >
                                 {isPositiveTrend ? (
                                     <IconTrendingUp size={16} color="green" />
@@ -54,11 +55,9 @@ export default function SummaryCard({
                                 <Typography
                                     variant="caption"
                                     color={
-                                        isPositiveTrend
-                                            ? "success.main"
-                                            : "error.main"
+                                        isPositiveTrend ? "success" : "error"
                                     }
-                                    fontWeight={500}
+                                    sx={{ fontWeight: 500 }}
                                 >
                                     {isPositiveTrend ? "+" : ""}
                                     {trend.value}%
@@ -66,7 +65,7 @@ export default function SummaryCard({
                                 {trend.label && (
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         {trend.label}
                                     </Typography>
