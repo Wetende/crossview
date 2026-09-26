@@ -328,7 +328,9 @@ PLATFORM_PUBLIC_BASE_URL = os.getenv("PLATFORM_PUBLIC_BASE_URL", "").strip().rst
 # AI course-authoring connector (remote MCP server with OAuth). Disabled until
 # acceptance; enabling it in production requires approval.
 AI_CONNECTOR_ENABLED = os.getenv("AI_CONNECTOR_ENABLED", "False").lower() == "true"
-AI_CONNECTOR_V2_ENABLED = os.getenv("AI_CONNECTOR_V2_ENABLED", "False").lower() == "true"
+# Keep one production enable switch. Existing V2 checks continue to use this
+# internal alias, but a separate AI_CONNECTOR_V2_ENABLED env value is ignored.
+AI_CONNECTOR_V2_ENABLED = AI_CONNECTOR_ENABLED
 # Public origin used for OAuth issuer and MCP resource URLs. When blank, the
 # validated request host is used.
 AI_CONNECTOR_BASE_URL = os.getenv("AI_CONNECTOR_BASE_URL", "").strip().rstrip("/")

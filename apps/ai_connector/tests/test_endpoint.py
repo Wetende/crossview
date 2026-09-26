@@ -44,6 +44,9 @@ class MCPClientMixin:
 
 
 class FeatureFlagTests(TestCase):
+    def test_expanded_tools_use_the_same_enable_switch(self):
+        self.assertEqual(settings.AI_CONNECTOR_V2_ENABLED, settings.AI_CONNECTOR_ENABLED)
+
     @override_settings(AI_CONNECTOR_ENABLED=False)
     def test_everything_is_hidden_when_disabled(self):
         for method, url in [

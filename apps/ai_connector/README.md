@@ -5,8 +5,8 @@ they manage. The AI app does the reasoning and writing; this application exposes
 a small set of permission-checked course tools over a remote MCP endpoint and
 saves only changes the trainer has previewed and confirmed in the chat.
 
-No AI provider API key is held by this application. Expanded V2 tools are
-independently disabled by default with `AI_CONNECTOR_V2_ENABLED=False`.
+No AI provider API key is held by this application. One production switch,
+`AI_CONNECTOR_ENABLED`, controls both the original and expanded tools.
 
 ## How it works
 
@@ -64,11 +64,11 @@ AI app ──OAuth (PKCE)──> /o/authorize, /o/token   (Django OAuth Toolkit)
 | `create_quiz` | New quiz with 1–50 questions and builder default settings (weight 0%). |
 | `add_questions` / `update_question` | Single choice, multiple choice and true/false. Existing questions, option IDs, settings and attempts are never removed. |
 
-V1 still works independently of the V2 flag. With V2 enabled, the existing
-course-change flow can also append modules and show/hide individual modules or
-items without deleting them. Hiding a module may hide its children from learners.
+With the connector enabled, the existing course-change flow can also append
+modules and show/hide individual modules or items without deleting them.
+Hiding a module may hide its children from learners.
 
-### Expanded V2 tools (off by default)
+### Expanded tools
 
 | Tool | Purpose |
 | --- | --- |
@@ -113,18 +113,18 @@ requires approval after staging acceptance.
 
 ```bash
 AI_CONNECTOR_ENABLED=True
-AI_CONNECTOR_V2_ENABLED=False             # change to True only after V2 acceptance
 AI_CONNECTOR_BASE_URL=https://lms-staging.example.edu   # public origin, no trailing slash
 AI_CONNECTOR_ALLOWED_REDIRECT_HOSTS=claude.ai,claude.com,chatgpt.com,platform.openai.com
 ```
 
 Then run `python manage.py migrate` and restart Passenger.
 
-When V2 is accepted, set `AI_CONNECTOR_V2_ENABLED=True` in the target
-deployment and restart Passenger. Do not enable it solely because the migration
-ran. Once enabled, reconnect the AI app to request the learner and messaging
-scopes; existing `courses:read`/`courses:write` grants continue to work for
-course authoring. Enable per-tool approval in the AI client for
+There is no separate V2 environment toggle. Remove any old
+`AI_CONNECTOR_V2_ENABLED` line from the deployment `.env`; the application
+ignores it. Enable the connector only after its migrations and acceptance
+checks are complete. Once enabled, reconnect the AI app to request the learner
+and messaging scopes; existing `courses:read`/`courses:write` grants continue
+to work for course authoring. Enable per-tool approval in the AI client for
 `apply_course_change`, `apply_new_course` and `apply_learner_message`.
 
 `AI_CONNECTOR_BASE_URL` must match the URL trainers paste into their AI app
