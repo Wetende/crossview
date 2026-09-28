@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useTheme } from "@mui/material/styles";
 import { describe, expect, test, vi } from "vitest";
 
@@ -37,6 +37,11 @@ const RadiusProbe = ({ label }) => {
             ].join("|")}
         </span>
     );
+};
+
+const ModeProbe = ({ label }) => {
+    const theme = useTheme();
+    return <span data-testid={`${label}-mode`}>{theme.palette.mode}</span>;
 };
 
 const renderLayout = (props = {}) =>
@@ -108,5 +113,45 @@ describe("ClassroomLayout", () => {
         expect(screen.getByTestId("player-radii")).toHaveTextContent(
             "2|2px|4px|6px 12px|0",
         );
+    });
+
+    test("starts light independently and switches only with the player toggle", () => {
+        localStorage.getItem.mockReturnValue("dark");
+        localStorage.setItem.mockClear();
+        const layout = (
+            <ThemeProvider forcedMode="dark">
+                <ModeProbe label="outer" />
+                <ClassroomLayout
+                    programTitle="Course"
+                    backLink="/dashboard/"
+                    LeftPanel={<div>Curriculum panel</div>}
+                    isSidebarOpen={false}
+                    onToggleSidebar={vi.fn()}
+                    isDiscussionsOpen={false}
+                    onToggleDiscussions={vi.fn()}
+                >
+                    <ModeProbe label="player" />
+                </ClassroomLayout>
+            </ThemeProvider>
+        );
+
+        try {
+            const view = render(layout);
+            expect(screen.getByTestId("outer-mode")).toHaveTextContent("dark");
+            expect(screen.getByTestId("player-mode")).toHaveTextContent("light");
+
+            fireEvent.click(screen.getByRole("button", { name: "Switch player to dark mode" }));
+            expect(screen.getByTestId("player-mode")).toHaveTextContent("dark");
+            fireEvent.click(screen.getByRole("button", { name: "Switch player to light mode" }));
+            expect(screen.getByTestId("player-mode")).toHaveTextContent("light");
+            fireEvent.click(screen.getByRole("button", { name: "Switch player to dark mode" }));
+
+            view.unmount();
+            render(layout);
+            expect(screen.getByTestId("player-mode")).toHaveTextContent("light");
+            expect(localStorage.setItem).not.toHaveBeenCalled();
+        } finally {
+            localStorage.getItem.mockReset();
+        }
     });
 });

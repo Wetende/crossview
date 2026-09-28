@@ -182,6 +182,7 @@ const ClassroomLayoutInner = ({
                         <IconButton
                             size="small"
                             onClick={toggleMode}
+                            aria-label={isDark ? "Switch player to light mode" : "Switch player to dark mode"}
                             sx={{ color: "text.secondary" }}
                         >
                             {isDark ? (
@@ -370,7 +371,8 @@ const ClassroomLayoutInner = ({
 
 const ClassroomLayout = (props) => (
     <ThemeProvider
-        storageKey="lms_theme_classroom"
+        initialMode="light"
+        persistMode={false}
         extendTheme={extendPlayerTheme}
     >
         <ClassroomLayoutInner {...props} />
