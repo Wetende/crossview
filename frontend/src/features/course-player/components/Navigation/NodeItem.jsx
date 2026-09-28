@@ -179,7 +179,7 @@ const NodeItem = ({
                         aria-expanded={Boolean(isExpanded)}
                         sx={{
                             bgcolor: sectionHeaderBg,
-                            py: 1.25,
+                            py: 1,
                             px: 2,
                             "&:hover": { bgcolor: sectionHeaderHoverBg },
                         }}
@@ -300,7 +300,7 @@ const NodeItem = ({
             aria-disabled={node.isLocked ? "true" : undefined}
             disableRipple={node.isLocked}
             sx={{
-                py: 1.25,
+                py: 1,
                 px: 2,
                 borderLeft: `${ACCENT_WIDTH}px solid`,
                 borderLeftColor: isNodeActive ? "primary.main" : "transparent",
