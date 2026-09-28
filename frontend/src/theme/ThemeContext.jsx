@@ -18,14 +18,19 @@ export function ThemeModeProvider({
     children,
     initialPlatform = null,
     forcedMode = null,
+    initialMode = null,
+    persistMode = true,
     storageKey = STORAGE_KEY,
 }) {
     const [stateMode, setModeState] = useState(() => {
         if (forcedMode) return forcedMode;
+        if (initialMode === "light" || initialMode === "dark") return initialMode;
         if (typeof window !== "undefined") {
-            const stored = localStorage.getItem(storageKey);
-            if (stored === "dark" || stored === "light") {
-                return stored;
+            if (persistMode) {
+                const stored = localStorage.getItem(storageKey);
+                if (stored === "dark" || stored === "light") {
+                    return stored;
+                }
             }
             // Check system preference
             if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
@@ -53,10 +58,10 @@ export function ThemeModeProvider({
 
     // Persist to localStorage (only if not forced)
     useEffect(() => {
-        if (!forcedMode && typeof window !== "undefined") {
+        if (persistMode && !forcedMode && typeof window !== "undefined") {
             localStorage.setItem(storageKey, mode);
         }
-    }, [mode, forcedMode, storageKey]);
+    }, [mode, forcedMode, persistMode, storageKey]);
 
     const toggleMode = () => {
         if (!forcedMode) {

@@ -75,6 +75,8 @@ export default function ThemeProvider({
     children,
     platform = null,
     forcedMode = null,
+    initialMode = null,
+    persistMode = true,
     storageKey = undefined,
     extendTheme = null,
 }) {
@@ -82,6 +84,8 @@ export default function ThemeProvider({
         <ThemeModeProvider
             initialPlatform={platform}
             forcedMode={forcedMode}
+            initialMode={initialMode}
+            persistMode={persistMode}
             storageKey={storageKey}
         >
             <ThemeProviderInner extendTheme={extendTheme}>
