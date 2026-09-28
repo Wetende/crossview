@@ -5,12 +5,13 @@ const AnswerOptionCard = ({
     label,
     selected = false,
     disabled = false,
+    cornerRadius = null,
 }) => (
     <Paper
         variant="outlined"
         sx={{
             mb: 1.25,
-            borderRadius: 1.5,
+            borderRadius: cornerRadius ?? 1.5,
             borderWidth: selected ? 2 : 1,
             borderColor: selected ? "primary.main" : "divider",
             bgcolor: selected ? "primary.lighter" : "background.paper",

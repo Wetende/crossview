@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useState } from "react";
 import { Alert, Stack } from "@mui/material";
 
@@ -32,7 +33,7 @@ const StageFlashMessages = ({ flash }) => {
                     key={item.index}
                     severity={getFlashSeverity(item.type)}
                     onClose={() => dismiss(item.index)}
-                    sx={{ borderRadius: 2 }}
+                    sx={{ borderRadius: PLAYER_RADII.surface }}
                 >
                     {item.message}
                 </Alert>

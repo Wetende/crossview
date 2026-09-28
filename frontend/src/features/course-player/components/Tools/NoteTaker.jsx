@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { PLAYER_RADII } from "../../playerRadii";
+import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import { Box, Typography, TextField, Button, List, IconButton, Paper } from '@mui/material';
 import { Delete as DeleteIcon, AccessTime as TimeIcon, Save as SaveIcon } from '@mui/icons-material';
@@ -92,7 +93,7 @@ const NoteTaker = ({ nodeId, enrollmentId, notes = [], currentTime = 0, onSeek }
                                 key={note.id} 
                                 elevation={0} 
                                 variant="outlined" 
-                                sx={{ mb: 2, p: 1.5, borderRadius: 2, position: 'relative' }}
+                                sx={{ mb: 2, p: 1.5, borderRadius: PLAYER_RADII.surface, position: 'relative' }}
                             >
                                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                     {note.videoTimestamp !== null && note.videoTimestamp !== undefined && (

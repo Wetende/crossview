@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { Link } from "@inertiajs/react";
 import {
     ArrowForward,
@@ -28,7 +29,7 @@ const UnitCompletionView = ({ unit }) => {
                 variant="outlined"
                 sx={{
                     p: { xs: 2.5, sm: 4 },
-                    borderRadius: 3,
+                    borderRadius: PLAYER_RADII.surface,
                     textAlign: "center",
                     mb: 2.5,
                 }}
@@ -108,7 +109,7 @@ const UnitCompletionView = ({ unit }) => {
             <Paper
                 component="section"
                 variant="outlined"
-                sx={{ p: 2.5, borderRadius: 2.5 }}
+                sx={{ p: 2.5, borderRadius: PLAYER_RADII.surface }}
             >
                 <Typography component="h2" variant="h6" sx={{ mb: 1 }}>
                     {unit.title}
@@ -123,7 +124,7 @@ const UnitCompletionView = ({ unit }) => {
                             sx={{
                                 px: 1,
                                 py: 1,
-                                borderRadius: 1,
+                                borderRadius: PLAYER_RADII.control,
                                 color: "text.primary",
                                 textDecoration: "none",
                                 "&:hover": { bgcolor: "action.hover" },

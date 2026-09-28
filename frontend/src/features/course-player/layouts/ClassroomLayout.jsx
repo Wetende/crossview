@@ -24,16 +24,39 @@ import {
 import ThemeProvider, { useThemeMode } from "@/theme";
 import { FONT_FIGTREE } from "@/config";
 import { SESSION_CONTROL_HEIGHT } from "../components/Stage/SessionControl";
+import { PLAYER_RADII } from "../playerRadii";
 
 // The player uses one sans-serif family for headings and body text.
 const PLAYER_HEADING_VARIANTS = ["h1", "h2", "h3", "h4", "h5", "h6"];
 const extendPlayerTheme = () => ({
+    shape: { borderRadius: 2 },
     typography: Object.fromEntries(
         PLAYER_HEADING_VARIANTS.map((variant) => [
             variant,
             { fontFamily: FONT_FIGTREE },
         ]),
     ),
+    components: {
+        MuiPaper: { styleOverrides: { root: { borderRadius: PLAYER_RADII.surface } } },
+        MuiCard: { styleOverrides: { root: { borderRadius: PLAYER_RADII.surface } } },
+        MuiAlert: { styleOverrides: { root: { borderRadius: PLAYER_RADII.surface } } },
+        MuiDialog: { styleOverrides: { paper: { borderRadius: PLAYER_RADII.surface } } },
+        MuiTooltip: { styleOverrides: { tooltip: { borderRadius: PLAYER_RADII.surface } } },
+        MuiButton: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiOutlinedInput: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiTextField: {
+            styleOverrides: {
+                root: { "& .MuiOutlinedInput-root": { borderRadius: PLAYER_RADII.control } },
+            },
+        },
+        MuiChip: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiTab: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiListItemButton: {
+            styleOverrides: { root: { borderRadius: PLAYER_RADII.control } },
+        },
+        MuiAppBar: { styleOverrides: { root: { borderRadius: 0 } } },
+        MuiDrawer: { styleOverrides: { paper: { borderRadius: 0 } } },
+    },
 });
 
 const ClassroomLayoutInner = ({
@@ -112,7 +135,7 @@ const ClassroomLayoutInner = ({
                                 color: "primary.contrastText",
                                 px: 1.5,
                                 py: 0.5,
-                                borderRadius: 1,
+                                borderRadius: PLAYER_RADII.control,
                                 cursor: "pointer",
                             }}
                             onClick={onToggleSidebar}

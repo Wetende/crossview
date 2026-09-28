@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useMemo } from 'react';
 import { Paper, Typography } from '@mui/material';
 import {
@@ -26,7 +27,7 @@ const TextRenderer = ({ content }) => {
 
     if (!sanitizedContent) {
         return (
-            <Paper elevation={0} sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 2 }}>
+            <Paper elevation={0} sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper', borderRadius: PLAYER_RADII.surface }}>
                 <Typography color="textSecondary">
                     No text content available for this lesson.
                 </Typography>
@@ -42,18 +43,18 @@ const TextRenderer = ({ content }) => {
                 bgcolor: 'background.paper', 
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: 2,
+                borderRadius: PLAYER_RADII.surface,
                 minHeight: '60vh',
                 typography: 'body1',
                 ...richTextContentSx,
                 ...lessonRichTextSx,
-                '& img': { ...richTextImageSx, borderRadius: 2, my: 2 },
+                '& img': { ...richTextImageSx, borderRadius: PLAYER_RADII.surface, my: 2 },
                 [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                     ...richTextImageFigureSx,
                     my: 2,
                     '& > img': {
                         ...richTextImageFigureSx['& > img'],
-                        borderRadius: 2,
+                        borderRadius: PLAYER_RADII.surface,
                     },
                 },
             }}

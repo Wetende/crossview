@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useMemo, useState } from "react";
 import { router } from "@inertiajs/react";
 import DOMPurify from "dompurify";
@@ -166,7 +167,7 @@ const AssessmentRenderer = ({
         const sanitizedInstructions = DOMPurify.sanitize(instructions);
 
         return (
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, mb: 2 }}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: PLAYER_RADII.surface, mb: 2 }}>
                 <Stack spacing={2}>
                     <Box>
                         <Typography variant="h6" sx={{ fontWeight: 700 }}>
@@ -266,7 +267,7 @@ const AssessmentRenderer = ({
         if (!shouldShowSubmission || !assignmentStarted) return null;
 
         return (
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 2 }}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: PLAYER_RADII.surface }}>
                 <Stack spacing={2}>
                     <Box>
                         <Typography variant="h6" sx={{ fontWeight: 700 }}>

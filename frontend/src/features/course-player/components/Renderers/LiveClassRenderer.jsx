@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useEffect, useMemo, useState } from "react";
 import {
     Box,
@@ -120,7 +121,7 @@ const LiveClassRenderer = ({
 
     return (
         <Stack spacing={3}>
-            <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+            <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: PLAYER_RADII.surface }}>
                 <Stack spacing={2}>
                     <Stack
                         direction={{ xs: "column", md: "row" }}
@@ -198,19 +199,19 @@ const LiveClassRenderer = ({
             </Paper>
 
             {!!sanitizedDescription && (
-                <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+                <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: PLAYER_RADII.surface }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
                         Overview
                     </Typography>
                     <Box
                         sx={{
-                            "& img": { ...richTextImageSx, borderRadius: 1, my: 2 },
+                            "& img": { ...richTextImageSx, borderRadius: PLAYER_RADII.surface, my: 2 },
                             [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                                 ...richTextImageFigureSx,
                                 my: 2,
                                 "& > img": {
                                     ...richTextImageFigureSx["& > img"],
-                                    borderRadius: 1,
+                                    borderRadius: PLAYER_RADII.surface,
                                 },
                             },
                         }}
@@ -224,15 +225,15 @@ const LiveClassRenderer = ({
                     elevation={0}
                     sx={{
                         p: { xs: 2, md: 3 },
-                        borderRadius: 2,
+                        borderRadius: PLAYER_RADII.surface,
                         minHeight: 220,
-                        "& img": { ...richTextImageSx, borderRadius: 1, my: 2 },
+                        "& img": { ...richTextImageSx, borderRadius: PLAYER_RADII.surface, my: 2 },
                         [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                             ...richTextImageFigureSx,
                             my: 2,
                             "& > img": {
                                 ...richTextImageFigureSx["& > img"],
-                                borderRadius: 1,
+                                borderRadius: PLAYER_RADII.surface,
                             },
                         },
                     }}
@@ -245,7 +246,7 @@ const LiveClassRenderer = ({
             )}
 
             {!sanitizedDescription && !sanitizedContent && (
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, textAlign: "center" }}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: PLAYER_RADII.surface, textAlign: "center" }}>
                     <Typography color="textSecondary">
                         No additional lesson notes provided yet.
                     </Typography>

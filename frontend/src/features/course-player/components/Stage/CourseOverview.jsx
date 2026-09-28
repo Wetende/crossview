@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useState } from "react";
 import { Link } from "@inertiajs/react";
 import {
@@ -47,7 +48,7 @@ const DismissibleNotice = ({ notice, index }) => {
         <Alert
             severity={notice?.type === "warning" ? "warning" : "info"}
             onClose={() => setVisible(false)}
-            sx={{ borderRadius: 2 }}
+            sx={{ borderRadius: PLAYER_RADII.surface }}
         >
             {title && (
                 <Typography
@@ -99,7 +100,7 @@ const AnnouncementsSection = ({ announcements }) => (
                         key={announcement.id}
                         component="article"
                         variant="outlined"
-                        sx={{ borderRadius: 2.5 }}
+                        sx={{ borderRadius: PLAYER_RADII.surface }}
                     >
                         <CardContent
                             sx={{
@@ -231,7 +232,7 @@ const CourseOverview = ({
                             View course summary
                         </Button>
                     }
-                    sx={{ mb: { xs: 2.5, md: 3 }, borderRadius: 2 }}
+                    sx={{ mb: { xs: 2.5, md: 3 }, borderRadius: PLAYER_RADII.surface }}
                 >
                     You completed this course.
                 </Alert>
@@ -298,12 +299,13 @@ const CourseOverview = ({
                                         <CourseUnitCard
                                             unit={unit}
                                             index={index}
+                                            cornerRadius={PLAYER_RADII.surface}
                                         />
                                     </Box>
                                 ))}
                             </Box>
                         ) : (
-                            <Card variant="outlined" sx={{ borderRadius: 2.5 }}>
+                            <Card variant="outlined" sx={{ borderRadius: PLAYER_RADII.surface }}>
                                 <CardContent>
                                     <Typography color="textSecondary">
                                         Course content will appear here when it
@@ -338,7 +340,7 @@ const CourseOverview = ({
                         <Card
                             component="section"
                             variant="outlined"
-                            sx={{ borderRadius: 2.5 }}
+                            sx={{ borderRadius: PLAYER_RADII.surface }}
                         >
                             <CardContent
                                 sx={{

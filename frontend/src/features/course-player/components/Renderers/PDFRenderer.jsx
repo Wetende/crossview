@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -225,7 +226,7 @@ export default function PDFRenderer({
                 height: isFullscreen ? "100vh" : "auto",
                 minHeight: 500,
                 bgcolor: "grey.100",
-                borderRadius: 2,
+                borderRadius: PLAYER_RADII.surface,
                 overflow: "hidden",
             }}
             onKeyDown={handleKeyDown}

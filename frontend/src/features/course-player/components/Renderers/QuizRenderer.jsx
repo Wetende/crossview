@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import {
@@ -50,6 +51,7 @@ const renderQuestionInput = ({ question, answer, onAnswerChange }) => {
                 >
                     {(question.options || []).map((option, index) => (
                         <AnswerOptionCard
+                            cornerRadius={PLAYER_RADII.control}
                             key={`${answerKey}-${option.id}-${index}`}
                             selected={
                                 String(answer || "") === String(option.id)
@@ -74,6 +76,7 @@ const renderQuestionInput = ({ question, answer, onAnswerChange }) => {
                     const checked = selected.includes(String(option.id));
                     return (
                         <AnswerOptionCard
+                            cornerRadius={PLAYER_RADII.control}
                             key={`${answerKey}-${option.id}-${index}`}
                             selected={checked}
                             control={
@@ -555,7 +558,7 @@ const QuizRenderer = ({
         return (
             <Paper
                 elevation={0}
-                sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper" }}
+                sx={{ p: 4, borderRadius: PLAYER_RADII.surface, bgcolor: "background.paper" }}
             >
                 <Typography color="textSecondary">Loading quiz...</Typography>
             </Paper>
@@ -566,7 +569,7 @@ const QuizRenderer = ({
         return (
             <Paper
                 elevation={0}
-                sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper" }}
+                sx={{ p: 4, borderRadius: PLAYER_RADII.surface, bgcolor: "background.paper" }}
             >
                 <Alert severity="warning" sx={{ mb: 2 }}>
                     {runtimeError}
@@ -599,7 +602,7 @@ const QuizRenderer = ({
                 elevation={0}
                 sx={{
                     p: { xs: 2, md: 5 },
-                    borderRadius: 2,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "background.paper",
                     textAlign: "center",
                 }}
@@ -614,7 +617,7 @@ const QuizRenderer = ({
                     variant="contained"
                     size="large"
                     onClick={() => router.visit(startQuizUrl)}
-                    sx={{ px: 4, borderRadius: 8 }}
+                    sx={{ px: 4, borderRadius: PLAYER_RADII.control }}
                 >
                     Start Quiz
                 </Button>
@@ -629,7 +632,7 @@ const QuizRenderer = ({
                 sx={{
                     p: 5,
                     textAlign: "center",
-                    borderRadius: 2,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "background.paper",
                 }}
             >
@@ -656,7 +659,7 @@ const QuizRenderer = ({
                     elevation={0}
                     sx={{
                         p: { xs: 2, md: 5 },
-                        borderRadius: 2,
+                        borderRadius: PLAYER_RADII.surface,
                         bgcolor: "background.paper",
                     }}
                 >
@@ -737,7 +740,7 @@ const QuizRenderer = ({
                 elevation={0}
                 sx={{
                     p: { xs: 2, md: 5 },
-                    borderRadius: 2,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "background.paper",
                 }}
             >
@@ -869,7 +872,7 @@ const QuizRenderer = ({
                                 sx={{
                                     p: 2,
                                     mb: 2,
-                                    borderRadius: 2,
+                                    borderRadius: PLAYER_RADII.surface,
                                     borderColor:
                                         statusColor === "success"
                                             ? "success.main"
@@ -889,7 +892,7 @@ const QuizRenderer = ({
                                         sx={{
                                             px: 1,
                                             py: 0.25,
-                                            borderRadius: 1,
+                                            borderRadius: PLAYER_RADII.control,
                                             bgcolor: `${statusColor}.lighter`,
                                             color: `${statusColor}.dark`,
                                             fontWeight: 600,
@@ -973,7 +976,7 @@ const QuizRenderer = ({
             elevation={0}
             sx={{
                 p: { xs: 2, md: 5 },
-                borderRadius: 2,
+                borderRadius: PLAYER_RADII.surface,
                 bgcolor: "background.paper",
                 minHeight: 400,
             }}
