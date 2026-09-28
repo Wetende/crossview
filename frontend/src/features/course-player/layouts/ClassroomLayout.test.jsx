@@ -3,6 +3,7 @@ import { useTheme } from "@mui/material/styles";
 import { describe, expect, test, vi } from "vitest";
 
 import { FONT_FIGTREE } from "@/config";
+import ThemeProvider from "@/theme";
 import ClassroomLayout from "./ClassroomLayout";
 
 vi.mock("@inertiajs/react", () => ({
@@ -19,6 +20,21 @@ const ThemeProbe = () => {
         <span data-testid="theme-probe">
             {theme.typography.h1.fontFamily}|
             {theme.components?.MuiButton ? "overrides" : "no-overrides"}
+        </span>
+    );
+};
+
+const RadiusProbe = ({ label }) => {
+    const theme = useTheme();
+    return (
+        <span data-testid={`${label}-radii`}>
+            {[
+                theme.shape.borderRadius,
+                theme.components.MuiPaper.styleOverrides.root.borderRadius,
+                theme.components.MuiButton.styleOverrides.root.borderRadius,
+                theme.components.MuiButton.styleOverrides.root.padding,
+                theme.components.MuiDrawer?.styleOverrides.paper.borderRadius ?? "default",
+            ].join("|")}
         </span>
     );
 };
@@ -65,6 +81,32 @@ describe("ClassroomLayout", () => {
 
         expect(screen.getByTestId("theme-probe")).toHaveTextContent(
             `${FONT_FIGTREE}|overrides`,
+        );
+    });
+
+    test("limits near-square corners to the player theme", () => {
+        render(
+            <ThemeProvider>
+                <RadiusProbe label="outer" />
+                <ClassroomLayout
+                    programTitle="Course"
+                    backLink="/dashboard/"
+                    LeftPanel={<div>Curriculum panel</div>}
+                    isSidebarOpen={false}
+                    onToggleSidebar={vi.fn()}
+                    isDiscussionsOpen={false}
+                    onToggleDiscussions={vi.fn()}
+                >
+                    <RadiusProbe label="player" />
+                </ClassroomLayout>
+            </ThemeProvider>,
+        );
+
+        expect(screen.getByTestId("outer-radii")).toHaveTextContent(
+            "8|12|4|6px 12px|default",
+        );
+        expect(screen.getByTestId("player-radii")).toHaveTextContent(
+            "2|2px|4px|6px 12px|0",
         );
     });
 });

@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useState } from "react";
 import { Link, router } from "@inertiajs/react";
 import {
@@ -90,7 +91,7 @@ const CertificateCard = ({ certificate }) => {
             component="section"
             aria-labelledby="course-certificate-title"
             variant="outlined"
-            sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: 3, height: "100%" }}
+            sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: PLAYER_RADII.surface, height: "100%" }}
         >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
                 <IconBadge color={status === "pending" ? "warning" : "primary"}>
@@ -170,7 +171,7 @@ const ReviewCard = ({ review, returnUrl }) => {
                 component="section"
                 aria-labelledby="course-review-thanks"
                 variant="outlined"
-                sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: 3, height: "100%" }}
+                sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: PLAYER_RADII.surface, height: "100%" }}
             >
                 <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
                     <IconBadge color="success">
@@ -210,7 +211,7 @@ const ReviewCard = ({ review, returnUrl }) => {
             component="section"
             aria-labelledby="course-review-title"
             variant="outlined"
-            sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: 3, height: "100%" }}
+            sx={{ p: { xs: 2.5, sm: 3 }, borderRadius: PLAYER_RADII.surface, height: "100%" }}
         >
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", mb: 1.5 }}>
                 <IconBadge color="warning">
@@ -294,7 +295,7 @@ const NextCourseCard = ({ course }) => {
         .join(" · ");
 
     return (
-        <Card variant="outlined" sx={{ height: "100%", borderRadius: 3 }}>
+        <Card variant="outlined" sx={{ height: "100%", borderRadius: PLAYER_RADII.surface }}>
             <CardActionArea
                 component={Link}
                 href={course.url}
@@ -364,7 +365,7 @@ const CourseCompletionView = ({ program, completion, returnUrl = null }) => {
                 sx={{
                     p: { xs: 3, sm: 4 },
                     mb: 2.5,
-                    borderRadius: 3,
+                    borderRadius: PLAYER_RADII.surface,
                     textAlign: "center",
                 }}
             >

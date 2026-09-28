@@ -16,7 +16,7 @@ import {
 
 import CourseProgressSummary from "./CourseProgressSummary";
 
-const CourseUnitCard = ({ unit, index = 0 }) => {
+const CourseUnitCard = ({ unit, index = 0, cornerRadius = null }) => {
     const completed =
         unit.totalCount > 0 && unit.completedCount >= unit.totalCount;
     const locked = !unit.url;
@@ -27,7 +27,7 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
             variant="outlined"
             sx={{
                 height: "100%",
-                borderRadius: 2.5,
+                borderRadius: cornerRadius ?? 2.5,
                 borderColor: "divider",
                 boxShadow: "none",
                 transition: "border-color 180ms ease, box-shadow 180ms ease",
@@ -69,7 +69,7 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
                     <Box
                         sx={{
                             minHeight: 112,
-                            borderRadius: 2,
+                            borderRadius: cornerRadius ?? 2,
                             bgcolor: `${accent}.lighter`,
                             color: `${accent}.dark`,
                             display: "grid",

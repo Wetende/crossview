@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import {
     Box,
@@ -611,7 +612,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                     elevation={0}
                     sx={{
                         p: { xs: 2, md: 3 },
-                        borderRadius: isFullscreen ? 0 : 2,
+                        borderRadius: isFullscreen ? 0 : PLAYER_RADII.surface,
                         mb: isFullscreen ? 0 : 2,
                         bgcolor: "background.paper",
                         borderBottom: "1px solid",
@@ -622,7 +623,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                         "& code": {
                             bgcolor: "action.hover",
                             px: 0.5,
-                            borderRadius: 0.5,
+                            borderRadius: PLAYER_RADII.surface,
                             fontFamily: "monospace",
                             fontSize: "0.9em",
                         },
@@ -640,7 +641,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
             <Paper
                 variant="outlined"
                 sx={{
-                    borderRadius: isFullscreen ? 0 : 2,
+                    borderRadius: isFullscreen ? 0 : PLAYER_RADII.surface,
                     overflow: "hidden",
                     flex: isFullscreen ? 1 : undefined,
                     display: "flex",

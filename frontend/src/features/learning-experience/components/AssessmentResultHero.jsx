@@ -34,6 +34,7 @@ const AssessmentResultHero = ({
     attemptLabel,
     metrics = [],
     children,
+    cornerRadius = null,
 }) => {
     const presentation = resultPresentation(passed);
     const scoreLabel =
@@ -46,7 +47,7 @@ const AssessmentResultHero = ({
             variant="outlined"
             sx={{
                 p: { xs: 2.25, sm: 3.5 },
-                borderRadius: 2.5,
+                borderRadius: cornerRadius ?? 2.5,
                 borderTop: "5px solid",
                 borderTopColor: `${presentation.color}.main`,
                 overflow: "hidden",

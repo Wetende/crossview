@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Box, Paper, Typography, LinearProgress, Stack } from "@mui/material";
 import LazyReactPlayer from "@/components/LazyReactPlayer";
@@ -251,7 +252,7 @@ const VideoRenderer = ({
                 elevation={3}
                 sx={{
                     overflow: "hidden",
-                    borderRadius: 3,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "black",
                     position: "relative",
                     pt: "56.25%", // 16:9 Aspect Ratio

@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { Link } from "@inertiajs/react";
 import {
     Alert,
@@ -67,7 +68,7 @@ export default function DeliveryOverviewCard({
     return (
         <Paper
             variant="outlined"
-            sx={{ p: { xs: 2, md: 2.5 }, mb: 2.5, borderRadius: 2 }}
+            sx={{ p: { xs: 2, md: 2.5 }, mb: 2.5, borderRadius: PLAYER_RADII.surface }}
         >
             <Stack spacing={2}>
                 <Stack
@@ -154,7 +155,7 @@ export default function DeliveryOverviewCard({
                             alignItems: "center",
                             p: 1.5,
                             bgcolor: "action.hover",
-                            borderRadius: 1.5,
+                            borderRadius: PLAYER_RADII.surface,
                         }}
                     >
                         {isPhysical ? (

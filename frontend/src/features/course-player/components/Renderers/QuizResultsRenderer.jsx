@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { Link, router } from "@inertiajs/react";
 import {
     Alert,
@@ -131,6 +132,7 @@ const QuizResultsRenderer = ({
             {activeAttempt && (
                 <Box sx={{ mb: 3 }}>
                     <AssessmentResultHero
+                        cornerRadius={PLAYER_RADII.surface}
                         title={
                             hasPassedQuiz
                                 ? "Activity completed"
@@ -278,7 +280,7 @@ const QuizResultsRenderer = ({
                                     variant="outlined"
                                     sx={{
                                         p: { xs: 2, sm: 2.5 },
-                                        borderRadius: 2,
+                                        borderRadius: PLAYER_RADII.surface,
                                     }}
                                 >
                                     <Stack

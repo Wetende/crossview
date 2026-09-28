@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import DOMPurify from "dompurify";
 import VideoRenderer from "./VideoRenderer";
 import TextRenderer from "./TextRenderer";
@@ -243,7 +244,7 @@ const BlockRenderer = ({
                             sx={{
                                 maxWidth: "100%",
                                 height: "auto",
-                                borderRadius: 2,
+                                borderRadius: PLAYER_RADII.surface,
                                 boxShadow: 1,
                             }}
                         />
@@ -330,7 +331,7 @@ const BlockRenderer = ({
                                     width: "100%",
                                     height: "100%",
                                     border: "none",
-                                    borderRadius: 8,
+                                    borderRadius: PLAYER_RADII.surface,
                                 }}
                                 allowFullScreen
                             />

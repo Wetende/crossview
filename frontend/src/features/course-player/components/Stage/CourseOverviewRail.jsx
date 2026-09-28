@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { Link } from "@inertiajs/react";
 import {
     AssignmentOutlined,
@@ -32,7 +33,7 @@ const assessmentColor = (status) => {
 };
 
 const RailSection = ({ icon, title, children }) => (
-    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: PLAYER_RADII.surface }}>
         <Stack
             direction="row"
             spacing={1}
@@ -93,7 +94,7 @@ const CourseOverviewRail = ({
                                 p: 1.25,
                                 border: "1px solid",
                                 borderColor: "divider",
-                                borderRadius: 1.5,
+                                borderRadius: PLAYER_RADII.surface,
                             }}
                         >
                             {assessment.url ? (

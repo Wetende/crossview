@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { Link } from '@inertiajs/react';
 import { Box, Button, Typography, LinearProgress, Link as MuiLink, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { Home as HomeIcon, TaskAltOutlined } from '@mui/icons-material';
@@ -88,7 +89,7 @@ const CourseSidebar = ({ program, progress, curriculum, activeNodeId, enrollment
                             mx: 1,
                             mb: 0.5,
                             minHeight: 42,
-                            borderRadius: 1,
+                            borderRadius: PLAYER_RADII.control,
                             px: 1.5,
                             py: 0.75,
                             '&.Mui-selected': {

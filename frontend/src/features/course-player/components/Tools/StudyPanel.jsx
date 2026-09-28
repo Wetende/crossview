@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import {
@@ -512,7 +513,7 @@ const StudyPanel = ({
                                 onClick={() => setIsComposing(true)}
                                 sx={{
                                     textTransform: "none",
-                                    borderRadius: 5,
+                                    borderRadius: PLAYER_RADII.control,
                                     px: 2,
                                     py: 0.5,
                                     fontSize: "0.813rem",
@@ -559,7 +560,7 @@ const StudyPanel = ({
                                             }
                                             sx={{
                                                 bgcolor: "background.paper",
-                                                borderRadius: 1,
+                                                borderRadius: PLAYER_RADII.surface,
                                                 mb: 1,
                                             }}
                                         >
