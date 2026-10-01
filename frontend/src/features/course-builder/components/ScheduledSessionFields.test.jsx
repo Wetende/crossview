@@ -99,9 +99,7 @@ describe("ScheduledSessionFields", () => {
             />,
         );
 
-        const toggle = screen.getByRole("checkbox", {
-            name: "Notify enrolled learners",
-        });
+        const toggle = screen.getByLabelText("Notify enrolled learners");
         expect(toggle).toBeInTheDocument();
         expect(toggle).not.toBeChecked();
 
@@ -122,9 +120,7 @@ describe("ScheduledSessionFields", () => {
             />,
         );
         expect(
-            screen.queryByRole("switch", {
-                name: "Notify enrolled learners",
-            }),
+            screen.queryByLabelText("Notify enrolled learners"),
         ).not.toBeInTheDocument();
     });
 });

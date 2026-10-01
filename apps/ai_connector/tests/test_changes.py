@@ -39,6 +39,21 @@ class PrepareAndApplyTests(TestCase):
         self.instructor = make_user("teacher", instructor=True)
         self.course = make_course("AI101", instructor=self.instructor)
 
+    def test_ai_question_append_preserves_existing_explanations_and_hints(self):
+        question = self.course["quiz"].questions.order_by("position").first()
+        question.explanation = "<p>Why this answer is right.</p>"
+        question.hint = "<p>Think about the model.</p>"
+        question.save(update_fields=["explanation", "hint"])
+        preview = prepare(self.instructor, self.course, [{
+            "op": "add_questions", "quiz_lesson_id": self.course["quiz_node"].id,
+            "questions": NEW_QUESTIONS,
+        }])
+        apply(self.instructor, preview["change_id"])
+        self.course["quiz_node"].refresh_from_db()
+        mirrored = next(item for item in self.course["quiz_node"].properties["questions"] if item["db_id"] == question.id)
+        self.assertEqual(mirrored.get("explanation"), question.explanation)
+        self.assertEqual(mirrored.get("hint"), question.hint)
+
     def test_prepare_changes_nothing_and_apply_saves_exactly_the_preview(self):
         program = self.course["program"]
         before_nodes = CurriculumNode.objects.filter(program=program).count()

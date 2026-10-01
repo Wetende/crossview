@@ -86,7 +86,7 @@ SESSION_NODE_KEYS = [
     "title",
     "type",
 ]
-SHARED_INERTIA_KEYS = ["auth", "csrfToken", "errors", "flash", "platform"]
+SHARED_INERTIA_KEYS = ["aiConnector", "auth", "csrfToken", "errors", "flash", "platform"]
 SESSION_VIEW_KEYS = [
     "activeView",
     "courseCompleteUrl",
@@ -124,6 +124,7 @@ def test_enrolled_session_viewer_props_are_unchanged(client, lesson):
 
     assert response.status_code == 200
     props = response.json()["props"]
+    assert props["aiConnector"] == {"enabled": False}
     assert sorted(props["node"]) == SESSION_NODE_KEYS
     assert sorted(props) == sorted([*SESSION_VIEW_KEYS, *SHARED_INERTIA_KEYS])
     assert props["node"]["properties"]["video_url"] == (

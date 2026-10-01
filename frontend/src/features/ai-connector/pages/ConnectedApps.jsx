@@ -93,7 +93,7 @@ function ConnectionRow({ connection, onDisconnect }) {
             }}
         >
             <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle1" fontWeight={600}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     {connection.name}
                 </Typography>
                 <Stack direction="row" spacing={1} useFlexGap sx={{ my: 1, flexWrap: "wrap" }}>
@@ -101,7 +101,7 @@ function ConnectionRow({ connection, onDisconnect }) {
                         <Chip key={scope} label={scope} size="small" variant="outlined" />
                     ))}
                 </Stack>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     Connected {formatDate(connection.connectedAt)} · Last active{" "}
                     {formatDate(connection.lastActiveAt)}
                 </Typography>
@@ -146,10 +146,10 @@ export default function ConnectedApps({ connections = [], canConnect, connectorU
             <Container maxWidth="md" disableGutters sx={{ mt: 2, mb: 8 }}>
                 <Stack spacing={4}>
                     <Box>
-                        <Typography variant="h5" component="h1" fontWeight={700} gutterBottom>
+                        <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }} gutterBottom>
                             Connected AI apps
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Let an AI assistant such as ChatGPT, Claude or Codex read the
                             courses you manage and prepare changes that you approve in the
                             chat.
@@ -169,7 +169,7 @@ export default function ConnectedApps({ connections = [], canConnect, connectorU
                             </Typography>
                             {canConnect ? (
                                 <Stack spacing={2}>
-                                    <Typography variant="body2" color="text.secondary">
+                                    <Typography variant="body2" color="textSecondary">
                                         In your AI app, add a custom connector (remote MCP
                                         server) with this URL. You will be asked to sign in
                                         here and choose what the app may do.
@@ -195,7 +195,7 @@ export default function ConnectedApps({ connections = [], canConnect, connectorU
                                 Your connections
                             </Typography>
                             {connections.length === 0 ? (
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                                     No AI apps are connected to your account.
                                 </Typography>
                             ) : (

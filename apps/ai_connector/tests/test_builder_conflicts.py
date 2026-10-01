@@ -82,9 +82,9 @@ class BuilderConflictTests(TestCase):
 
         original_sync = core_views._sync_quiz_questions
 
-        def record_transaction(node, questions):
+        def record_transaction(node, questions, **kwargs):
             sync_depths.append(len(connection.atomic_blocks))
-            return original_sync(node, questions)
+            return original_sync(node, questions, **kwargs)
 
         with patch.object(core_views, "_sync_quiz_questions", side_effect=record_transaction):
             response, flashed = self.builder_save(quiz_node, opened_version, title="Updated quiz")

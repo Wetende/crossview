@@ -25,9 +25,12 @@ def build_quiz_question_properties(quiz, metadata_by_id=None) -> list[dict]:
             "type": question.question_type,
             "text": question.text,
             "points": question.points,
+            "explanation": question.explanation,
+            "hint": question.hint,
         }
         if question.source_bank_entry_id:
             entry["libraryEntryId"] = question.source_bank_entry_id
+            entry["libraryEntryVersion"] = question.source_bank_entry_version
             entry["fromLibrary"] = True
         entry.update(metadata_by_id.get(question.id, {}))
 

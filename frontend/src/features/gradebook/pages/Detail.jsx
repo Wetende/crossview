@@ -25,6 +25,7 @@ import {
     IconButton,
 } from "@mui/material";
 import { motion } from "framer-motion";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import PublishIcon from "@mui/icons-material/Publish";
 import {
     IconCheck,
@@ -227,25 +228,39 @@ export default function Gradebook({
                             </Stack>
                         </Box>
 
-                        {activeView === "grades" && (
-                            <Stack direction="row" spacing={2}>
-                                <ReportToolbar
-                                    scope="instructor"
-                                    reportId="instructor.gradebook"
-                                    queryParams={{ program: program.id }}
-                                />
-                                <Button
-                                    variant="contained"
-                                    startIcon={<PublishIcon />}
-                                    onClick={handlePublish}
-                                    disabled={!hasUnpublished || publishing}
-                                >
-                                    {publishing
-                                        ? "Publishing..."
-                                        : "Release results"}
-                                </Button>
-                            </Stack>
-                        )}
+                        <Stack
+                            direction="row"
+                            spacing={2}
+                            sx={{ alignItems: "center" }}
+                        >
+                            <Button
+                                component={Link}
+                                href={`/instructor/programs/${program.id}/analytics/`}
+                                variant="outlined"
+                                startIcon={<InsightsOutlinedIcon />}
+                            >
+                                Analytics
+                            </Button>
+                            {activeView === "grades" && (
+                                <>
+                                    <ReportToolbar
+                                        scope="instructor"
+                                        reportId="instructor.gradebook"
+                                        queryParams={{ program: program.id }}
+                                    />
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<PublishIcon />}
+                                        onClick={handlePublish}
+                                        disabled={!hasUnpublished || publishing}
+                                    >
+                                        {publishing
+                                            ? "Publishing..."
+                                            : "Release results"}
+                                    </Button>
+                                </>
+                            )}
+                        </Stack>
                     </Box>
 
                     <Tabs

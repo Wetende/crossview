@@ -5,7 +5,11 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from apps.core.lesson_media import serve_lesson_image
+
+
 urlpatterns = [
+    path("media/lesson_images/<path:path>", serve_lesson_image, name="lesson_image"),
     path("django-admin/", admin.site.urls),  # Renamed to avoid conflict with /admin/* app routes
     # App URLs - Inertia pages and REST APIs
     path("", include("apps.core.urls")),
