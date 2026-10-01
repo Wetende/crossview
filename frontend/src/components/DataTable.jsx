@@ -40,6 +40,7 @@ export default function DataTable({
   sortBy = '',
   sortOrder = 'asc',
   selectable = false,
+  isRowSelectable = () => true,
   selectedIds = [],
   onSelectionChange,
   actions = [],
@@ -52,13 +53,17 @@ export default function DataTable({
 
   const handleSelectAll = (event) => {
     if (event.target.checked) {
-      onSelectionChange?.(rows.map((row) => row.id));
+      onSelectionChange?.(
+        rows.filter((row) => isRowSelectable(row)).map((row) => row.id),
+      );
     } else {
       onSelectionChange?.([]);
     }
   };
 
-  const handleSelectRow = (id) => {
+  const handleSelectRow = (row) => {
+    if (!isRowSelectable(row)) return;
+    const { id } = row;
     const newSelected = selectedIds.includes(id)
       ? selectedIds.filter((i) => i !== id)
       : [...selectedIds, id];
@@ -88,8 +93,11 @@ export default function DataTable({
     handleMenuClose();
   };
 
-  const isAllSelected = rows.length > 0 && selectedIds.length === rows.length;
-  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < rows.length;
+  const selectableRows = rows.filter((row) => isRowSelectable(row));
+  const isAllSelected =
+    selectableRows.length > 0 && selectedIds.length === selectableRows.length;
+  const isSomeSelected =
+    selectedIds.length > 0 && selectedIds.length < selectableRows.length;
 
   const isDark = theme.palette.mode === 'dark';
 
@@ -206,9 +214,12 @@ export default function DataTable({
                     key={row.id}
                     hover
                     selected={isSelected}
-                    onClick={() => selectable && handleSelectRow(row.id)}
+                    onClick={() => selectable && handleSelectRow(row)}
                     sx={{
-                      cursor: selectable ? 'pointer' : 'default',
+                      cursor:
+                        selectable && isRowSelectable(row)
+                          ? 'pointer'
+                          : 'default',
                       bgcolor:
                         rowIndex % 2 === 1
                           ? isDark
@@ -228,7 +239,11 @@ export default function DataTable({
                   >
                     {selectable && (
                       <TableCell padding="checkbox">
-                        <Checkbox checked={isSelected} size="small" />
+                        <Checkbox
+                          checked={isSelected}
+                          disabled={!isRowSelectable(row)}
+                          size="small"
+                        />
                       </TableCell>
                     )}
                     {columns.map((column) => (

@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.progression.models import Enrollment
+from apps.progression.models import Enrollment, NodeCompletion
 from apps.progression.services import ProgressionEngine
 
 from .crypto import decrypt_session_secret, encrypt_session_secret
@@ -558,6 +558,13 @@ def override_attendance(*, session, enrollment, status, reason, actor):
     allowed = {choice[0] for choice in SessionAttendance.Status.choices}
     if status not in allowed - {SessionAttendance.Status.PENDING}:
         raise ValidationError("Select present, absent, or excused.")
+    if (
+        session.kind == ScheduledLearningSession.Kind.IN_PERSON
+        and timezone.now() < session.starts_at
+    ):
+        raise ValidationError(
+            "In-person attendance can only be marked from the scheduled start time."
+        )
     attendance, _ = SessionAttendance.objects.select_for_update().get_or_create(
         session=session,
         enrollment=enrollment,
@@ -569,6 +576,9 @@ def override_attendance(*, session, enrollment, status, reason, actor):
     attendance.verified_by = actor
     if status == SessionAttendance.Status.PRESENT:
         attendance.attendance_percent = Decimal("100")
+    elif session.kind == ScheduledLearningSession.Kind.IN_PERSON:
+        attendance.attended_seconds = 0
+        attendance.attendance_percent = Decimal("0")
     attendance.save()
     SessionAttendanceAudit.objects.create(
         session=session,
@@ -582,10 +592,90 @@ def override_attendance(*, session, enrollment, status, reason, actor):
     # synchronization never calls this path, so Google evidence alone cannot
     # complete a lesson.
     if status == SessionAttendance.Status.PRESENT:
+        is_physical = session.kind == ScheduledLearningSession.Kind.IN_PERSON
         ProgressionEngine().mark_complete(
             enrollment=enrollment,
             node=session.node,
-            completion_type="manual",
-            metadata={"source": "attendance_override", "sessionId": session.id},
+            completion_type="attendance" if is_physical else "manual",
+            metadata={
+                "source": (
+                    "physical_attendance" if is_physical else "attendance_override"
+                ),
+                "sessionId": session.id,
+            },
         )
+    elif session.kind == ScheduledLearningSession.Kind.IN_PERSON:
+        _remove_attendance_completion(session=session, enrollment=enrollment)
     return attendance
+
+
+def _remove_attendance_completion(*, session, enrollment):
+    """Remove only completion evidence created by this session's attendance."""
+    if session.kind != ScheduledLearningSession.Kind.IN_PERSON:
+        return False
+
+    completion = NodeCompletion.objects.filter(
+        enrollment=enrollment,
+        node=session.node,
+        completion_type="attendance",
+    ).first()
+    metadata = (
+        completion.metadata
+        if completion and isinstance(completion.metadata, dict)
+        else {}
+    )
+    if not completion or metadata.get("source") != "physical_attendance":
+        return False
+    if str(metadata.get("sessionId")) != str(session.id):
+        return False
+
+    completion.delete()
+    if (
+        enrollment.status == "completed"
+        and not ProgressionEngine().check_program_completion(enrollment)
+    ):
+        enrollment.status = "active"
+        enrollment.completed_at = None
+        enrollment.save(update_fields=["status", "completed_at", "updated_at"])
+    return True
+
+
+@transaction.atomic
+def override_attendance_batch(*, session, enrollment_ids, status, reason, actor):
+    """Apply one audited attendance decision to a validated enrollment selection."""
+    normalized_ids = []
+    for raw_id in enrollment_ids or []:
+        try:
+            enrollment_id = int(raw_id)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("Select valid learners from this course.") from exc
+        if enrollment_id not in normalized_ids:
+            normalized_ids.append(enrollment_id)
+    if not normalized_ids:
+        raise ValidationError("Select at least one learner.")
+
+    enrollments = list(
+        Enrollment.objects.select_for_update()
+        .filter(
+            id__in=normalized_ids,
+            program_id=session.node.program_id,
+            status__in=["active", "completed"],
+        )
+        .select_related("program")
+        .order_by("id")
+    )
+    if {enrollment.id for enrollment in enrollments} != set(normalized_ids):
+        raise ValidationError(
+            "One or more selected learners are not active in this course."
+        )
+
+    return [
+        override_attendance(
+            session=session,
+            enrollment=enrollment,
+            status=status,
+            reason=reason,
+            actor=actor,
+        )
+        for enrollment in enrollments
+    ]

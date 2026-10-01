@@ -2,11 +2,13 @@ import {
     Autocomplete,
     Box,
     FormControl,
+    FormControlLabel,
     FormHelperText,
     InputLabel,
     MenuItem,
     Select,
     Stack,
+    Switch,
     TextField,
 } from "@mui/material";
 import GoogleMeetControls from "@/features/google-workspace/components/GoogleMeetControls";
@@ -278,6 +280,27 @@ export default function ScheduledSessionFields({
                             }
                         />
                     </LabeledField>
+                    <Box sx={{ gridColumn: { md: "1 / -1" } }}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={Boolean(values.notifyLearners)}
+                                    onChange={(event) =>
+                                        onChange({
+                                            notifyLearners:
+                                                event.target.checked,
+                                        })
+                                    }
+                                />
+                            }
+                            label="Notify enrolled learners"
+                        />
+                        <FormHelperText>
+                            Sends an LMS notification and email when this
+                            class is first scheduled or its time or location
+                            changes.
+                        </FormHelperText>
+                    </Box>
                 </Box>
             )}
 

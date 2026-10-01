@@ -5,7 +5,11 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from apps.core.lesson_media import serve_lesson_image
+
+
 urlpatterns = [
+    path("media/lesson_images/<path:path>", serve_lesson_image, name="lesson_image"),
     path("django-admin/", admin.site.urls),  # Renamed to avoid conflict with /admin/* app routes
     # App URLs - Inertia pages and REST APIs
     path("", include("apps.core.urls")),
@@ -31,6 +35,9 @@ urlpatterns = [
     path("api/live-sessions/", include("apps.live_sessions.urls")),
     path("api/google-workspace/", include("apps.google_workspace.urls")),
     path("events/", include("apps.events.urls")),  # Events app routes
+    # AI course-authoring connector: MCP endpoint, OAuth and connected apps.
+    path("", include("apps.ai_connector.urls")),
+    path("", include("apps.ai_connector.oauth_urls")),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

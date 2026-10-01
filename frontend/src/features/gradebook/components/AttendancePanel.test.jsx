@@ -1,48 +1,87 @@
-import {
-    act,
-    fireEvent,
-    render,
-    screen,
-    waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { router } from "@inertiajs/react";
 
 import { workspaceApi } from "@/features/google-workspace/api/workspaceApi";
 import AttendancePanel from "./AttendancePanel";
 
-vi.mock("@/features/google-workspace/api/workspaceApi", () => ({
-    workspaceApi: {
-        attendanceSessions: vi.fn(),
-        connection: vi.fn(),
-        attendance: vi.fn(),
-        connect: vi.fn(),
-        syncMeet: vi.fn(),
-        overrideAttendance: vi.fn(),
-        mapParticipant: vi.fn(),
+vi.mock("@inertiajs/react", () => ({
+    router: {
+        visit: vi.fn(),
+        post: vi.fn(),
     },
 }));
 
-const session = {
+vi.mock("@/features/google-workspace/api/workspaceApi", () => ({
+    workspaceApi: {
+        connect: vi.fn(),
+    },
+}));
+
+const physicalSession = {
     id: 7,
     nodeId: 63,
-    courseId: 4,
-    title: "Project discussion",
+    title: "Practical workshop",
     startsAt: "2026-08-21T07:26:00Z",
     endsAt: "2026-08-21T08:26:00Z",
-    timezone: "Africa/Nairobi",
-    providerEventId: "calendar-event",
+    kind: "in_person_session",
+    provider: "physical",
     hasEnded: true,
-    attendanceThresholdPercent: 50,
     attendanceCounts: {
-        present: 1,
+        present: 0,
         absent: 0,
         excused: 0,
         pending: 0,
-        needsReview: 1,
+        needsReview: 2,
         total: 2,
     },
+};
+
+const meetSession = {
+    ...physicalSession,
+    id: 8,
+    nodeId: 64,
+    title: "Project discussion",
+    kind: "live_meeting",
+    provider: "google_meet",
+    providerEventId: "calendar-event",
     unmatchedAttendanceCount: 1,
 };
+
+const roster = [
+    {
+        enrollmentId: 12,
+        learner: {
+            name: "Amina Learner",
+            email: "amina@example.test",
+        },
+        status: "pending",
+        source: null,
+        attendedSeconds: 0,
+        attendancePercent: 0,
+        auditHistory: [],
+    },
+    {
+        enrollmentId: 13,
+        learner: {
+            name: "Brian Learner",
+            email: "brian@example.test",
+        },
+        status: "present",
+        source: "instructor_override",
+        attendedSeconds: 1800,
+        attendancePercent: 50,
+        auditHistory: [
+            {
+                previousStatus: "pending",
+                resultingStatus: "present",
+                reason: "Signed register",
+                actor: "Tutor One",
+                createdAt: "2026-08-21T09:00:00Z",
+            },
+        ],
+    },
+];
 
 describe("AttendancePanel", () => {
     beforeEach(() => {
@@ -52,84 +91,128 @@ describe("AttendancePanel", () => {
             "",
             "/instructor/programs/4/gradebook/?view=attendance",
         );
-        workspaceApi.attendanceSessions.mockResolvedValue({
-            results: [session],
-        });
-        workspaceApi.connection.mockResolvedValue({
-            available: true,
-            connected: true,
-            grantedCapabilities: ["calendar_events", "meet_attendance"],
-        });
-        workspaceApi.attendance.mockResolvedValue({
-            results: [
-                {
-                    enrollmentId: 12,
-                    learner: {
-                        name: "Amina Learner",
-                        email: "amina@example.test",
-                    },
-                    status: "pending",
-                    source: null,
-                    attendedSeconds: 0,
-                    attendancePercent: 0,
-                    verifiedAt: null,
-                    auditHistory: [
-                        {
-                            previousStatus: "absent",
-                            resultingStatus: "excused",
-                            reason: "Medical note",
-                            actor: "Tutor One",
-                            createdAt: "2026-08-21T09:00:00Z",
-                        },
-                    ],
-                },
-            ],
-            unmatchedParticipants: [
-                {
-                    participantName: "participants/one",
-                    externalUserId: "google-user-1",
-                    displayName: "Unknown participant",
-                    anonymous: false,
-                },
-            ],
-        });
     });
 
-    test("loads only the course sessions and exposes records needing review", async () => {
-        render(<AttendancePanel program={{ id: 4 }} />);
-
-        expect(
-            await screen.findByText("Project discussion"),
-        ).toBeInTheDocument();
-        expect(workspaceApi.attendanceSessions).toHaveBeenCalledWith(4);
-        expect(screen.getByText("2 need review")).toBeInTheDocument();
+    test("selects sessions through an Inertia partial visit", () => {
+        render(
+            <AttendancePanel
+                program={{ id: 4 }}
+                attendanceSessions={[physicalSession]}
+            />,
+        );
 
         fireEvent.click(
             screen.getByRole("button", { name: "Review attendance" }),
         );
 
-        expect(await screen.findByText("Amina Learner")).toBeInTheDocument();
-        expect(screen.getByText("Needs review")).toBeInTheDocument();
+        expect(router.visit).toHaveBeenCalledWith(
+            "/instructor/programs/4/gradebook/?view=attendance&session=63",
+            expect.objectContaining({
+                only: [
+                    "attendanceSessions",
+                    "selectedAttendance",
+                    "googleWorkspaceConnection",
+                ],
+            }),
+        );
+    });
+
+    test("bulk marks an in-person roster without Google controls", () => {
+        render(
+            <AttendancePanel
+                program={{ id: 4 }}
+                attendanceSessions={[physicalSession]}
+                selectedAttendance={{
+                    session: physicalSession,
+                    results: roster,
+                    unmatchedParticipants: [],
+                }}
+                googleWorkspaceConnection={null}
+            />,
+        );
+
+        expect(screen.getByText("Amina Learner")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Enable attendance" }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Synchronize Google Meet" }),
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByLabelText("Select all 2 learners"));
+        fireEvent.change(screen.getByLabelText("Audited reason"), {
+            target: { value: "Signed class register" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Mark 2" }));
+
+        expect(router.post).toHaveBeenCalledWith(
+            "/instructor/programs/4/gradebook/attendance/63/mark/",
+            {
+                enrollmentIds: [12, 13],
+                status: "present",
+                reason: "Signed class register",
+            },
+            expect.any(Object),
+        );
+    });
+
+    test("keeps Google synchronization, mapping, and audit review isolated", () => {
+        render(
+            <AttendancePanel
+                program={{ id: 4 }}
+                attendanceSessions={[meetSession]}
+                selectedAttendance={{
+                    session: meetSession,
+                    results: roster,
+                    unmatchedParticipants: [
+                        {
+                            displayName: "Unknown participant",
+                            externalUserId: "google-user-1",
+                            anonymous: false,
+                        },
+                    ],
+                }}
+                googleWorkspaceConnection={{
+                    connected: true,
+                    grantedCapabilities: ["calendar_events", "meet_attendance"],
+                }}
+            />,
+        );
+
+        expect(
+            screen.getByRole("button", { name: "Synchronize Google Meet" }),
+        ).toBeInTheDocument();
         expect(screen.getByText("Unknown participant")).toBeInTheDocument();
         expect(
             screen.getByRole("button", { name: "Show audit history (1)" }),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByText("Attendance opens at the scheduled start time."),
+        ).not.toBeInTheDocument();
     });
 
-    test("requests incremental Meet attendance authorization from Gradebook", async () => {
-        workspaceApi.connection.mockResolvedValue({
-            available: true,
-            connected: true,
-            grantedCapabilities: ["calendar_events"],
-        });
+    test("requests incremental Meet attendance authorization", async () => {
         workspaceApi.connect.mockRejectedValue(
             new Error("Authorization paused"),
         );
-
-        render(<AttendancePanel program={{ id: 4 }} />);
+        render(
+            <AttendancePanel
+                program={{ id: 4 }}
+                attendanceSessions={[meetSession]}
+                selectedAttendance={{
+                    session: meetSession,
+                    results: roster,
+                    unmatchedParticipants: [],
+                }}
+                googleWorkspaceConnection={{
+                    connected: true,
+                    grantedCapabilities: ["calendar_events"],
+                }}
+            />,
+        );
 
         fireEvent.click(
-            await screen.findByRole("button", { name: "Enable attendance" }),
+            screen.getByRole("button", { name: "Enable attendance" }),
         );
 
         await waitFor(() =>
@@ -138,71 +221,5 @@ describe("AttendancePanel", () => {
                 returnTo: "/instructor/programs/4/gradebook/?view=attendance",
             }),
         );
-    });
-
-    test("ignores a previous class roster arriving after the selected class", async () => {
-        let resolveFirst;
-        workspaceApi.attendanceSessions.mockResolvedValue({
-            results: [
-                session,
-                { ...session, id: 8, nodeId: 64, title: "Second class" },
-            ],
-        });
-        workspaceApi.attendance.mockImplementation((nodeId) =>
-            String(nodeId) === "63"
-                ? new Promise((resolve) => {
-                      resolveFirst = resolve;
-                  })
-                : Promise.resolve({ results: [], unmatchedParticipants: [] }),
-        );
-        render(<AttendancePanel program={{ id: 4 }} />);
-        const buttons = await screen.findAllByRole("button", {
-            name: "Review attendance",
-        });
-        fireEvent.click(buttons[0]);
-        await waitFor(() => expect(resolveFirst).toBeTypeOf("function"));
-        fireEvent.click(buttons[1]);
-        await waitFor(() =>
-            expect(workspaceApi.attendance).toHaveBeenCalledWith("64"),
-        );
-        await act(async () =>
-            resolveFirst({
-                results: [
-                    {
-                        enrollmentId: 12,
-                        learner: {
-                            name: "Stale learner",
-                            email: "stale@example.test",
-                        },
-                        status: "pending",
-                        attendancePercent: 0,
-                    },
-                ],
-                unmatchedParticipants: [],
-            }),
-        );
-        expect(screen.queryByText("Stale learner")).not.toBeInTheDocument();
-    });
-
-    test("synchronizes the selected completed meeting after authorization returns", async () => {
-        window.history.replaceState(
-            {},
-            "",
-            "/instructor/programs/4/gradebook/?view=attendance&session=63",
-        );
-        workspaceApi.connection.mockResolvedValue({
-            available: true,
-            connected: true,
-            grantedCapabilities: ["calendar_events", "meet_attendance"],
-            oauthCallback: { status: "success", message: "Connected." },
-        });
-        workspaceApi.syncMeet.mockResolvedValue({ session });
-
-        render(<AttendancePanel program={{ id: 4 }} />);
-
-        await waitFor(() =>
-            expect(workspaceApi.syncMeet).toHaveBeenCalledWith(63),
-        );
-        expect(await screen.findByText("Amina Learner")).toBeInTheDocument();
     });
 });

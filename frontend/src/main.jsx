@@ -53,6 +53,7 @@ const featureMap = {
     "Public/CertificateVerification":
         "./features/certifications/pages/CertificateVerification.jsx",
     "Student/Profile": "./features/course-player/pages/Profile.jsx",
+    "Account/ConnectedApps": "./features/ai-connector/pages/ConnectedApps.jsx",
     "Student/Quiz/Take": "./features/quizzes/pages/Take.jsx",
     "Student/Quiz/Results": "./features/quizzes/pages/Results.jsx",
 

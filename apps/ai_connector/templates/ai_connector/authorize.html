@@ -1,0 +1,56 @@
+{% extends "ai_connector/_page.html" %}
+
+{% block content %}
+{% if not error %}
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}{% if field.is_hidden %}{{ field }}{% endif %}{% endfor %}
+    <h1>Connect {{ application.name|default:"this AI app" }} to your courses?</h1>
+    <p class="muted">
+      Signed in as {{ request.user.email|default:request.user.username }}.
+      {% if redirect_host %}After you choose, you return to <strong>{{ redirect_host }}</strong>.{% endif %}
+    </p>
+    <p>The app will be able to:</p>
+    <ul>
+      <li>Read the courses you can manage, including lessons, quizzes and answers.</li>
+      <li>Check courses against the publishing requirements.</li>
+    </ul>
+    {% if requests_write %}
+      <label class="choice">
+        <input type="checkbox" name="allow_write" value="1" checked>
+        <span>
+          <strong>Also allow saving course changes</strong><br>
+          <span class="muted">The app can prepare and save course edits. The LMS cannot verify a chat confirmation itself,
+          so keep your AI app's approval prompt enabled for write tools. It cannot delete or publish courses.</span>
+        </span>
+      </label>
+    {% endif %}
+    {% if requests_learners %}
+      <label class="choice">
+        <input type="checkbox" name="allow_learners" value="1">
+        <span><strong>Allow reading learner activity</strong><br>
+          <span class="muted">Only for courses your LMS account can manage.</span></span>
+      </label>
+    {% endif %}
+    {% if requests_messages %}
+      <label class="choice">
+        <input type="checkbox" name="allow_messages" value="1">
+        <span><strong>Allow sending learner messages</strong><br>
+          <span class="muted">Messages are previewed first. Keep the AI app's tool approval enabled before sends.</span></span>
+      </label>
+    {% endif %}
+    <p class="muted">You can disconnect the app at any time from Connected AI apps in your account.</p>
+    {{ form.non_field_errors }}
+    <div class="actions">
+      <button type="submit" class="secondary">Cancel</button>
+      <button type="submit" class="primary" name="allow" value="true">Connect</button>
+    </div>
+  </form>
+{% else %}
+  <div class="error" role="alert">
+    <h1>This connection request cannot be completed</h1>
+    <p>{{ error.description|default:error.error }}</p>
+  </div>
+  <p class="muted">Return to your AI app and start the connection again.</p>
+{% endif %}
+{% endblock %}

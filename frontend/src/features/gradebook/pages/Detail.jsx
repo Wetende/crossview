@@ -43,10 +43,13 @@ const GRADEBOOK_GUIDE_DISMISSED_KEY = "lms.gradebook.guide.dismissed";
 
 export default function Gradebook({
     program,
-    gradingConfig,
+    gradingConfig = {},
     quizzes = [],
     assignments = [],
-    students,
+    students = [],
+    attendanceSessions = [],
+    selectedAttendance = null,
+    googleWorkspaceConnection = null,
 }) {
     const [activeView, setActiveView] = useState(() => {
         if (typeof window === "undefined") return "grades";
@@ -69,16 +72,28 @@ export default function Gradebook({
 
     const handleViewChange = (_event, nextView) => {
         setActiveView(nextView);
-        if (typeof window !== "undefined") {
-            const url = new URL(window.location.href);
-            if (nextView === "attendance") {
-                url.searchParams.set("view", "attendance");
-            } else {
-                url.searchParams.delete("view");
-                url.searchParams.delete("session");
-            }
-            window.history.replaceState({}, "", url);
+        const url = new URL(window.location.href);
+        if (nextView === "attendance") {
+            url.searchParams.set("view", "attendance");
+            router.visit(url.toString(), {
+                only: [
+                    "attendanceSessions",
+                    "selectedAttendance",
+                    "googleWorkspaceConnection",
+                ],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            });
+            return;
         }
+        url.searchParams.delete("view");
+        url.searchParams.delete("session");
+        router.visit(url.toString(), {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     };
 
     const handlePublish = () => {
@@ -123,13 +138,13 @@ export default function Gradebook({
     const renderScoreCell = (score, passed = null) => {
         if (score === null || score === undefined) {
             return (
-                <Typography variant="body2" color="textSecondary">
+                <Typography variant="body2" color="text.secondary">
                     —
                 </Typography>
             );
         }
         return (
-            <Stack direction="row" sx={{ alignItems: "center" }} spacing={0.5}>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
                 <Typography variant="body2">{score.toFixed(1)}%</Typography>
                 {passed === true && <IconCheck size={14} color="green" />}
                 {passed === false && <IconX size={14} color="red" />}
@@ -200,7 +215,7 @@ export default function Gradebook({
                             >
                                 <Typography
                                     variant="body2"
-                                    color="textSecondary"
+                                    color="text.secondary"
                                 >
                                     {program.name}
                                 </Typography>
@@ -388,7 +403,7 @@ export default function Gradebook({
                                                 align="center"
                                                 sx={{ py: 4 }}
                                             >
-                                                <Typography color="textSecondary">
+                                                <Typography color="text.secondary">
                                                     No students enrolled
                                                 </Typography>
                                             </TableCell>
@@ -410,16 +425,13 @@ export default function Gradebook({
                                                 >
                                                     <Typography
                                                         variant="body2"
-                                                        sx={{
-                                                            fontWeight:
-                                                                "medium",
-                                                        }}
+                                                        fontWeight="medium"
                                                     >
                                                         {student.name}
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="textSecondary"
+                                                        color="text.secondary"
                                                     >
                                                         {student.email}
                                                     </Typography>
@@ -500,18 +512,15 @@ export default function Gradebook({
                                                     >
                                                         <Typography
                                                             variant="body2"
-                                                            sx={{
-                                                                fontWeight:
-                                                                    "bold",
-                                                            }}
+                                                            fontWeight="bold"
                                                             color={
                                                                 student.overallScore !==
                                                                 null
                                                                     ? student.overallScore >=
                                                                       70
-                                                                        ? "success"
-                                                                        : "error"
-                                                                    : "textSecondary"
+                                                                        ? "success.main"
+                                                                        : "error.main"
+                                                                    : "text.secondary"
                                                             }
                                                         >
                                                             {student.overallScore !==
@@ -542,7 +551,14 @@ export default function Gradebook({
                             </Table>
                         </TableContainer>
                     ) : (
-                        <AttendancePanel program={program} />
+                        <AttendancePanel
+                            program={program}
+                            attendanceSessions={attendanceSessions}
+                            selectedAttendance={selectedAttendance}
+                            googleWorkspaceConnection={
+                                googleWorkspaceConnection
+                            }
+                        />
                     )}
                 </Stack>
             </motion.div>

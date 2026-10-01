@@ -3299,33 +3299,285 @@ def instructor_gradebook(request, pk: int):
         messages.error(request, "You do not have access to this gradebook.")
         return redirect("progression:instructor.programs")
 
+    attendance_view = request.GET.get("view") == "attendance"
+
     # Get grading config from blueprint
     grading_config: dict = {}
     if program.blueprint:
         grading_config = program.blueprint.grading_logic or {}
 
-    # Get all active enrollments with derived grades
-    enrollments = (
+    enrollment_queryset = (
         Enrollment.objects.filter(program=program, status__in=["active", "completed"])
         .select_related("user")
         .order_by("user__last_name", "user__first_name")
     )
+    props = {"program": {"id": program.id, "name": program.name}}
 
-    payload = _build_program_gradebook_payload(
-        program, list(enrollments), grading_config
+    include_grades = any(
+        should_render_inertia_prop(request, prop)
+        for prop in ("gradingConfig", "quizzes", "assignments", "students")
+    )
+    if include_grades:
+        payload = _build_program_gradebook_payload(
+            program,
+            list(enrollment_queryset),
+            grading_config,
+        )
+        props.update(
+            {
+                "gradingConfig": grading_config,
+                "quizzes": payload["quizzes"],
+                "assignments": payload["assignments"],
+                "students": payload["students"],
+            }
+        )
+
+    if attendance_view:
+        attendance_props = _build_gradebook_attendance_props(
+            request,
+            program=program,
+            enrollment_total=enrollment_queryset.count(),
+        )
+        for key, value in attendance_props.items():
+            if should_render_inertia_prop(request, key):
+                props[key] = value
+    else:
+        props.update(
+            {
+                "attendanceSessions": [],
+                "selectedAttendance": None,
+                "googleWorkspaceConnection": None,
+            }
+        )
+
+    return render(request, "Instructor/Gradebook", props)
+
+
+def _gradebook_attendance_sessions(program):
+    from apps.live_sessions.models import ScheduledLearningSession, SessionAttendance
+
+    return list(
+        ScheduledLearningSession.objects.filter(node__program=program)
+        .filter(
+            Q(kind=ScheduledLearningSession.Kind.IN_PERSON)
+            | Q(provider=ScheduledLearningSession.Provider.GOOGLE_MEET)
+        )
+        .exclude(status=ScheduledLearningSession.Status.CANCELLED)
+        .select_related("node", "node__program", "node__parent")
+        .prefetch_related(
+            Prefetch(
+                "attendance_records",
+                queryset=SessionAttendance.objects.filter(
+                    enrollment__status__in=["active", "completed"]
+                ),
+                to_attr="active_attendance_records",
+            )
+        )
+        .order_by("-starts_at", "-id")
     )
 
-    return render(
-        request,
-        "Instructor/Gradebook",
+
+def _build_gradebook_attendance_props(request, *, program, enrollment_total):
+    from apps.live_sessions.models import ScheduledLearningSession
+    from apps.live_sessions.services import (
+        serialize_attendance_roster,
+        serialize_session_for_author,
+    )
+
+    sessions = _gradebook_attendance_sessions(program)
+    session_rows = [
         {
-            "program": {"id": program.id, "name": program.name},
-            "gradingConfig": grading_config,
-            "quizzes": payload["quizzes"],
-            "assignments": payload["assignments"],
-            "students": payload["students"],
+            **serialize_session_for_author(
+                session,
+                enrollment_total=enrollment_total,
+            ),
+            "courseTitle": program.name,
+            "sectionTitle": session.node.parent.title if session.node.parent_id else "",
+        }
+        for session in sessions
+    ]
+    try:
+        selected_node_id = int(request.GET.get("session") or 0)
+    except (TypeError, ValueError):
+        selected_node_id = 0
+    selected = next(
+        (session for session in sessions if session.node_id == selected_node_id),
+        None,
+    )
+    selected_attendance = None
+    connection = None
+    if selected:
+        roster = serialize_attendance_roster(selected)
+        selected_attendance = {
+            "session": serialize_session_for_author(
+                selected,
+                enrollment_total=len(roster),
+            ),
+            "results": roster,
+            "unmatchedParticipants": (
+                selected.provider_metadata or {}
+            ).get("unmatchedParticipants", []),
+        }
+        if selected.provider == ScheduledLearningSession.Provider.GOOGLE_MEET:
+            from apps.google_workspace.services import (
+                serialize_connection_for_request,
+            )
+
+            connection = serialize_connection_for_request(request)
+    return {
+        "attendanceSessions": session_rows,
+        "selectedAttendance": selected_attendance,
+        "googleWorkspaceConnection": connection,
+    }
+
+
+def _gradebook_attendance_redirect(program_id, node_id=None):
+    params = {"view": "attendance"}
+    if node_id:
+        params["session"] = node_id
+    return redirect(
+        f"{reverse('progression:instructor.gradebook', args=[program_id])}?"
+        f"{urlencode(params)}"
+    )
+
+
+def _attendance_session_for_program(program, node_id):
+    from apps.live_sessions.models import ScheduledLearningSession
+
+    return get_object_or_404(
+        ScheduledLearningSession.objects.filter(
+            Q(kind=ScheduledLearningSession.Kind.IN_PERSON)
+            | Q(provider=ScheduledLearningSession.Provider.GOOGLE_MEET)
+        ).select_related("node", "node__program"),
+        node_id=node_id,
+        node__program=program,
+    )
+
+
+@login_required
+def instructor_gradebook_attendance_mark(request, pk: int, node_id: int):
+    if request.method != "POST":
+        return _gradebook_attendance_redirect(pk, node_id)
+    program = _get_instructor_accessible_program(request.user, pk)
+    if not program:
+        messages.error(request, "You do not have access to this gradebook.")
+        return redirect("progression:instructor.programs")
+
+    from django.core.exceptions import ValidationError
+    from apps.live_sessions.services import override_attendance_batch
+
+    session = _attendance_session_for_program(program, node_id)
+    data = _get_post_data(request)
+    enrollment_ids = data.get("enrollmentIds") or []
+    if not isinstance(enrollment_ids, list):
+        enrollment_ids = [enrollment_ids]
+    try:
+        attendance = override_attendance_batch(
+            session=session,
+            enrollment_ids=enrollment_ids,
+            status=str(data.get("status") or "").strip().lower(),
+            reason=data.get("reason"),
+            actor=request.user,
+        )
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+    else:
+        messages.success(
+            request,
+            f"Attendance updated for {len(attendance)} learner"
+            f"{'s' if len(attendance) != 1 else ''}.",
+        )
+    return _gradebook_attendance_redirect(program.id, node_id)
+
+
+@login_required
+def instructor_gradebook_attendance_sync(request, pk: int, node_id: int):
+    if request.method != "POST":
+        return _gradebook_attendance_redirect(pk, node_id)
+    program = _get_instructor_accessible_program(request.user, pk)
+    if not program:
+        messages.error(request, "You do not have access to this gradebook.")
+        return redirect("progression:instructor.programs")
+
+    from apps.live_sessions.jobs import enqueue_session_job, process_live_session_jobs
+    from apps.live_sessions.models import ScheduledLearningSession
+
+    session = _attendance_session_for_program(program, node_id)
+    if session.provider != ScheduledLearningSession.Provider.GOOGLE_MEET:
+        messages.error(request, "Only Google Meet sessions can be synchronized.")
+        return _gradebook_attendance_redirect(program.id, node_id)
+    if not session.provider_event_id:
+        messages.error(request, "Create the Google Meet before synchronizing attendance.")
+        return _gradebook_attendance_redirect(program.id, node_id)
+
+    job = enqueue_session_job(
+        session,
+        "google_meet_attendance",
+        actor=request.user,
+    )
+    process_live_session_jobs(job_ids=[job.id])
+    job.refresh_from_db()
+    if job.status == "succeeded":
+        messages.success(request, "Google Meet attendance synchronized.")
+    else:
+        messages.error(
+            request,
+            "Google Meet attendance could not be synchronized. Try again shortly.",
+        )
+    return _gradebook_attendance_redirect(program.id, node_id)
+
+
+@login_required
+def instructor_gradebook_attendance_map_google(request, pk: int, node_id: int):
+    if request.method != "POST":
+        return _gradebook_attendance_redirect(pk, node_id)
+    program = _get_instructor_accessible_program(request.user, pk)
+    if not program:
+        messages.error(request, "You do not have access to this gradebook.")
+        return redirect("progression:instructor.programs")
+
+    from apps.google_workspace.models import GoogleParticipantIdentity
+    from apps.live_sessions.models import ScheduledLearningSession
+
+    session = _attendance_session_for_program(program, node_id)
+    if session.provider != ScheduledLearningSession.Provider.GOOGLE_MEET:
+        messages.error(request, "Participant mapping is only available for Google Meet.")
+        return _gradebook_attendance_redirect(program.id, node_id)
+    data = _get_post_data(request)
+    external_id = str(data.get("externalUserId") or "").removeprefix("users/").strip()
+    enrollment = Enrollment.objects.filter(
+        pk=_safe_int(data.get("enrollmentId")),
+        program=program,
+        status__in=["active", "completed"],
+    ).select_related("user").first()
+    if not external_id or not enrollment:
+        messages.error(
+            request,
+            "Select a signed-in Google participant and an active learner.",
+        )
+        return _gradebook_attendance_redirect(program.id, node_id)
+    GoogleParticipantIdentity.objects.update_or_create(
+        google_user_id=external_id,
+        defaults={
+            "user": enrollment.user,
+            "source": "manual_mapping",
+            "verified_by": request.user,
         },
     )
+    if session.provider_event_id:
+        from apps.live_sessions.jobs import (
+            enqueue_session_job,
+            process_live_session_jobs,
+        )
+
+        job = enqueue_session_job(
+            session,
+            "google_meet_attendance",
+            actor=request.user,
+        )
+        process_live_session_jobs(job_ids=[job.id])
+    messages.success(request, "Google participant mapping saved.")
+    return _gradebook_attendance_redirect(program.id, node_id)
 
 
 @login_required

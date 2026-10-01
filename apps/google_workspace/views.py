@@ -22,6 +22,7 @@ from .serializers import GoogleMeetSettingsSerializer, OAuthConnectSerializer
 from .services import (
     require_connected_credential,
     serialize_connection,
+    serialize_connection_for_request,
     verify_calendar_connection,
 )
 
@@ -36,19 +37,7 @@ def _error(exc):
 class GoogleWorkspaceConnectionView(APIView):
     permission_classes = [IsInstructorOrStaff]
     def get(self, request):
-        connection = serialize_connection(request.user)
-        callback = request.session.pop(CALLBACK_DIAGNOSTIC_SESSION_KEY, None)
-        if callback:
-            succeeded = callback.get("status") == "success"
-            connection["oauthCallback"] = {
-                "status": "success" if succeeded else "error",
-                "message": (
-                    "Google Calendar connected successfully."
-                    if succeeded
-                    else "Google Calendar could not be connected. Try again."
-                ),
-            }
-        return Response(connection)
+        return Response(serialize_connection_for_request(request))
     def post(self, request):
         serializer = OAuthConnectSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

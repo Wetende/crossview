@@ -51,6 +51,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "inertia",
+    "anymail",
+    "oauth2_provider",
+    "mcp_server",
     # Local apps
     "apps.core",
     "apps.platform",
@@ -72,6 +75,7 @@ INSTALLED_APPS = [
     "apps.learning_operations",
     "apps.live_sessions",
     "apps.google_workspace",
+    "apps.ai_connector",
     # Historical migration owner only. The Classroom runtime has been removed.
     "apps.google_classroom",
 ]
@@ -85,7 +89,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    "apps.ai_connector.csrf.ConnectorCsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -320,6 +324,91 @@ GOOGLE_WORKSPACE_REDIRECT_URI = os.getenv("GOOGLE_WORKSPACE_REDIRECT_URI", "").s
 GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY = os.getenv("GOOGLE_WORKSPACE_TOKEN_ENCRYPTION_KEY", "").strip()
 LIVE_SESSION_ENCRYPTION_KEY = os.getenv("LIVE_SESSION_ENCRYPTION_KEY", "").strip()
 PLATFORM_PUBLIC_BASE_URL = os.getenv("PLATFORM_PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+# AI course-authoring connector (remote MCP server with OAuth). Disabled until
+# acceptance; enabling it in production requires approval.
+AI_CONNECTOR_ENABLED = os.getenv("AI_CONNECTOR_ENABLED", "False").lower() == "true"
+# Keep one production enable switch. Existing V2 checks continue to use this
+# internal alias, but a separate AI_CONNECTOR_V2_ENABLED env value is ignored.
+AI_CONNECTOR_V2_ENABLED = AI_CONNECTOR_ENABLED
+# Public origin used for OAuth issuer and MCP resource URLs. When blank, the
+# validated request host is used.
+AI_CONNECTOR_BASE_URL = os.getenv("AI_CONNECTOR_BASE_URL", "").strip().rstrip("/")
+AI_CONNECTOR_ALLOWED_REDIRECT_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "AI_CONNECTOR_ALLOWED_REDIRECT_HOSTS",
+        "claude.ai,claude.com,chatgpt.com,platform.openai.com",
+    ).split(",")
+    if host.strip()
+]
+AI_CONNECTOR_RATE = os.getenv("AI_CONNECTOR_RATE", "120/min")
+AI_CONNECTOR_REGISTRATION_RATE = os.getenv("AI_CONNECTOR_REGISTRATION_RATE", "20/hour")
+AI_CONNECTOR_CHANGE_TTL_HOURS = int(os.getenv("AI_CONNECTOR_CHANGE_TTL_HOURS", "24"))
+
+# Declared explicitly so migrations can reference the swappable model.
+OAUTH2_PROVIDER_APPLICATION_MODEL = "oauth2_provider.Application"
+OAUTH2_PROVIDER = {
+    "SCOPES": {
+        "courses:read": "Read the courses you can manage",
+        "courses:write": "Prepare and save course changes you confirm",
+        "learners:read": "Read activity of learners in courses you can manage",
+        "messages:send": "Send confirmed messages to learners in courses you can manage",
+    },
+    # Clients that request no scope are offered all four; the consent screen
+    # lets the person decline each write or learner-data capability.
+    "DEFAULT_SCOPES": ["courses:read", "courses:write", "learners:read", "messages:send"],
+    "PKCE_REQUIRED": True,
+    "COMPLIANT_BCP_RFC9700_PKCE_METHOD": True,
+    "COMPLIANT_BCP_RFC9700_IMPLICIT_GRANT": True,
+    "COMPLIANT_BCP_RFC9700_PASSWORD_GRANT": True,
+    "COMPLIANT_BCP_RFC9700_ACCESS_TOKEN_TRANSPORT": True,
+    "COMPLIANT_BCP_RFC9700_AUTHZ_RESPONSE_ISS": True,
+    # Store only token checksums, never reusable token values.
+    "COMPLIANT_BCP_RFC9700_TOKEN_STORAGE": True,
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
+    "REFRESH_TOKEN_EXPIRE_SECONDS": 60 * 60 * 24 * 30,
+    # Hashed refresh tokens cannot be returned again during a grace window.
+    # Django OAuth Toolkit's deployment check rejects that combination.
+    "REFRESH_TOKEN_GRACE_PERIOD_SECONDS": 0,
+    "ROTATE_REFRESH_TOKEN": True,
+    "REFRESH_TOKEN_REUSE_PROTECTION": True,
+    "COMPLIANT_BCP_RFC9700_REFRESH_TOKEN": True,
+    "REQUEST_APPROVAL_PROMPT": "auto",
+    # http is accepted only for loopback redirects; registration enforces this.
+    "ALLOWED_REDIRECT_URI_SCHEMES": ["https", "http"],
+    "ALLOW_LOCALHOST_LOOPBACK": True,
+    "OIDC_ISS_ENDPOINT": AI_CONNECTOR_BASE_URL,
+    "OAUTH2_RESPONSE_TYPES_SUPPORTED": ["code"],
+    "OAUTH2_GRANT_TYPES_SUPPORTED": ["authorization_code", "refresh_token"],
+    "OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED": [
+        "none",
+        "client_secret_post",
+        "client_secret_basic",
+    ],
+    "DCR_ENABLED": True,
+    "DCR_REGISTRATION_PERMISSION_CLASSES": ("oauth2_provider.dcr.AllowAllDCRPermission",),
+    "DCR_REGISTRATION_TOKEN_EXPIRE_SECONDS": 60 * 60 * 24 * 90,
+    "OAUTH2_PROTECTED_RESOURCE_NAME": "Course authoring",
+}
+
+DJANGO_MCP_GLOBAL_SERVER_CONFIG = {
+    "name": "course-authoring",
+    "stateless": True,
+    "instructions": (
+        "Course authoring tools for the courses this user can manage. "
+        "Read before writing: use search_courses, get_course, get_lesson and "
+        "check_course_readiness to understand the current course. Report "
+        "readiness findings as facts and label your own teaching-quality "
+        "suggestions separately. To change content, call prepare_course_change, "
+        "show the user the returned preview (including whether published "
+        "learner content is affected) and wait for the user to confirm in chat "
+        "before calling apply_course_change with the change_id. Never apply a "
+        "change the user has not confirmed. These tools cannot delete content, "
+        "publish or unpublish a course, or change grading policy."
+    ),
+}
+DJANGO_MCP_GET_SERVER_INSTRUCTIONS_TOOL = False
 
 # =============================================================================
 # Logging (Environment-controlled verbosity)
