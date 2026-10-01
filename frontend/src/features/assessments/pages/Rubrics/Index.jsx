@@ -52,12 +52,12 @@ const RubricsIndex = ({ rubrics, can_create }) => {
                         borderRadius: 2,
                     }}
                 >
-                    <Typography variant="h6" color="text.secondary">
+                    <Typography variant="h6" color="textSecondary">
                         No rubrics found.
                     </Typography>
                     <Typography
                         variant="body2"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mb: 3 }}
                     >
                         Create a rubric to start grading subjective assignments.
@@ -66,7 +66,7 @@ const RubricsIndex = ({ rubrics, can_create }) => {
             ) : (
                 <Grid container spacing={3}>
                     {rubrics.map((rubric) => (
-                        <Grid item xs={12} md={6} lg={4} key={rubric.id}>
+                        <Grid size={{ xs: 12, md: 6, lg: 4 }} key={rubric.id}>
                             <Card variant="outlined">
                                 <CardContent>
                                     <Box
@@ -111,7 +111,7 @@ const RubricsIndex = ({ rubrics, can_create }) => {
 
                                     <Typography
                                         variant="body2"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                         noWrap
                                     >
                                         {rubric.description ||
@@ -120,8 +120,11 @@ const RubricsIndex = ({ rubrics, can_create }) => {
 
                                     <Typography
                                         variant="caption"
-                                        display="block"
-                                        sx={{ mt: 2, color: "text.disabled" }}
+                                        sx={{
+                                            display: "block",
+                                            mt: 2,
+                                            color: "text.disabled",
+                                        }}
                                     >
                                         Updated:{" "}
                                         {new Date(

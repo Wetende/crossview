@@ -75,7 +75,7 @@ export default function UserForm({
             >
               Back to Users
             </Button>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               {isEdit ? 'Edit User' : 'Add User'}
             </Typography>
           </Box>
@@ -84,7 +84,7 @@ export default function UserForm({
 
           <Grid container spacing={3}>
             {/* Basic Info */}
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -106,7 +106,7 @@ export default function UserForm({
                         required
                       />
                       <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <TextField
                             label="First Name"
                             value={data.firstName}
@@ -116,7 +116,7 @@ export default function UserForm({
                             fullWidth
                           />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                           <TextField
                             label="Last Name"
                             value={data.lastName}
@@ -149,7 +149,7 @@ export default function UserForm({
             </Grid>
 
             {/* Role & Status */}
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

@@ -6,39 +6,96 @@ import {
     useTheme,
 } from "@mui/material";
 import {
+    IconAward,
     IconBook,
+    IconBuildingBank,
+    IconCalendarTime,
+    IconCertificate,
     IconChartBar,
     IconClipboardCheck,
     IconClock,
+    IconDeviceLaptop,
 } from "@tabler/icons-react";
 
 import {
     formatCourseDuration,
     formatMetricNumber,
+    pluralizeMetric,
     resolveCourseMetrics,
 } from "@/utils/courseMetrics";
 
 function CourseDetailRow({ icon, label, value }) {
     return (
         <Stack
-            data-testid={`course-detail-row-${label.toLowerCase()}`}
+            data-testid={`course-detail-row-${label.toLowerCase().replace(/\s+/g, "-")}`}
             direction="row"
             sx={{ minHeight: 56, minWidth: 0, gap: 1.5, alignItems: "center" }}
         >
             <Box sx={{ display: "flex", color: "text.secondary", flexShrink: 0 }}>
                 {icon}
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 0 }}>
+            <Typography
+                variant="body2"
+                color="textSecondary"
+                sx={{ minWidth: 0, flexShrink: 0 }}
+            >
                 {label}
             </Typography>
             <Typography
                 variant="body2"
-                sx={{ ml: "auto", pl: 2, textAlign: "right", flexShrink: 0, fontWeight: 700 }}
+                sx={{
+                    ml: "auto",
+                    pl: 2,
+                    minWidth: 0,
+                    textAlign: "right",
+                    overflowWrap: "anywhere",
+                    fontWeight: 700,
+                }}
             >
                 {value}
             </Typography>
         </Stack>
     );
+}
+
+function formatAccessLength(days) {
+    if (days === null || days === undefined || days === "") return "Lifetime access";
+    return `${formatMetricNumber(days)} ${pluralizeMetric(days, "day")}`;
+}
+
+// Optional course facts; each row is left out when the course has no value.
+function buildFactRows(facts, iconColor) {
+    if (!facts) return [];
+
+    return [
+        // Certificate eligibility always requires a passing course result
+        // (CertificateEligibilityService.compute_eligibility).
+        facts.certificateOnCompletion && {
+            icon: <IconCertificate size={20} color={iconColor} />,
+            label: "Certificate",
+            value: "On completion (pass required)",
+        },
+        facts.examBody && {
+            icon: <IconBuildingBank size={20} color={iconColor} />,
+            label: "Exam body",
+            value: facts.examBody,
+        },
+        facts.awardType && {
+            icon: <IconAward size={20} color={iconColor} />,
+            label: "Award",
+            value: facts.awardType,
+        },
+        facts.deliveryModeLabel && {
+            icon: <IconDeviceLaptop size={20} color={iconColor} />,
+            label: "Delivery",
+            value: facts.deliveryModeLabel,
+        },
+        {
+            icon: <IconCalendarTime size={20} color={iconColor} />,
+            label: "Access",
+            value: formatAccessLength(facts.accessDurationDays),
+        },
+    ].filter(Boolean);
 }
 
 export default function CourseDetailsPanel({ program }) {
@@ -66,6 +123,7 @@ export default function CourseDetailsPanel({ program }) {
             label: "Level",
             value: program?.level || "No level",
         },
+        ...buildFactRows(program?.facts, iconColor),
     ];
 
     return (

@@ -130,7 +130,7 @@ function TreeNode({
             <Typography
               variant="body2"
               noWrap
-              fontWeight={isSelected ? 'bold' : 'normal'}
+              sx={{ fontWeight: isSelected ? 'bold' : 'normal' }}
             >
               {node.title}
             </Typography>

@@ -7,7 +7,7 @@ export const tabsBarSx = {
 
 export const tabsSx = {
     minHeight: 48,
-    "& .MuiTabs-flexContainer": {
+    "& .MuiTabs-list": {
         gap: { xs: 0.5, sm: 1 },
     },
     "& .MuiTab-root": {

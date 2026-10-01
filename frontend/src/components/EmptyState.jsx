@@ -50,7 +50,7 @@ export default function EmptyState({
             {description && (
                 <Typography
                     variant="body2"
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ maxWidth: 400, mb: action ? 3 : 0 }}
                 >
                     {description}

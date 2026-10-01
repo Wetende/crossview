@@ -32,6 +32,8 @@ import InfoIcon from "@mui/icons-material/Info";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import PersonIcon from "@mui/icons-material/Person";
 import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
+import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
+import WorkspacePremiumOutlinedIcon from "@mui/icons-material/WorkspacePremiumOutlined";
 
 const POLL_INTERVAL_MS = 60_000;
 const COUNT_CACHE_KEY = "lms.notification.unread_count";
@@ -48,6 +50,8 @@ const notificationIcons = {
     direct_message: <MailOutlinedIcon color="info" />,
     instructor_approved: <PersonIcon color="success" />,
     instructor_rejected: <PersonIcon color="error" />,
+    course_completed: <EmojiEventsOutlinedIcon color="success" />,
+    certificate_issued: <WorkspacePremiumOutlinedIcon color="success" />,
     system: <InfoIcon color="action" />,
 };
 
@@ -284,7 +288,7 @@ export default function NotificationPanel() {
                         borderColor: "divider",
                     }}
                 >
-                    <Typography variant="subtitle1" fontWeight={600}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                         Notifications
                     </Typography>
                     {unreadCount > 0 && (
@@ -319,7 +323,7 @@ export default function NotificationPanel() {
                                     mb: 1,
                                 }}
                             />
-                            <Typography color="text.secondary" variant="body2">
+                            <Typography color="textSecondary" variant="body2">
                                 No notifications yet
                             </Typography>
                         </Box>
@@ -364,12 +368,11 @@ export default function NotificationPanel() {
                                             primary={
                                                 <Typography
                                                     variant="body2"
-                                                    fontWeight={
-                                                        notification.is_read
-                                                            ? 400
-                                                            : 600
-                                                    }
                                                     sx={{
+                                                        fontWeight:
+                                                            notification.is_read
+                                                                ? 400
+                                                                : 600,
                                                         overflow: "hidden",
                                                         textOverflow:
                                                             "ellipsis",
@@ -386,7 +389,7 @@ export default function NotificationPanel() {
                                                 <>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                         component="span"
                                                         sx={{
                                                             overflow: "hidden",
@@ -403,7 +406,7 @@ export default function NotificationPanel() {
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.disabled"
+                                                        color="textDisabled"
                                                         component="span"
                                                         sx={{
                                                             display: "block",

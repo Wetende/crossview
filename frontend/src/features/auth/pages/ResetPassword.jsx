@@ -62,10 +62,10 @@ export default function ResetPassword({ tokenValid, errors = {} }) {
                     <motion.div {...fadeInUp}>
                         <Card sx={{ maxWidth: 440, width: "100%" }}>
                             <CardContent sx={{ p: 4, textAlign: "center" }}>
-                                <Typography variant="h5" fontWeight={600} color="error" gutterBottom>
+                                <Typography variant="h5" sx={{ fontWeight: 600 }} color="error" gutterBottom>
                                     Invalid or Expired Link
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                                <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
                                     This password reset link is invalid or has expired.
                                     Please request a new one.
                                 </Typography>
@@ -112,12 +112,12 @@ export default function ResetPassword({ tokenValid, errors = {} }) {
                                 <Typography
                                     variant="h4"
                                     color="primary"
-                                    fontWeight={700}
+                                    sx={{ fontWeight: 700 }}
                                     gutterBottom
                                 >
                                     Reset Password
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary">
+                                <Typography variant="body1" color="textSecondary">
                                     Enter your new password below.
                                 </Typography>
                             </Box>
@@ -142,23 +142,25 @@ export default function ResetPassword({ tokenValid, errors = {} }) {
                                     margin="normal"
                                     autoComplete="new-password"
                                     autoFocus
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconLock size={20} />
-                                            </InputAdornment>
-                                        ),
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    edge="end"
-                                                    aria-label={showPassword ? "Hide password" : "Show password"}
-                                                >
-                                                    {showPassword ? <IconEyeOff size={20} /> : <IconEye size={20} />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconLock size={20} />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        edge="end"
+                                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                                    >
+                                                        {showPassword ? <IconEyeOff size={20} /> : <IconEye size={20} />}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
 
@@ -171,7 +173,7 @@ export default function ResetPassword({ tokenValid, errors = {} }) {
                                             color={passwordStrength.color}
                                             sx={{ height: 6, borderRadius: 3 }}
                                         />
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" color="textSecondary">
                                             {passwordStrength.label}
                                         </Typography>
                                     </Box>
@@ -187,28 +189,30 @@ export default function ResetPassword({ tokenValid, errors = {} }) {
                                     helperText={errors.password_confirm}
                                     margin="normal"
                                     autoComplete="new-password"
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconLock size={20} />
-                                            </InputAdornment>
-                                        ),
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() => setShowConfirm(!showConfirm)}
-                                                    edge="end"
-                                                    aria-label={showConfirm ? "Hide password" : "Show password"}
-                                                >
-                                                    {showConfirm ? <IconEyeOff size={20} /> : <IconEye size={20} />}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconLock size={20} />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={() => setShowConfirm(!showConfirm)}
+                                                        edge="end"
+                                                        aria-label={showConfirm ? "Hide password" : "Show password"}
+                                                    >
+                                                        {showConfirm ? <IconEyeOff size={20} /> : <IconEye size={20} />}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
 
                                 {/* Password Requirements */}
-                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, mb: 3 }}>
+                                <Typography variant="caption" color="textSecondary" sx={{ display: "block", mt: 1, mb: 3 }}>
                                     Password must be at least 8 characters with uppercase, lowercase, and a number.
                                 </Typography>
 

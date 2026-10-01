@@ -35,3 +35,28 @@ class ResyncQuizPropertiesCommandTest(TestCase):
 
         node.refresh_from_db()
         self.assertEqual(node.properties["questions"][0]["correct"], 1)
+
+    def test_explanation_and_hint_are_written_back_to_the_builder(self):
+        program = Program.objects.create(name="Resync Notes", code="RSYNC-102")
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Explained check",
+            node_type="quiz",
+            properties={"lesson_type": "quiz", "questions": []},
+        )
+        quiz = Quiz.objects.create(node=node, title="Explained check")
+        Question.objects.create(
+            quiz=quiz,
+            question_type="mcq",
+            text="Pick one",
+            position=0,
+            answer_data={"correct": 0},
+            explanation="<p>Because.</p>",
+            hint="<p>Think.</p>",
+        )
+
+        call_command("resync_quiz_properties", stdout=StringIO())
+
+        node.refresh_from_db()
+        self.assertEqual(node.properties["questions"][0]["explanation"], "<p>Because.</p>")
+        self.assertEqual(node.properties["questions"][0]["hint"], "<p>Think.</p>")

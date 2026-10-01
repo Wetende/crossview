@@ -173,7 +173,7 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                 Events
                             </Link>
                             <Typography
-                                color="text.disabled"
+                                color="textDisabled"
                                 sx={{ fontSize: "0.75rem" }}
                             >
                                 {event.title}
@@ -219,17 +219,17 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                     borderRadius: 0,
                                 }}
                             >
-                                <Grid container alignItems="center" spacing={3}>
+                                <Grid container sx={{ alignItems: "center" }} spacing={3}>
                                     <Grid size={{ xs: 6, sm: 3 }}>
                                         <Typography
                                             variant="overline"
-                                            display="block"
+                                            sx={{ display: "block" }}
                                         >
                                             START:
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {format(
                                                 new Date(event.start_date),
@@ -240,13 +240,13 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                     <Grid size={{ xs: 6, sm: 3 }}>
                                         <Typography
                                             variant="overline"
-                                            display="block"
+                                            sx={{ display: "block" }}
                                         >
                                             END:
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {format(
                                                 new Date(event.end_date),
@@ -257,13 +257,13 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                     <Grid size={{ xs: 12, sm: 3 }}>
                                         <Typography
                                             variant="overline"
-                                            display="block"
+                                            sx={{ display: "block" }}
                                         >
                                             LOCATION:
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {event.location}
                                         </Typography>
@@ -313,15 +313,17 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                     value={tabValue}
                                     onChange={handleChangeTab}
                                     aria-label="event tabs"
-                                    TabIndicatorProps={{
-                                        style: {
-                                            height: "100%",
-                                            zIndex: -1,
-                                            borderTop: "2px solid #3B82F6", // Active tab top border blue
-                                            borderLeft: "1px solid #E5E7EB",
-                                            borderRight: "1px solid #E5E7EB",
-                                            backgroundColor: "white",
-                                            top: -1,
+                                    slotProps={{
+                                        indicator: {
+                                            style: {
+                                                height: "100%",
+                                                zIndex: -1,
+                                                borderTop: "2px solid #3B82F6", // Active tab top border blue
+                                                borderLeft: "1px solid #E5E7EB",
+                                                borderRight: "1px solid #E5E7EB",
+                                                backgroundColor: "white",
+                                                top: -1,
+                                            },
                                         },
                                     }}
                                     sx={{
@@ -357,8 +359,7 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                     <Stack
                                         direction="row"
                                         spacing={1}
-                                        alignItems="center"
-                                        sx={{ mb: 3 }}
+                                        sx={{ alignItems: "center", mb: 3 }}
                                     >
                                         <IconMapPin size={20} />
                                         <Typography>
@@ -393,7 +394,7 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                                 borderRadius: 1,
                                             }}
                                         >
-                                            <Typography color="text.secondary">
+                                            <Typography color="textSecondary">
                                                 No map available for {event.location}
                                             </Typography>
                                         </Box>
@@ -411,8 +412,8 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                     }}
                                 >
                                     <Typography
-                                        paragraph
-                                        color="text.secondary"
+                                        sx={{ marginBottom: "16px" }}
+                                        color="textSecondary"
                                     >
                                         {event.tab_content?.event_target ||
                                             "Event details..."}
@@ -478,7 +479,7 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                                 sx={{ borderRadius: 0 }}
                                             >
                                                 <MenuItem value="">
-                                                    <Typography color="text.secondary">
+                                                    <Typography color="textSecondary">
                                                         Select Month
                                                     </Typography>
                                                 </MenuItem>
@@ -517,7 +518,7 @@ export default function EventDetail({ event, isRegistered = false, archives = []
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                             sx={{ mb: 2, lineHeight: 1.7 }}
                                         >
                                             {about}

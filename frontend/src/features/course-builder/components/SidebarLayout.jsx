@@ -92,10 +92,10 @@ export default function SidebarLayout({
                                 )}
                                 <ListItemText
                                     primary={section.label}
-                                    primaryTypographyProps={{
-                                        fontSize: 17,
-                                        fontWeight: selected ? 700 : 500,
-                                        letterSpacing: 0,
+                                    slotProps={{
+                                        primary: {
+                                            sx: { fontSize: 17, fontWeight: selected ? 700 : 500, letterSpacing: 0 },
+                                        },
                                     }}
                                 />
                             </ListItemButton>

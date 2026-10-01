@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import DOMPurify from "dompurify";
 import VideoRenderer from "./VideoRenderer";
 import TextRenderer from "./TextRenderer";
@@ -67,6 +68,8 @@ const BlockRenderer = ({
     onVideoProgress,
     onVideoRequirementMet,
     activityProgress,
+    seekRef = null,
+    readOnly = false,
 }) => {
     const documentSessionRef = useRef(createActivitySessionId());
     const documentSequenceRef = useRef(0);
@@ -83,11 +86,14 @@ const BlockRenderer = ({
                         url={data?.url || data?.video_url}
                         onEnded={onComplete}
                         onProgress={onVideoProgress}
-                        requiredProgress={data?.required_progress || 0}
+                        requiredProgress={
+                            readOnly ? 0 : data?.required_progress || 0
+                        }
                         onRequirementMet={onVideoRequirementMet}
                         enrollmentId={enrollmentId}
                         nodeId={nodeId}
                         activityProgress={activityProgress}
+                        seekRef={seekRef}
                     />
                 </Box>
             );
@@ -142,7 +148,7 @@ const BlockRenderer = ({
             // Missing quiz configuration.
             return (
                 <Paper sx={{ p: 3, mb: 3, textAlign: "center" }}>
-                    <Typography color="text.secondary">
+                    <Typography color="textSecondary">
                         Quiz block is not configured.
                     </Typography>
                 </Paper>
@@ -174,7 +180,7 @@ const BlockRenderer = ({
                         requiredPages={data?.required_pages || 0}
                         initialPagesViewed={activityProgress?.pagesViewed || []}
                         onProgress={(_count, _total, pageNumber) => {
-                            if (!pageNumber) return;
+                            if (!pageNumber || !enrollmentId) return;
                             recordActivityProgress(enrollmentId, nodeId, {
                                 eventType: "page_view",
                                 sessionId: documentSessionRef.current,
@@ -203,7 +209,10 @@ const BlockRenderer = ({
                 >
                     <DocumentIcon color="primary" />
                     <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="subtitle1" fontWeight={600}>
+                        <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: 600 }}
+                        >
                             {data?.title || "Document"}
                         </Typography>
                         {data?.file_path && (
@@ -235,7 +244,7 @@ const BlockRenderer = ({
                             sx={{
                                 maxWidth: "100%",
                                 height: "auto",
-                                borderRadius: 2,
+                                borderRadius: PLAYER_RADII.surface,
                                 boxShadow: 1,
                             }}
                         />
@@ -250,7 +259,7 @@ const BlockRenderer = ({
                             }}
                         >
                             <ImageIcon color="action" />
-                            <Typography color="text.secondary">
+                            <Typography color="textSecondary">
                                 Image not available
                             </Typography>
                         </Paper>
@@ -258,7 +267,7 @@ const BlockRenderer = ({
                     {data?.caption && (
                         <Typography
                             variant="caption"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mt: 1, display: "block" }}
                         >
                             {data.caption}
@@ -292,7 +301,7 @@ const BlockRenderer = ({
                         }}
                     >
                         <EmbedIcon color="primary" fontSize="small" />
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             Embedded Content
                         </Typography>
                     </Box>
@@ -322,7 +331,7 @@ const BlockRenderer = ({
                                     width: "100%",
                                     height: "100%",
                                     border: "none",
-                                    borderRadius: 8,
+                                    borderRadius: PLAYER_RADII.surface,
                                 }}
                                 allowFullScreen
                             />
@@ -332,7 +341,7 @@ const BlockRenderer = ({
                             Embed from this domain is not allowed
                         </Typography>
                     ) : (
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Embed not available
                         </Typography>
                     )}
@@ -361,7 +370,7 @@ const BlockRenderer = ({
             }
             return (
                 <Paper sx={{ p: 2, mb: 3, bgcolor: "grey.100" }}>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         Unsupported block type: {blockType}
                     </Typography>
                 </Paper>

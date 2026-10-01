@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { Link } from "@inertiajs/react";
 import {
     ArrowForward,
@@ -28,7 +29,7 @@ const UnitCompletionView = ({ unit }) => {
                 variant="outlined"
                 sx={{
                     p: { xs: 2.5, sm: 4 },
-                    borderRadius: 3,
+                    borderRadius: PLAYER_RADII.surface,
                     textAlign: "center",
                     mb: 2.5,
                 }}
@@ -56,24 +57,20 @@ const UnitCompletionView = ({ unit }) => {
                             placeItems: "center",
                         }}
                     >
-                        <Typography variant="h5" fontWeight={800}>
+                        <Typography variant="h5" sx={{ fontWeight: 800 }}>
                             {unit.completedCount}/{unit.totalCount}
                         </Typography>
                     </Box>
                 </Box>
 
-                <Typography
-                    component="p"
-                    variant="overline"
-                    color="primary.main"
-                >
+                <Typography component="p" variant="overline" color="primary">
                     End of unit
                 </Typography>
                 <Typography component="h1" variant="h4" sx={{ mb: 1 }}>
                     {complete ? "Unit complete" : "Keep going"}
                 </Typography>
                 <Typography
-                    color="text.secondary"
+                    color="textSecondary"
                     sx={{ maxWidth: 560, mx: "auto" }}
                 >
                     {complete
@@ -83,9 +80,8 @@ const UnitCompletionView = ({ unit }) => {
 
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
-                    justifyContent="center"
                     spacing={1}
-                    sx={{ mt: 3 }}
+                    sx={{ justifyContent: "center", mt: 3 }}
                 >
                     {unit.reviewUrl && (
                         <Button
@@ -113,7 +109,7 @@ const UnitCompletionView = ({ unit }) => {
             <Paper
                 component="section"
                 variant="outlined"
-                sx={{ p: 2.5, borderRadius: 2.5 }}
+                sx={{ p: 2.5, borderRadius: PLAYER_RADII.surface }}
             >
                 <Typography component="h2" variant="h6" sx={{ mb: 1 }}>
                     {unit.title}
@@ -128,7 +124,7 @@ const UnitCompletionView = ({ unit }) => {
                             sx={{
                                 px: 1,
                                 py: 1,
-                                borderRadius: 1,
+                                borderRadius: PLAYER_RADII.control,
                                 color: "text.primary",
                                 textDecoration: "none",
                                 "&:hover": { bgcolor: "action.hover" },
@@ -154,7 +150,9 @@ const UnitCompletionView = ({ unit }) => {
                                         ? "Completed"
                                         : "Not completed"
                                 }
-                                primaryTypographyProps={{ fontWeight: 700 }}
+                                slotProps={{
+                                    primary: { sx: { fontWeight: 700 } },
+                                }}
                             />
                         </ListItem>
                     ))}

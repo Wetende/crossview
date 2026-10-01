@@ -45,6 +45,7 @@ import DocumentPrimaryUploader from "../components/DocumentPrimaryUploader";
 import AutosaveStatus from "../components/AutosaveStatus";
 import ScheduledSessionFields from "../components/ScheduledSessionFields";
 import useAutosave from "../hooks/useAutosave";
+import { ACTIVITY_TYPES, normalizeActivityType } from "@/lib/activityTypes";
 import {
     Article as ArticleIcon,
     OndemandVideo as VideoIcon,
@@ -56,7 +57,7 @@ import {
     PushPin as PinIcon,
     Lock as LockIcon,
     LockOpen as LockOpenIcon,
-    ChatBubbleOutline as ChatIcon,
+    ChatBubbleOutlined as ChatIcon,
 } from "@mui/icons-material";
 
 const SCHEDULED_LESSON_TYPES = [
@@ -66,6 +67,15 @@ const SCHEDULED_LESSON_TYPES = [
     "live_stream",
     "in_person_session",
 ];
+
+// Mirrors PREVIEWABLE_ACTIVITY_TYPES in apps/curriculum/preview.py: only
+// self-contained lessons can be opened by visitors as free previews.
+const PREVIEWABLE_LESSON_TYPES = new Set([
+    ACTIVITY_TYPES.TEXT,
+    ACTIVITY_TYPES.VIDEO,
+    ACTIVITY_TYPES.DOCUMENT,
+    ACTIVITY_TYPES.AUDIO,
+]);
 
 const inferSessionKind = (properties = {}) => {
     const configured = (
@@ -124,6 +134,19 @@ const deriveSessionDuration = (startDate, startTime, endDate, endTime) => {
     ]
         .filter(Boolean)
         .join(" ");
+};
+
+const GENERIC_SAVE_ERROR = "Could not save the lesson. Please try again.";
+
+// Inertia passes page.props.errors ({ field: message }) to onError.
+const getSaveErrorMessage = (error) => {
+    if (error && typeof error === "object" && !(error instanceof Error)) {
+        const firstMessage = Object.values(error)
+            .map((value) => (Array.isArray(value) ? value[0] : value))
+            .find((value) => typeof value === "string" && value.trim());
+        if (firstMessage) return firstMessage;
+    }
+    return GENERIC_SAVE_ERROR;
 };
 
 const ContentEditor = forwardRef(function ContentEditor(
@@ -227,6 +250,9 @@ const ContentEditor = forwardRef(function ContentEditor(
 
     const lessonType = (node.properties?.lesson_type || "text").toLowerCase();
     const isScheduledLesson = SCHEDULED_LESSON_TYPES.includes(lessonType);
+    const canBePreview = PREVIEWABLE_LESSON_TYPES.has(
+        normalizeActivityType({ properties: { lesson_type: lessonType } }),
+    );
     const hasPersistedNodeId =
         Boolean(node.id) && !String(node.id).startsWith("temp_");
     const inlineImageUploadUrl = hasPersistedNodeId
@@ -470,6 +496,61 @@ const ContentEditor = forwardRef(function ContentEditor(
         return true;
     };
 
+    // Mirrors the hard rejections in instructor_node_update (document upload
+    // and conversion, validate_session_properties). Only these pause
+    // autosave; client-only quality rules still allow saving drafts. Returns
+    // a short reason ("" when the server would accept the save).
+    const getAutosavePauseReason = () => {
+        if (lessonType === "document") {
+            if (!documentData?.original_url) return "upload the document";
+            if (strictCompletion) {
+                const status = (
+                    documentData?.conversion_status || ""
+                ).toLowerCase();
+                const pageCount = Number(documentData?.page_count || 0);
+                if (
+                    status !== "ready" ||
+                    !documentData?.viewer_pdf_url ||
+                    pageCount <= 0
+                ) {
+                    return "wait for the document conversion";
+                }
+            }
+        }
+
+        if (isScheduledLesson) {
+            if (!timezone) return "select a timezone";
+            if (!startDate || !startTime || !endDate || !endTime) {
+                return "add the start and end times";
+            }
+            const start = new Date(`${startDate}T${startTime}:00`);
+            const end = new Date(`${endDate}T${endTime}:00`);
+            if (
+                Number.isNaN(start.getTime()) ||
+                Number.isNaN(end.getTime()) ||
+                end <= start
+            ) {
+                return "end the session after it starts";
+            }
+            if (sessionKind === "in_person_session") {
+                if (!venue.trim() || !address.trim()) {
+                    return "add the venue and address";
+                }
+            } else if (
+                sessionProvider !== "google_meet" &&
+                (!videoUrl || !/^https:\/\/.+/.test(videoUrl))
+            ) {
+                return "add a secure HTTPS session link";
+            }
+            if (recordingUrl && !/^https:\/\/.+/.test(recordingUrl)) {
+                return "use a secure HTTPS recording link";
+            }
+        }
+
+        return "";
+    };
+    const autosavePauseReason = getAutosavePauseReason();
+
     const buildSavePayload = useCallback(() => {
         const documentPayload =
             lessonType === "document"
@@ -503,7 +584,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                           endTime,
                       )
                     : duration,
-                is_preview: isPreview,
+                // The server never previews other lesson types.
+                is_preview: canBePreview && isPreview,
                 video_source: videoSource,
                 video_url: sessionKind === "in_person_session" ? "" : videoUrl,
                 ...(isScheduledLesson && {
@@ -558,6 +640,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         endTime,
         featureFlags.gamification,
         gamificationSettings,
+        canBePreview,
         isPreview,
         isScheduledLesson,
         lessonType,
@@ -653,20 +736,64 @@ const ContentEditor = forwardRef(function ContentEditor(
 
     const autosave = useAutosave({
         enabled: hasPersistedNodeId,
+        canSave: !autosavePauseReason,
         value: autosaveValue,
         buildPayload: buildSavePayload,
         save: savePayload,
         debounceMs: 1800,
         saveKey: `content:${node.id}`,
     });
+    const { flush: flushAutosaveNow } = autosave;
+    const hasPausedUnsavedChanges =
+        Boolean(autosavePauseReason) && autosave.status === "dirty";
+
+    // Leaving the lesson (another lesson, another tab) flushes autosave. When
+    // the pause skips that flush, say so while the editor is still open and
+    // hand the reason to the builder so it can ask before discarding.
+    const flushAutosave = useCallback(
+        async (options) => {
+            const result = await flushAutosaveNow(options);
+            if (result?.paused) {
+                setSnackbar({
+                    open: true,
+                    message: `Unsaved changes: ${autosavePauseReason}`,
+                    severity: "warning",
+                });
+                return {
+                    ...result,
+                    pauseReason: autosavePauseReason,
+                    lessonTitle: title,
+                };
+            }
+            return result;
+        },
+        [autosavePauseReason, flushAutosaveNow, title],
+    );
 
     useImperativeHandle(
         ref,
         () => ({
-            flushAutosave: autosave.flush,
+            flushAutosave,
+            hasPausedUnsavedChanges: () => hasPausedUnsavedChanges,
         }),
-        [autosave.flush],
+        [flushAutosave, hasPausedUnsavedChanges],
     );
+
+    // Refresh or close: the pagehide flush is skipped while paused, so use
+    // the browser's own leave-page prompt (same pattern as the certificate
+    // builder).
+    useEffect(() => {
+        if (!hasPausedUnsavedChanges || typeof window === "undefined") {
+            return undefined;
+        }
+        const warnBeforeLeaving = (event) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+        window.addEventListener("beforeunload", warnBeforeLeaving);
+        return () =>
+            window.removeEventListener("beforeunload", warnBeforeLeaving);
+    }, [hasPausedUnsavedChanges]);
 
     const handleSave = async () => {
         touchAllFields();
@@ -683,7 +810,7 @@ const ContentEditor = forwardRef(function ContentEditor(
         if (saveResult?.ok === false) {
             setSnackbar({
                 open: true,
-                message: "Could not save the lesson. Please try again.",
+                message: getSaveErrorMessage(saveResult.error),
                 severity: "error",
             });
             return;
@@ -823,13 +950,16 @@ const ContentEditor = forwardRef(function ContentEditor(
                     fullWidth
                     error={!!titleErrorMessage}
                     helperText={titleErrorMessage}
-                    InputProps={{ sx: { fontSize: "1.2rem", fontWeight: 500 } }}
+                    slotProps={{
+                        input: { sx: { fontSize: "1.2rem", fontWeight: 500 } },
+                    }}
                 />
                 <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
                     <AutosaveStatus
                         status={autosave.status}
                         lastSavedAt={autosave.lastSavedAt}
                         disabledReason="Create the lesson before autosave can start."
+                        pausedReason={autosavePauseReason}
                     />
                 </Box>
                 <Button
@@ -1081,8 +1211,8 @@ const ContentEditor = forwardRef(function ContentEditor(
                         </Box>
                     )}
 
-                    {/* Common Toggles */}
-                    {!isScheduledLesson && (
+                    {/* Free preview toggle (previewable lesson types only) */}
+                    {canBePreview && (
                         <Box
                             sx={{
                                 display: "flex",
@@ -1139,7 +1269,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                             color={
                                 descriptionErrorMessage
                                     ? "error"
-                                    : "text.secondary"
+                                    : "textSecondary"
                             }
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
@@ -1167,7 +1297,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 {descriptionErrorMessage}
                             </FormHelperText>
                         )}
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {descriptionTextLength} characters
                         </Typography>
                     </Box>
@@ -1180,7 +1310,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 color={
                                     getFieldError("document")
                                         ? "error"
-                                        : "text.secondary"
+                                        : "textSecondary"
                                 }
                                 sx={{ mb: 1, fontWeight: "bold" }}
                             >
@@ -1242,7 +1372,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                 color={
                                     requiresLessonContent && contentErrorMessage
                                         ? "error"
-                                        : "text.secondary"
+                                        : "textSecondary"
                                 }
                                 sx={{ mb: 1, fontWeight: "bold" }}
                             >
@@ -1272,10 +1402,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                                     {contentErrorMessage}
                                 </FormHelperText>
                             )}
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 {contentTextLength} characters
                             </Typography>
                         </Box>
@@ -1285,7 +1412,7 @@ const ContentEditor = forwardRef(function ContentEditor(
                     <Box sx={{ mt: 3 }}>
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mb: 1 }}
                         >
                             Lesson materials
@@ -1589,13 +1716,13 @@ function QATab({ nodeId, discussions: initialDiscussions = [] }) {
                                     >
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {d.author}
                                         </Typography>
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {formatDate(d.created_at)}
                                         </Typography>

@@ -72,6 +72,12 @@ export const EMPTY_LINK_VALUE = {
     isExisting: false,
 };
 
+export const EMPTY_MATH_VALUE = {
+    latex: "",
+    display: false,
+    isExisting: false,
+};
+
 export const EMPTY_IMAGE_VALUE = {
     source: "",
     alt: "",
@@ -140,4 +146,14 @@ export const richTextContentSx = {
     overflowWrap: "anywhere",
     "& p": { lineHeight: "inherit" },
     "& a": { overflowWrap: "anywhere" },
+    // KaTeX inherits currentColor, so maths follows light and dark themes.
+    // Long display formulas scroll instead of widening the page.
+    "& .katex": { overflowWrap: "normal" },
+    "& .katex-display": {
+        maxWidth: "100%",
+        overflowX: "auto",
+        overflowY: "hidden",
+        my: 1,
+        py: 0.5,
+    },
 };

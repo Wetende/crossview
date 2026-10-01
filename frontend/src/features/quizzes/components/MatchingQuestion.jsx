@@ -22,10 +22,10 @@ export default function MatchingQuestion({ question, onChange, value = [] }) {
 
   return (
     <Box>
-      <Typography fontWeight="medium" gutterBottom>{question.text}</Typography>
+      <Typography sx={{ fontWeight: 'medium' }} gutterBottom>{question.text}</Typography>
       <Stack spacing={2} sx={{ mt: 2 }}>
         {pairs.map((pair, idx) => (
-          <Stack key={idx} direction="row" spacing={2} alignItems="center">
+          <Stack key={idx} direction="row" spacing={2} sx={{ alignItems: 'center' }}>
             <Paper variant="outlined" sx={{ p: 2, flex: 1, bgcolor: 'custom.light' }}>
                {pair.left_text}
             </Paper>

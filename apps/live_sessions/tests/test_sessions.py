@@ -150,9 +150,17 @@ class ScheduledLearningSessionTests(TestCase):
         response = self.client.get(
             reverse("progression:student.program.resume", args=[self.program.id]),
             HTTP_X_INERTIA="true",
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.redirect_chain[-1][0],
+            reverse(
+                "progression:student.session",
+                args=[self.enrollment.id, node.id],
+            ),
+        )
         payload = response.json()["props"]["node"]
         self.assertEqual(payload["activityType"], "google_meet")
         self.assertEqual(payload["scheduledSession"]["provider"], "google_meet")

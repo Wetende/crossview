@@ -1,9 +1,13 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useState } from "react";
+import { Link } from "@inertiajs/react";
 import {
     Alert,
     Box,
+    Button,
     Card,
     CardContent,
+    Chip,
     List,
     ListItem,
     ListItemIcon,
@@ -11,8 +15,13 @@ import {
     Stack,
     Typography,
 } from "@mui/material";
-import { CheckCircle as CheckIcon } from "@mui/icons-material";
+import {
+    CheckCircle as CheckIcon,
+    EmojiEventsOutlined,
+    PushPin,
+} from "@mui/icons-material";
 import DOMPurify from "dompurify";
+import { formatDistanceToNow } from "date-fns";
 
 import { CourseUnitCard } from "@/features/learning-experience/components";
 import CourseOverviewRail from "./CourseOverviewRail";
@@ -39,13 +48,12 @@ const DismissibleNotice = ({ notice, index }) => {
         <Alert
             severity={notice?.type === "warning" ? "warning" : "info"}
             onClose={() => setVisible(false)}
-            sx={{ borderRadius: 2 }}
+            sx={{ borderRadius: PLAYER_RADII.surface }}
         >
             {title && (
                 <Typography
                     variant="subtitle2"
-                    fontWeight={800}
-                    sx={{ mb: 0.5 }}
+                    sx={{ fontWeight: 800, mb: 0.5 }}
                 >
                     {title}
                 </Typography>
@@ -60,11 +68,120 @@ const DismissibleNotice = ({ notice, index }) => {
     );
 };
 
+const formatRelativeDate = (value) => {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return "";
+    return formatDistanceToNow(date, { addSuffix: true });
+};
+
+// Rich text announcements are HTML; older plain-text ones keep their line breaks.
+const looksLikeHtml = (value) => /<[a-z][\s\S]*>/i.test(value || "");
+
+const AnnouncementsSection = ({ announcements }) => (
+    <Box component="section" aria-labelledby="course-announcements-title">
+        <Typography
+            id="course-announcements-title"
+            component="h2"
+            variant="h5"
+            sx={{ mb: 1.5 }}
+        >
+            Announcements
+        </Typography>
+        <Stack spacing={1.5}>
+            {announcements.map((announcement) => {
+                const meta = [
+                    announcement.author?.name,
+                    formatRelativeDate(announcement.createdAt),
+                ]
+                    .filter(Boolean)
+                    .join(" · ");
+                return (
+                    <Card
+                        key={announcement.id}
+                        component="article"
+                        variant="outlined"
+                        sx={{ borderRadius: PLAYER_RADII.surface }}
+                    >
+                        <CardContent
+                            sx={{
+                                p: { xs: 2, md: 2.5 },
+                                "&:last-child": { pb: { xs: 2, md: 2.5 } },
+                            }}
+                        >
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                sx={{
+                                    alignItems: "center",
+                                    mb: 0.5,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                {announcement.isPinned && (
+                                    <Chip
+                                        icon={<PushPin sx={{ fontSize: 14 }} />}
+                                        label="Pinned"
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        sx={{ height: 22 }}
+                                    />
+                                )}
+                                <Typography
+                                    component="h3"
+                                    variant="subtitle1"
+                                    sx={{ fontWeight: 700 }}
+                                >
+                                    {announcement.title}
+                                </Typography>
+                            </Stack>
+                            {meta && (
+                                <Typography
+                                    variant="caption"
+                                    color="textSecondary"
+                                    sx={{ display: "block", mb: 1 }}
+                                >
+                                    {meta}
+                                </Typography>
+                            )}
+                            {/* Announcements are authored in the rich text editor. */}
+                            <Box
+                                data-testid="announcement-content"
+                                sx={{
+                                    typography: "body2",
+                                    color: "text.secondary",
+                                    overflowWrap: "anywhere",
+                                    whiteSpace: looksLikeHtml(
+                                        announcement.content,
+                                    )
+                                        ? "normal"
+                                        : "pre-line",
+                                    "& p": { mt: 0, mb: 1 },
+                                    "& p:last-child": { mb: 0 },
+                                    "& ul, & ol": { pl: 3, my: 0.5 },
+                                    "& a": { color: "primary.main" },
+                                }}
+                                dangerouslySetInnerHTML={{
+                                    __html: DOMPurify.sanitize(
+                                        announcement.content || "",
+                                    ),
+                                }}
+                            />
+                        </CardContent>
+                    </Card>
+                );
+            })}
+        </Stack>
+    </Box>
+);
+
 const CourseOverview = ({
     program,
     enrollment,
     resumeUrl,
     curriculum = [],
+    announcements = [],
+    courseCompleteUrl = null,
 }) => {
     const progress = Number(enrollment?.progressPercent || 0);
     const hasStarted = progress > 0;
@@ -76,11 +193,7 @@ const CourseOverview = ({
     return (
         <Box sx={{ maxWidth: 1180, mx: "auto" }}>
             <Box sx={{ mb: { xs: 2.5, md: 3 } }}>
-                <Typography
-                    component="p"
-                    variant="overline"
-                    color="primary.main"
-                >
+                <Typography component="p" variant="overline" color="primary">
                     Course overview
                 </Typography>
                 <Typography
@@ -104,6 +217,26 @@ const CourseOverview = ({
                     />
                 )}
             </Box>
+
+            {courseCompleteUrl && (
+                <Alert
+                    severity="success"
+                    icon={<EmojiEventsOutlined fontSize="inherit" />}
+                    action={
+                        <Button
+                            component={Link}
+                            href={courseCompleteUrl}
+                            color="inherit"
+                            size="small"
+                        >
+                            View course summary
+                        </Button>
+                    }
+                    sx={{ mb: { xs: 2.5, md: 3 }, borderRadius: PLAYER_RADII.surface }}
+                >
+                    You completed this course.
+                </Alert>
+            )}
 
             <DeliveryOverviewCard
                 program={program}
@@ -130,10 +263,12 @@ const CourseOverview = ({
                     >
                         <Stack
                             direction={{ xs: "column", sm: "row" }}
-                            alignItems={{ sm: "baseline" }}
-                            justifyContent="space-between"
                             spacing={0.5}
-                            sx={{ mb: 1.5 }}
+                            sx={{
+                                alignItems: { sm: "baseline" },
+                                justifyContent: "space-between",
+                                mb: 1.5,
+                            }}
                         >
                             <Typography
                                 id="learning-units-title"
@@ -142,7 +277,7 @@ const CourseOverview = ({
                             >
                                 Learning units
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 {units.length}{" "}
                                 {units.length === 1 ? "unit" : "units"}
                             </Typography>
@@ -164,14 +299,15 @@ const CourseOverview = ({
                                         <CourseUnitCard
                                             unit={unit}
                                             index={index}
+                                            cornerRadius={PLAYER_RADII.surface}
                                         />
                                     </Box>
                                 ))}
                             </Box>
                         ) : (
-                            <Card variant="outlined" sx={{ borderRadius: 2.5 }}>
+                            <Card variant="outlined" sx={{ borderRadius: PLAYER_RADII.surface }}>
                                 <CardContent>
-                                    <Typography color="text.secondary">
+                                    <Typography color="textSecondary">
                                         Course content will appear here when it
                                         is published.
                                     </Typography>
@@ -179,6 +315,10 @@ const CourseOverview = ({
                             </Card>
                         )}
                     </Box>
+
+                    {announcements.length > 0 && (
+                        <AnnouncementsSection announcements={announcements} />
+                    )}
 
                     {(program?.notices || []).length > 0 && (
                         <Stack
@@ -200,7 +340,7 @@ const CourseOverview = ({
                         <Card
                             component="section"
                             variant="outlined"
-                            sx={{ borderRadius: 2.5 }}
+                            sx={{ borderRadius: PLAYER_RADII.surface }}
                         >
                             <CardContent
                                 sx={{
@@ -211,8 +351,7 @@ const CourseOverview = ({
                                 <Stack
                                     direction="row"
                                     spacing={1}
-                                    alignItems="center"
-                                    sx={{ mb: 1.5 }}
+                                    sx={{ alignItems: "center", mb: 1.5 }}
                                 >
                                     <CheckIcon
                                         color="success"
@@ -254,8 +393,11 @@ const CourseOverview = ({
                                                     </ListItemIcon>
                                                     <ListItemText
                                                         primary={item}
-                                                        primaryTypographyProps={{
-                                                            variant: "body2",
+                                                        slotProps={{
+                                                            primary: {
+                                                                variant:
+                                                                    "body2",
+                                                            },
                                                         }}
                                                     />
                                                 </ListItem>

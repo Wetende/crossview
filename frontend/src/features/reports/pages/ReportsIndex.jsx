@@ -17,7 +17,7 @@ export default function ReportsIndex({ scope = 'admin', reports = [] }) {
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Stack spacing={3}>
           <Box>
-            <Typography variant="h4" fontWeight={700}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
               Reports
             </Typography>
           </Box>
@@ -31,14 +31,13 @@ export default function ReportsIndex({ scope = 'admin', reports = [] }) {
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}
                   spacing={2}
-                  justifyContent="space-between"
-                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' } }}
                 >
-                  <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                     <AssessmentIcon color="primary" />
                     <Box>
-                      <Typography fontWeight={700}>{report.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography sx={{ fontWeight: 700 }}>{report.title}</Typography>
+                      <Typography variant="body2" color="textSecondary">
                         {report.description}
                       </Typography>
                     </Box>

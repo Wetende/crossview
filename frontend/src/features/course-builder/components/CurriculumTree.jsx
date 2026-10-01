@@ -275,9 +275,11 @@ export default function CurriculumTree({
         setExpandedSections((prev) => ({ ...prev, [nodeId]: !prev[nodeId] }));
     };
 
-    const handleSelect = (node) => {
+    // The builder may refuse the switch (unsaved lesson edits the instructor
+    // chose to keep); only highlight the node once it has agreed.
+    const handleSelect = async (node) => {
+        if (onNodeSelect && (await onNodeSelect(node)) === false) return;
         setSelectedNodeId(node.id);
-        if (onNodeSelect) onNodeSelect(node);
     };
 
     const openCreateSection = () => {
@@ -548,9 +550,11 @@ export default function CurriculumTree({
                         />
                         <ListItemText
                             primary={node.title}
-                            primaryTypographyProps={{
-                                variant: "body2",
-                                fontSize: "0.9rem",
+                            slotProps={{
+                                primary: {
+                                    variant: "body2",
+                                    sx: { fontSize: "0.9rem" },
+                                },
                             }}
                         />
                         <IconButton
@@ -622,10 +626,12 @@ export default function CurriculumTree({
                                 size="small"
                                 variant="standard"
                                 onClick={(e) => e.stopPropagation()}
-                                InputProps={{
-                                    sx: {
-                                        fontWeight: "bold",
-                                        fontSize: "0.875rem",
+                                slotProps={{
+                                    input: {
+                                        sx: {
+                                            fontWeight: "bold",
+                                            fontSize: "0.875rem",
+                                        },
                                     },
                                 }}
                                 sx={{ flex: 1 }}
@@ -633,8 +639,7 @@ export default function CurriculumTree({
                         ) : (
                             <Typography
                                 variant="subtitle2"
-                                fontWeight="bold"
-                                sx={{ flex: 1 }}
+                                sx={{ fontWeight: "bold", flex: 1 }}
                             >
                                 {node.title}
                             </Typography>
@@ -694,7 +699,7 @@ export default function CurriculumTree({
                                 </SortableContext>
                             </DndContext>
 
-                            <Stack direction="row" spacing={1} mt={1}>
+                            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                                 <Button
                                     size="small"
                                     startIcon={<AddIcon />}
@@ -761,7 +766,7 @@ export default function CurriculumTree({
                         alignItems: "center",
                     }}
                 >
-                    <Typography variant="h6" fontWeight="bold">
+                    <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                         Curriculum
                     </Typography>
                     {/* Placeholder for Import SCORM if needed later */}
@@ -875,7 +880,7 @@ export default function CurriculumTree({
                                 <Box sx={{ bgcolor: "grey.100", px: 2, py: 1 }}>
                                     <Typography
                                         variant="subtitle2"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Learning Content
                                     </Typography>
@@ -953,7 +958,7 @@ export default function CurriculumTree({
                                 <Box sx={{ bgcolor: "grey.100", px: 2, py: 1 }}>
                                     <Typography
                                         variant="subtitle2"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Assessments
                                     </Typography>
@@ -1021,7 +1026,7 @@ export default function CurriculumTree({
                                     >
                                         <Typography
                                             variant="subtitle2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             Practical Skills
                                         </Typography>
@@ -1062,7 +1067,9 @@ export default function CurriculumTree({
                             variant="outlined"
                             value={quizTitle}
                             onChange={(e) => setQuizTitle(e.target.value)}
-                            inputProps={{ minLength: NODE_TITLE_MIN_LENGTH }}
+                            slotProps={{
+                                htmlInput: { minLength: NODE_TITLE_MIN_LENGTH },
+                            }}
                             helperText={
                                 quizTitleError
                                     ? `Enter at least ${NODE_TITLE_MIN_LENGTH} characters.`
@@ -1083,7 +1090,9 @@ export default function CurriculumTree({
                             variant="outlined"
                             value={createTitle}
                             onChange={(e) => setCreateTitle(e.target.value)}
-                            inputProps={{ minLength: NODE_TITLE_MIN_LENGTH }}
+                            slotProps={{
+                                htmlInput: { minLength: NODE_TITLE_MIN_LENGTH },
+                            }}
                             helperText={
                                 createTitleError
                                     ? `Enter at least ${NODE_TITLE_MIN_LENGTH} characters.`
@@ -1125,7 +1134,8 @@ export default function CurriculumTree({
                 programId={program.id}
                 onImportComplete={() => {
                     // Refresh the curriculum after import
-                    router.reload({ only: ["curriculum"] });
+                    // Include errors so stale validation errors are cleared.
+                    router.reload({ only: ["curriculum", "errors"] });
                 }}
             />
 

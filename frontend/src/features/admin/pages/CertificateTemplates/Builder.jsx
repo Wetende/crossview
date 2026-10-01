@@ -277,9 +277,9 @@ function CertificateRail({ templates, currentTemplateId, onCreate, onSelect }) {
         >
             <Stack
                 direction="row"
-                alignItems="center"
-                justifyContent="space-between"
                 sx={{
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     px: 1.5,
                     py: 1.25,
                     borderBottom: "1px solid",
@@ -287,12 +287,12 @@ function CertificateRail({ templates, currentTemplateId, onCreate, onSelect }) {
                     bgcolor: "background.paper",
                 }}
             >
-                <Typography variant="subtitle2" fontWeight={800}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
                     Certificates{" "}
                     <Typography
                         component="span"
                         variant="caption"
-                        color="text.secondary"
+                        color="textSecondary"
                     >
                         {templates.length}
                     </Typography>
@@ -380,9 +380,13 @@ function CertificateRail({ templates, currentTemplateId, onCreate, onSelect }) {
                             </Box>
                             <Typography
                                 variant="caption"
-                                fontWeight={700}
                                 noWrap
-                                sx={{ display: "block", px: 1, py: 0.75 }}
+                                sx={{
+                                    fontWeight: 700,
+                                    display: "block",
+                                    px: 1,
+                                    py: 0.75,
+                                }}
                             >
                                 {item.name}
                             </Typography>
@@ -1017,13 +1021,19 @@ export default function CertificateTemplateBuilder({
                                 onChange={(event) =>
                                     setName(event.target.value)
                                 }
-                                inputProps={{ "aria-label": "Template name" }}
+                                slotProps={{
+                                    htmlInput: {
+                                        "aria-label": "Template name",
+                                    },
+                                }}
                                 sx={{ minWidth: 190 }}
                             />
                             <Stack
                                 direction="row"
-                                alignItems="center"
-                                justifyContent="center"
+                                sx={{
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                }}
                                 spacing={0.25}
                             >
                                 <Tooltip title="Zoom out">
@@ -1070,8 +1080,10 @@ export default function CertificateTemplateBuilder({
                             </Stack>
                             <Stack
                                 direction="row"
-                                justifyContent="flex-end"
-                                alignItems="center"
+                                sx={{
+                                    justifyContent: "flex-end",
+                                    alignItems: "center",
+                                }}
                                 spacing={0.75}
                             >
                                 <Button
@@ -1124,7 +1136,7 @@ export default function CertificateTemplateBuilder({
                             position: "sticky",
                             top: 0,
                             zIndex: 2,
-                            "& .MuiTabs-flexContainer": {
+                            "& .MuiTabs-list": {
                                 gap: 0.35,
                                 p: 0.35,
                                 borderRadius: 1.5,
@@ -1157,8 +1169,8 @@ export default function CertificateTemplateBuilder({
                         <Stack spacing={2} sx={{ p: 1.5 }}>
                             <Typography
                                 variant="overline"
-                                fontWeight={800}
-                                color="text.secondary"
+                                sx={{ fontWeight: 800 }}
+                                color="textSecondary"
                             >
                                 Background image
                             </Typography>
@@ -1187,8 +1199,10 @@ export default function CertificateTemplateBuilder({
                                 ) : (
                                     <Stack
                                         spacing={1}
-                                        alignItems="center"
-                                        sx={{ color: "text.secondary" }}
+                                        sx={{
+                                            alignItems: "center",
+                                            color: "text.secondary",
+                                        }}
                                     >
                                         <ImageOutlinedIcon />
                                         <Typography variant="caption">
@@ -1232,7 +1246,7 @@ export default function CertificateTemplateBuilder({
                                 </Button>
                             )}
                             <Divider />
-                            <Typography fontWeight={750}>
+                            <Typography sx={{ fontWeight: 750 }}>
                                 Page settings
                             </Typography>
                             <Stack direction="row" spacing={1}>
@@ -1263,17 +1277,19 @@ export default function CertificateTemplateBuilder({
                                         },
                                     })
                                 }
-                                InputLabelProps={{ shrink: true }}
+                                slotProps={{ inputLabel: { shrink: true } }}
                             />
                             <TextField
                                 type="number"
                                 size="small"
                                 label="Safe margin (mm)"
                                 value={layout.safeAreaMm ?? 10}
-                                inputProps={{
-                                    min: 0,
-                                    max: Math.min(widthMm, heightMm) / 3,
-                                    step: 1,
+                                slotProps={{
+                                    htmlInput: {
+                                        min: 0,
+                                        max: Math.min(widthMm, heightMm) / 3,
+                                        step: 1,
+                                    },
                                 }}
                                 onChange={(event) =>
                                     commitLayout({
@@ -1322,12 +1338,12 @@ export default function CertificateTemplateBuilder({
                                 >
                                     ← All elements
                                 </Button>
-                                <Typography fontWeight={700}>
+                                <Typography sx={{ fontWeight: 700 }}>
                                     {elementDisplayName(selected)}
                                 </Typography>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {selected.type.replace("_", " ")}
                                 </Typography>
@@ -1374,13 +1390,15 @@ export default function CertificateTemplateBuilder({
                                         size="small"
                                         label={`${label} (mm)`}
                                         value={selected[key]}
-                                        inputProps={{
-                                            min:
-                                                key === "width" ||
-                                                key === "height"
-                                                    ? 1
-                                                    : 0,
-                                            max: maximum,
+                                        slotProps={{
+                                            htmlInput: {
+                                                min:
+                                                    key === "width" ||
+                                                    key === "height"
+                                                        ? 1
+                                                        : 0,
+                                                max: maximum,
+                                            },
                                         }}
                                         onChange={(event) =>
                                             updateSelected({
@@ -1406,7 +1424,9 @@ export default function CertificateTemplateBuilder({
                                 size="small"
                                 label="Rotation (degrees)"
                                 value={selected.rotation || 0}
-                                inputProps={{ min: -360, max: 360 }}
+                                slotProps={{
+                                    htmlInput: { min: -360, max: 360 },
+                                }}
                                 onChange={(event) =>
                                     updateSelected({
                                         rotation: Math.max(
@@ -1422,7 +1442,7 @@ export default function CertificateTemplateBuilder({
                             <Box>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ display: "block", mb: 0.75 }}
                                 >
                                     Align within safe area
@@ -1517,9 +1537,11 @@ export default function CertificateTemplateBuilder({
                                             value={
                                                 selected.styles?.fontSize || 16
                                             }
-                                            inputProps={{
-                                                min: 6,
-                                                max: 160,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 6,
+                                                    max: 160,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -1545,9 +1567,11 @@ export default function CertificateTemplateBuilder({
                                                         16,
                                                 )
                                             }
-                                            inputProps={{
-                                                min: 6,
-                                                max: 160,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 6,
+                                                    max: 160,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -1570,9 +1594,11 @@ export default function CertificateTemplateBuilder({
                                                 selected.styles?.fontSize ||
                                                 16
                                             }
-                                            inputProps={{
-                                                min: 6,
-                                                max: 160,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 6,
+                                                    max: 160,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -1594,10 +1620,12 @@ export default function CertificateTemplateBuilder({
                                         value={
                                             selected.styles?.fontWeight || 400
                                         }
-                                        inputProps={{
-                                            min: 300,
-                                            max: 900,
-                                            step: 100,
+                                        slotProps={{
+                                            htmlInput: {
+                                                min: 300,
+                                                max: 900,
+                                                step: 100,
+                                            },
                                         }}
                                         onChange={(event) =>
                                             updateSelectedStyle(
@@ -1610,7 +1638,7 @@ export default function CertificateTemplateBuilder({
                                         direction="row"
                                         spacing={1}
                                         useFlexGap
-                                        flexWrap="wrap"
+                                        sx={{ flexWrap: "wrap" }}
                                     >
                                         <FormControlLabel
                                             control={
@@ -1757,10 +1785,12 @@ export default function CertificateTemplateBuilder({
                                                 selected.styles?.lineHeight ||
                                                 1.2
                                             }
-                                            inputProps={{
-                                                min: 0.8,
-                                                max: 3,
-                                                step: 0.1,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 0.8,
+                                                    max: 3,
+                                                    step: 0.1,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -1777,10 +1807,12 @@ export default function CertificateTemplateBuilder({
                                                 selected.styles
                                                     ?.letterSpacing || 0
                                             }
-                                            inputProps={{
-                                                min: -5,
-                                                max: 20,
-                                                step: 0.5,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: -5,
+                                                    max: 20,
+                                                    step: 0.5,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -1803,7 +1835,9 @@ export default function CertificateTemplateBuilder({
                                                 event.target.value,
                                             )
                                         }
-                                        InputLabelProps={{ shrink: true }}
+                                        slotProps={{
+                                            inputLabel: { shrink: true },
+                                        }}
                                     />
                                     <Stack direction="row" spacing={1}>
                                         <TextField
@@ -1813,10 +1847,12 @@ export default function CertificateTemplateBuilder({
                                             value={
                                                 selected.styles?.opacity ?? 1
                                             }
-                                            inputProps={{
-                                                min: 0,
-                                                max: 1,
-                                                step: 0.05,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 0,
+                                                    max: 1,
+                                                    step: 0.05,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -1962,10 +1998,12 @@ export default function CertificateTemplateBuilder({
                                             value={
                                                 selected.styles?.opacity ?? 1
                                             }
-                                            inputProps={{
-                                                min: 0,
-                                                max: 1,
-                                                step: 0.05,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 0,
+                                                    max: 1,
+                                                    step: 0.05,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -1991,9 +2029,11 @@ export default function CertificateTemplateBuilder({
                                                 selected.styles?.borderRadius ||
                                                 0
                                             }
-                                            inputProps={{
-                                                min: 0,
-                                                max: 100,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 0,
+                                                    max: 100,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -2015,7 +2055,9 @@ export default function CertificateTemplateBuilder({
                                                 selected.styles?.borderWidth ||
                                                 0
                                             }
-                                            inputProps={{ min: 0, max: 20 }}
+                                            slotProps={{
+                                                htmlInput: { min: 0, max: 20 },
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "borderWidth",
@@ -2046,8 +2088,10 @@ export default function CertificateTemplateBuilder({
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{
-                                                shrink: true,
+                                            slotProps={{
+                                                inputLabel: {
+                                                    shrink: true,
+                                                },
                                             }}
                                         />
                                     </Box>
@@ -2104,8 +2148,10 @@ export default function CertificateTemplateBuilder({
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{
-                                                shrink: true,
+                                            slotProps={{
+                                                inputLabel: {
+                                                    shrink: true,
+                                                },
                                             }}
                                         />
                                         <TextField
@@ -2122,8 +2168,10 @@ export default function CertificateTemplateBuilder({
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{
-                                                shrink: true,
+                                            slotProps={{
+                                                inputLabel: {
+                                                    shrink: true,
+                                                },
                                             }}
                                         />
                                         <TextField
@@ -2133,10 +2181,12 @@ export default function CertificateTemplateBuilder({
                                             value={
                                                 selected.styles?.padding ?? 1.5
                                             }
-                                            inputProps={{
-                                                min: 0,
-                                                max: 10,
-                                                step: 0.5,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 0,
+                                                    max: 10,
+                                                    step: 0.5,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -2158,7 +2208,9 @@ export default function CertificateTemplateBuilder({
                                                 selected.styles?.borderWidth ||
                                                 0
                                             }
-                                            inputProps={{ min: 0, max: 20 }}
+                                            slotProps={{
+                                                htmlInput: { min: 0, max: 20 },
+                                            }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
                                                     "borderWidth",
@@ -2174,7 +2226,7 @@ export default function CertificateTemplateBuilder({
                                     </Box>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         The QR code always uses this
                                         certificate&apos;s public verification
@@ -2236,7 +2288,9 @@ export default function CertificateTemplateBuilder({
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{ shrink: true }}
+                                            slotProps={{
+                                                inputLabel: { shrink: true },
+                                            }}
                                         />
                                         <TextField
                                             type="color"
@@ -2256,7 +2310,9 @@ export default function CertificateTemplateBuilder({
                                                     event.target.value,
                                                 )
                                             }
-                                            InputLabelProps={{ shrink: true }}
+                                            slotProps={{
+                                                inputLabel: { shrink: true },
+                                            }}
                                         />
                                     </Stack>
                                     <Stack direction="row" spacing={1}>
@@ -2269,10 +2325,12 @@ export default function CertificateTemplateBuilder({
                                                 selected.styles?.strokeWidth ??
                                                 1
                                             }
-                                            inputProps={{
-                                                min: 0,
-                                                max: 20,
-                                                step: 0.5,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 0,
+                                                    max: 20,
+                                                    step: 0.5,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -2296,9 +2354,11 @@ export default function CertificateTemplateBuilder({
                                                     selected.styles
                                                         ?.borderRadius ?? 0
                                                 }
-                                                inputProps={{
-                                                    min: 0,
-                                                    max: 100,
+                                                slotProps={{
+                                                    htmlInput: {
+                                                        min: 0,
+                                                        max: 100,
+                                                    },
                                                 }}
                                                 onChange={(event) =>
                                                     updateSelectedStyle(
@@ -2322,10 +2382,12 @@ export default function CertificateTemplateBuilder({
                                             value={
                                                 selected.styles?.opacity ?? 1
                                             }
-                                            inputProps={{
-                                                min: 0,
-                                                max: 1,
-                                                step: 0.05,
+                                            slotProps={{
+                                                htmlInput: {
+                                                    min: 0,
+                                                    max: 1,
+                                                    step: 0.05,
+                                                },
                                             }}
                                             onChange={(event) =>
                                                 updateSelectedStyle(
@@ -2347,7 +2409,11 @@ export default function CertificateTemplateBuilder({
                                 </Stack>
                             )}
                             <Divider />
-                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                sx={{ flexWrap: "wrap" }}
+                            >
                                 <Button
                                     size="small"
                                     onClick={() =>

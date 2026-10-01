@@ -488,10 +488,12 @@ def get_program_pricing(
     platform_features: dict | None = None,
     currency_code: str = "KES",
     now: datetime | None = None,
+    course_delivery_mode: str | None = None,
 ) -> dict:
-    from apps.learning_operations.services import get_course_delivery_profile
+    if course_delivery_mode is None:
+        from apps.learning_operations.services import get_course_delivery_profile
 
-    course_delivery_mode = get_course_delivery_profile(program).delivery_mode
+        course_delivery_mode = get_course_delivery_profile(program).delivery_mode
     return normalize_custom_pricing(
         program.custom_pricing or {},
         deployment_mode=deployment_mode,

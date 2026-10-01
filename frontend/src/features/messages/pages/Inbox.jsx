@@ -11,7 +11,7 @@ import {
     Stack,
     Typography,
 } from "@mui/material";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
 
@@ -32,15 +32,14 @@ export default function Inbox({ conversations = [], unreadCount = 0 }) {
                 <Stack spacing={2}>
                     <Stack
                         direction={{ xs: "column", sm: "row" }}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", sm: "center" }}
+                        sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" } }}
                         spacing={1}
                     >
                         <Box>
-                            <Typography variant="h4" fontWeight={700}>
+                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
                                 Messages
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 {unreadCount} unread message{unreadCount === 1 ? "" : "s"}
                             </Typography>
                         </Box>
@@ -48,7 +47,7 @@ export default function Inbox({ conversations = [], unreadCount = 0 }) {
                             component={Link}
                             href="/messages/new/"
                             variant="contained"
-                            startIcon={<MailOutlineIcon />}
+                            startIcon={<MailOutlinedIcon />}
                         >
                             New Message
                         </Button>
@@ -60,7 +59,7 @@ export default function Inbox({ conversations = [], unreadCount = 0 }) {
                                 <Typography variant="h6" sx={{ mb: 1 }}>
                                     No conversations yet
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                                     Start a conversation to begin messaging.
                                 </Typography>
                                 <Button component={Link} href="/messages/new/" variant="outlined">
@@ -81,11 +80,10 @@ export default function Inbox({ conversations = [], unreadCount = 0 }) {
                                                 primary={
                                                     <Stack
                                                         direction="row"
-                                                        justifyContent="space-between"
-                                                        alignItems="center"
+                                                        sx={{ justifyContent: "space-between", alignItems: "center" }}
                                                         spacing={1}
                                                     >
-                                                        <Typography variant="subtitle1" fontWeight={600}>
+                                                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                                                             {conversation.otherUser?.name}
                                                         </Typography>
                                                         {conversation.unreadCount > 0 && (
@@ -101,7 +99,7 @@ export default function Inbox({ conversations = [], unreadCount = 0 }) {
                                                     <Stack spacing={0.5} sx={{ mt: 0.5 }}>
                                                         <Typography
                                                             variant="body2"
-                                                            color="text.secondary"
+                                                            color="textSecondary"
                                                             sx={{
                                                                 display: "-webkit-box",
                                                                 WebkitLineClamp: 2,
@@ -112,7 +110,7 @@ export default function Inbox({ conversations = [], unreadCount = 0 }) {
                                                             {conversation.lastMessage?.content ||
                                                                 "No messages yet."}
                                                         </Typography>
-                                                        <Typography variant="caption" color="text.disabled">
+                                                        <Typography variant="caption" color="textDisabled">
                                                             {formatTimestamp(
                                                                 conversation.lastMessageAt ||
                                                                     conversation.lastMessage?.createdAt,

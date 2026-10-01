@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useEffect, useMemo, useState } from "react";
 import {
     Box,
@@ -120,20 +121,19 @@ const LiveClassRenderer = ({
 
     return (
         <Stack spacing={3}>
-            <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+            <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: PLAYER_RADII.surface }}>
                 <Stack spacing={2}>
                     <Stack
                         direction={{ xs: "column", md: "row" }}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", md: "center" }}
+                        sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", md: "center" } }}
                         spacing={1.5}
                     >
                         <Stack spacing={0.25}>
-                            <Typography variant="h6" fontWeight={600}>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
                                 Live Session
                             </Typography>
                             {!!title && (
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" color="textSecondary">
                                     {title}
                                 </Typography>
                             )}
@@ -147,7 +147,7 @@ const LiveClassRenderer = ({
 
                     {!isStarted && (
                         <Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
                                 Countdown to start
                             </Typography>
                             <Stack direction="row" spacing={1}>
@@ -162,8 +162,8 @@ const LiveClassRenderer = ({
                                         variant="outlined"
                                         sx={{ px: 1.5, py: 1, minWidth: 64, textAlign: "center" }}
                                     >
-                                        <Typography fontWeight={700}>{item.value}</Typography>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography sx={{ fontWeight: 700 }}>{item.value}</Typography>
+                                        <Typography variant="caption" color="textSecondary">
                                             {item.label}
                                         </Typography>
                                     </Paper>
@@ -174,12 +174,12 @@ const LiveClassRenderer = ({
 
                     <Stack spacing={0.5}>
                         {startAt && (
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 Starts: {startAt.toLocaleString()} {timezone ? `(${timezone})` : ""}
                             </Typography>
                         )}
                         {endAt && (
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 Ends: {endAt.toLocaleString()} {timezone ? `(${timezone})` : ""}
                             </Typography>
                         )}
@@ -199,19 +199,19 @@ const LiveClassRenderer = ({
             </Paper>
 
             {!!sanitizedDescription && (
-                <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: PLAYER_RADII.surface }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
                         Overview
                     </Typography>
                     <Box
                         sx={{
-                            "& img": { ...richTextImageSx, borderRadius: 1, my: 2 },
+                            "& img": { ...richTextImageSx, borderRadius: PLAYER_RADII.surface, my: 2 },
                             [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                                 ...richTextImageFigureSx,
                                 my: 2,
                                 "& > img": {
                                     ...richTextImageFigureSx["& > img"],
-                                    borderRadius: 1,
+                                    borderRadius: PLAYER_RADII.surface,
                                 },
                             },
                         }}
@@ -225,20 +225,20 @@ const LiveClassRenderer = ({
                     elevation={0}
                     sx={{
                         p: { xs: 2, md: 3 },
-                        borderRadius: 2,
+                        borderRadius: PLAYER_RADII.surface,
                         minHeight: 220,
-                        "& img": { ...richTextImageSx, borderRadius: 1, my: 2 },
+                        "& img": { ...richTextImageSx, borderRadius: PLAYER_RADII.surface, my: 2 },
                         [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                             ...richTextImageFigureSx,
                             my: 2,
                             "& > img": {
                                 ...richTextImageFigureSx["& > img"],
-                                borderRadius: 1,
+                                borderRadius: PLAYER_RADII.surface,
                             },
                         },
                     }}
                 >
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
                         Lesson content
                     </Typography>
                     <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
@@ -246,8 +246,8 @@ const LiveClassRenderer = ({
             )}
 
             {!sanitizedDescription && !sanitizedContent && (
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, textAlign: "center" }}>
-                    <Typography color="text.secondary">
+                <Paper elevation={0} sx={{ p: 3, borderRadius: PLAYER_RADII.surface, textAlign: "center" }}>
+                    <Typography color="textSecondary">
                         No additional lesson notes provided yet.
                     </Typography>
                 </Paper>

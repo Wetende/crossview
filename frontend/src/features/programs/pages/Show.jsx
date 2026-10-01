@@ -40,10 +40,10 @@ function StatCard({ title, value, icon: Icon, color = 'primary' }) {
     <Card>
       <CardContent sx={{ textAlign: 'center' }}>
         <Icon sx={{ fontSize: 40, color: `${color}.main`, mb: 1 }} />
-        <Typography variant="h4" fontWeight="bold">
+        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
           {value}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="textSecondary">
           {title}
         </Typography>
       </CardContent>
@@ -66,9 +66,9 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
       <Stack spacing={3}>
         {/* Header */}
         <motion.div {...fadeInUp}>
-          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} sx={{ justifyContent: 'space-between', alignItems: { md: 'center' } }} spacing={2}>
             <Box>
-              <Typography variant="h4" fontWeight="bold" gutterBottom>
+              <Typography variant="h4" sx={{ fontWeight: 'bold' }} gutterBottom>
                 {program.name}
               </Typography>
               <Stack direction="row" spacing={1}>
@@ -82,7 +82,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                 />
               </Stack>
             </Box>
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
               <Button
                 component={Link}
                 href={`/instructor/programs/${program.id}/manage/`}
@@ -125,7 +125,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
         
         {/* Stats */}
         <Grid container spacing={3}>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <motion.div {...fadeInUp} transition={{ delay: 0.1 }}>
               <StatCard
                 title="Total Enrolled"
@@ -135,7 +135,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <motion.div {...fadeInUp} transition={{ delay: 0.2 }}>
               <StatCard
                 title="Active Students"
@@ -145,7 +145,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <motion.div {...fadeInUp} transition={{ delay: 0.3 }}>
               <StatCard
                 title="Completed"
@@ -155,7 +155,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
               />
             </motion.div>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <motion.div {...fadeInUp} transition={{ delay: 0.4 }}>
               <StatCard
                 title="Avg Progress"
@@ -169,7 +169,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
         
         {/* Program Info & Curriculum */}
         <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <motion.div {...fadeInUp} transition={{ delay: 0.5 }}>
               <Card>
                 <CardContent>
@@ -179,8 +179,8 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                   <Divider sx={{ my: 2 }} />
                   
                   {descriptionText && (
-                    <Box mb={2}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
                         Description
                       </Typography>
                       <Typography variant="body2">
@@ -189,8 +189,8 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                     </Box>
                   )}
                   
-                  <Box mb={2}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
                       Blueprint
                     </Typography>
                     <Typography variant="body2">
@@ -199,11 +199,11 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                   </Box>
                   
                   {program.blueprint?.hierarchyLabels && (
-                    <Box mb={2}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
                         Hierarchy
                       </Typography>
-                      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }} useFlexGap>
                         {program.blueprint.hierarchyLabels.map((label) => (
                           <Chip 
                             key={label} 
@@ -218,7 +218,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                   
                   {program.blueprint?.gradingConfig && (
                     <Box>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
                         Grading Mode
                       </Typography>
                       <Chip 
@@ -263,7 +263,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
             </motion.div>
           </Grid>
           
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <motion.div {...fadeInUp} transition={{ delay: 0.6 }}>
               <Card>
                 <CardContent>
@@ -279,7 +279,7 @@ export default function InstructorProgramShow({ program, stats, curriculum }) {
                       variant="instructor"
                     />
                   ) : (
-                    <Typography color="text.secondary">
+                    <Typography color="textSecondary">
                       No curriculum content yet.
                     </Typography>
                   )}

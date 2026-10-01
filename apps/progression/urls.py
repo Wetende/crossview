@@ -28,6 +28,11 @@ urlpatterns = [
         name="student.unit.summary",
     ),
     path(
+        "student/programs/<int:pk>/complete/",
+        views.course_complete,
+        name="student.course.complete",
+    ),
+    path(
         "student/courses/<int:program_id>/lessons/<int:node_id>/launch/",
         views.course_lesson_launch,
         name="student.lesson.launch",

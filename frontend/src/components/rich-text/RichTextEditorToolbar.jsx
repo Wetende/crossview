@@ -31,6 +31,7 @@ import {
     FormatUnderlined,
     Fullscreen,
     FullscreenExit,
+    FunctionsOutlined,
     InsertLink,
     InsertPhoto,
     Redo,
@@ -189,11 +190,13 @@ const ColorMenu = ({ editor, kind }) => {
                 anchorEl={anchor}
                 open={Boolean(anchor)}
                 onClose={() => setAnchor(null)}
-                MenuListProps={{
-                    "aria-label": isText
-                        ? "Choose text color"
-                        : "Choose highlight color",
-                    sx: { p: 1 },
+                slotProps={{
+                    list: {
+                        "aria-label": isText
+                            ? "Choose text color"
+                            : "Choose highlight color",
+                        sx: { p: 1 },
+                    },
                 }}
             >
                 <Box
@@ -275,7 +278,7 @@ const FontSizeControls = ({ editor }) => {
                     RICH_TEXT_FONT_SIZES[RICH_TEXT_FONT_SIZES.length - 1]
                 }
                 icon={
-                    <Typography component="span" fontWeight={800}>
+                    <Typography component="span" sx={{ fontWeight: 800 }}>
                         +
                     </Typography>
                 }
@@ -326,6 +329,7 @@ export function RichTextEditorToolbar({
     editor,
     onOpenLink,
     onOpenImage,
+    onOpenMath,
     imageAttributes,
     onUpdateImage,
     onDeleteImage,
@@ -333,6 +337,8 @@ export function RichTextEditorToolbar({
     onToggleFullscreen,
 }) {
     const isImageSelected = editor.isActive("image");
+    const isMathSelected =
+        editor.isActive("inlineMath") || editor.isActive("blockMath");
     const fontFamily = editor.getAttributes("textStyle").fontFamily || "";
     const direction =
         editor.getAttributes("paragraph").dir ||
@@ -480,6 +486,14 @@ export function RichTextEditorToolbar({
                 icon={<InsertPhoto fontSize="small" />}
                 title={isImageSelected ? "Edit image details" : "Insert image"}
             />
+            {onOpenMath && (
+                <ToolbarButton
+                    onClick={onOpenMath}
+                    active={isMathSelected}
+                    icon={<FunctionsOutlined fontSize="small" />}
+                    title={isMathSelected ? "Edit maths" : "Insert maths"}
+                />
+            )}
             {isImageSelected && (
                 <ImageToolbarActions
                     attributes={imageAttributes}

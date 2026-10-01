@@ -16,6 +16,7 @@ export default function AutosaveStatus({
     status,
     lastSavedAt,
     disabledReason = "",
+    pausedReason = "",
 }) {
     if (status === "disabled") {
         return disabledReason ? (
@@ -32,6 +33,21 @@ export default function AutosaveStatus({
 
     if (status === "idle") {
         return null;
+    }
+
+    if (status === "dirty" && pausedReason) {
+        return (
+            <Tooltip title="Your changes stay in this editor but are not saved until this is fixed.">
+                <Chip
+                    icon={<ReportProblemIcon />}
+                    label={`Autosave paused: ${pausedReason}`}
+                    size="small"
+                    variant="outlined"
+                    color="warning"
+                    sx={{ flexShrink: 0 }}
+                />
+            </Tooltip>
+        );
     }
 
     if (status === "dirty") {

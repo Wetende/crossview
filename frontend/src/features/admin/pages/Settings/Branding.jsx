@@ -54,10 +54,10 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
             >
               Back to Settings
             </Button>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Branding & Appearance
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               Customize your institution&apos;s look and feel
             </Typography>
           </Box>
@@ -66,7 +66,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
 
           <Grid container spacing={3}>
             {/* Colors */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -78,7 +78,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
                     </Typography>
                     <Stack spacing={3}>
                       <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                        <Typography variant="body2" color="textSecondary" gutterBottom>
                           Primary Color
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -103,7 +103,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
                         </Box>
                       </Box>
                       <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                        <Typography variant="body2" color="textSecondary" gutterBottom>
                           Secondary Color
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -134,7 +134,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
             </Grid>
 
             {/* Preview */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -161,7 +161,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
                           mb: 2,
                         }}
                       >
-                        <Typography variant="subtitle1" fontWeight="bold">
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                           Primary Color
                         </Typography>
                         <Typography variant="body2">
@@ -176,7 +176,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
                           borderRadius: 1,
                         }}
                       >
-                        <Typography variant="subtitle1" fontWeight="bold">
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                           Secondary Color
                         </Typography>
                         <Typography variant="body2">
@@ -190,7 +190,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
             </Grid>
 
             {/* Custom CSS */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -201,7 +201,7 @@ export default function BrandingSettings({ branding = {}, errors = {} }) {
                     <Typography variant="h6" gutterBottom>
                       Custom CSS
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                       Add custom CSS to further customize the appearance (advanced)
                     </Typography>
                     <TextField

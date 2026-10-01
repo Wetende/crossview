@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.core.models import Program, User
 
+from .question_bank_access import (
+    can_create_bank,
+    can_edit_bank,
+    visible_entries,
+    visible_question_banks,
+)
 from .models import (
     Question,
     QuestionBank,
@@ -26,26 +32,40 @@ from .question_snapshots import (
 
 
 class QuestionBankService:
-    """Program-scoped persistent question-bank operations."""
+    """Persistent question-bank operations for course, library and shared banks."""
 
     def create_bank(
         self,
-        program: Program,
         owner: User,
         name: str,
+        *,
+        program: Program | None = None,
+        scope: str = QuestionBank.SCOPE_COURSE,
         description: str = "",
         category: str = "",
     ) -> QuestionBank:
-        return QuestionBank.objects.create(
-            program=program,
+        if scope not in {value for value, _ in QuestionBank.SCOPE_CHOICES}:
+            raise ValidationError("Select a valid question bank type.")
+        if scope == QuestionBank.SCOPE_COURSE and program is None:
+            raise ValidationError("Select the course this bank belongs to.")
+        if not can_create_bank(owner, scope, program):
+            raise PermissionDenied("You cannot create this kind of question bank.")
+        bank = QuestionBank(
+            scope=scope,
+            program=program if scope == QuestionBank.SCOPE_COURSE else None,
             owner=owner,
             name=str(name or "").strip(),
             description=str(description or "").strip(),
             category=str(category or "").strip(),
         )
+        bank.full_clean()
+        bank.save()
+        return bank
 
-    def get_program_banks(self, program: Program):
-        return QuestionBank.objects.filter(program=program).order_by("name")
+    def list_banks(self, user: User, *, program: Program | None = None, include_archived=False):
+        return visible_question_banks(
+            user, program=program, include_archived=include_archived
+        )
 
     @transaction.atomic
     def add_to_bank(
@@ -69,8 +89,8 @@ class QuestionBankService:
         }
         if difficulty not in valid_difficulties:
             raise ValidationError("Select a valid question difficulty.")
-        if question and bank and question.quiz.node.program_id != bank.program_id:
-            raise ValidationError("Question and bank must belong to the same course.")
+        if bank is not None:
+            self._check_bank_accepts(user, bank, question)
         entry = QuestionBankEntry.objects.create(
             owner=user,
             question=question,
@@ -108,6 +128,10 @@ class QuestionBankService:
             value for value, _ in QuestionBankEntry.DIFFICULTY_CHOICES
         }:
             raise ValidationError("Select a valid question difficulty.")
+        if bank is not None and bank.pk != entry.bank_id:
+            if entry.bank_id and not can_edit_bank(actor, entry.bank):
+                raise PermissionDenied("You cannot move questions out of this bank.")
+            self._check_bank_accepts(actor, bank, entry.question)
         if question_snapshot is not None:
             entry.snapshot_version += 1
             entry.question_snapshot = normalize_question_snapshot(question_snapshot)
@@ -145,7 +169,10 @@ class QuestionBankService:
             points=snapshot["points"],
             position=target_quiz.questions.count(),
             answer_data=snapshot["answer_data"],
+            explanation=snapshot["explanation"],
+            hint=snapshot["hint"],
             source_bank_entry=entry,
+            source_bank_entry_version=entry.snapshot_version,
         )
         for option in snapshot["options"]:
             QuestionOption.objects.create(
@@ -192,19 +219,40 @@ class QuestionBankService:
             )
         return new_question
 
-    def search_program_library(
+    def _check_bank_accepts(self, user: User, bank: QuestionBank, question: Question | None):
+        if not can_edit_bank(user, bank):
+            raise PermissionDenied("You cannot add questions to this bank.")
+        if (
+            question is not None
+            and bank.scope == QuestionBank.SCOPE_COURSE
+            and question.quiz.node.program_id != bank.program_id
+        ):
+            raise ValidationError("Question and bank must belong to the same course.")
+
+    def search_library(
         self,
-        program: Program,
+        user: User,
+        *,
+        program: Program | None = None,
+        scope: str | None = None,
+        bank_id: int | None = None,
+        owner_only: bool = False,
+        include_archived: bool = False,
         query: str | None = None,
         category: str | None = None,
-        bank_id: int | None = None,
         question_type: str | None = None,
         difficulty: str | None = None,
         tags: list | None = None,
-    ):
-        queryset = QuestionBankEntry.objects.filter(bank__program=program).select_related(
-            "question", "bank", "owner"
+    ) -> list[QuestionBankEntry]:
+        queryset = visible_entries(
+            user, program=program, include_archived=include_archived
         )
+        if scope:
+            queryset = queryset.filter(bank__scope=scope)
+        if bank_id:
+            queryset = queryset.filter(bank_id=bank_id)
+        if owner_only:
+            queryset = queryset.filter(owner=user)
         if query:
             queryset = queryset.filter(
                 Q(question_snapshot__text__icontains=query)
@@ -215,13 +263,11 @@ class QuestionBankService:
             queryset = queryset.filter(
                 Q(category__iexact=category) | Q(bank__category__iexact=category)
             )
-        if bank_id:
-            queryset = queryset.filter(bank_id=bank_id)
         if question_type:
             queryset = queryset.filter(question_snapshot__question_type=question_type)
         if difficulty:
             queryset = queryset.filter(difficulty=difficulty)
-        entries = list(queryset.order_by("-created_at"))
+        entries = list(queryset.order_by("-created_at", "-id"))
         required_tags = {str(tag).strip().lower() for tag in (tags or []) if str(tag).strip()}
         if required_tags:
             entries = [
@@ -233,28 +279,11 @@ class QuestionBankService:
             ]
         return entries
 
-    def get_categories(self, program: Program) -> list[str]:
-        bank_categories = QuestionBank.objects.filter(program=program).values_list(
+    def list_categories(self, user: User, *, program: Program | None = None) -> list[str]:
+        bank_categories = visible_question_banks(user, program=program).values_list(
             "category", flat=True
         )
-        entry_categories = QuestionBankEntry.objects.filter(
-            bank__program=program
-        ).values_list("category", flat=True)
+        entry_categories = visible_entries(user, program=program).values_list(
+            "category", flat=True
+        )
         return sorted({value for value in [*bank_categories, *entry_categories] if value})
-
-    def search_bank(self, user: User, query: str = None, tags: list = None):
-        queryset = QuestionBankEntry.objects.filter(owner=user)
-        if query:
-            queryset = queryset.filter(
-                Q(question_snapshot__text__icontains=query)
-                | Q(subject_area__icontains=query)
-            )
-        entries = list(queryset)
-        if tags:
-            required = {str(tag).strip().lower() for tag in tags}
-            entries = [
-                entry
-                for entry in entries
-                if required.issubset({str(tag).strip().lower() for tag in entry.tags})
-            ]
-        return entries

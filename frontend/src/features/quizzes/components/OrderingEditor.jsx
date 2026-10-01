@@ -60,7 +60,7 @@ export default function OrderingEditor({ items, explanations = {}, onChange, onE
       </Typography>
       <Stack spacing={2}>
         {items.map((item, index) => (
-          <Stack key={index} direction="row" spacing={1} alignItems="center">
+          <Stack key={index} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Stack direction="column">
               <IconButton size="small" onClick={() => moveItem(index, -1)} disabled={index === 0}>
                 ▲

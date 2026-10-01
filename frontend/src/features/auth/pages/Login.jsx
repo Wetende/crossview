@@ -89,12 +89,12 @@ export default function Login({
                                 <Typography
                                     variant="h4"
                                     color="primary"
-                                    fontWeight={700}
+                                    sx={{ fontWeight: 700 }}
                                     gutterBottom
                                 >
                                     {institutionName}
                                 </Typography>
-                                <Typography variant="body1" color="text.secondary">
+                                <Typography variant="body1" color="textSecondary">
                                     Welcome back! Please sign in to continue.
                                 </Typography>
                             </Box>
@@ -118,7 +118,7 @@ export default function Login({
                                         />
                                     </Box>
                                     <Divider sx={{ mb: 2 }}>
-                                        <Typography variant="caption" color="text.secondary">
+                                        <Typography variant="caption" color="textSecondary">
                                             or sign in with email
                                         </Typography>
                                     </Divider>
@@ -138,12 +138,14 @@ export default function Login({
                                     margin="normal"
                                     autoComplete="email"
                                     autoFocus
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconMail size={20} />
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconMail size={20} />
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
 
@@ -159,33 +161,35 @@ export default function Login({
                                     helperText={errors.password}
                                     margin="normal"
                                     autoComplete="current-password"
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <IconLock size={20} />
-                                            </InputAdornment>
-                                        ),
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <IconButton
-                                                    onClick={() =>
-                                                        setShowPassword(!showPassword)
-                                                    }
-                                                    edge="end"
-                                                    aria-label={
-                                                        showPassword
-                                                            ? "Hide password"
-                                                            : "Show password"
-                                                    }
-                                                >
-                                                    {showPassword ? (
-                                                        <IconEyeOff size={20} />
-                                                    ) : (
-                                                        <IconEye size={20} />
-                                                    )}
-                                                </IconButton>
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <IconLock size={20} />
+                                                </InputAdornment>
+                                            ),
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        onClick={() =>
+                                                            setShowPassword(!showPassword)
+                                                        }
+                                                        edge="end"
+                                                        aria-label={
+                                                            showPassword
+                                                                ? "Hide password"
+                                                                : "Show password"
+                                                        }
+                                                    >
+                                                        {showPassword ? (
+                                                            <IconEyeOff size={20} />
+                                                        ) : (
+                                                            <IconEye size={20} />
+                                                        )}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
 
@@ -243,9 +247,8 @@ export default function Login({
                             {registrationEnabled && (
                                 <Typography
                                     variant="body2"
-                                    textAlign="center"
-                                    color="text.secondary"
-                                    sx={{ mt: 3 }}
+                                    color="textSecondary"
+                                    sx={{ textAlign: "center", mt: 3 }}
                                 >
                                     Don&apos;t have an account?{" "}
                                     <Link

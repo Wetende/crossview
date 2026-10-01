@@ -124,8 +124,7 @@ export default function LearningModesSection({ platform }) {
                             </SectionLabel>
                             <Typography
                                 variant="h2"
-                                fontWeight={700}
-                                sx={{ mb: 3, color: "text.primary" }}
+                                sx={{ fontWeight: 700, mb: 3, color: "text.primary" }}
                             >
                                 Choose Your{" "}
                                 <Box
@@ -137,7 +136,7 @@ export default function LearningModesSection({ platform }) {
                             </Typography>
                             <Typography
                                 variant="body1"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ mb: 4, lineHeight: 1.8 }}
                             >
                                 Whether you prefer live online classes, 
@@ -148,7 +147,7 @@ export default function LearningModesSection({ platform }) {
                                 effectively, wherever you are.
                             </Typography>
 
-                            <Stack direction="row" spacing={2} flexWrap="wrap">
+                            <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }}>
                                 <ButtonAnimationWrapper>
                                     <Button
                                         variant="contained"

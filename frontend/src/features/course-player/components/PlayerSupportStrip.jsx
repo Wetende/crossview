@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../playerRadii";
 import { Chip, Paper, Stack } from "@mui/material";
 import {
     EmojiEvents as BadgeIcon,
@@ -10,7 +11,7 @@ export default function PlayerSupportStrip({ gamification }) {
     if (!showMomentum) return null;
 
     return (
-        <Paper variant="outlined" sx={{ p: 1, mb: 2, borderRadius: 2 }}>
+        <Paper variant="outlined" sx={{ p: 1, mb: 2, borderRadius: PLAYER_RADII.surface }}>
             <Stack
                 direction="row"
                 spacing={1}

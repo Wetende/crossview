@@ -28,6 +28,8 @@ class Notification(TimeStampedModel):
         ('inactivity_reminder', 'Inactivity Reminder'),
         ('scheduled_session', 'Scheduled Session Update'),
         ('badge_earned', 'Badge Earned'),
+        ('course_completed', 'Course Completed'),
+        ('certificate_issued', 'Certificate Issued'),
         ('system', 'System Notification'),
     ]
 

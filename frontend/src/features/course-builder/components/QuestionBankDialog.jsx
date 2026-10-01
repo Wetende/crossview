@@ -15,6 +15,7 @@ import {
     Typography,
 } from "@mui/material";
 import { AccountBalance as BankIcon } from "@mui/icons-material";
+import BankScopeChip from "@/features/question-library/components/BankScopeChip";
 
 const QUESTION_TYPES = [
     ["", "Any question type"],
@@ -105,7 +106,12 @@ export default function QuestionBankDialog({
                             >
                                 {banks.map((bank) => (
                                     <MenuItem key={bank.id} value={bank.id}>
-                                        {bank.name} ({bank.entries_count} questions)
+                                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                                            <span>
+                                                {bank.name} ({bank.entries_count} questions)
+                                            </span>
+                                            {bank.scope && <BankScopeChip scope={bank.scope} />}
+                                        </Stack>
                                     </MenuItem>
                                 ))}
                             </Select>

@@ -12,6 +12,7 @@ from apps.assessments.models import (
     Rubric
 )
 from apps.assessments.text_normalization import (
+    normalize_assessment_rich_text,
     normalize_assessment_text,
     normalize_assessment_text_list,
     normalize_question_answer_data,
@@ -216,7 +217,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = [
             'id', 'quiz', 'question_type', 'text', 'points', 'position', 'answer_data',
-            'options', 'matching_pairs', 'gap_answers', 'created_at'
+            'explanation', 'hint', 'options', 'matching_pairs', 'gap_answers', 'created_at'
         ]
 
     def validate(self, attrs):
@@ -225,6 +226,9 @@ class QuestionSerializer(serializers.ModelSerializer):
 
         if "text" in attrs:
             attrs["text"] = normalize_assessment_text(attrs["text"])
+        for field in ("explanation", "hint"):
+            if field in attrs:
+                attrs[field] = normalize_assessment_rich_text(attrs[field])
         if "answer_data" in attrs:
             attrs["answer_data"] = normalize_question_answer_data(
                 question_type,
@@ -331,37 +335,71 @@ class QuizSerializer(serializers.ModelSerializer):
 class QuestionBankSerializer(serializers.ModelSerializer):
     """Serializer for QuestionBank model (question groupings)."""
     entries_count = serializers.SerializerMethodField()
-    
+    program_name = serializers.SerializerMethodField()
+    owner_name = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
     class Meta:
         model = QuestionBank
         fields = [
-            'id', 'name', 'description', 'program', 'owner', 'category',
-            'entries_count', 'created_at', 'updated_at'
+            'id', 'name', 'description', 'scope', 'program', 'program_name',
+            'owner', 'owner_name', 'category', 'is_archived', 'entries_count',
+            'can_edit', 'can_delete', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['owner', 'entries_count']
-    
+        read_only_fields = ['scope', 'program', 'owner', 'entries_count']
+
+    def _user(self):
+        request = self.context.get('request')
+        return getattr(request, 'user', None)
+
+    def get_can_edit(self, obj):
+        from apps.assessments.question_bank_access import can_edit_bank
+
+        user = self._user()
+        return bool(user and user.is_authenticated and can_edit_bank(user, obj))
+
+    def get_can_delete(self, obj):
+        from apps.assessments.question_bank_access import can_delete_bank
+
+        user = self._user()
+        return bool(user and user.is_authenticated and can_delete_bank(user, obj))
+
     def get_entries_count(self, obj):
-        return obj.entries.count()
+        annotated = getattr(obj, 'entries_count_annotated', None)
+        return annotated if annotated is not None else obj.entries.count()
+
+    def get_program_name(self, obj):
+        return obj.program.name if obj.program_id else None
+
+    def get_owner_name(self, obj):
+        return obj.owner.get_full_name() if obj.owner_id else None
 
 
 class QuestionBankEntrySerializer(serializers.ModelSerializer):
     question_data = serializers.SerializerMethodField()
     questionSnapshot = serializers.JSONField(source='question_snapshot', required=False)
     bank_name = serializers.CharField(source='bank.name', read_only=True, allow_null=True)
-    owner_name = serializers.CharField(source='owner.get_full_name', read_only=True)
+    bank_scope = serializers.CharField(source='bank.scope', read_only=True, allow_null=True)
+    owner_name = serializers.CharField(
+        source='owner.get_full_name', read_only=True, allow_null=True
+    )
     question_type = serializers.SerializerMethodField()
-    
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
     class Meta:
         model = QuestionBankEntry
         fields = [
             'id', 'owner', 'owner_name', 'question', 'question_data',
-            'bank', 'bank_name', 'category', 'subject_area', 'difficulty', 
-            'tags', 'usage_count', 'last_used_at', 'snapshot_version',
-            'questionSnapshot', 'question_type', 'created_at', 'updated_at'
+            'bank', 'bank_name', 'bank_scope', 'category', 'subject_area',
+            'difficulty', 'tags', 'usage_count', 'last_used_at', 'snapshot_version',
+            'questionSnapshot', 'question_type', 'can_edit', 'can_delete',
+            'created_at', 'updated_at'
         ]
         read_only_fields = [
             'owner', 'usage_count', 'last_used_at', 'snapshot_version',
-            'owner_name', 'bank_name', 'question_type'
+            'owner_name', 'bank_name', 'bank_scope', 'question_type'
         ]
 
     def get_question_data(self, obj):
@@ -379,6 +417,22 @@ class QuestionBankEntrySerializer(serializers.ModelSerializer):
         return (obj.question_snapshot or {}).get('question_type') or (
             obj.question.question_type if obj.question_id else None
         )
+
+    def _user(self):
+        request = self.context.get('request')
+        return getattr(request, 'user', None)
+
+    def get_can_edit(self, obj):
+        from apps.assessments.question_bank_access import can_edit_entry
+
+        user = self._user()
+        return bool(user and user.is_authenticated and can_edit_entry(user, obj))
+
+    def get_can_delete(self, obj):
+        from apps.assessments.question_bank_access import can_delete_entry
+
+        user = self._user()
+        return bool(user and user.is_authenticated and can_delete_entry(user, obj))
 
 
 class QuizQuestionPoolSerializer(serializers.ModelSerializer):

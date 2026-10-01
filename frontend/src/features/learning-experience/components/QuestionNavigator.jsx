@@ -13,15 +13,17 @@ const QuestionNavigator = ({
         <Box component="nav" aria-label="Quiz questions">
             <Stack
                 direction="row"
-                alignItems="center"
-                justifyContent="space-between"
                 spacing={2}
-                sx={{ mb: 1 }}
+                sx={{
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 1,
+                }}
             >
-                <Typography variant="body2" fontWeight={800}>
+                <Typography variant="body2" sx={{ fontWeight: 800 }}>
                     Question {currentIndex + 1} of {count}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                     {answered.size} answered
                 </Typography>
             </Stack>

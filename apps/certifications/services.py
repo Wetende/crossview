@@ -26,7 +26,7 @@ from .models import (
     CertificateTemplateVersion,
     VerificationLog,
 )
-from .assignments import resolve_certificate_template
+from .assignments import program_issues_certificate, resolve_certificate_template
 from .rendering import render_layout_pdf
 
 
@@ -91,6 +91,17 @@ class TemplateGenerator:
             raise TemplateValidationError("No default template configured")
         return default
 
+    def has_template_for_program(self, program, resolved=None) -> bool:
+        """Whether get_template_for_enrollment would find a template."""
+        if resolved is None:
+            resolved = resolve_certificate_template(program)
+        if resolved.version:
+            return True
+        blueprint = program.blueprint
+        if blueprint and CertificateTemplate.objects.filter(blueprint=blueprint).exists():
+            return True
+        return self.get_default_template() is not None
+
     def generate(
         self,
         template: CertificateTemplate,
@@ -137,6 +148,18 @@ class TemplateGenerator:
             HTML(string=html_content, base_url=settings.MEDIA_ROOT).write_pdf(full_path)
 
         return pdf_path
+
+
+def program_offers_certificate(program) -> bool:
+    """Whether completing the course can issue a certificate right now.
+
+    The course must allow certificates and a template must actually resolve,
+    the same lookup certificate generation uses.
+    """
+    resolved = resolve_certificate_template(program)
+    return program_issues_certificate(
+        program, resolved
+    ) and TemplateGenerator().has_template_for_program(program, resolved)
 
 
 class SerialNumberGenerator:
@@ -649,10 +672,8 @@ class CertificateEligibilityService:
             progress_ok = enrollment.status == "completed"
 
         enrollment_complete = enrollment.status == "completed"
-        certificate_enabled = bool(
-            blueprint
-            and blueprint.certificate_enabled
-            and resolved_template.enabled
+        certificate_enabled = program_issues_certificate(
+            enrollment.program, resolved_template
         )
 
         eligible = (
@@ -844,3 +865,62 @@ class CertificateEligibilityService:
         )
 
         return certificate
+
+
+def resolve_learner_certificate(enrollment) -> dict:
+    """
+    Describe the learner-facing certificate state for one enrollment.
+
+    Mirrors the student certificates page: an issued certificate links to its
+    signed download and public verification page; a queued (or eligible but not
+    yet issued) record is pending; otherwise eligibility decides between
+    "not offered" and "ineligible".
+    """
+
+    def state(status, message, certificate=None):
+        return {
+            "status": status,
+            "downloadUrl": (
+                certificate.get_signed_download_url() if certificate else None
+            ),
+            "verifyUrl": certificate.get_verification_url() if certificate else None,
+            "message": message,
+        }
+
+    pending = (
+        "pending",
+        "Your certificate is being prepared. We will notify you when it is ready.",
+    )
+
+    certificate = (
+        Certificate.objects.filter(enrollment=enrollment)
+        .order_by("-issue_date", "-id")
+        .first()
+    )
+    if certificate and not certificate.is_revoked:
+        return state(
+            "issued",
+            "Your certificate is ready to download and share.",
+            certificate,
+        )
+    if certificate:
+        return state(
+            "ineligible",
+            "Your certificate for this course has been revoked. Contact your "
+            "course administrator for details.",
+        )
+
+    if CertificateEligibility.objects.filter(
+        enrollment=enrollment, status="pending"
+    ).exists():
+        return state(*pending)
+
+    snapshot = CertificateEligibilityService().compute_eligibility(enrollment)
+    if not snapshot.get("certificateEnabled"):
+        return state("not_offered", "This course does not award a certificate.")
+    if snapshot.get("eligible"):
+        return state(*pending)
+    return state(
+        "ineligible",
+        "A certificate is awarded once you meet the course's passing requirements.",
+    )

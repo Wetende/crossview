@@ -116,18 +116,18 @@ export default function EnrollmentRequests({ program, requests, filters }) {
                     >
                         Back to Program
                     </Button>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                         <Box>
-                            <Typography variant="h4" fontWeight={700} gutterBottom>
+                            <Typography variant="h4" sx={{ fontWeight: 700 }} gutterBottom>
                                 Enrollment Requests
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 {program.name}
                             </Typography>
                         </Box>
-                        <Stack direction="row" spacing={2} alignItems="center">
+                        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
                             <IconUserPlus size={24} color="#666" />
-                            <Typography variant="h5" fontWeight={600}>
+                            <Typography variant="h5" sx={{ fontWeight: 600 }}>
                                 {requests.pagination.totalCount}
                             </Typography>
                         </Stack>
@@ -167,7 +167,7 @@ export default function EnrollmentRequests({ program, requests, filters }) {
                             {requests.results.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
-                                        <Typography color="text.secondary">
+                                        <Typography color="textSecondary">
                                             No enrollment requests found.
                                         </Typography>
                                     </TableCell>
@@ -176,10 +176,10 @@ export default function EnrollmentRequests({ program, requests, filters }) {
                                 requests.results.map((req) => (
                                     <TableRow key={req.id}>
                                         <TableCell>
-                                            <Typography variant="body2" fontWeight={600}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                 {req.studentName}
                                             </Typography>
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 {req.studentEmail}
                                             </Typography>
                                         </TableCell>
@@ -204,7 +204,7 @@ export default function EnrollmentRequests({ program, requests, filters }) {
                                         <TableCell>{getStatusChip(req.status)}</TableCell>
                                         <TableCell align="right">
                                             {req.status === "pending" && (
-                                                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
                                                     <Button
                                                         size="small"
                                                         variant="contained"
@@ -272,7 +272,7 @@ export default function EnrollmentRequests({ program, requests, filters }) {
             <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Reject Enrollment Request</DialogTitle>
                 <DialogContent>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                         Rejecting enrollment for{" "}
                         <strong>{selectedRequest?.studentName}</strong>
                     </Typography>

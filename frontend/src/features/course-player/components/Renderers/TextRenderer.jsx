@@ -1,30 +1,34 @@
+import { PLAYER_RADII } from "../../playerRadii";
+import { useMemo } from 'react';
 import { Paper, Typography } from '@mui/material';
-import DOMPurify from 'dompurify';
 import {
-    RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
     RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE,
-    renderRichTextImageCaptions,
     richTextImageFigureSx,
     richTextImageSx,
 } from '@/utils/richTextImages';
 import { richTextContentSx } from '@/components/rich-text/richTextEditorConfig';
+import { lessonRichTextSx } from './lessonRichTextSx';
+import {
+    sanitizeRichTextHtml,
+    useRichTextMath,
+} from '@/components/rich-text/richTextMath';
 
 const TextRenderer = ({ content }) => {
     // If content is just a string, treat it as HTML
-    // If it's an object (from Draft.js/Editor.js), we might need parsing. 
+    // If it's an object (from Draft.js/Editor.js), we might need parsing.
     // Assuming HTML string for now based on previous patterns.
     const htmlContent = typeof content === 'string' ? content : (content?.html || '');
 
-    const sanitizedContent = renderRichTextImageCaptions(
-        DOMPurify.sanitize(htmlContent, {
-            ADD_ATTR: RICH_TEXT_IMAGE_DATA_ATTRIBUTE_NAMES,
-        }),
+    const sanitizedContent = useMemo(
+        () => sanitizeRichTextHtml(htmlContent),
+        [htmlContent],
     );
+    const renderedContent = useRichTextMath(sanitizedContent);
 
     if (!sanitizedContent) {
         return (
-            <Paper elevation={0} sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 2 }}>
-                <Typography color="text.secondary">
+            <Paper elevation={0} sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper', borderRadius: PLAYER_RADII.surface }}>
+                <Typography color="textSecondary">
                     No text content available for this lesson.
                 </Typography>
             </Paper>
@@ -37,35 +41,25 @@ const TextRenderer = ({ content }) => {
             sx={{ 
                 p: { xs: 2, md: 5 }, 
                 bgcolor: 'background.paper', 
-                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: PLAYER_RADII.surface,
                 minHeight: '60vh',
                 typography: 'body1',
                 ...richTextContentSx,
-                '& img': { ...richTextImageSx, borderRadius: 2, my: 2 },
+                ...lessonRichTextSx,
+                '& img': { ...richTextImageSx, borderRadius: PLAYER_RADII.surface, my: 2 },
                 [`& figure[${RICH_TEXT_IMAGE_FIGURE_ATTRIBUTE}]`]: {
                     ...richTextImageFigureSx,
                     my: 2,
                     '& > img': {
                         ...richTextImageFigureSx['& > img'],
-                        borderRadius: 2,
+                        borderRadius: PLAYER_RADII.surface,
                     },
                 },
-                '& h1, & h2, & h3': { fontWeight: 700, mt: 3, mb: 2 },
-                '& p': { mb: 2, lineHeight: 'inherit' },
-                '& ul, & ol': { mb: 2, pl: 3 },
-                '& li': { mb: 1 },
-                '& blockquote': { 
-                    borderLeft: '4px solid', 
-                    borderColor: 'primary.main', 
-                    pl: 2, 
-                    py: 1, 
-                    my: 3, 
-                    bgcolor: 'grey.50',
-                    fontStyle: 'italic'
-                }
             }}
         >
-            <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+            <div dangerouslySetInnerHTML={{ __html: renderedContent }} />
         </Paper>
     );
 };

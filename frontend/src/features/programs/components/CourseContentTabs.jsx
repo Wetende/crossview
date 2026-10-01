@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { Link } from "@inertiajs/react";
 import DOMPurify from "dompurify";
 import {
     Accordion,
@@ -30,6 +31,8 @@ import {
     IconPlayerPlay,
 } from "@tabler/icons-react";
 
+import { htmlToPlainText } from "@/utils/htmlText";
+import InstructorCard from "./InstructorCard";
 import {
     curriculumAccordionSx,
     curriculumSummarySx,
@@ -73,7 +76,7 @@ function TabPanel({ children, value, index }) {
 
 function EmptyState({ children }) {
     return (
-        <Typography color="text.secondary" sx={{ py: 1 }}>
+        <Typography color="textSecondary" sx={{ py: 1 }}>
             {children}
         </Typography>
     );
@@ -87,6 +90,25 @@ function SanitizedHtml({ html, sx }) {
                 __html: DOMPurify.sanitize(html || ""),
             }}
         />
+    );
+}
+
+function hasRichTextContent(html) {
+    return Boolean(htmlToPlainText(html)) || /<img\b/i.test(String(html || ""));
+}
+
+function OverviewSection({ title, html }) {
+    const headingId = useId();
+
+    if (!hasRichTextContent(html)) return null;
+
+    return (
+        <Box component="section" aria-labelledby={headingId} sx={{ mt: 4 }}>
+            <Typography id={headingId} variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+                {title}
+            </Typography>
+            <SanitizedHtml html={html} sx={learningOutcomesSx} />
+        </Box>
     );
 }
 
@@ -145,7 +167,7 @@ function CurriculumContent({ curriculum }) {
                         <AccordionDetails sx={{ p: 0 }}>
                             <Box sx={lessonListSx}>
                                 {lessons.length === 0 ? (
-                                    <Typography color="text.secondary" sx={{ px: 2.25, py: 2 }}>
+                                    <Typography color="textSecondary" sx={{ px: 2.25, py: 2 }}>
                                         No lessons in this section yet.
                                     </Typography>
                                 ) : (
@@ -180,11 +202,22 @@ function CurriculumContent({ curriculum }) {
                                                         sx={{ ml: 1, flexShrink: 0, alignItems: "center" }}
                                                     >
                                                         {lesson.duration ? (
-                                                            <Typography variant="body2" color="text.secondary">
+                                                            <Typography variant="body2" color="textSecondary">
                                                                 {lesson.duration} min
                                                             </Typography>
                                                         ) : null}
-                                                        {lesson.isPreview ? (
+                                                        {lesson.isPreview && lesson.previewUrl ? (
+                                                            <Chip
+                                                                component={Link}
+                                                                href={lesson.previewUrl}
+                                                                clickable
+                                                                label="Preview"
+                                                                aria-label={`Preview ${lesson.title}`}
+                                                                size="small"
+                                                                color="primary"
+                                                                variant="outlined"
+                                                            />
+                                                        ) : lesson.isPreview ? (
                                                             <Chip label="Preview" size="small" color="primary" variant="outlined" />
                                                         ) : (
                                                             <IconLock aria-label="Locked content" size={18} color="currentColor" />
@@ -288,6 +321,12 @@ export default function CourseContentTabs({
                         <SanitizedHtml html={program.what_you_learn_html} sx={learningOutcomesSx} />
                     </Box>
                 ) : null}
+                <OverviewSection title="Requirements" html={program.requirementsHtml} />
+                <OverviewSection
+                    title="Who this course is for"
+                    html={program.audienceHtml}
+                />
+                <InstructorCard instructor={program.instructor} />
             </TabPanel>
 
             <TabPanel value={value} index={1}>
@@ -383,7 +422,7 @@ export default function CourseContentTabs({
                                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                 {review.user?.name || "Anonymous"}
                                             </Typography>
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="textSecondary">
                                                 {review.updatedAt
                                                     ? new Date(review.updatedAt).toLocaleDateString()
                                                     : ""}

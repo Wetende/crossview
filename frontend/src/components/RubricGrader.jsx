@@ -56,7 +56,7 @@ export default function RubricGrader({
   if (!rubric || !rubric.dimensions) {
     return (
       <Paper sx={{ p: 3 }}>
-        <Typography color="text.secondary">No rubric configured</Typography>
+        <Typography color="textSecondary">No rubric configured</Typography>
       </Paper>
     );
   }
@@ -70,7 +70,7 @@ export default function RubricGrader({
             {rubric.name || 'Grading Rubric'}
           </Typography>
           {rubric.description && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               {rubric.description}
             </Typography>
           )}
@@ -108,8 +108,8 @@ export default function RubricGrader({
           }}
         >
           <Typography variant="h6">Total Score</Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h5" color="primary.main">
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+            <Typography variant="h5" color="primary">
               {totalScore} / {maxScore}
             </Typography>
             <Chip
@@ -133,11 +133,11 @@ function RubricDimension({ dimension, score, onChange, readOnly }) {
 
   return (
     <Box>
-      <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+      <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }} gutterBottom>
         {dimension.name || dimension.label}
       </Typography>
       {dimension.description && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
           {dimension.description}
         </Typography>
       )}
@@ -171,7 +171,7 @@ function RubricDimension({ dimension, score, onChange, readOnly }) {
                 },
               }}
             >
-              <Stack alignItems="center" spacing={0.5}>
+              <Stack sx={{ alignItems: 'center' }} spacing={0.5}>
                 <Typography variant="h6">{level.score}</Typography>
                 <Typography variant="caption">{level.label}</Typography>
               </Stack>

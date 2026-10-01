@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Box, Paper, Typography, LinearProgress, Stack } from "@mui/material";
 import LazyReactPlayer from "@/components/LazyReactPlayer";
@@ -11,7 +12,7 @@ import {
  *
  * Features:
  * - Plays videos from various sources (YouTube, Vimeo, direct URLs)
- * - Tracks highest watched position (handles seeking)
+ * - Counts continuous viewing only; skipped-ahead parts do not count
  * - Shows progress indicator when requirement is set
  * - Fires onRequirementMet callback when threshold reached
  */
@@ -24,13 +25,14 @@ const VideoRenderer = ({
     enrollmentId,
     nodeId,
     activityProgress = {},
+    seekRef = null, // Receives a (seconds) => void seek function
 }) => {
-    const [highestProgress, setHighestProgress] = useState(0);
-    const [currentProgress, setCurrentProgress] = useState(0);
     const [durationSeconds, setDurationSeconds] = useState(0);
     const [watchedSeconds, setWatchedSeconds] = useState(0);
     const [requirementMet, setRequirementMet] = useState(false);
+    const [skippedAhead, setSkippedAhead] = useState(false);
     const playerRef = useRef(null);
+    const hasPlayedRef = useRef(false);
     const requirementMetRef = useRef(false);
     const lastPlayedSecondsRef = useRef(null);
     const watchedSecondsRef = useRef(0);
@@ -41,13 +43,13 @@ const VideoRenderer = ({
     const trackingEnabled = Boolean(enrollmentId && nodeId);
 
     useEffect(() => {
-        setHighestProgress(0);
-        setCurrentProgress(0);
         setDurationSeconds(0);
         setWatchedSeconds(0);
         watchedSecondsRef.current = 0;
         setRequirementMet(false);
         requirementMetRef.current = false;
+        setSkippedAhead(false);
+        hasPlayedRef.current = false;
         lastPlayedSecondsRef.current = null;
         sequenceRef.current = 0;
         sessionIdRef.current = createActivitySessionId();
@@ -95,17 +97,15 @@ const VideoRenderer = ({
         [enrollmentId, nodeId, onRequirementMet, trackingEnabled],
     );
 
-    const handleDuration = useCallback((seconds) => {
+    const handleDurationChange = useCallback((event) => {
         // ReactPlayer can re-fire duration; keep latest non-zero.
+        const seconds = event?.currentTarget?.duration;
         if (typeof seconds === "number" && seconds > 0)
             setDurationSeconds(seconds);
     }, []);
 
     const handleProgress = useCallback(
         (state) => {
-            const played = Math.round(state.played * 100);
-            setCurrentProgress(played);
-
             // Count "watched" time based on playedSeconds deltas.
             // This makes requiredProgress harder to bypass via seeking.
             const playedSeconds =
@@ -122,13 +122,12 @@ const VideoRenderer = ({
                     if (delta > 0 && delta <= 10) {
                         watchedSecondsRef.current += delta;
                         setWatchedSeconds(watchedSecondsRef.current);
+                    } else if (delta > 10 && hasPlayedRef.current) {
+                        // Resume seeks happen before playback, so only a
+                        // jump after play counts as skipping ahead.
+                        setSkippedAhead(true);
                     }
                 }
-            }
-
-            // Track highest position reached (prevents skipping ahead)
-            if (played > highestProgress) {
-                setHighestProgress(played);
             }
 
             // Check if requirement met using watched percent (not just seek position).
@@ -166,7 +165,6 @@ const VideoRenderer = ({
             }
         },
         [
-            highestProgress,
             requiredProgress,
             onProgress,
             onRequirementMet,
@@ -176,10 +174,67 @@ const VideoRenderer = ({
         ],
     );
 
+    // Seek only once metadata is known (ReactPlayer v3 fires onReady at
+    // loadstart, too early) and only while the media is still at the start,
+    // so playback in progress is never pulled back.
+    const applyResume = useCallback(
+        (media) => {
+            const resume = Number(activityProgress?.resumePositionSeconds || 0);
+            if (resume > 0 && media && media.currentTime < 1)
+                media.currentTime = resume;
+        },
+        [activityProgress?.resumePositionSeconds],
+    );
+
+    // Let the notes panel jump to a saved timestamp. ReactPlayer v3 exposes
+    // the media element, so seek by setting currentTime (as resume does).
+    useEffect(() => {
+        if (!seekRef) return undefined;
+        const seek = (seconds) => {
+            const media = playerRef.current;
+            const target = Number(seconds);
+            if (!media || !Number.isFinite(target) || target < 0) return;
+            media.currentTime = target;
+        };
+        seekRef.current = seek;
+        return () => {
+            if (seekRef.current === seek) seekRef.current = null;
+        };
+    }, [seekRef]);
+
+    const handleLoadedMetadata = useCallback(
+        (event) => applyResume(event?.currentTarget),
+        [applyResume],
+    );
+
+    // A cached file can load its metadata before React delivers the event to
+    // the lazily committed player, so also resume from the ready state.
+    const setPlayerRef = useCallback(
+        (media) => {
+            playerRef.current = media;
+            if (media?.readyState >= 1) applyResume(media);
+        },
+        [applyResume],
+    );
+
+    // ReactPlayer v3 emits media events; adapt them to the { played,
+    // playedSeconds } progress state the tracking logic and callers use.
+    const handleTimeUpdate = useCallback(
+        (event) => {
+            const media = event?.currentTarget;
+            if (typeof media?.currentTime !== "number") return;
+            const duration =
+                media.duration > 0 ? media.duration : durationSeconds;
+            handleProgress({
+                played: duration > 0 ? media.currentTime / duration : 0,
+                playedSeconds: media.currentTime,
+            });
+        },
+        [durationSeconds, handleProgress],
+    );
+
     const handleEnded = useCallback(() => {
-        setHighestProgress(100);
-        const position =
-            playerRef.current?.getCurrentTime?.() || durationSeconds;
+        const position = playerRef.current?.currentTime || durationSeconds;
         void sendEvidence("ended", position, durationSeconds);
         // Only auto-complete on end if no requirement, or if the requirement is met.
         if (requiredProgress > 0 && !requirementMetRef.current) return;
@@ -189,6 +244,7 @@ const VideoRenderer = ({
     }, [durationSeconds, onEnded, requiredProgress, sendEvidence]);
 
     const showProgressBar = requiredProgress > 0;
+    const isComplete = requirementMet || Boolean(activityProgress?.isCompleted);
 
     return (
         <Box>
@@ -196,7 +252,7 @@ const VideoRenderer = ({
                 elevation={3}
                 sx={{
                     overflow: "hidden",
-                    borderRadius: 3,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "black",
                     position: "relative",
                     pt: "56.25%", // 16:9 Aspect Ratio
@@ -212,36 +268,27 @@ const VideoRenderer = ({
                     }}
                 >
                     <LazyReactPlayer
-                        ref={playerRef}
-                        url={url}
+                        ref={setPlayerRef}
+                        src={url}
                         width="100%"
                         height="100%"
                         controls={true}
                         onEnded={handleEnded}
+                        onPlay={() => {
+                            hasPlayedRef.current = true;
+                        }}
                         onPause={() => {
                             const position =
-                                playerRef.current?.getCurrentTime?.() || 0;
+                                playerRef.current?.currentTime || 0;
                             void sendEvidence(
                                 "pause",
                                 position,
                                 durationSeconds,
                             );
                         }}
-                        onReady={() => {
-                            const resume = Number(
-                                activityProgress?.resumePositionSeconds || 0,
-                            );
-                            if (resume > 0)
-                                playerRef.current?.seekTo?.(resume, "seconds");
-                        }}
-                        onDuration={handleDuration}
-                        onProgress={handleProgress}
-                        progressInterval={1000}
-                        config={{
-                            youtube: {
-                                playerVars: { showinfo: 0, modestbranding: 1 },
-                            },
-                        }}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onDurationChange={handleDurationChange}
+                        onTimeUpdate={handleTimeUpdate}
                     />
                 </Box>
             </Paper>
@@ -251,37 +298,52 @@ const VideoRenderer = ({
                 <Box sx={{ mt: 1.5, px: 0.5 }}>
                     <Stack
                         direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        sx={{ mb: 0.5 }}
+                        sx={{
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 1,
+                            mb: 0.5,
+                        }}
                     >
-                        <Typography variant="caption" color="text.secondary">
-                            Watched: {watchedPercent}% (seeked to{" "}
-                            {highestProgress}%, now {currentProgress}%)
-                            {requiredProgress > 0 &&
-                                ` (${requiredProgress}% required)`}
-                        </Typography>
-                        {requirementMet && (
+                        {isComplete ? (
                             <Typography
                                 variant="caption"
-                                color="success.main"
-                                fontWeight="bold"
-                                aria-label="Requirement met"
+                                sx={{ color: "success.main", fontWeight: 700 }}
                             >
-                                ✓
+                                <span aria-hidden="true">✓ </span>
+                                Watched: lesson complete
                             </Typography>
+                        ) : (
+                            <>
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: "text.primary",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {watchedPercent}% watched
+                                </Typography>
+                                <Typography
+                                    variant="caption"
+                                    sx={{ color: "text.secondary" }}
+                                >
+                                    Watch {requiredProgress}% to complete
+                                </Typography>
+                            </>
                         )}
                     </Stack>
                     <LinearProgress
                         variant="determinate"
                         value={watchedPercent}
+                        aria-label={`${watchedPercent}% of video watched`}
                         sx={{
                             height: 6,
                             borderRadius: 3,
                             bgcolor: "grey.200",
                             "& .MuiLinearProgress-bar": {
                                 borderRadius: 3,
-                                bgcolor: requirementMet
+                                bgcolor: isComplete
                                     ? "success.main"
                                     : "primary.main",
                             },
@@ -300,6 +362,19 @@ const VideoRenderer = ({
                                 borderRadius: 1,
                             }}
                         />
+                    )}
+                    {skippedAhead && !isComplete && (
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                display: "block",
+                                mt: 0.75,
+                                color: "text.secondary",
+                            }}
+                        >
+                            Skipped parts don&apos;t count toward the{" "}
+                            {requiredProgress}%.
+                        </Typography>
                     )}
                 </Box>
             )}

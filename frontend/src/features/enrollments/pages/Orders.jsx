@@ -62,10 +62,10 @@ export default function Orders() {
         <DashboardLayout role="student" breadcrumbs={[{ label: "Orders" }]}>
             <Container sx={{ maxWidth: 1200, py: 4, mx: "auto" }}>
                 <Head title="My Orders" />
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2.5 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <IconReceipt size={24} />
-                        <Typography variant="h5" fontWeight={700}>My Orders</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>My Orders</Typography>
                     </Stack>
                     <Stack direction="row" spacing={1}>
                         <ReportToolbar
@@ -160,13 +160,13 @@ export default function Orders() {
                                                     size="small"
                                                 />
                                                 {order.refundedMinor > 0 && (
-                                                    <Typography variant="caption" color="error.main" display="block">
+                                                    <Typography variant="caption" color="error" sx={{ display: "block" }}>
                                                         Refunded {formatAmount(order.refundedMinor, order.currency)}
                                                     </Typography>
                                                 )}
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Typography variant="body2" fontWeight={600}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                     {formatAmount(order.totalMinor || order.amountMinor, order.currency)}
                                                 </Typography>
                                             </TableCell>
@@ -188,7 +188,7 @@ export default function Orders() {
                                 {!loading && orders.length === 0 && !error && (
                                     <TableRow>
                                         <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                                            <Typography color="text.secondary">No orders yet.</Typography>
+                                            <Typography color="textSecondary">No orders yet.</Typography>
                                         </TableCell>
                                     </TableRow>
                                 )}

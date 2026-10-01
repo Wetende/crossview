@@ -16,7 +16,7 @@ export default function ReportFilterBar({ filters = {}, summary = {} }) {
 
   return (
     <Box className="report-filter-bar" sx={{ my: 2 }}>
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
         {filterEntries.map(([key, value]) => (
           <Chip key={`filter-${key}`} label={`${key}: ${value}`} size="small" variant="outlined" />
         ))}

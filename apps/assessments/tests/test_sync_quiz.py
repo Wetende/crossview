@@ -283,3 +283,166 @@ class SyncQuizQuestionsTest(TestCase):
         self.assertEqual(pairs.count(), 2)
         self.assertEqual(pairs[0].question_text, "Dog")
         self.assertEqual(pairs[0].answer_text, "Bark")
+
+
+class SyncQuizPoolsFromBuilderTest(TestCase):
+    """A builder save that adds a question-bank pool must create the pool."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from apps.assessments.models import QuestionBank
+        from apps.progression.models import InstructorAssignment
+
+        self.user = User.objects.create_user(
+            username='pool-instructor', email='pool@test.com', password='password'
+        )
+        self.user.groups.add(Group.objects.get_or_create(name='Instructors')[0])
+        self.program = Program.objects.create(name="Pool Program", code="POOL-101")
+        InstructorAssignment.objects.create(instructor=self.user, program=self.program)
+        self.bank = QuestionBank.objects.create(
+            program=self.program, owner=self.user, name="Course pool bank"
+        )
+        self.node = CurriculumNode.objects.create(
+            program=self.program,
+            title="Pool quiz",
+            node_type="quiz",
+            properties={
+                "questions": [],
+                "question_banks": [{"bankId": self.bank.id, "questionCount": 1}],
+            },
+        )
+
+    def test_builder_save_creates_a_new_pool(self):
+        _sync_quiz_questions(self.node, [], actor=self.user)
+
+        quiz = Quiz.objects.get(node=self.node)
+        pool = quiz.question_pools.get()
+        self.assertEqual(pool.bank, self.bank)
+        self.assertEqual(pool.created_by, self.user)
+        self.node.refresh_from_db()
+        self.assertEqual(self.node.properties["question_banks"][0]["poolId"], pool.id)
+
+    def test_resaving_a_pool_whose_creator_was_removed_still_works(self):
+        _sync_quiz_questions(self.node, [], actor=self.user)
+        quiz = Quiz.objects.get(node=self.node)
+        quiz.question_pools.update(created_by=None)
+        self.node.refresh_from_db()
+
+        _sync_quiz_questions(self.node, [], actor=self.user)
+
+        self.assertEqual(quiz.question_pools.count(), 1)
+
+
+class SyncQuizLibraryLinksTest(TestCase):
+    """Builder saves keep bank links safe across courses and editors."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from apps.assessments.models import QuestionBank
+        from apps.assessments.question_bank_service import QuestionBankService
+        from apps.progression.models import InstructorAssignment
+
+        group = Group.objects.get_or_create(name='Instructors')[0]
+        self.owner = User.objects.create_user(
+            username='lib-owner', email='owner@test.com', password='password'
+        )
+        self.colleague = User.objects.create_user(
+            username='lib-colleague', email='colleague@test.com', password='password'
+        )
+        for user in (self.owner, self.colleague):
+            user.groups.add(group)
+        self.program = Program.objects.create(name="Library Program", code="LIB-101")
+        for user in (self.owner, self.colleague):
+            InstructorAssignment.objects.create(instructor=user, program=self.program)
+        library = QuestionBank.objects.create(
+            scope=QuestionBank.SCOPE_INSTRUCTOR, owner=self.owner, name="Owner library"
+        )
+        self.service = QuestionBankService()
+        self.entry = self.service.add_to_bank(
+            question=None,
+            user=self.owner,
+            bank=library,
+            question_snapshot={
+                "question_type": "true_false",
+                "text": "Water boils at 100C at sea level.",
+                "points": 1,
+                "answer_data": {"correct": True},
+            },
+        )
+        self.node = CurriculumNode.objects.create(
+            program=self.program, title="Library quiz", node_type="quiz", properties={}
+        )
+
+    def question(self, **extra):
+        return {
+            "id": "temp_1",
+            "type": "true_false",
+            "text": "Water boils at 100C at sea level.",
+            "points": 1,
+            "correct": 0,
+            "libraryEntryId": self.entry.id,
+            **extra,
+        }
+
+    def saved_question(self):
+        return Quiz.objects.get(node=self.node).questions.get()
+
+    def resave(self, actor, **extra):
+        self.node.refresh_from_db()
+        payload = dict(self.node.properties["questions"][0], **extra)
+        _sync_quiz_questions(self.node, [payload], actor=actor)
+
+    def bump_entry_version(self):
+        self.service.update_entry(
+            self.entry,
+            actor=self.owner,
+            question_snapshot={
+                "question_type": "true_false",
+                "text": "Water boils at 100 degrees Celsius at sea level.",
+                "points": 1,
+                "answer_data": {"correct": True},
+            },
+        )
+        self.entry.refresh_from_db()
+
+    def test_linking_a_library_entry_records_its_version(self):
+        _sync_quiz_questions(self.node, [self.question()], actor=self.owner)
+
+        question = self.saved_question()
+        self.assertEqual(question.source_bank_entry, self.entry)
+        self.assertEqual(question.source_bank_entry_version, 1)
+        self.node.refresh_from_db()
+        self.assertEqual(self.node.properties["questions"][0]["libraryEntryVersion"], 1)
+
+    def test_colleague_resave_keeps_the_owners_private_link(self):
+        _sync_quiz_questions(self.node, [self.question()], actor=self.owner)
+
+        self.resave(self.colleague)
+
+        self.assertEqual(self.saved_question().source_bank_entry, self.entry)
+
+    def test_new_links_to_entries_the_editor_cannot_see_are_dropped(self):
+        _sync_quiz_questions(self.node, [self.question()], actor=self.colleague)
+
+        self.assertIsNone(self.saved_question().source_bank_entry)
+
+    def test_update_from_bank_records_the_newer_version(self):
+        _sync_quiz_questions(self.node, [self.question()], actor=self.owner)
+        self.bump_entry_version()
+
+        self.resave(self.owner, libraryEntryVersion=2)
+        self.assertEqual(self.saved_question().source_bank_entry_version, 2)
+
+        self.resave(self.owner, libraryEntryVersion=99)
+        self.assertEqual(self.saved_question().source_bank_entry_version, 2)
+
+    def test_saves_without_a_version_keep_the_copied_version(self):
+        _sync_quiz_questions(self.node, [self.question()], actor=self.owner)
+        self.bump_entry_version()
+        self.node.refresh_from_db()
+        payload = dict(self.node.properties["questions"][0])
+        payload.pop("libraryEntryVersion", None)
+
+        _sync_quiz_questions(self.node, [payload], actor=self.owner)
+
+        self.assertEqual(self.saved_question().source_bank_entry_version, 1)

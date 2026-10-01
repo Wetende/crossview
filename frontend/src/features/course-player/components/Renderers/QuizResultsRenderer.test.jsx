@@ -85,6 +85,31 @@ describe("QuizResultsRenderer", () => {
         expect(html).not.toContain("All 3 available attempts");
     });
 
+    test("offers the course summary when this quiz finished the course", () => {
+        render(
+            <QuizResultsRenderer
+                quizResults={buildResults()}
+                nextNode={{ id: 2, url: "/session/2/" }}
+                courseCompleteUrl="/student/programs/5/complete/"
+            />,
+        );
+
+        expect(
+            screen.getByRole("link", { name: "View course summary" }),
+        ).toHaveAttribute("href", "/student/programs/5/complete/");
+        expect(
+            screen.getByRole("link", { name: "Continue learning" }),
+        ).toHaveClass("MuiButton-outlined");
+    });
+
+    test("hides the course summary action without a summary URL", () => {
+        render(<QuizResultsRenderer quizResults={buildResults()} />);
+
+        expect(
+            screen.queryByRole("link", { name: "View course summary" }),
+        ).not.toBeInTheDocument();
+    });
+
     test("keeps correct answers hidden until the release policy allows them", () => {
         const html = renderToStaticMarkup(
             <QuizResultsRenderer
@@ -110,6 +135,55 @@ describe("QuizResultsRenderer", () => {
         );
         expect(html).not.toContain("Correct answer:");
         expect(html).toContain("Your answer:");
+    });
+
+    test("shows the question explanation with released answers", () => {
+        const results = buildResults();
+        render(
+            <QuizResultsRenderer
+                quizResults={{
+                    ...results,
+                    questionReview: [
+                        {
+                            ...results.questionReview[0],
+                            explanation:
+                                '<p>Mandatory means <em>required</em>.</p><img src="x" onerror="window.pwned = true">',
+                        },
+                    ],
+                }}
+            />,
+        );
+
+        const explanation = screen.getByRole("region", {
+            name: "Explanation for question 1",
+        });
+        expect(explanation).toHaveTextContent("Mandatory means required.");
+        expect(explanation.querySelector("em")).not.toBeNull();
+        expect(
+            explanation.querySelector("img").getAttribute("onerror"),
+        ).toBeNull();
+    });
+
+    test("hides the explanation until the release policy allows answers", () => {
+        const results = buildResults({ correctAnswersReleased: false });
+        const html = renderToStaticMarkup(
+            <QuizResultsRenderer
+                quizResults={{
+                    ...results,
+                    questionReview: [
+                        {
+                            ...results.questionReview[0],
+                            correctAnswer: null,
+                            // Defence in depth: never shown while answers are withheld.
+                            explanation: "<p>Secret reasoning</p>",
+                        },
+                    ],
+                }}
+            />,
+        );
+
+        expect(html).not.toContain("Secret reasoning");
+        expect(html).not.toContain("Explanation");
     });
 
     test("shows a policy lock separately from exhausted attempts", () => {

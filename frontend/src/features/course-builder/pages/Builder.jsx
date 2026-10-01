@@ -38,6 +38,7 @@ import {
 } from "../utils/builderTabs";
 
 const RIGHT_DRAWER_WIDTH = 300;
+const EMPTY_LIBRARY_VERSIONS = {};
 const getInitialTab = (program) =>
     normalizeBuilderTab(program, getRequestedBuilderTab());
 
@@ -89,7 +90,8 @@ export default function InstructorProgramBuilder({
     // Get reactive page props for curriculum updates
     const page = usePage();
 
-    const questionLibrary = page.props.questionLibrary || [];
+    const questionLibraryVersions =
+        page.props.questionLibraryVersions || EMPTY_LIBRARY_VERSIONS;
     const questionCategories = page.props.questionCategories || [];
     const questionBanks = page.props.questionBanks || [];
 
@@ -140,6 +142,7 @@ export default function InstructorProgramBuilder({
     };
 
     const selectedNode = selectedNodeId ? findNode(selectedNodeId) : null;
+    const appliedNodeRequestUrlRef = useRef(null);
 
     useEffect(() => {
         if (!selectedNode) {
@@ -161,6 +164,14 @@ export default function InstructorProgramBuilder({
             "node",
         );
         if (!requestedNodeId) {
+            appliedNodeRequestUrlRef.current = null;
+            return;
+        }
+
+        // Server redirects (node create, rejected save) open a lesson with
+        // ?node=. Apply it once per visit so later curriculum refreshes on the
+        // same URL do not pull the instructor away from the lesson they chose.
+        if (appliedNodeRequestUrlRef.current === page.url) {
             return;
         }
 
@@ -168,9 +179,18 @@ export default function InstructorProgramBuilder({
             (node) => String(node.id) === requestedNodeId,
         );
         if (requestedNode) {
+            appliedNodeRequestUrlRef.current = page.url;
+            // Never swap away from a lesson whose edits autosave could not
+            // save; the tree's own select (which asks first) handles that.
+            if (
+                String(requestedNode.id) !== String(selectedNodeId) &&
+                activeEditorRef.current?.hasPausedUnsavedChanges?.()
+            ) {
+                return;
+            }
             setSelectedNodeId(requestedNode.id);
         }
-    }, [activeTab, curriculum, page.url]);
+    }, [activeTab, curriculum, page.url, selectedNodeId]);
 
     const handleNodeSave = (nodeId, data, callbacks = {}) => {
         const expectedVersion =
@@ -196,14 +216,34 @@ export default function InstructorProgramBuilder({
     };
 
     const flushActiveAutosave = useCallback(async () => {
-        await Promise.all([
+        const [editorResult] = await Promise.all([
             activeEditorRef.current?.flushAutosave?.(),
             settingsPanelRef.current?.flushAutosave?.(),
         ]);
+        return editorResult;
     }, []);
 
+    // Flush before leaving the open lesson. If autosave is paused (the lesson
+    // does not meet the server's save rules yet) its edits would be lost, so
+    // ask first. Returns false when the instructor chooses to stay.
+    const flushBeforeLeavingEditor = useCallback(async () => {
+        const result = await flushActiveAutosave();
+        if (!result?.paused) {
+            return true;
+        }
+        const lessonLabel = result.lessonTitle
+            ? ` in "${result.lessonTitle}"`
+            : "";
+        return window.confirm(
+            `Unsaved changes${lessonLabel}: ${result.pauseReason}.\n\n` +
+                "Leave this lesson and discard them?",
+        );
+    }, [flushActiveAutosave]);
+
     const handleTabChange = async (nextTab) => {
-        await flushActiveAutosave();
+        if (!(await flushBeforeLeavingEditor())) {
+            return;
+        }
         const normalizedTab = normalizeBuilderTab(program, nextTab);
         const nextSettingsSection =
             normalizedTab === "settings"
@@ -297,8 +337,16 @@ export default function InstructorProgramBuilder({
                                 program={program}
                                 nodes={curriculum}
                                 onNodeSelect={async (node) => {
-                                    await flushActiveAutosave();
+                                    if (
+                                        node &&
+                                        String(node.id) !==
+                                            String(selectedNodeId) &&
+                                        !(await flushBeforeLeavingEditor())
+                                    ) {
+                                        return false;
+                                    }
                                     setSelectedNodeId(node ? node.id : null);
+                                    return true;
                                 }}
                                 onCurriculumUpdate={(newCurriculum) => {
                                     setCurriculum(newCurriculum);
@@ -315,8 +363,8 @@ export default function InstructorProgramBuilder({
                                         onSave={handleNodeSave}
                                         blueprint={program.blueprint}
                                         programId={program.id}
-                                        questionLibrary={questionLibrary}
                                         questionBanks={questionBanks}
+                                        questionLibraryVersions={questionLibraryVersions}
                                         categories={questionCategories}
                                     />
                                 ) : (
@@ -432,11 +480,16 @@ export default function InstructorProgramBuilder({
                     <Box sx={{ p: 2 }}>
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{ mb: 2 }}
+                            sx={{
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 2,
+                            }}
                         >
-                            <Typography variant="h6" fontWeight="bold">
+                            <Typography
+                                variant="h6"
+                                sx={{ fontWeight: "bold" }}
+                            >
                                 Course Guide
                             </Typography>
                             <IconButton
@@ -453,7 +506,7 @@ export default function InstructorProgramBuilder({
                                 variant="subtitle2"
                                 color="primary"
                                 gutterBottom
-                                fontWeight="bold"
+                                sx={{ fontWeight: "bold" }}
                             >
                                 LEARNING OUTCOMES
                             </Typography>
@@ -474,8 +527,8 @@ export default function InstructorProgramBuilder({
                             ) : (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
-                                    fontStyle="italic"
+                                    color="textSecondary"
+                                    sx={{ fontStyle: "italic" }}
                                 >
                                     No learning outcomes defined.
                                 </Typography>
@@ -490,7 +543,7 @@ export default function InstructorProgramBuilder({
                                 variant="subtitle2"
                                 color="primary"
                                 gutterBottom
-                                fontWeight="bold"
+                                sx={{ fontWeight: "bold" }}
                             >
                                 INSTRUCTOR RESOURCES
                             </Typography>
@@ -543,7 +596,7 @@ export default function InstructorProgramBuilder({
                                                     </Typography>
                                                     <Typography
                                                         variant="caption"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         Click to Open
                                                     </Typography>
@@ -555,8 +608,8 @@ export default function InstructorProgramBuilder({
                             ) : (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
-                                    fontStyle="italic"
+                                    color="textSecondary"
+                                    sx={{ fontStyle: "italic" }}
                                 >
                                     No resources attached.
                                 </Typography>

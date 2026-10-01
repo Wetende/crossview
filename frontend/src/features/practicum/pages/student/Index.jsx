@@ -84,7 +84,7 @@ function SubmissionCard({ submission }) {
                             <Typography variant="h6" component="h3">
                                 {submission.nodeTitle}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="textSecondary">
                                 {submission.programName} • Version{" "}
                                 {submission.version}
                             </Typography>
@@ -93,13 +93,13 @@ function SubmissionCard({ submission }) {
                     </Box>
 
                     <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Type: {submission.fileType.toUpperCase()}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Size: {formatFileSize(submission.fileSize)}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Submitted:{" "}
                             {new Date(
                                 submission.submittedAt,
@@ -118,7 +118,7 @@ function SubmissionCard({ submission }) {
                         >
                             <Typography
                                 variant="subtitle2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 gutterBottom
                             >
                                 Review Feedback
@@ -135,7 +135,7 @@ function SubmissionCard({ submission }) {
                             )}
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ display: "block", mt: 1 }}
                             >
                                 Reviewed:{" "}
@@ -203,7 +203,7 @@ export default function PracticumHistory({
                     <Typography variant="h4" component="h1" gutterBottom>
                         Practicum Submissions
                     </Typography>
-                    <Typography variant="body1" color="text.secondary">
+                    <Typography variant="body1" color="textSecondary">
                         View your submission history and feedback
                     </Typography>
                 </motion.div>

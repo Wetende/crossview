@@ -1,3 +1,5 @@
+import { hasRichTextContent } from '@/components/rich-text/richTextMath';
+
 const decodeHtmlEntities = (value) => {
     const raw = String(value ?? '');
 
@@ -24,6 +26,25 @@ export const normalizeText = (value, fallback = '') => {
     // Strip any HTML tags (e.g. <p>, <br>) that may leak from rich-text editors
     const text = decoded.replace(/<[^>]*>/g, '').trim();
     return text || fallback;
+};
+
+// Explanations and hints are rich text; they are sanitised when displayed.
+const normalizeRichText = (value) =>
+    hasRichTextContent(value) ? String(value).trim() : '';
+
+const escapeHtml = (value) =>
+    String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+// Legacy answer_data.explanation is plain text: escape it so text such as
+// "x < 5 and y > 3" survives sanitising when shown as rich text.
+const legacyPlainTextToRichText = (value) => {
+    const text = typeof value === 'string' ? value.trim() : '';
+    return text ? `<p>${escapeHtml(text)}</p>` : '';
 };
 
 const toNumberOrNull = (value) => {
@@ -346,10 +367,12 @@ export const normalizeQuestions = (rawQuestions = []) => {
                 type,
                 text: normalizeText(rawQuestion?.text ?? rawQuestion?.question, 'Untitled question'),
                 points,
-                explanation: normalizeText(
-                    rawQuestion?.explanation ?? rawQuestion?.answer_data?.explanation,
-                    '',
-                ),
+                explanation:
+                    normalizeRichText(rawQuestion?.explanation) ||
+                    legacyPlainTextToRichText(
+                        rawQuestion?.answer_data?.explanation,
+                    ),
+                hint: normalizeRichText(rawQuestion?.hint),
                 options,
                 pairs,
                 items,

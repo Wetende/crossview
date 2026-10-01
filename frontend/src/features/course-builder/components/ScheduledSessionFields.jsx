@@ -160,7 +160,7 @@ export default function ScheduledSessionFields({
                             onBlur={() => onBlur("videoUrl")}
                             error={Boolean(errors.videoUrl)}
                             placeholder="https://…"
-                            inputProps={{ inputMode: "url" }}
+                            slotProps={{ htmlInput: { inputMode: "url" } }}
                         />
                     </LabeledField>
 
@@ -200,7 +200,7 @@ export default function ScheduledSessionFields({
                             onBlur={() => onBlur("recordingUrl")}
                             error={Boolean(errors.recordingUrl)}
                             placeholder="Optional secure recording URL"
-                            inputProps={{ inputMode: "url" }}
+                            slotProps={{ htmlInput: { inputMode: "url" } }}
                         />
                     </LabeledField>
                 </>
@@ -446,7 +446,9 @@ export default function ScheduledSessionFields({
                                             reminderMinutes: event.target.value,
                                         })
                                     }
-                                    inputProps={{ min: 0, max: 10080 }}
+                                    slotProps={{
+                                        htmlInput: { min: 0, max: 10080 },
+                                    }}
                                 />
                             </LabeledField>
                             <LabeledField label="Attendance threshold (%)">
@@ -463,7 +465,9 @@ export default function ScheduledSessionFields({
                                                 event.target.value,
                                         })
                                     }
-                                    inputProps={{ min: 1, max: 100 }}
+                                    slotProps={{
+                                        htmlInput: { min: 1, max: 100 },
+                                    }}
                                 />
                             </LabeledField>
                             <Box sx={{ gridColumn: { md: "1 / -1" } }}>

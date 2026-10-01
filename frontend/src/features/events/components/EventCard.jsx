@@ -99,15 +99,15 @@ export default function EventCard({ event }) {
                 {/* Metadata Row */}
                 <Stack spacing={1.5}>
                     {/* Date */}
-                    <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                         <IconClock size={18} color={theme.palette.success.light} />
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {dateStr}
                         </Typography>
                     </Stack>
 
                     {/* Location */}
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start" }}>
                         <IconMapPin
                             size={18}
                             color={theme.palette.success.light}
@@ -115,7 +115,7 @@ export default function EventCard({ event }) {
                         />
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{
                                 display: "-webkit-box",
                                 WebkitLineClamp: 1,

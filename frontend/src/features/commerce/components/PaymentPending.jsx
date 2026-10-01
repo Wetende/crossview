@@ -87,7 +87,7 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
 
     if (status === "paid") {
         return (
-            <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
+            <Stack spacing={2} sx={{ alignItems: "center", py: 4 }}>
                 <Box
                     sx={{
                         width: 64,
@@ -102,10 +102,10 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
                 >
                     <IconCheck size={32} color="var(--mui-palette-success-main, #2e7d32)" />
                 </Box>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                     Payment Confirmed!
                 </Typography>
-                <Typography variant="body2" color="text.secondary" textAlign="center">
+                <Typography variant="body2" color="textSecondary" sx={{ textAlign: "center" }}>
                     Your access has been granted. You can now start learning.
                 </Typography>
                 <Stack direction="row" spacing={2}>
@@ -132,7 +132,7 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
 
     if (status === "failed") {
         return (
-            <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
+            <Stack spacing={2} sx={{ alignItems: "center", py: 4 }}>
                 <Box
                     sx={{
                         width: 64,
@@ -147,10 +147,10 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
                 >
                     <IconAlertTriangle size={32} color="var(--mui-palette-error-main, #d32f2f)" />
                 </Box>
-                <Typography variant="h6" fontWeight={700}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                     Payment Failed
                 </Typography>
-                <Typography variant="body2" color="text.secondary" textAlign="center">
+                <Typography variant="body2" color="textSecondary" sx={{ textAlign: "center" }}>
                     Your payment was not completed. You can try again from your orders page.
                 </Typography>
                 <Button component={Link} href="/student/orders/" variant="contained">
@@ -162,7 +162,7 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
 
     if (status === "timeout") {
         return (
-            <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
+            <Stack spacing={2} sx={{ alignItems: "center", py: 4 }}>
                 <Alert severity="info" sx={{ maxWidth: 480 }}>
                     Paystack still reports this payment as pending. Your order has
                     not been charged again. Check your orders page shortly for an update.
@@ -176,16 +176,16 @@ export default function PaymentPending({ orderId, onPaid, programId }) {
 
     // Polling state
     return (
-        <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
+        <Stack spacing={2} sx={{ alignItems: "center", py: 4 }}>
             <CircularProgress size={48} sx={{ alignSelf: "center" }} />
-            <Typography variant="h6" fontWeight={600}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 Verifying Payment…
             </Typography>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
+            <Typography variant="body2" color="textSecondary" sx={{ textAlign: "center" }}>
                 We&apos;re confirming your payment with the provider.
                 Please don&apos;t close this page.
             </Typography>
-            <Typography variant="caption" color="text.disabled">
+            <Typography variant="caption" color="textDisabled">
                 Attempt {attempts + 1} of {MAX_ATTEMPTS}
             </Typography>
         </Stack>

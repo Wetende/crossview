@@ -120,8 +120,10 @@ export default function Contact() {
                         <Grid
                             container
                             spacing={6}
-                            alignItems="center"
-                            justifyContent="space-between"
+                            sx={{
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                            }}
                         >
                             {/* Title Side */}
                             <Grid size={{ xs: 12, md: 4 }}>
@@ -193,9 +195,11 @@ export default function Contact() {
                         <motion.div {...fadeInUp}>
                             <Stack
                                 spacing={1.5}
-                                textAlign="center"
-                                alignItems="center"
-                                sx={{ mb: { xs: 6, md: 10 } }}
+                                sx={{
+                                    textAlign: "center",
+                                    alignItems: "center",
+                                    mb: { xs: 6, md: 10 },
+                                }}
                             >
                                 <Typography
                                     variant="h2"
@@ -250,7 +254,7 @@ export default function Contact() {
                                         </Typography>
                                         <Typography
                                             variant="body1"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                             sx={{ whiteSpace: "pre-line" }}
                                         >
                                             {contactAddress ||
@@ -272,7 +276,7 @@ export default function Contact() {
                                         </Typography>
                                         <Typography
                                             variant="body1"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {contactEmail}
                                         </Typography>
@@ -292,7 +296,7 @@ export default function Contact() {
                                             </Typography>
                                             <Typography
                                                 variant="body1"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 {contactPhone}
                                             </Typography>

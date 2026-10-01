@@ -468,12 +468,24 @@ class TestInstructorCourseBuilder:
             # Parent ID is None
         }
         response = client.post(url, data)
-        assert response.status_code == 200
+        # POST never renders a page: it redirects to the builder GET route.
+        # Sections are edited inline in the tree, so no ?node= is appended.
+        assert response.status_code == 302
+        manage_url = reverse(
+            'core:instructor.program_manage', kwargs={'pk': program.id}
+        )
+        assert response['Location'] == manage_url
         assert CurriculumNode.objects.filter(program=program, title='New Unit Node').exists()
         node = CurriculumNode.objects.get(title='New Unit Node')
         assert node.parent is None
         # Factory defaults: hierarchy=["Unit", "Session"] -> root is Unit.
         assert node.node_type == "Unit"
+
+        page = client.get(response['Location'], HTTP_X_INERTIA="true").json()
+        assert page["component"] == "Instructor/Program/Manage"
+        assert page["url"] == manage_url
+        assert [item["id"] for item in page["props"]["curriculum"]] == [node.id]
+        assert "questionLibraryVersions" in page["props"]
 
     def test_create_child_node(self, client, instructor, program, assignment):
         # Create root "Unit"
@@ -486,12 +498,30 @@ class TestInstructorCourseBuilder:
             'parent_id': root.id
         }
         response = client.post(url, data)
-        assert response.status_code == 200
+        assert response.status_code == 302
         # Should be Session (child of Unit)
         assert CurriculumNode.objects.filter(program=program, title='Session 1').exists()
         child = CurriculumNode.objects.get(title='Session 1')
         assert child.parent == root
         assert child.node_type == "Session"
+
+        expected_url = (
+            f"{reverse('core:instructor.program_manage', kwargs={'pk': program.id})}"
+            f"?node={child.id}"
+        )
+        assert response['Location'] == expected_url
+
+        # Following the redirect lands on the real builder GET, so a refresh
+        # stays on the builder and the question library props are present.
+        page = client.get(response['Location'], HTTP_X_INERTIA="true").json()
+        assert page["component"] == "Instructor/Program/Manage"
+        assert page["url"] == expected_url
+        assert page["props"]["curriculum"][0]["children"][0]["id"] == child.id
+        for prop in ("questionLibraryVersions", "questionBanks", "questionCategories"):
+            assert prop in page["props"]
+        assert page["props"]["flash"] == [
+            {"type": "success", "message": "Lesson 'Session 1' created successfully"}
+        ]
 
     def test_update_node(self, client, instructor, program, assignment):
         node = CurriculumNode.objects.create(program=program, title="Old Title", node_type="Unit")
@@ -507,6 +537,49 @@ class TestInstructorCourseBuilder:
         node.refresh_from_db()
         assert node.title == 'New Title'
         assert node.description == 'Updated desc'
+
+    def test_update_live_session_rejection_returns_inertia_errors(
+        self, client, instructor, program, assignment
+    ):
+        section = CurriculumNode.objects.create(
+            program=program, title="Unit 1", node_type="Unit"
+        )
+        node = CurriculumNode.objects.create(
+            program=program,
+            parent=section,
+            title="Weekly Meet",
+            node_type="Session",
+            properties={"lesson_type": "google_meet"},
+        )
+
+        client.force_login(instructor)
+        response = client.post(
+            reverse("core:instructor.node_update", kwargs={"node_id": node.id}),
+            {
+                "title": "Weekly Meet renamed",
+                "properties": {
+                    "lesson_type": "google_meet",
+                    "session_kind": "live_meeting",
+                    "provider": "google_meet",
+                    "timezone": "Africa/Nairobi",
+                },
+            },
+            content_type="application/json",
+        )
+
+        manage_url = reverse(
+            "core:instructor.program_manage", kwargs={"pk": program.id}
+        )
+        assert response.status_code == 302
+        assert response["Location"] == f"{manage_url}?node={node.id}"
+
+        page = client.get(response["Location"], HTTP_X_INERTIA="true").json()
+        assert page["props"]["errors"] == {
+            "properties": "Enter the session start date and time."
+        }
+        node.refresh_from_db()
+        assert node.title == "Weekly Meet"
+        assert not ScheduledLearningSession.objects.filter(node=node).exists()
 
     def test_update_existing_google_meet_enqueues_calendar_reschedule(
         self, client, instructor, program, assignment
@@ -1042,6 +1115,90 @@ class TestInstructorCourseBuilder:
         assert module.unlock_date is None
         assert lesson.unlock_after_days is None
         assert lesson.unlock_date is None
+
+    def test_update_drip_row_only_touches_the_fields_it_sends(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        from datetime import date
+
+        relative = CurriculumNode.objects.create(
+            program=program,
+            title="Module with a day offset",
+            node_type="Unit",
+            unlock_after_days=5,
+        )
+        dated = CurriculumNode.objects.create(
+            program=program,
+            title="Module with a date",
+            node_type="Unit",
+            unlock_date=timezone.now() + timedelta(days=30),
+        )
+        original_date = dated.unlock_date
+
+        client.force_login(instructor)
+        response = client.post(
+            reverse("core:instructor.program_update_settings", kwargs={"pk": program.id}),
+            data={
+                "tab": "drip",
+                "drip_enabled": True,
+                "drip_mode": "absolute",
+                "drip_schedule": [
+                    # Date-mode row: must not wipe the saved day offset.
+                    {"node_id": relative.id, "unlock_date": "2026-11-02"},
+                    # Days-mode row: must not wipe the saved unlock date.
+                    {"node_id": dated.id, "unlockAfterDays": 3},
+                ],
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        relative.refresh_from_db()
+        dated.refresh_from_db()
+        assert relative.unlock_after_days == 5
+        assert timezone.localtime(relative.unlock_date).date() == date(2026, 11, 2)
+        assert dated.unlock_after_days == 3
+        assert dated.unlock_date == original_date
+
+    def test_builder_curriculum_serialises_unlock_date_as_local_date(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+        settings,
+    ):
+        settings.TIME_ZONE = "Africa/Nairobi"
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Dated module",
+            node_type="Unit",
+        )
+
+        client.force_login(instructor)
+        response = client.post(
+            reverse("core:instructor.program_update_settings", kwargs={"pk": program.id}),
+            data={
+                "tab": "drip",
+                "drip_enabled": True,
+                "drip_mode": "absolute",
+                "drip_schedule": [{"node_id": node.id, "unlock_date": "2026-11-02"}],
+            },
+            content_type="application/json",
+        )
+        assert response.status_code == 302
+
+        # Local midnight in Nairobi is 21:00 UTC the day before; the builder
+        # must still see the date the instructor picked.
+        page = client.get(
+            reverse("core:instructor.program_manage", kwargs={"pk": program.id}),
+            HTTP_X_INERTIA="true",
+        ).json()
+        assert page["props"]["curriculum"][0]["unlockDate"] == "2026-11-02"
 
     def test_update_drip_can_disable_and_redirect_back_to_drip_tab(
         self,

@@ -64,10 +64,10 @@ export default function EngagementEditor({
     return (
         <Stack spacing={3}>
             <Stack spacing={0.5}>
-                <Typography variant="h5" fontWeight="bold">
+                <Typography variant="h5" sx={{ fontWeight: "bold" }}>
                     Engagement
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography color="textSecondary">
                     Configure learner reminders and course-level gamification eligibility.
                 </Typography>
             </Stack>
@@ -123,7 +123,7 @@ export default function EngagementEditor({
                     </Alert>
                 )}
                 {automaticGamification && (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         Gamification is automatically eligible for this delivery mode.
                     </Typography>
                 )}

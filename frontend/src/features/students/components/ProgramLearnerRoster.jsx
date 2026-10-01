@@ -40,7 +40,7 @@ function Progress({ student }) {
     const value = Number(student.progressPercent ?? student.progress ?? 0);
     return (
         <Stack spacing={0.5} sx={{ minWidth: 120 }}>
-            <Typography variant="caption" fontWeight={600}>
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>
                 {value}%
             </Typography>
             <LinearProgress
@@ -69,12 +69,12 @@ function LearnerName({ learner, onOpen }) {
             <Box>
                 <Typography
                     variant="body2"
-                    fontWeight={700}
-                    color="text.primary"
+                    sx={{ fontWeight: 700 }}
+                    color="textPrimary"
                 >
                     {learner.name}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                     {learner.email}
                 </Typography>
             </Box>
@@ -105,7 +105,7 @@ export default function ProgramLearnerRoster({
         return (
             <Card sx={{ p: 5, textAlign: "center" }}>
                 <Typography variant="h6">No learners found</Typography>
-                <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                <Typography color="textSecondary" sx={{ mt: 0.5 }}>
                     Adjust your search or add a learner to this course.
                 </Typography>
             </Card>
@@ -126,9 +126,11 @@ export default function ProgramLearnerRoster({
                                             someSelected && !allSelected
                                         }
                                         onChange={onToggleAll}
-                                        inputProps={{
-                                            "aria-label":
-                                                "Select visible learners",
+                                        slotProps={{
+                                            input: {
+                                                "aria-label":
+                                                    "Select visible learners",
+                                            },
                                         }}
                                     />
                                 </TableCell>
@@ -151,8 +153,10 @@ export default function ProgramLearnerRoster({
                                             onChange={() =>
                                                 onToggle(student.enrollmentId)
                                             }
-                                            inputProps={{
-                                                "aria-label": `Select ${student.name}`,
+                                            slotProps={{
+                                                input: {
+                                                    "aria-label": `Select ${student.name}`,
+                                                },
                                             }}
                                         />
                                     </TableCell>
@@ -212,7 +216,9 @@ export default function ProgramLearnerRoster({
                         checked={allSelected}
                         indeterminate={someSelected && !allSelected}
                         onChange={onToggleAll}
-                        inputProps={{ "aria-label": "Select visible learners" }}
+                        slotProps={{
+                            input: { "aria-label": "Select visible learners" },
+                        }}
                     />
                     <Typography variant="body2">
                         Select all on this page
@@ -241,8 +247,10 @@ export default function ProgramLearnerRoster({
                                     onChange={() =>
                                         onToggle(student.enrollmentId)
                                     }
-                                    inputProps={{
-                                        "aria-label": `Select ${student.name}`,
+                                    slotProps={{
+                                        input: {
+                                            "aria-label": `Select ${student.name}`,
+                                        },
                                     }}
                                     sx={{ mt: -0.75, ml: -0.75 }}
                                 />
@@ -277,7 +285,7 @@ export default function ProgramLearnerRoster({
                                     />
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Last activity:{" "}
                                         {student.lastActivity

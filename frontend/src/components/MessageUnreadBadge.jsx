@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { router } from "@inertiajs/react";
 import { Badge, IconButton, Tooltip } from "@mui/material";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 
 const POLL_INTERVAL_MS = 60_000;
 const COUNT_CACHE_KEY = "lms.messages.unread_count";
@@ -107,7 +107,7 @@ export default function MessageUnreadBadge() {
                 aria-label="messages"
             >
                 <Badge badgeContent={unreadCount} color="error" max={99}>
-                    <MailOutlineIcon />
+                    <MailOutlinedIcon />
                 </Badge>
             </IconButton>
         </Tooltip>

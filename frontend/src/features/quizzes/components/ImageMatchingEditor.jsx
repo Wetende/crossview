@@ -299,7 +299,7 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
                         {uploading && (
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ display: "block", mt: 1 }}
                             >
                                 Uploading...
@@ -322,13 +322,13 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
                         />
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mb: 1 }}
                         >
                             Drag and drop an image or{" "}
                             <Typography
                                 component="span"
-                                color="primary.main"
+                                color="primary"
                                 sx={{ cursor: "pointer" }}
                             >
                                 upload it from your computer
@@ -356,8 +356,7 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
             {/* Header */}
             <Typography
                 variant="subtitle1"
-                fontWeight={500}
-                sx={{ mb: 2, color: "text.secondary" }}
+                sx={{ fontWeight: 500, mb: 2, color: "text.secondary" }}
             >
                 Questions & Answers
             </Typography>
@@ -386,7 +385,7 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
                         >
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ display: "block", mb: 1 }}
                             >
                                 Question
@@ -425,26 +424,28 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
                                         setEditingField(`${index}-question`)
                                     }
                                     onBlur={() => setEditingField(null)}
-                                    InputProps={{
-                                        disableUnderline:
-                                            editingField !==
-                                            `${index}-question`,
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <EditIcon
-                                                    sx={{
-                                                        fontSize: 16,
-                                                        color: "text.disabled",
-                                                    }}
-                                                />
-                                            </InputAdornment>
-                                        ),
-                                        sx: {
-                                            fontWeight: 500,
-                                            "& input": {
-                                                color: pair.question_text
-                                                    ? "text.primary"
-                                                    : "text.secondary",
+                                    slotProps={{
+                                        input: {
+                                            disableUnderline:
+                                                editingField !==
+                                                `${index}-question`,
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <EditIcon
+                                                        sx={{
+                                                            fontSize: 16,
+                                                            color: "text.disabled",
+                                                        }}
+                                                    />
+                                                </InputAdornment>
+                                            ),
+                                            sx: {
+                                                fontWeight: 500,
+                                                "& input": {
+                                                    color: pair.question_text
+                                                        ? "text.primary"
+                                                        : "text.secondary",
+                                                },
                                             },
                                         },
                                     }}
@@ -464,7 +465,7 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
                             >
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     Answer
                                 </Typography>
@@ -503,25 +504,27 @@ export default function ImageMatchingEditor({ nodeId, pairs = [], onChange }) {
                                         setEditingField(`${index}-answer`)
                                     }
                                     onBlur={() => setEditingField(null)}
-                                    InputProps={{
-                                        disableUnderline:
-                                            editingField !== `${index}-answer`,
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <EditIcon
-                                                    sx={{
-                                                        fontSize: 16,
-                                                        color: "text.disabled",
-                                                    }}
-                                                />
-                                            </InputAdornment>
-                                        ),
-                                        sx: {
-                                            fontWeight: 500,
-                                            "& input": {
-                                                color: pair.answer_text
-                                                    ? "text.primary"
-                                                    : "text.secondary",
+                                    slotProps={{
+                                        input: {
+                                            disableUnderline:
+                                                editingField !== `${index}-answer`,
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <EditIcon
+                                                        sx={{
+                                                            fontSize: 16,
+                                                            color: "text.disabled",
+                                                        }}
+                                                    />
+                                                </InputAdornment>
+                                            ),
+                                            sx: {
+                                                fontWeight: 500,
+                                                "& input": {
+                                                    color: pair.answer_text
+                                                        ? "text.primary"
+                                                        : "text.secondary",
+                                                },
                                             },
                                         },
                                     }}

@@ -181,10 +181,10 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
             >
               Back to Program
             </Button>
-            <Typography variant="h4" fontWeight="bold">
+            <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Curriculum Builder
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="textSecondary">
               {program.name} • {program.blueprintName || 'No Blueprint'}
             </Typography>
           </Box>
@@ -217,7 +217,7 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
         ) : (
           <Grid container spacing={3}>
             {/* Tree Panel */}
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -227,12 +227,12 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
                     <Typography variant="h6" gutterBottom>
                       Curriculum Structure
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                    <Typography variant="caption" color="textSecondary" sx={{ mb: 2, display: 'block' }}>
                       Hierarchy: {hierarchy.join(' → ')}
                     </Typography>
                     <Divider sx={{ mb: 2 }} />
                     {nodes.length === 0 ? (
-                      <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+                      <Typography color="textSecondary" sx={{ py: 4, textAlign: 'center' }}>
                         No curriculum nodes yet. Click "Add {hierarchy[0]}" to start.
                       </Typography>
                     ) : (
@@ -252,7 +252,7 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
             </Grid>
 
             {/* Editor Panel */}
-            <Grid item xs={12} md={7}>
+            <Grid size={{ xs: 12, md: 7 }}>
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -279,7 +279,7 @@ export default function CurriculumBuilder({ program, hierarchy = [], tree = [] }
                       />
                     ) : (
                       <Box sx={{ py: 8, textAlign: 'center' }}>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                           Select a node to edit or click "Add" to create a new one
                         </Typography>
                       </Box>

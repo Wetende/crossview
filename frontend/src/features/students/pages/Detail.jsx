@@ -10,7 +10,6 @@ import {
   Box,
   Card,
   CardContent,
-  Grid,
   Typography,
   Stack,
   Chip,
@@ -60,9 +59,26 @@ const statusColors = {
   pending: 'info',
 };
 
+const statusLabels = {
+  active: 'Active',
+  suspended: 'Suspended',
+  withdrawn: 'Withdrawn',
+  completed: 'Completed',
+};
+
 export default function InstructorStudentDetail({ student, enrollments = [] }) {
-  const [statusDialog, setStatusDialog] = useState({ open: false, enrollment: null });
+  const [statusDialog, setStatusDialog] = useState({ open: false, enrollmentId: null });
   const [newStatus, setNewStatus] = useState('');
+  const [statusError, setStatusError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Read the enrollment from current props so a redirect back after a
+  // rejected change refreshes its status and allowed transitions.
+  const dialogEnrollment = enrollments.find(
+    (enrollment) => enrollment.id === statusDialog.enrollmentId,
+  );
+  const allowedStatuses = dialogEnrollment?.allowedStatuses || [];
+  const canSubmitStatus = allowedStatuses.includes(newStatus) && !submitting;
 
   const breadcrumbs = [
     { label: 'Dashboard', href: '/dashboard/' },
@@ -79,24 +95,36 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
     : 'S';
 
   const handleOpenStatusDialog = (enrollment) => {
-    setStatusDialog({ open: true, enrollment });
-    setNewStatus(enrollment.status);
+    setStatusDialog({ open: true, enrollmentId: enrollment.id });
+    setNewStatus('');
+    setStatusError('');
   };
 
   const handleCloseStatusDialog = () => {
-    setStatusDialog({ open: false, enrollment: null });
+    setStatusDialog({ open: false, enrollmentId: null });
     setNewStatus('');
+    setStatusError('');
   };
 
   const handleStatusChange = () => {
-    if (statusDialog.enrollment && newStatus) {
-      router.post(`/instructor/enrollments/${statusDialog.enrollment.id}/status/`, {
-        status: newStatus,
-      }, {
-        preserveScroll: true,
-        onSuccess: () => handleCloseStatusDialog(),
-      });
+    if (!dialogEnrollment || !canSubmitStatus) {
+      return;
     }
+    setStatusError('');
+    router.post(`/instructor/enrollments/${dialogEnrollment.id}/status/`, {
+      status: newStatus,
+    }, {
+      preserveScroll: true,
+      onStart: () => setSubmitting(true),
+      onSuccess: () => handleCloseStatusDialog(),
+      onError: (errors) => {
+        setNewStatus('');
+        setStatusError(
+          errors?.status || 'Could not update the enrollment status.',
+        );
+      },
+      onFinish: () => setSubmitting(false),
+    });
   };
 
   if (!student) {
@@ -129,18 +157,18 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
         <motion.div {...fadeInUp}>
           <Card>
             <CardContent>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ sm: 'center' }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} sx={{ alignItems: { sm: 'center' } }}>
                 <Avatar sx={{ width: 80, height: 80, bgcolor: 'secondary.main', fontSize: 28 }}>
                   {initials}
                 </Avatar>
-                <Box flex={1}>
-                  <Typography variant="h5" fontWeight="bold" gutterBottom>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 'bold' }} gutterBottom>
                     {student.name}
                   </Typography>
-                  <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap' }} useFlexGap>
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                       <EmailIcon fontSize="small" color="action" />
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         {student.email}
                       </Typography>
                     </Stack>
@@ -193,7 +221,7 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                       {enrollments.map((enrollment) => (
                         <TableRow key={enrollment.id} hover>
                           <TableCell>
-                            <Typography variant="body2" fontWeight="medium">
+                            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                               {enrollment.programName}
                             </Typography>
                           </TableCell>
@@ -215,7 +243,7 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                             />
                           </TableCell>
                           <TableCell align="right">
-                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
                               <Tooltip title="View Program Progress">
                                 <IconButton
                                   component={Link}
@@ -235,19 +263,21 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                                   <GradeIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title={enrollment.status === 'suspended' ? 'Activate' : 'Suspend'}>
-                                <IconButton
-                                  size="small"
-                                  color={enrollment.status === 'suspended' ? 'success' : 'warning'}
-                                  onClick={() => handleOpenStatusDialog(enrollment)}
-                                >
-                                  {enrollment.status === 'suspended' ? (
-                                    <ActiveIcon fontSize="small" />
-                                  ) : (
-                                    <SuspendIcon fontSize="small" />
-                                  )}
-                                </IconButton>
-                              </Tooltip>
+                              {enrollment.allowedStatuses?.length > 0 && (
+                                <Tooltip title={enrollment.status === 'suspended' ? 'Activate' : 'Suspend'}>
+                                  <IconButton
+                                    size="small"
+                                    color={enrollment.status === 'suspended' ? 'success' : 'warning'}
+                                    onClick={() => handleOpenStatusDialog(enrollment)}
+                                  >
+                                    {enrollment.status === 'suspended' ? (
+                                      <ActiveIcon fontSize="small" />
+                                    ) : (
+                                      <SuspendIcon fontSize="small" />
+                                    )}
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             </Stack>
                           </TableCell>
                         </TableRow>
@@ -256,7 +286,7 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
                   </Table>
                 </TableContainer>
               ) : (
-                <Typography color="text.secondary" variant="body2">
+                <Typography color="textSecondary" variant="body2">
                   No enrollments found for this student in your programs.
                 </Typography>
               )}
@@ -269,26 +299,47 @@ export default function InstructorStudentDetail({ student, enrollments = [] }) {
       <Dialog open={statusDialog.open} onClose={handleCloseStatusDialog} maxWidth="xs" fullWidth>
         <DialogTitle>Change Enrollment Status</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Change the enrollment status for {student.name} in {statusDialog.enrollment?.programName}
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Change the enrollment status for {student.name} in {dialogEnrollment?.programName}
           </Typography>
-          <TextField
-            select
-            fullWidth
-            label="Status"
-            value={newStatus}
-            onChange={(e) => setNewStatus(e.target.value)}
-            size="small"
-          >
-            <MenuItem value="active">Active</MenuItem>
-            <MenuItem value="suspended">Suspended</MenuItem>
-            <MenuItem value="withdrawn">Withdrawn</MenuItem>
-            <MenuItem value="completed">Completed</MenuItem>
-          </TextField>
+          {allowedStatuses.length > 0 ? (
+            <TextField
+              select
+              fullWidth
+              label="New status"
+              value={newStatus}
+              onChange={(e) => {
+                setNewStatus(e.target.value);
+                setStatusError('');
+              }}
+              size="small"
+              error={Boolean(statusError)}
+              helperText={statusError || ' '}
+            >
+              {allowedStatuses.map((status) => (
+                <MenuItem key={status} value={status}>
+                  {statusLabels[status] || status}
+                </MenuItem>
+              ))}
+            </TextField>
+          ) : (
+            <Typography
+              variant="body2"
+              color={statusError ? 'error' : 'textSecondary'}
+              role={statusError ? 'alert' : undefined}
+            >
+              {statusError || "This enrollment's status can no longer be changed."}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseStatusDialog}>Cancel</Button>
-          <Button onClick={handleStatusChange} variant="contained" color="primary">
+          <Button
+            onClick={handleStatusChange}
+            variant="contained"
+            color="primary"
+            disabled={!canSubmitStatus}
+          >
             Update Status
           </Button>
         </DialogActions>

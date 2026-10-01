@@ -22,6 +22,7 @@ import {
     IconArrowLeft,
     IconUsers,
     IconBook,
+    IconChartLine,
     IconClipboardCheck,
     IconFolder,
     IconUserCheck,
@@ -73,11 +74,14 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                             >
                                 Back
                             </Button>
-                            <Typography variant="h4" fontWeight="bold">
+                            <Typography
+                                variant="h4"
+                                sx={{ fontWeight: "bold" }}
+                            >
                                 {program.name}
                             </Typography>
                             {program.code && (
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     Code: {program.code}
                                 </Typography>
                             )}
@@ -105,7 +109,7 @@ export default function Detail({ program, learnerSummary, curriculum }) {
 
                     <Grid container spacing={3}>
                         {/* Quick Actions */}
-                        <Grid xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <Card>
                                 <CardContent>
                                     <Typography variant="h6" gutterBottom>
@@ -140,6 +144,17 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                                             startIcon={<IconBook size={18} />}
                                         >
                                             Gradebook
+                                        </Button>
+                                        <Button
+                                            component={Link}
+                                            href={`/instructor/programs/${program.id}/analytics/`}
+                                            fullWidth
+                                            variant="outlined"
+                                            startIcon={
+                                                <IconChartLine size={18} />
+                                            }
+                                        >
+                                            Analytics
                                         </Button>
                                         <Button
                                             component={Link}
@@ -207,7 +222,7 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                         </Grid>
 
                         {/* Curriculum Preview */}
-                        <Grid xs={12} md={8}>
+                        <Grid size={{ xs: 12, md: 8 }}>
                             <Card>
                                 <CardContent>
                                     <Typography variant="h6" gutterBottom>
@@ -255,7 +270,7 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                         </Grid>
 
                         {/* Learner health */}
-                        <Grid xs={12}>
+                        <Grid size={12}>
                             <Card>
                                 <CardContent>
                                     <Typography variant="h6" sx={{ mb: 2 }}>
@@ -277,7 +292,10 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                                             ],
                                             ["Completed", summary.completed],
                                         ].map(([label, value]) => (
-                                            <Grid xs={12} sm={4} key={label}>
+                                            <Grid
+                                                size={{ xs: 12, sm: 4 }}
+                                                key={label}
+                                            >
                                                 <Paper
                                                     variant="outlined"
                                                     sx={{
@@ -287,14 +305,16 @@ export default function Detail({ program, learnerSummary, curriculum }) {
                                                 >
                                                     <Typography
                                                         variant="body2"
-                                                        color="text.secondary"
+                                                        color="textSecondary"
                                                     >
                                                         {label}
                                                     </Typography>
                                                     <Typography
                                                         variant="h4"
-                                                        fontWeight={700}
-                                                        sx={{ mt: 0.5 }}
+                                                        sx={{
+                                                            fontWeight: 700,
+                                                            mt: 0.5,
+                                                        }}
                                                     >
                                                         {value}
                                                     </Typography>

@@ -166,7 +166,7 @@ export default function DocumentPrimaryUploader({
                                 <Typography variant="body2" noWrap>
                                     {documentData.original_name}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="textSecondary">
                                     {formatBytes(documentData.size)}
                                 </Typography>
                                 <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
@@ -204,7 +204,7 @@ export default function DocumentPrimaryUploader({
                             </Tooltip>
                         </Box>
                     ) : (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Upload one primary document (PDF, DOCX, or PPTX). DOCX/PPTX
                             are automatically converted to tracked PDF.
                         </Typography>
@@ -223,7 +223,7 @@ export default function DocumentPrimaryUploader({
                         </Button>
                         <Typography
                             variant="caption"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ alignSelf: "center" }}
                         >
                             Allowed: PDF, DOCX, PPTX
@@ -243,7 +243,7 @@ export default function DocumentPrimaryUploader({
             {uploading && (
                 <Box sx={{ mt: 1 }}>
                     <LinearProgress variant="determinate" value={uploadProgress} />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         Uploading and processing...
                     </Typography>
                 </Box>

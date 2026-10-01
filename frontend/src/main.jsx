@@ -62,6 +62,8 @@ const featureMap = {
     "Instructor/Programs/Create": "./features/admin/pages/Programs/Form.jsx",
     "Instructor/Programs/Detail": "./features/programs/pages/Detail.jsx",
     "Instructor/Programs/Show": "./features/programs/pages/Show.jsx",
+    "Instructor/Programs/Analytics": "./features/programs/pages/Analytics.jsx",
+    "Instructor/Analytics/Index": "./features/programs/pages/AnalyticsIndex.jsx",
     "Instructor/Gradebook/Index": "./features/gradebook/pages/Index.jsx",
     "Instructor/Gradebook": "./features/gradebook/pages/Detail.jsx",
     "Instructor/Gradebook/StudentProgress":
@@ -81,6 +83,8 @@ const featureMap = {
     "Student/Orders": "./features/enrollments/pages/Orders.jsx",
     "Instructor/Assignments/Global":
         "./features/assignments/pages/instructor/Global.jsx",
+    "Instructor/QuestionLibrary/Index":
+        "./features/question-library/pages/instructor/Index.jsx",
     "Instructor/Assignments/Index":
         "./features/assignments/pages/instructor/Index.jsx",
     "Instructor/Assignments/Grade":

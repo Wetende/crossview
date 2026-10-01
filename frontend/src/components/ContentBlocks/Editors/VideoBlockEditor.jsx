@@ -63,7 +63,7 @@ const VideoBlockEditor = ({ data, onChange }) => {
                     }}
                 >
                     <LazyReactPlayer
-                        url={url}
+                        src={url}
                         width="100%"
                         height="100%"
                         light
@@ -73,7 +73,7 @@ const VideoBlockEditor = ({ data, onChange }) => {
             )}
 
             {!url && (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="textSecondary">
                     Paste a URL to see a preview.
                 </Typography>
             )}

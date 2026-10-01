@@ -28,17 +28,16 @@ export default function Wishlist() {
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
                     spacing={2}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" } }}
                 >
                     <Box>
-                        <Stack direction="row" spacing={1.25} alignItems="center">
+                        <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
                             <IconHeart size={26} />
-                            <Typography component="h1" variant="h4" fontWeight={800}>
+                            <Typography component="h1" variant="h4" sx={{ fontWeight: 800 }}>
                                 My wishlist
                             </Typography>
                         </Stack>
-                        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                        <Typography color="textSecondary" sx={{ mt: 0.75 }}>
                             Keep promising courses together until you are ready to
                             start learning.
                         </Typography>
@@ -59,7 +58,7 @@ export default function Wishlist() {
                         sx={{ py: 9, textAlign: "center", borderRadius: 3 }}
                     >
                         <CircularProgress size={30} />
-                        <Typography color="text.secondary" sx={{ mt: 2 }}>
+                        <Typography color="textSecondary" sx={{ mt: 2 }}>
                             Loading saved courses…
                         </Typography>
                     </Paper>
@@ -89,11 +88,11 @@ export default function Wishlist() {
                         >
                             <IconBook2 size={34} />
                         </Box>
-                        <Typography variant="h5" fontWeight={800}>
+                        <Typography variant="h5" sx={{ fontWeight: 800 }}>
                             No saved courses yet
                         </Typography>
                         <Typography
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mt: 1, mb: 3, maxWidth: 460, mx: "auto" }}
                         >
                             Select the heart on any course to keep it here for
@@ -105,7 +104,7 @@ export default function Wishlist() {
                     </Paper>
                 ) : (
                     <>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {items.length} saved {items.length === 1 ? "course" : "courses"}
                         </Typography>
                         <Grid container spacing={3}>

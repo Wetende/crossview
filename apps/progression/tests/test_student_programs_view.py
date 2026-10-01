@@ -233,7 +233,7 @@ class StudentProgramsViewTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_program_resume_renders_first_incomplete_lesson(self):
+    def test_program_resume_opens_first_incomplete_lesson(self):
         student = UserFactory()
         program = Program.objects.create(
             name="Resume Program",
@@ -271,10 +271,23 @@ class StudentProgramsViewTests(TestCase):
         response = self.client.get(
             reverse("progression:student.program.resume", args=[program.id]),
             HTTP_X_INERTIA="true",
+            follow=True,
         )
 
         props = response.json()["props"]
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.redirect_chain,
+            [
+                (
+                    reverse(
+                        "progression:student.session",
+                        args=[enrollment.id, second_node.id],
+                    ),
+                    302,
+                )
+            ],
+        )
         self.assertEqual(response.json()["component"], "Student/CoursePlayer")
         self.assertIsNone(props["activeView"])
         self.assertEqual(props["node"]["id"], second_node.id)

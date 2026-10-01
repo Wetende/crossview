@@ -1,22 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
     Box,
     Paper,
     Typography,
     TextField,
     Button,
+    ButtonBase,
     IconButton,
     FormControl,
     InputLabel,
     Select,
     MenuItem,
     Chip,
-    FormControlLabel,
-    Switch,
     Stack,
     Checkbox,
     Radio,
-    OutlinedInput,
     Collapse,
     Tooltip,
     Divider,
@@ -24,15 +22,19 @@ import {
 import {
     Delete as DeleteIcon,
     DragIndicator as DragIcon,
-    Image as ImageIcon,
     Edit as EditIcon,
     ExpandMore as ExpandIcon,
     ExpandLess as CollapseIcon,
+    ExpandMoreOutlined,
     Add as AddIcon,
     Help as HelpIcon,
     LibraryAdd as LibraryAddIcon,
+    LightbulbOutlined,
+    Sync as SyncIcon,
+    TipsAndUpdatesOutlined,
 } from "@mui/icons-material";
 import RichTextEditor from "@/components/RichTextEditor";
+import { hasRichTextContent } from "@/components/rich-text/richTextMath";
 
 // Import specialized editors
 import MatchingPairsEditor from "@/features/quizzes/components/MatchingPairsEditor";
@@ -66,55 +68,116 @@ const getCorrectIndices = (question) => {
     return [];
 };
 
+const buildLocalData = (question) => ({
+    text: normalizeFillBlankText(question.text, question.type || "mcq"),
+    type: question.type || "mcq",
+    points: question.points || 1,
+    options: question.options || ["", "", "", ""],
+    correct: question.correct ?? 0,
+    correct_indices: getCorrectIndices(question),
+    pairs: question.pairs || [],
+    gaps: question.gaps || [],
+    items: question.items || ["", "", "", ""],
+    keywords: question.keywords || [],
+    explanations: question.explanations || {},
+    explanation: question.explanation || "",
+    hint: question.hint || "",
+});
+
+/** Collapsed-by-default rich-text field for question feedback. */
+function QuestionFeedbackField({
+    title,
+    description,
+    placeholder,
+    icon,
+    value,
+    onChange,
+}) {
+    const [open, setOpen] = useState(false);
+    const panelId = useId();
+    const hasContent = hasRichTextContent(value);
+
+    return (
+        <Paper variant="outlined" sx={{ borderRadius: 1, overflow: "hidden" }}>
+            <ButtonBase
+                onClick={() => setOpen((current) => !current)}
+                aria-expanded={open}
+                aria-controls={open ? panelId : undefined}
+                sx={{
+                    width: "100%",
+                    justifyContent: "flex-start",
+                    gap: 1,
+                    px: 2,
+                    py: 1.25,
+                    textAlign: "left",
+                    "&:hover": { bgcolor: "action.hover" },
+                }}
+            >
+                {icon}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="subtitle2" component="span">
+                        {title}
+                    </Typography>
+                    <Typography
+                        variant="caption"
+                        color="textSecondary"
+                        component="span"
+                        sx={{ display: "block" }}
+                    >
+                        {description}
+                    </Typography>
+                </Box>
+                {hasContent && (
+                    <Chip
+                        label="Added"
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                    />
+                )}
+                <ExpandMoreOutlined
+                    fontSize="small"
+                    sx={{
+                        color: "text.secondary",
+                        transform: open ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s",
+                    }}
+                />
+            </ButtonBase>
+            <Collapse in={open} unmountOnExit>
+                <Box id={panelId} sx={{ px: 2, pb: 2 }}>
+                    <RichTextEditor
+                        value={value}
+                        onChange={onChange}
+                        placeholder={placeholder}
+                        minHeight={120}
+                    />
+                </Box>
+            </Collapse>
+        </Paper>
+    );
+}
+
 /**
  * QuestionEditorCard - Inline editor for quiz questions
- * Matches STM LMS Quiz Builder design with rich text, media, categories
+ * Matches STM LMS Quiz Builder design with rich text, explanations and hints
  */
 export default function QuestionEditorCard({
     question,
     onChange,
     onDelete,
     onSaveToLibrary,
-    categories = [],
+    libraryStatus = null,
+    onUpdateFromLibrary,
     isNew = false,
     defaultExpanded = false,
 }) {
     const [expanded, setExpanded] = useState(defaultExpanded || isNew);
-    const [localData, setLocalData] = useState({
-        text: normalizeFillBlankText(question.text, question.type || "mcq"),
-        type: question.type || "mcq",
-        points: question.points || 1,
-        options: question.options || ["", "", "", ""],
-        correct: question.correct ?? 0,
-        correct_indices: getCorrectIndices(question),
-        categories: question.categories || [],
-        required: question.required ?? true,
-        pairs: question.pairs || [],
-        gaps: question.gaps || [],
-        items: question.items || ["", "", "", ""],
-        keywords: question.keywords || [],
-        explanations: question.explanations || {},
-        media: question.media || null,
-    });
+    const [localData, setLocalData] = useState(() => buildLocalData(question));
 
     // Keep local state in sync when switching between different questions
     useEffect(() => {
-        setLocalData({
-            text: normalizeFillBlankText(question.text, question.type || "mcq"),
-            type: question.type || "mcq",
-            points: question.points || 1,
-            options: question.options || ["", "", "", ""],
-            correct: question.correct ?? 0,
-            correct_indices: getCorrectIndices(question),
-            categories: question.categories || [],
-            required: question.required ?? true,
-            pairs: question.pairs || [],
-            gaps: question.gaps || [],
-            items: question.items || ["", "", "", ""],
-            keywords: question.keywords || [],
-            explanations: question.explanations || {},
-            media: question.media || null,
-        });
+        setLocalData(buildLocalData(question));
         // Reset only when switching cards; syncing every echoed field update
         // would overwrite in-progress edits in the debounced local editor.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -291,7 +354,7 @@ export default function QuestionEditorCard({
                 </IconButton>
 
                 {/* Question Title Preview */}
-                <Box sx={{ flex: 1, overflow: "hidden" }}>
+                <Box sx={{ flex: 1, minWidth: 120, overflow: "hidden" }}>
                     <Typography
                         variant="body1"
                         sx={{
@@ -306,6 +369,37 @@ export default function QuestionEditorCard({
                         }}
                     />
                 </Box>
+
+                {/* Bank copy status */}
+                {question.fromLibrary && !libraryStatus?.outdated && (
+                    <Tooltip title={libraryStatus?.bankName ? `Copied from ${libraryStatus.bankName}` : "Copied from a question bank"}>
+                        <Chip label="From bank" size="small" variant="outlined" />
+                    </Tooltip>
+                )}
+                {libraryStatus?.outdated && (
+                    <>
+                        <Tooltip
+                            title={`The bank has version ${libraryStatus.latestVersion}; this copy is version ${libraryStatus.currentVersion}.`}
+                        >
+                            <Chip label="Newer version in bank" size="small" color="warning" />
+                        </Tooltip>
+                        {onUpdateFromLibrary && (
+                            <Tooltip title="Update from bank">
+                                <IconButton
+                                    size="small"
+                                    color="warning"
+                                    aria-label="Update from bank"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUpdateFromLibrary(question);
+                                    }}
+                                >
+                                    <SyncIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </>
+                )}
 
                 {/* Type Badge */}
                 <Chip
@@ -347,44 +441,30 @@ export default function QuestionEditorCard({
                 )}
 
                 {/* Delete */}
-                <IconButton
-                    size="small"
-                    color="error"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete?.();
-                    }}
-                >
-                    <DeleteIcon fontSize="small" />
-                </IconButton>
+                {onDelete && (
+                    <IconButton
+                        size="small"
+                        color="error"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                    >
+                        <DeleteIcon fontSize="small" />
+                    </IconButton>
+                )}
             </Box>
 
             {/* Expanded Editor */}
             <Collapse in={expanded}>
                 <Divider />
                 <Box sx={{ p: 2 }}>
-                    {/* Media & Rich Text Editor Row */}
+                    {/* Question Text Editor */}
                     <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-                        {/* Media Button */}
-                        <Tooltip title="Add Video or Audio">
-                            <IconButton
-                                sx={{
-                                    border: "1px dashed",
-                                    borderColor: "divider",
-                                    borderRadius: 1,
-                                    width: 48,
-                                    height: 48,
-                                }}
-                            >
-                                <ImageIcon color="action" />
-                            </IconButton>
-                        </Tooltip>
-
-                        {/* Rich Text Editor */}
                         <Box sx={{ flex: 1 }}>
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 gutterBottom
                             >
                                 Enter your question
@@ -392,7 +472,7 @@ export default function QuestionEditorCard({
                             {localData.type === "fill_blank" ? (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ mt: 1 }}
                                 >
                                     Use the “Fill in the Blank” editor below to
@@ -404,11 +484,14 @@ export default function QuestionEditorCard({
                                     onChange={(value) => updateField("text", value)}
                                     placeholder="Enter your question"
                                     minHeight={200}
+                                    // Question text is stored as plain text, so
+                                    // maths nodes would be lost on save.
+                                    enableMath={false}
                                 />
                             )}
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ float: "right", mt: 0.5 }}
                             >
                                 {wordCount} words
@@ -420,8 +503,7 @@ export default function QuestionEditorCard({
                     <Stack
                         direction="row"
                         spacing={2}
-                        alignItems="center"
-                        sx={{ mb: 3, mt: 4 }}
+                        sx={{ alignItems: "center", mb: 3, mt: 4 }}
                     >
                         {/* Question Type */}
                         <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -466,72 +548,6 @@ export default function QuestionEditorCard({
                             </IconButton>
                         </Tooltip>
 
-                        {/* Categories */}
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel>Category</InputLabel>
-                            <Select
-                                multiple
-                                value={localData.categories}
-                                label="Category"
-                                onChange={(e) =>
-                                    updateField("categories", e.target.value)
-                                }
-                                input={<OutlinedInput label="Category" />}
-                                renderValue={(selected) => (
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            gap: 0.5,
-                                        }}
-                                    >
-                                        {selected.map((value) => (
-                                            <Chip
-                                                key={value}
-                                                label={value}
-                                                size="small"
-                                            />
-                                        ))}
-                                    </Box>
-                                )}
-                            >
-                                {categories.length === 0 ? (
-                                    <MenuItem disabled>
-                                        <em>No categories</em>
-                                    </MenuItem>
-                                ) : (
-                                    categories.map((cat) => (
-                                        <MenuItem key={cat} value={cat}>
-                                            <Checkbox
-                                                checked={localData.categories.includes(
-                                                    cat,
-                                                )}
-                                                size="small"
-                                            />
-                                            {cat}
-                                        </MenuItem>
-                                    ))
-                                )}
-                            </Select>
-                        </FormControl>
-
-                        {/* Required Toggle */}
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={localData.required}
-                                    onChange={(e) =>
-                                        updateField(
-                                            "required",
-                                            e.target.checked,
-                                        )
-                                    }
-                                    size="small"
-                                />
-                            }
-                            label="Required Question"
-                        />
-
                         {/* Points */}
                         <TextField
                             label="Points"
@@ -545,7 +561,7 @@ export default function QuestionEditorCard({
                                 )
                             }
                             sx={{ width: 80 }}
-                            InputProps={{ inputProps: { min: 1 } }}
+                            slotProps={{ input: { inputProps: { min: 1 } } }}
                         />
                     </Stack>
 
@@ -568,7 +584,7 @@ export default function QuestionEditorCard({
                                 </Typography>
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {localData.type === "mcq"
                                         ? "Single choice: select one correct answer"
@@ -613,8 +629,10 @@ export default function QuestionEditorCard({
                                                 )
                                             }
                                             variant="standard"
-                                            InputProps={{
-                                                disableUnderline: true,
+                                            slotProps={{
+                                                input: {
+                                                    disableUnderline: true,
+                                                },
                                             }}
                                         />
                                         <IconButton size="small">
@@ -629,7 +647,7 @@ export default function QuestionEditorCard({
                                         >
                                             <Typography
                                                 variant="caption"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Correct
                                             </Typography>
@@ -692,7 +710,7 @@ export default function QuestionEditorCard({
                                     size="small"
                                     placeholder="Add new answer"
                                     variant="standard"
-                                    InputProps={{ disableUnderline: true }}
+                                    slotProps={{ input: { disableUnderline: true } }}
                                     onKeyPress={(e) => {
                                         if (
                                             e.key === "Enter" &&
@@ -758,11 +776,9 @@ export default function QuestionEditorCard({
                                         }}
                                     >
                                         <Typography
-                                            fontWeight={
-                                                localData.correct === idx
+                                            sx={{ fontWeight: localData.correct === idx
                                                     ? 600
-                                                    : 400
-                                            }
+                                                    : 400 }}
                                         >
                                             {label}
                                         </Typography>
@@ -826,6 +842,38 @@ export default function QuestionEditorCard({
                             />
                         </Box>
                     )}
+
+                    {/* Question-level feedback, for every question type */}
+                    <Stack spacing={1.5} sx={{ mt: 3 }}>
+                        <QuestionFeedbackField
+                            title="Explanation (shown after submission)"
+                            description="Why the answer is right. Learners see it when the quiz releases correct answers."
+                            placeholder="Explain the correct answer"
+                            icon={
+                                <TipsAndUpdatesOutlined
+                                    fontSize="small"
+                                    color="action"
+                                />
+                            }
+                            value={localData.explanation}
+                            onChange={(value) =>
+                                updateField("explanation", value)
+                            }
+                        />
+                        <QuestionFeedbackField
+                            title="Hint (learners can reveal before answering)"
+                            description="A nudge that does not give the answer away."
+                            placeholder="Write a hint"
+                            icon={
+                                <LightbulbOutlined
+                                    fontSize="small"
+                                    color="action"
+                                />
+                            }
+                            value={localData.hint}
+                            onChange={(value) => updateField("hint", value)}
+                        />
+                    </Stack>
                 </Box>
             </Collapse>
         </Paper>

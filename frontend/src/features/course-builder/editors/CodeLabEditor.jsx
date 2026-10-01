@@ -120,9 +120,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
     const [activeTab, setActiveTab] = useState("lesson");
     const [description, setDescription] = useState(node.description || "");
     const [duration, setDuration] = useState(node.properties?.duration || "");
-    const [isPreview, setIsPreview] = useState(
-        node.properties?.is_preview || false,
-    );
     const [files, setFiles] = useState(node.properties?.files || []);
 
     // ── Code Lab specific fields ──
@@ -254,7 +251,8 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                 show_console: showConsole,
                 layout,
                 duration,
-                is_preview: isPreview,
+                // Code labs need an enrollment, so they are never free previews.
+                is_preview: false,
                 ...(featureFlags.gamification && {
                     gamification: gamificationSettings,
                 }),
@@ -267,7 +265,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
             featureFlags.gamification,
             gamificationSettings,
             instructions,
-            isPreview,
             language,
             layout,
             node.properties,
@@ -291,7 +288,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
             description,
             duration,
             gamificationSettings,
-            isPreview,
             language,
             layout,
             showConsole,
@@ -304,7 +300,6 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
             description,
             duration,
             gamificationSettings,
-            isPreview,
             language,
             layout,
             showConsole,
@@ -422,7 +417,9 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     fullWidth
                     error={!!titleErrorMessage}
                     helperText={titleErrorMessage}
-                    InputProps={{ sx: { fontSize: "1.2rem", fontWeight: 500 } }}
+                    slotProps={{
+                        input: { sx: { fontSize: "1.2rem", fontWeight: 500 } },
+                    }}
                 />
                 <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
                     <AutosaveStatus
@@ -559,7 +556,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                             color={
                                 descriptionErrorMessage
                                     ? "error"
-                                    : "text.secondary"
+                                    : "textSecondary"
                             }
                             sx={{ mb: 1, fontWeight: "bold" }}
                         >
@@ -576,7 +573,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 {descriptionErrorMessage}
                             </FormHelperText>
                         )}
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {descriptionTextLength} characters
                         </Typography>
                     </Box>
@@ -585,16 +582,18 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     <Box>
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{ mb: 1 }}
+                            sx={{
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                mb: 1,
+                            }}
                         >
                             <Typography
                                 variant="body2"
                                 color={
                                     getFieldError("starterCode")
                                         ? "error"
-                                        : "text.secondary"
+                                        : "textSecondary"
                                 }
                                 sx={{ fontWeight: "bold" }}
                             >
@@ -636,7 +635,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 {getFieldError("starterCode")}
                             </FormHelperText>
                         )}
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             This is the code students see when they start the
                             exercise.
                         </Typography>
@@ -680,10 +679,7 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                     }}
                                 />
                             </Paper>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 Hidden from students. Used for instructor
                                 reference only.
                             </Typography>
@@ -693,7 +689,11 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     <Divider />
 
                     {/* ── Toggles ── */}
-                    <Stack direction="row" spacing={4} flexWrap="wrap">
+                    <Stack
+                        direction="row"
+                        spacing={4}
+                        sx={{ flexWrap: "wrap" }}
+                    >
                         <FormControlLabel
                             control={
                                 <Switch
@@ -746,50 +746,13 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 </Typography>
                             }
                         />
-
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={isPreview}
-                                    onChange={(e) =>
-                                        setIsPreview(e.target.checked)
-                                    }
-                                />
-                            }
-                            label={
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                    }}
-                                >
-                                    <Typography variant="body2">
-                                        Lesson preview
-                                    </Typography>
-                                    <Tooltip
-                                        title="Allow non-enrolled users to preview this lesson"
-                                        arrow
-                                    >
-                                        <InfoIcon
-                                            fontSize="small"
-                                            sx={{
-                                                ml: 0.5,
-                                                color: "primary.main",
-                                                fontSize: 16,
-                                                cursor: "help",
-                                            }}
-                                        />
-                                    </Tooltip>
-                                </Box>
-                            }
-                        />
                     </Stack>
 
                     {/* Lesson Materials */}
                     <Box sx={{ mt: 3 }}>
                         <Typography
                             variant="body2"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mb: 1 }}
                         >
                             Lesson materials

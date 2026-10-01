@@ -41,6 +41,16 @@ import { truncatePlainText } from "@/utils/htmlText";
 import { resolvePriceDisplay } from "@/utils/priceDisplay";
 import CourseContentTabs from "@/features/programs/components/CourseContentTabs";
 import CourseDetailsPanel from "@/features/programs/components/CourseDetailsPanel";
+import CourseIntroMedia from "@/features/programs/components/CourseIntroMedia";
+import MobileEnrollBar from "@/features/programs/components/MobileEnrollBar";
+import { enrollBarHeight } from "@/features/programs/utils/enrollBar";
+import {
+    ORDERS_HREF,
+    getEnrollCtaLabel,
+    getProgramResumeHref,
+} from "@/features/programs/utils/primaryCta";
+import PreviewCourseButton from "@/features/programs/components/PreviewCourseButton";
+import { findFirstPreviewUrl } from "@/features/programs/utils/previewLessons";
 import EnrollmentIntentDialog from "@/features/enrollment-intents/components/EnrollmentIntentDialog";
 
 // --- Helper Components ---
@@ -60,6 +70,7 @@ function CourseDetailsSidebar({
     onToggleWishlist,
     wishlisted,
     isPreview = false,
+    previewLessonUrl = null,
 }) {
     const theme = useTheme();
     const { formatCurrency } = useCurrency();
@@ -68,27 +79,23 @@ function CourseDetailsSidebar({
     const progressPercent = enrollmentData?.progressPercent || 0;
     const priceDisplay = resolvePriceDisplay(program);
 
-    // Determine CTA button text based on enrollment mode
-    const getCtaText = () => {
-        if (ctaState === "not_enrolled_paid") {
-            const amount = formatCurrency(priceDisplay.price);
-            return priceDisplay.paymentCollection === "offline"
-                ? `PAY OFFLINE - ${amount}`
-                : `GET COURSE - ${amount}`;
-        }
-        if (enrollmentMode === "approval") {
-            return "REQUEST ENROLLMENT";
-        }
-        return "ENROLL NOW";
-    };
+    // Determine CTA button text based on enrollment mode (shared with the
+    // free preview player through primaryCta.js).
+    const getCtaText = () =>
+        getEnrollCtaLabel({
+            ctaState,
+            enrollmentMode,
+            priceDisplay,
+            formatCurrency,
+        });
 
     return (
         <Card sx={{ mb: 3, position: "sticky", top: 100 }}>
             <CardContent sx={{ p: 3 }}>
                 {!isEnrolled && !priceDisplay.isHidden && (
                     <Box sx={{ mb: 2 }}>
-                        <Stack direction="row" spacing={1} alignItems="baseline">
-                            <Typography variant="h5" fontWeight={800}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>
                                 {priceDisplay.showPrice
                                     ? formatCurrency(priceDisplay.price)
                                     : "Free"}
@@ -96,7 +103,7 @@ function CourseDetailsSidebar({
                             {priceDisplay.hasDiscount && (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ textDecoration: "line-through" }}
                                 >
                                     {formatCurrency(priceDisplay.originalPrice)}
@@ -104,7 +111,7 @@ function CourseDetailsSidebar({
                             )}
                         </Stack>
                         {priceDisplay.priceInfo && (
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="textSecondary">
                                 {priceDisplay.priceInfo}
                             </Typography>
                         )}
@@ -116,9 +123,9 @@ function CourseDetailsSidebar({
                         {/* Completion/Progress Badge */}
                         <Stack
                             direction="row"
-                            alignItems="center"
-                            justifyContent="space-between"
                             sx={{
+                                alignItems: "center",
+                                justifyContent: "space-between",
                                 mb: 2,
                                 p: 1.5,
                                 bgcolor: isCompleted
@@ -130,7 +137,7 @@ function CourseDetailsSidebar({
                             <Stack
                                 direction="row"
                                 spacing={1}
-                                alignItems="center"
+                                sx={{ alignItems: "center" }}
                             >
                                 <IconCheck
                                     size={20}
@@ -143,7 +150,7 @@ function CourseDetailsSidebar({
                                 <Box>
                                     <Typography
                                         variant="body2"
-                                        fontWeight={600}
+                                        sx={{ fontWeight: 600 }}
                                     >
                                         {isCompleted
                                             ? "Course complete"
@@ -151,7 +158,7 @@ function CourseDetailsSidebar({
                                     </Typography>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Score: {progressPercent}%
                                     </Typography>
@@ -174,7 +181,7 @@ function CourseDetailsSidebar({
                         {/* Continue Button */}
                         <Button
                             component={Link}
-                            href={`/student/programs/${program.id}/resume/`}
+                            href={getProgramResumeHref(program)}
                             variant="contained"
                             fullWidth
                             size="large"
@@ -192,8 +199,7 @@ function CourseDetailsSidebar({
                         <Stack
                             direction="row"
                             spacing={2}
-                            justifyContent="center"
-                            sx={{ mb: 3 }}
+                            sx={{ justifyContent: "center", mb: 3 }}
                         >
                             <Button
                                 startIcon={
@@ -232,7 +238,7 @@ function CourseDetailsSidebar({
                             icon={<IconLock size={18} />}
                             sx={{ mb: 2 }}
                         >
-                            <Typography variant="body2" fontWeight={700}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                 Prerequisites required
                             </Typography>
                             <Typography variant="caption" component="div">
@@ -277,7 +283,7 @@ function CourseDetailsSidebar({
                     <>
                         <Button
                             component={Link}
-                            href="/student/orders/"
+                            href={ORDERS_HREF}
                             variant="outlined"
                             fullWidth
                             size="large"
@@ -300,8 +306,7 @@ function CourseDetailsSidebar({
                         <Stack
                             direction="row"
                             spacing={2}
-                            justifyContent="center"
-                            sx={{ mb: 3 }}
+                            sx={{ justifyContent: "center", mb: 3 }}
                         >
                             <Button
                                 startIcon={<IconHeart size={18} />}
@@ -373,8 +378,7 @@ function CourseDetailsSidebar({
                         <Stack
                             direction="row"
                             spacing={2}
-                            justifyContent="center"
-                            sx={{ mb: 3 }}
+                            sx={{ justifyContent: "center", mb: 3 }}
                         >
                             <Button
                                 startIcon={
@@ -418,8 +422,7 @@ function CourseDetailsSidebar({
                         <Stack
                             direction="row"
                             spacing={2}
-                            justifyContent="center"
-                            sx={{ mb: 3 }}
+                            sx={{ justifyContent: "center", mb: 3 }}
                         >
                             <Button
                                 startIcon={
@@ -446,6 +449,10 @@ function CourseDetailsSidebar({
                     </>
                 ))}
 
+                {!isPreview && !isEnrolled && (
+                    <PreviewCourseButton href={previewLessonUrl} sx={{ mb: 3 }} />
+                )}
+
                 <CourseDetailsPanel program={program} />
             </CardContent>
         </Card>
@@ -468,7 +475,7 @@ function PopularCourses({ courses }) {
 
     return (
         <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
                 Popular courses
             </Typography>
             <Stack spacing={2}>
@@ -493,12 +500,12 @@ function PopularCourses({ courses }) {
                             alt={course.name}
                         />
                         <CardContent sx={{ p: 1.5, flex: 1 }}>
-                            <Typography variant="body2" fontWeight={600} noWrap>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                                 {course.name}
                             </Typography>
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
+                                color="textSecondary"
                             >
                                 {getPriceLabel(course)}
                             </Typography>
@@ -533,6 +540,7 @@ export default function ProgramDetail({
     );
     const [cartSnackbar, setCartSnackbar] = useState({ open: false, message: "", severity: "success" });
     const shortDescription = truncatePlainText(program.description, 200);
+    const showMobileEnrollBar = !isPreview;
 
     const handleShowDetails = () => setDetailsModalOpen(true);
     const handleCloseDetails = () => setDetailsModalOpen(false);
@@ -582,7 +590,15 @@ export default function ProgramDetail({
         <>
             <Head title={`${program.name} - ${platform?.institutionName || "LMS"}`} />
 
-            <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+            <Box
+                sx={{
+                    minHeight: "100vh",
+                    bgcolor: "background.default",
+                    // The bar reports its measured height, so content above it
+                    // stays reachable even when its label wraps.
+                    pb: showMobileEnrollBar ? { xs: enrollBarHeight(), md: 0 } : 0,
+                }}
+            >
                 {/* Navbar */}
                 <PublicNavbar activeLink="/programs/" auth={auth} />
 
@@ -602,10 +618,9 @@ export default function ProgramDetail({
                             <Stack
                                 direction={{ xs: "column", sm: "row" }}
                                 spacing={1}
-                                alignItems={{ xs: "stretch", sm: "center" }}
-                                justifyContent="space-between"
+                                sx={{ alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between" }}
                             >
-                                <Typography variant="body2" fontWeight={700}>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }}>
                                     Draft preview. This course is not visible to students.
                                 </Typography>
                                 {builderUrl && (
@@ -649,7 +664,7 @@ export default function ProgramDetail({
                 <Container maxWidth="lg" sx={{ pb: 8 }}>
                     <Grid container spacing={4}>
                         {/* Left Sidebar */}
-                        <Grid size={{ xs: 12, md: 4 }} order={{ xs: 2, md: 1 }}>
+                        <Grid size={{ xs: 12, md: 4 }} sx={{ order: { xs: 2, md: 1 } }}>
                             <CourseDetailsSidebar
                                 program={program}
                                 enrollmentStatus={enrollmentStatus}
@@ -664,12 +679,13 @@ export default function ProgramDetail({
                                 onToggleWishlist={handleToggleWishlist}
                                 wishlisted={isWishlisted}
                                 isPreview={isPreview}
+                                previewLessonUrl={findFirstPreviewUrl(curriculum)}
                             />
                             <PopularCourses courses={popularPrograms} />
                         </Grid>
 
                         {/* Main Content Area */}
-                        <Grid size={{ xs: 12, md: 8 }} order={{ xs: 1, md: 2 }}>
+                        <Grid size={{ xs: 12, md: 8 }} sx={{ order: { xs: 1, md: 2 } }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -679,19 +695,17 @@ export default function ProgramDetail({
                                 <Stack
                                     direction="row"
                                     spacing={3}
-                                    alignItems="center"
-                                    flexWrap="wrap"
-                                    sx={{ mb: 2 }}
+                                    sx={{ alignItems: "center", flexWrap: "wrap", mb: 2 }}
                                 >
                                     <Stack
                                         direction="row"
                                         spacing={1}
-                                        alignItems="center"
+                                        sx={{ alignItems: "center" }}
                                     >
                                         <IconBook size={18} />
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             Category
                                         </Typography>
@@ -708,7 +722,7 @@ export default function ProgramDetail({
                                         <Stack
                                             direction="row"
                                             spacing={1}
-                                            alignItems="center"
+                                            sx={{ alignItems: "center" }}
                                         >
                                             <Avatar
                                                 sx={{
@@ -729,7 +743,7 @@ export default function ProgramDetail({
                                     <Stack
                                         direction="row"
                                         spacing={0.5}
-                                        alignItems="center"
+                                        sx={{ alignItems: "center" }}
                                     >
                                         <Rating
                                             value={program.rating || 0}
@@ -739,13 +753,13 @@ export default function ProgramDetail({
                                         />
                                         <Typography
                                             variant="body2"
-                                            fontWeight={600}
+                                            sx={{ fontWeight: 600 }}
                                         >
                                             {program.rating?.toFixed(1)}
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             ({program.review_count} reviews)
                                         </Typography>
@@ -755,8 +769,7 @@ export default function ProgramDetail({
                                 {/* Title */}
                                 <Typography
                                     variant="h4"
-                                    fontWeight={700}
-                                    sx={{ mb: 2 }}
+                                    sx={{ fontWeight: 700, mb: 2 }}
                                 >
                                     {program.name}
                                 </Typography>
@@ -764,27 +777,18 @@ export default function ProgramDetail({
                                 {/* Short Description */}
                                 <Typography
                                     variant="body1"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ mb: 3 }}
                                 >
                                     {shortDescription}
                                 </Typography>
 
-                                {/* Featured Image */}
-                                {program.thumbnail && (
-                                    <Box
-                                        component="img"
-                                        src={program.thumbnail}
-                                        alt={program.name}
-                                        sx={{
-                                            width: "100%",
-                                            height: 350,
-                                            objectFit: "cover",
-                                            borderRadius: 2,
-                                            mb: 3,
-                                        }}
-                                    />
-                                )}
+                                {/* Intro video, or the featured image */}
+                                <CourseIntroMedia
+                                    introVideoUrl={program.introVideoUrl}
+                                    thumbnail={program.thumbnail}
+                                    title={program.name}
+                                />
 
                                 <CourseContentTabs
                                     program={program}
@@ -798,6 +802,16 @@ export default function ProgramDetail({
                 {/* Footer */}
                 <Footer />
             </Box>
+
+            {showMobileEnrollBar && (
+                <MobileEnrollBar
+                    program={program}
+                    enrollmentStatus={enrollmentStatus}
+                    enrollmentMode={enrollmentMode}
+                    ctaState={ctaState}
+                    onBuyNow={handleBuyNow}
+                />
+            )}
 
             {/* Modals */}
             <CourseDetailsModal
@@ -820,6 +834,11 @@ export default function ProgramDetail({
                 autoHideDuration={4000}
                 onClose={() => setCartSnackbar((s) => ({ ...s, open: false }))}
                 anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+                sx={
+                    showMobileEnrollBar
+                        ? { bottom: { xs: enrollBarHeight("8px"), md: 24 } }
+                        : undefined
+                }
             >
                 <MuiAlert
                     severity={cartSnackbar.severity}

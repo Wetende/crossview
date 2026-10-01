@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -225,7 +226,7 @@ export default function PDFRenderer({
                 height: isFullscreen ? "100vh" : "auto",
                 minHeight: 500,
                 bgcolor: "grey.100",
-                borderRadius: 2,
+                borderRadius: PLAYER_RADII.surface,
                 overflow: "hidden",
             }}
             onKeyDown={handleKeyDown}
@@ -247,7 +248,11 @@ export default function PDFRenderer({
                 }}
             >
                 {/* Left: Page Navigation */}
-                <Stack direction="row" alignItems="center" spacing={1}>
+                <Stack
+                    direction="row"
+                    sx={{ alignItems: "center" }}
+                    spacing={1}
+                >
                     <Tooltip title="Previous Page">
                         <span>
                             <IconButton
@@ -260,7 +265,11 @@ export default function PDFRenderer({
                         </span>
                     </Tooltip>
 
-                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <Stack
+                        direction="row"
+                        sx={{ alignItems: "center" }}
+                        spacing={0.5}
+                    >
                         <TextField
                             size="small"
                             type="number"
@@ -269,13 +278,15 @@ export default function PDFRenderer({
                                 goToPage(parseInt(e.target.value) || 1)
                             }
                             sx={{ width: 60 }}
-                            inputProps={{
-                                min: 1,
-                                max: numPages || 1,
-                                style: { textAlign: "center" },
+                            slotProps={{
+                                htmlInput: {
+                                    min: 1,
+                                    max: numPages || 1,
+                                    style: { textAlign: "center" },
+                                },
                             }}
                         />
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             / {numPages || "—"}
                         </Typography>
                     </Stack>
@@ -294,7 +305,11 @@ export default function PDFRenderer({
                 </Stack>
 
                 {/* Center: Zoom Controls */}
-                <Stack direction="row" alignItems="center" spacing={1}>
+                <Stack
+                    direction="row"
+                    sx={{ alignItems: "center" }}
+                    spacing={1}
+                >
                     <Tooltip title="Zoom Out">
                         <IconButton
                             onClick={zoomOut}
@@ -330,7 +345,11 @@ export default function PDFRenderer({
                 </Stack>
 
                 {/* Right: Actions */}
-                <Stack direction="row" alignItems="center" spacing={1}>
+                <Stack
+                    direction="row"
+                    sx={{ alignItems: "center" }}
+                    spacing={1}
+                >
                     {allowDownload && (
                         <Tooltip title="Download PDF">
                             <IconButton onClick={handleDownload} size="small">
@@ -429,8 +448,12 @@ export default function PDFRenderer({
                         borderColor: "divider",
                     }}
                 >
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                        <Typography variant="caption" color="text.secondary">
+                    <Stack
+                        direction="row"
+                        sx={{ alignItems: "center" }}
+                        spacing={2}
+                    >
+                        <Typography variant="caption" color="textSecondary">
                             Progress: {pagesViewed.size} of {numPages} pages
                             viewed
                         </Typography>
@@ -445,8 +468,8 @@ export default function PDFRenderer({
                         {pagesViewed.size >= requiredPages && (
                             <Typography
                                 variant="caption"
-                                color="success.main"
-                                fontWeight="bold"
+                                color="success"
+                                sx={{ fontWeight: "bold" }}
                                 aria-label="Requirement met"
                             >
                                 ✓

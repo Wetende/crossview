@@ -139,7 +139,11 @@ export default function CertificateBuilderWorkspace({
                     zIndex: 4,
                 }}
             >
-                <Stack direction="row" alignItems="center" spacing={0.75}>
+                <Stack
+                    direction="row"
+                    sx={{ alignItems: "center" }}
+                    spacing={0.75}
+                >
                     <Tooltip title="Back to certificate dashboard">
                         <IconButton
                             component={Link}
@@ -153,7 +157,7 @@ export default function CertificateBuilderWorkspace({
                     <Typography
                         component="h1"
                         variant="subtitle1"
-                        fontWeight={800}
+                        sx={{ fontWeight: 800 }}
                         noWrap
                     >
                         {title}
@@ -164,10 +168,12 @@ export default function CertificateBuilderWorkspace({
                 </Box>
                 <Stack
                     direction="row"
-                    justifyContent="flex-end"
-                    alignItems="center"
                     spacing={0.5}
-                    sx={{ minWidth: 0 }}
+                    sx={{
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        minWidth: 0,
+                    }}
                 >
                     {headerActions}
                 </Stack>

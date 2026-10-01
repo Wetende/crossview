@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import copy
+import logging
 import random
+from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
@@ -11,6 +13,7 @@ from django.utils import timezone
 from django.utils.crypto import salted_hmac
 
 from apps.assessments.text_normalization import (
+    normalize_assessment_rich_text,
     normalize_assessment_text,
     normalize_assessment_text_list,
     normalize_question_answer_data,
@@ -19,12 +22,15 @@ from apps.assessments.text_normalization import (
 
 from .models import (
     Question,
+    QuestionBank,
     QuestionBankEntry,
     QuestionBankUsage,
     QuizAttemptQuestionSnapshot,
     QuizQuestionPool,
 )
 
+
+logger = logging.getLogger(__name__)
 
 SNAPSHOT_VERSION = 1
 
@@ -147,6 +153,8 @@ def normalize_question_snapshot(value: dict) -> dict:
         "question_type": question_type,
         "text": text,
         "points": points,
+        "explanation": normalize_assessment_rich_text(raw.get("explanation", "")),
+        "hint": normalize_assessment_rich_text(raw.get("hint", "")),
         "answer_data": answer_data,
         "options": options,
         "matching_pairs": matching_pairs,
@@ -161,6 +169,8 @@ def build_question_snapshot(question: Question) -> dict:
             "question_type": question.question_type,
             "text": question.text,
             "points": question.points,
+            "explanation": question.explanation,
+            "hint": question.hint,
             "answer_data": copy.deepcopy(question.answer_data or {}),
             "options": [
                 {
@@ -214,6 +224,8 @@ def snapshot_as_question_data(snapshot: dict) -> dict:
         "question_type": data["question_type"],
         "text": data["text"],
         "points": data["points"],
+        "explanation": data["explanation"],
+        "hint": data["hint"],
         "position": 0,
         "answer_data": data["answer_data"],
         "options": [
@@ -265,15 +277,21 @@ def pool_supply(pool) -> int:
 
 
 def validate_quiz_question_pools(quiz) -> list[dict]:
+    """Report pools that cannot supply their questions, alone or together."""
     issues = []
     reserved_entry_ids = set(
         quiz.questions.exclude(source_bank_entry_id__isnull=True).values_list(
             "source_bank_entry_id", flat=True
         )
     )
-    for pool in quiz.question_pools.filter(is_active=True).select_related("bank"):
+    pools = list(quiz.question_pools.filter(is_active=True).select_related("bank"))
+    eligible_by_pool = {}
+    short_pool_ids = set()
+    for pool in pools:
         eligible = eligible_entries_for_pool(pool, exclude_ids=reserved_entry_ids)
+        eligible_by_pool[pool.id] = eligible
         if len(eligible) < pool.question_count:
+            short_pool_ids.add(pool.id)
             issues.append(
                 {
                     "poolId": pool.id,
@@ -283,8 +301,45 @@ def validate_quiz_question_pools(quiz) -> list[dict]:
                     "available": len(eligible),
                 }
             )
-        reserved_entry_ids.update(entry.id for entry in eligible[: pool.question_count])
+
+    # Pools drawing from the same bank compete for the same questions.
+    pools_by_bank = defaultdict(list)
+    for pool in pools:
+        pools_by_bank[pool.bank_id].append(pool)
+    for bank_pools in pools_by_bank.values():
+        if len(bank_pools) < 2 or any(pool.id in short_pool_ids for pool in bank_pools):
+            continue
+        required = sum(pool.question_count for pool in bank_pools)
+        available = len(
+            {entry.id for pool in bank_pools for entry in eligible_by_pool[pool.id]}
+        )
+        if available < required:
+            issues.append(
+                {
+                    "poolId": None,
+                    "bankId": bank_pools[0].bank_id,
+                    "bankName": bank_pools[0].bank.name,
+                    "required": required,
+                    "available": available,
+                }
+            )
     return issues
+
+
+def _resolve_pool_bank(quiz, bank_id, *, actor, linked_bank_ids):
+    # A bank already used by this quiz stays linked even when the current
+    # editor cannot see it (for example a colleague's private library).
+    if bank_id in linked_bank_ids:
+        return QuestionBank.objects.filter(pk=bank_id).first()
+    if actor is None:
+        return quiz.node.program.question_banks.filter(pk=bank_id).first()
+    from .question_bank_access import visible_question_banks
+
+    return (
+        visible_question_banks(actor, program=quiz.node.program)
+        .filter(pk=bank_id)
+        .first()
+    )
 
 
 @transaction.atomic
@@ -292,6 +347,13 @@ def sync_quiz_pools_from_properties(quiz, raw_pools, *, actor=None) -> list[dict
     """Persist builder pool JSON and return the canonical builder representation."""
     raw_pools = raw_pools if isinstance(raw_pools, list) else []
     existing = {pool.id: pool for pool in quiz.question_pools.select_related("bank")}
+    linked_bank_ids = {pool.bank_id for pool in existing.values()}
+    # Bank questions already copied into the quiz cannot be drawn again.
+    copied_entry_ids = set(
+        quiz.questions.exclude(source_bank_entry_id__isnull=True).values_list(
+            "source_bank_entry_id", flat=True
+        )
+    )
     retained_ids = set()
     canonical = []
     for position, raw in enumerate(raw_pools):
@@ -302,8 +364,15 @@ def sync_quiz_pools_from_properties(quiz, raw_pools, *, actor=None) -> list[dict
             bank_id = int(bank_id)
         except (TypeError, ValueError):
             continue
-        bank = quiz.node.program.question_banks.filter(pk=bank_id).first()
+        bank = _resolve_pool_bank(
+            quiz, bank_id, actor=actor, linked_bank_ids=linked_bank_ids
+        )
         if bank is None:
+            logger.warning(
+                "Skipped question pool for bank %s on quiz %s: bank is not available.",
+                bank_id,
+                quiz.pk,
+            )
             continue
         pool_id = raw.get("poolId", raw.get("id"))
         try:
@@ -359,7 +428,9 @@ def sync_quiz_pools_from_properties(quiz, raw_pools, *, actor=None) -> list[dict
                 "difficulty": pool.difficulty,
                 "questionType": pool.question_type,
                 "isActive": pool.is_active,
-                "availableQuestions": pool_supply(pool),
+                "availableQuestions": len(
+                    eligible_entries_for_pool(pool, exclude_ids=copied_entry_ids)
+                ),
             }
         )
     quiz.question_pools.exclude(id__in=retained_ids).delete()
@@ -397,15 +468,37 @@ def ensure_attempt_question_snapshots(quiz, attempt):
         position += 1
 
     selected_usage = []
-    for pool in quiz.question_pools.filter(is_active=True).select_related("bank"):
-        eligible = eligible_entries_for_pool(pool, exclude_ids=used_entry_ids)
+    pools = list(quiz.question_pools.filter(is_active=True).select_related("bank"))
+    eligible_by_pool = {
+        pool.id: eligible_entries_for_pool(pool, exclude_ids=used_entry_ids)
+        for pool in pools
+    }
+    # Draw the pools with the least spare supply first so a broad pool cannot
+    # take the only questions a narrow pool on the same bank can use.
+    draw_order = sorted(
+        pools,
+        key=lambda pool: (
+            len(eligible_by_pool[pool.id]) - pool.question_count,
+            len(eligible_by_pool[pool.id]),
+            pool.position,
+            pool.id,
+        ),
+    )
+    selections = {}
+    for pool in draw_order:
+        eligible = [
+            entry for entry in eligible_by_pool[pool.id] if entry.id not in used_entry_ids
+        ]
         if len(eligible) < pool.question_count:
             raise ValidationError(
                 f'Question pool "{pool.bank.name}" requires {pool.question_count} '
                 f"questions but only {len(eligible)} are available."
             )
-        selected = random.SystemRandom().sample(eligible, pool.question_count)
-        for entry in selected:
+        selections[pool.id] = random.SystemRandom().sample(eligible, pool.question_count)
+        used_entry_ids.update(entry.id for entry in selections[pool.id])
+
+    for pool in pools:
+        for entry in selections[pool.id]:
             rows.append(
                 QuizAttemptQuestionSnapshot(
                     attempt=attempt,
@@ -417,7 +510,6 @@ def ensure_attempt_question_snapshots(quiz, attempt):
                 )
             )
             selected_usage.append((entry, pool))
-            used_entry_ids.add(entry.id)
             position += 1
 
     QuizAttemptQuestionSnapshot.objects.bulk_create(rows)
@@ -560,6 +652,9 @@ def serialize_attempt_questions(quiz, attempt, runtime_state=None) -> list[dict]
             "text": snapshot.get("text", ""),
             "points": snapshot.get("points", 1),
         }
+        # Hints are for use while answering; explanations stay with the results.
+        if snapshot.get("hint"):
+            data["hint"] = snapshot["hint"]
         if question_type in {"mcq", "mcq_multi"}:
             options = {int(item["key"]): item for item in snapshot.get("options", [])}
             order = _normalize_key_order(
@@ -851,6 +946,13 @@ def build_snapshot_question_review(attempt, *, correct_answers_released):
                 "studentAnswer": format_snapshot_student_answer(row, answer),
                 "correctAnswer": (
                     format_snapshot_correct_answer(snapshot)
+                    if correct_answers_released
+                    else None
+                ),
+                # Explanations can reveal the answer, so they follow the same
+                # release rule as the correct answer.
+                "explanation": (
+                    (snapshot.get("explanation") or None)
                     if correct_answers_released
                     else None
                 ),

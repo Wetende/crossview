@@ -90,7 +90,7 @@ export default function RubricForm({ rubric = null }) {
 
             <Grid container spacing={3}>
                 {/* Basic Info */}
-                <Grid item xs={12}>
+                <Grid size={12}>
                     <Card>
                         <CardContent>
                             <Stack spacing={3}>
@@ -120,7 +120,7 @@ export default function RubricForm({ rubric = null }) {
                                 />
 
                                 <Grid container spacing={2}>
-                                    <Grid item xs={6}>
+                                    <Grid size={6}>
                                         <TextField
                                             select
                                             label="Scope"
@@ -142,7 +142,7 @@ export default function RubricForm({ rubric = null }) {
                                             ))}
                                         </TextField>
                                     </Grid>
-                                    <Grid item xs={6}>
+                                    <Grid size={6}>
                                         <TextField
                                             label="Max Total Score"
                                             type="number"
@@ -166,7 +166,7 @@ export default function RubricForm({ rubric = null }) {
                 </Grid>
 
                 {/* Dimensions Builder */}
-                <Grid item xs={12}>
+                <Grid size={12}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                         Dimensions
                     </Typography>
@@ -184,9 +184,9 @@ export default function RubricForm({ rubric = null }) {
                                     <Grid
                                         container
                                         spacing={2}
-                                        alignItems="flex-start"
+                                        sx={{ alignItems: "flex-start" }}
                                     >
-                                        <Grid item xs={12} sm={6}>
+                                        <Grid size={{ xs: 12, sm: 6 }}>
                                             <TextField
                                                 label={`Criteria ${index + 1}`}
                                                 value={dim.name}
@@ -203,7 +203,7 @@ export default function RubricForm({ rubric = null }) {
                                                 placeholder="e.g., Clarity, Accuracy"
                                             />
                                         </Grid>
-                                        <Grid item xs={6} sm={2}>
+                                        <Grid size={{ xs: 6, sm: 2 }}>
                                             <TextField
                                                 label="Weight"
                                                 type="number"
@@ -218,13 +218,15 @@ export default function RubricForm({ rubric = null }) {
                                                 fullWidth
                                                 required
                                                 size="small"
-                                                inputProps={{
-                                                    step: "0.1",
-                                                    min: "0",
+                                                slotProps={{
+                                                    htmlInput: {
+                                                        step: "0.1",
+                                                        min: "0",
+                                                    },
                                                 }}
                                             />
                                         </Grid>
-                                        <Grid item xs={6} sm={2}>
+                                        <Grid size={{ xs: 6, sm: 2 }}>
                                             <TextField
                                                 label="Max Pts"
                                                 type="number"
@@ -242,9 +244,7 @@ export default function RubricForm({ rubric = null }) {
                                             />
                                         </Grid>
                                         <Grid
-                                            item
-                                            xs={12}
-                                            sm={2}
+                                            size={{ xs: 12, sm: 2 }}
                                             sx={{
                                                 display: "flex",
                                                 justifyContent: "flex-end",
@@ -278,7 +278,7 @@ export default function RubricForm({ rubric = null }) {
                 </Grid>
 
                 {/* Submit */}
-                <Grid item xs={12}>
+                <Grid size={12}>
                     <Button
                         type="submit"
                         variant="contained"

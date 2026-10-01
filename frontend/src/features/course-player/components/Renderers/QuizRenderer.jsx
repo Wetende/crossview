@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import {
@@ -19,6 +20,8 @@ import MatchingQuestion from "@/features/quizzes/components/MatchingQuestion";
 import OrderingQuestion from "@/features/quizzes/components/OrderingQuestion";
 import FillBlankQuestion from "@/features/quizzes/components/FillBlankQuestion";
 import ImageMatchingQuestion from "@/features/quizzes/components/ImageMatchingQuestion";
+import QuestionExplanation from "@/features/quizzes/components/QuestionExplanation";
+import QuestionHint from "@/features/quizzes/components/QuestionHint";
 import { formatPoints } from "@/lib/formatPoints";
 import { getCsrfHeaders } from "@/utils/csrf";
 import {
@@ -48,6 +51,7 @@ const renderQuestionInput = ({ question, answer, onAnswerChange }) => {
                 >
                     {(question.options || []).map((option, index) => (
                         <AnswerOptionCard
+                            cornerRadius={PLAYER_RADII.control}
                             key={`${answerKey}-${option.id}-${index}`}
                             selected={
                                 String(answer || "") === String(option.id)
@@ -72,6 +76,7 @@ const renderQuestionInput = ({ question, answer, onAnswerChange }) => {
                     const checked = selected.includes(String(option.id));
                     return (
                         <AnswerOptionCard
+                            cornerRadius={PLAYER_RADII.control}
                             key={`${answerKey}-${option.id}-${index}`}
                             selected={checked}
                             control={
@@ -406,6 +411,7 @@ const QuizRenderer = ({
             setResultSummary(summary);
 
             if (node?.id && enrollmentId) {
+                let openingCourseSummary = false;
                 router.post(
                     `/student/programs/${enrollmentId}/session/${node.id}/`,
                     {
@@ -415,10 +421,21 @@ const QuizRenderer = ({
                     },
                     {
                         preserveScroll: true,
-                        only: ["isCompleted", "curriculum"],
+                        only: ["isCompleted", "curriculum", "courseCompleteUrl"],
+                        onSuccess: (page) => {
+                            // Present only when this quiz finished the course.
+                            const courseCompleteUrl =
+                                page?.props?.courseCompleteUrl;
+                            if (courseCompleteUrl) {
+                                openingCourseSummary = true;
+                                router.visit(courseCompleteUrl);
+                            }
+                        },
                         onFinish: () => {
                             setIsSubmitting(false);
-                            if (onComplete) onComplete();
+                            if (!openingCourseSummary && onComplete) {
+                                onComplete();
+                            }
                         },
                     },
                 );
@@ -541,9 +558,9 @@ const QuizRenderer = ({
         return (
             <Paper
                 elevation={0}
-                sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper" }}
+                sx={{ p: 4, borderRadius: PLAYER_RADII.surface, bgcolor: "background.paper" }}
             >
-                <Typography color="text.secondary">Loading quiz...</Typography>
+                <Typography color="textSecondary">Loading quiz...</Typography>
             </Paper>
         );
     }
@@ -552,7 +569,7 @@ const QuizRenderer = ({
         return (
             <Paper
                 elevation={0}
-                sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper" }}
+                sx={{ p: 4, borderRadius: PLAYER_RADII.surface, bgcolor: "background.paper" }}
             >
                 <Alert severity="warning" sx={{ mb: 2 }}>
                     {runtimeError}
@@ -585,22 +602,22 @@ const QuizRenderer = ({
                 elevation={0}
                 sx={{
                     p: { xs: 2, md: 5 },
-                    borderRadius: 2,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "background.paper",
                     textAlign: "center",
                 }}
             >
-                <Typography variant="h5" fontWeight={600} gutterBottom>
+                <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
                     {node?.title || "Quiz"}
                 </Typography>
-                <Typography color="text.secondary" sx={{ mb: 3 }}>
+                <Typography color="textSecondary" sx={{ mb: 3 }}>
                     Open this quiz when you are ready to begin.
                 </Typography>
                 <Button
                     variant="contained"
                     size="large"
                     onClick={() => router.visit(startQuizUrl)}
-                    sx={{ px: 4, borderRadius: 8 }}
+                    sx={{ px: 4, borderRadius: PLAYER_RADII.control }}
                 >
                     Start Quiz
                 </Button>
@@ -615,14 +632,14 @@ const QuizRenderer = ({
                 sx={{
                     p: 5,
                     textAlign: "center",
-                    borderRadius: 2,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "background.paper",
                 }}
             >
-                <Typography variant="h5" fontWeight={600} gutterBottom>
+                <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
                     Quiz
                 </Typography>
-                <Typography color="text.secondary">
+                <Typography color="textSecondary">
                     No questions have been added to this quiz yet.
                 </Typography>
             </Paper>
@@ -642,29 +659,28 @@ const QuizRenderer = ({
                     elevation={0}
                     sx={{
                         p: { xs: 2, md: 5 },
-                        borderRadius: 2,
+                        borderRadius: PLAYER_RADII.surface,
                         bgcolor: "background.paper",
                     }}
                 >
                     <Box sx={{ textAlign: "center", mb: 4 }}>
-                        <Typography variant="h4" fontWeight={700} gutterBottom>
+                        <Typography
+                            variant="h4"
+                            sx={{ fontWeight: 700 }}
+                            gutterBottom
+                        >
                             Quiz Completed
                         </Typography>
 
                         <Typography
                             variant="h2"
-                            color={
-                                resultSummary.passed
-                                    ? "success.main"
-                                    : "warning.main"
-                            }
-                            fontWeight={800}
-                            sx={{ mb: 1 }}
+                            color={resultSummary.passed ? "success" : "warning"}
+                            sx={{ fontWeight: 800, mb: 1 }}
                         >
                             {Math.round(resultSummary.score)}%
                         </Typography>
 
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Attempt #{resultSummary.attemptNumber}
                             {resultSummary.maxAttempts
                                 ? ` of ${resultSummary.maxAttempts}`
@@ -679,8 +695,7 @@ const QuizRenderer = ({
                     <Stack
                         direction="row"
                         spacing={1.5}
-                        justifyContent="center"
-                        flexWrap="wrap"
+                        sx={{ justifyContent: "center", flexWrap: "wrap" }}
                     >
                         {resultSummary.passed &&
                             resultSummary.nextNode?.url && (
@@ -702,7 +717,7 @@ const QuizRenderer = ({
                             runtimeAttemptsRemaining === 0 && (
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ mt: 1 }}
                                 >
                                     No retakes remaining.
@@ -725,12 +740,16 @@ const QuizRenderer = ({
                 elevation={0}
                 sx={{
                     p: { xs: 2, md: 5 },
-                    borderRadius: 2,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "background.paper",
                 }}
             >
                 <Box sx={{ textAlign: "center", mb: 4 }}>
-                    <Typography variant="h4" fontWeight={700} gutterBottom>
+                    <Typography
+                        variant="h4"
+                        sx={{ fontWeight: 700 }}
+                        gutterBottom
+                    >
                         Quiz Completed
                     </Typography>
 
@@ -745,16 +764,19 @@ const QuizRenderer = ({
                             variant="h2"
                             color={
                                 resultSummary.score >= 70
-                                    ? "success.main"
-                                    : "warning.main"
+                                    ? "success"
+                                    : "warning"
                             }
-                            fontWeight={800}
+                            sx={{ fontWeight: 800 }}
                         >
                             {resultSummary.score}%
                         </Typography>
                     </Box>
 
-                    <Typography color="text.secondary" paragraph>
+                    <Typography
+                        color="textSecondary"
+                        sx={{ marginBottom: "16px" }}
+                    >
                         {resultSummary.score >= 70
                             ? "Great job. You've mastered this topic."
                             : "Review the answers below and try again to improve your score."}
@@ -772,7 +794,7 @@ const QuizRenderer = ({
                 </Box>
 
                 <Box sx={{ mb: 4 }}>
-                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
                         Review Your Answers
                     </Typography>
 
@@ -850,7 +872,7 @@ const QuizRenderer = ({
                                 sx={{
                                     p: 2,
                                     mb: 2,
-                                    borderRadius: 2,
+                                    borderRadius: PLAYER_RADII.surface,
                                     borderColor:
                                         statusColor === "success"
                                             ? "success.main"
@@ -870,7 +892,7 @@ const QuizRenderer = ({
                                         sx={{
                                             px: 1,
                                             py: 0.25,
-                                            borderRadius: 1,
+                                            borderRadius: PLAYER_RADII.control,
                                             bgcolor: `${statusColor}.lighter`,
                                             color: `${statusColor}.dark`,
                                             fontWeight: 600,
@@ -880,7 +902,7 @@ const QuizRenderer = ({
                                     </Typography>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Question {index + 1}
                                     </Typography>
@@ -888,8 +910,7 @@ const QuizRenderer = ({
 
                                 <Typography
                                     variant="body1"
-                                    fontWeight={500}
-                                    sx={{ mb: 1 }}
+                                    sx={{ fontWeight: 500, mb: 1 }}
                                 >
                                     {question.text}
                                 </Typography>
@@ -911,22 +932,17 @@ const QuizRenderer = ({
                                     {correctAnswerDisplay && (
                                         <Typography
                                             variant="body2"
-                                            color="success.main"
+                                            color="success"
                                             sx={{ mb: 0.5 }}
                                         >
                                             Correct answer:{" "}
                                             {correctAnswerDisplay}
                                         </Typography>
                                     )}
-                                    {question.explanation && (
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{ mt: 1, fontStyle: "italic" }}
-                                        >
-                                            Note: {question.explanation}
-                                        </Typography>
-                                    )}
+                                    <QuestionExplanation
+                                        explanation={question.explanation}
+                                        ariaLabel={`Explanation for question ${index + 1}`}
+                                    />
                                 </Box>
                             </Paper>
                         );
@@ -960,7 +976,7 @@ const QuizRenderer = ({
             elevation={0}
             sx={{
                 p: { xs: 2, md: 5 },
-                borderRadius: 2,
+                borderRadius: PLAYER_RADII.surface,
                 bgcolor: "background.paper",
                 minHeight: 400,
             }}
@@ -996,12 +1012,16 @@ const QuizRenderer = ({
 
             <Typography
                 variant="h5"
-                fontWeight={600}
                 gutterBottom
-                sx={{ mb: 3 }}
+                sx={{ fontWeight: 600, mb: currentQuestion.hint ? 1.5 : 3 }}
             >
                 {currentQuestion.text}
             </Typography>
+
+            <QuestionHint
+                key={currentQuestion.id}
+                hint={currentQuestion.hint}
+            />
 
             {renderQuestionInput({
                 question: currentQuestion,
@@ -1012,7 +1032,7 @@ const QuizRenderer = ({
             <Stack
                 direction={{ xs: "column-reverse", sm: "row" }}
                 spacing={1}
-                justifyContent="space-between"
+                sx={{ justifyContent: "space-between" }}
             >
                 <Button
                     variant="outlined"

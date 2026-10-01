@@ -1,7 +1,9 @@
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { router } from "@inertiajs/react";
 
+import QuestionExplanation from "@/features/quizzes/components/QuestionExplanation";
 import QuizRenderer from "./QuizRenderer";
 import {
     evaluateQuizAnswers,
@@ -302,6 +304,108 @@ describe("QuizRenderer", () => {
         expect(result.score).toBe(33.29);
     });
 
+    test("reveals a question hint only when the learner asks for it", () => {
+        render(
+            <QuizRenderer
+                node={{
+                    id: 3,
+                    title: "Hints",
+                    properties: {
+                        questions: [
+                            {
+                                id: 301,
+                                type: "mcq",
+                                text: "How many cores?",
+                                options: ["Two", "Four"],
+                                correct: 1,
+                                hint: "<p>Count the <strong>chips</strong>.</p><script>window.hinted = true</script>",
+                            },
+                            {
+                                id: 302,
+                                type: "true_false",
+                                text: "No hint here",
+                                correct: 0,
+                                hint: "<p></p>",
+                            },
+                        ],
+                    },
+                }}
+                enrollmentId={55}
+            />,
+        );
+
+        const toggle = screen.getByRole("button", { name: "Show hint" });
+        expect(toggle).toHaveAttribute("aria-expanded", "false");
+        expect(screen.queryByText("chips")).not.toBeInTheDocument();
+
+        fireEvent.click(toggle);
+
+        expect(screen.getByText("chips").tagName).toBe("STRONG");
+        expect(
+            screen.getByRole("button", { name: "Hide hint" }),
+        ).toHaveAttribute("aria-expanded", "true");
+        expect(document.querySelector("script")).toBeNull();
+        expect(window.hinted).toBeUndefined();
+
+        fireEvent.click(screen.getByLabelText("Four"));
+        fireEvent.click(screen.getByRole("button", { name: "Next Question" }));
+
+        expect(screen.getByText("No hint here")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: /hint/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    test("keeps rich explanations and hints when normalising questions", () => {
+        const [question] = normalizeQuestions([
+            {
+                id: 1,
+                type: "short_answer",
+                text: "<p>Explain</p>",
+                explanation:
+                    '<p>Because <span data-type="inline-math" data-latex="x^2"></span></p>',
+                hint: "<p><br></p>",
+            },
+        ]);
+
+        expect(question.text).toBe("Explain");
+        expect(question.explanation).toBe(
+            '<p>Because <span data-type="inline-math" data-latex="x^2"></span></p>',
+        );
+        expect(question.hint).toBe("");
+    });
+
+    test("escapes legacy plain-text explanations so comparisons survive sanitising", () => {
+        const [legacy, current] = normalizeQuestions([
+            {
+                id: 1,
+                type: "mcq",
+                text: "Which holds?",
+                explanation: "",
+                answer_data: {
+                    explanation: " x < 5 and y > 3 & <b>z</b> ",
+                },
+            },
+            {
+                id: 2,
+                type: "mcq",
+                text: "Rich wins",
+                explanation: "<p>Rich <em>text</em></p>",
+                answer_data: { explanation: "legacy" },
+            },
+        ]);
+
+        expect(legacy.explanation).toBe(
+            "<p>x &lt; 5 and y &gt; 3 &amp; &lt;b&gt;z&lt;/b&gt;</p>",
+        );
+        expect(current.explanation).toBe("<p>Rich <em>text</em></p>");
+
+        render(<QuestionExplanation explanation={legacy.explanation} />);
+        const region = screen.getByRole("region", { name: "Explanation" });
+        expect(region).toHaveTextContent("x < 5 and y > 3 & <b>z</b>");
+        expect(region.querySelector("b")).toBeNull();
+    });
+
     test("uses backend-compatible true/false values when options are omitted", () => {
         const normalized = normalizeQuestions([
             {
@@ -323,5 +427,79 @@ describe("QuizRenderer", () => {
 
         expect(result.pointsEarned).toBe(1);
         expect(result.score).toBe(100);
+    });
+
+    describe("inline quiz completion", () => {
+        const inlineNode = {
+            id: 7,
+            title: "Final check",
+            properties: {
+                questions: [
+                    {
+                        id: 701,
+                        type: "mcq",
+                        text: "Pick the first option",
+                        options: ["First option", "Second option"],
+                        correct: 0,
+                        points: 1,
+                    },
+                ],
+            },
+        };
+
+        beforeEach(() => {
+            router.post.mockClear();
+            router.visit.mockClear();
+        });
+
+        const finishQuiz = (onComplete) => {
+            render(
+                <QuizRenderer
+                    node={inlineNode}
+                    enrollmentId={9}
+                    onComplete={onComplete}
+                />,
+            );
+            fireEvent.click(screen.getByLabelText("First option"));
+            fireEvent.click(screen.getByRole("button", { name: "Finish Quiz" }));
+            expect(router.post).toHaveBeenCalledTimes(1);
+            return router.post.mock.calls[0];
+        };
+
+        test("opens the course summary instead of a second completion post", () => {
+            const onComplete = vi.fn();
+            const [url, , options] = finishQuiz(onComplete);
+
+            expect(url).toBe("/student/programs/9/session/7/");
+            expect(options.only).toEqual([
+                "isCompleted",
+                "curriculum",
+                "courseCompleteUrl",
+            ]);
+            act(() => {
+                options.onSuccess({
+                    props: { courseCompleteUrl: "/student/programs/9/complete/" },
+                });
+                options.onFinish();
+            });
+
+            expect(router.visit).toHaveBeenCalledWith(
+                "/student/programs/9/complete/",
+            );
+            expect(onComplete).not.toHaveBeenCalled();
+        });
+
+        test("keeps the lesson completion flow when the course continues", () => {
+            const onComplete = vi.fn();
+            const [, , options] = finishQuiz(onComplete);
+
+            act(() => {
+                options.onSuccess({ props: { courseCompleteUrl: null } });
+                options.onFinish();
+            });
+
+            expect(router.visit).not.toHaveBeenCalled();
+            expect(onComplete).toHaveBeenCalledTimes(1);
+        });
     });
 });

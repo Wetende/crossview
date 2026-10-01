@@ -5,8 +5,10 @@ import CategoryIcon from "@mui/icons-material/Category";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import GradingIcon from "@mui/icons-material/Grading";
+import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
+import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
-import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import PeopleIcon from "@mui/icons-material/People";
 import PersonIcon from "@mui/icons-material/Person";
@@ -50,7 +52,7 @@ export const ROLE_NAVIGATION = {
                 {
                     label: "Messages",
                     href: "/messages/",
-                    icon: MailOutlineIcon,
+                    icon: MailOutlinedIcon,
                 },
             ],
         },
@@ -110,6 +112,11 @@ export const ROLE_NAVIGATION = {
                     href: "/instructor/students/",
                     icon: PeopleIcon,
                 },
+                {
+                    label: "Question Library",
+                    href: "/instructor/question-library/",
+                    icon: LibraryBooksIcon,
+                },
             ],
         },
         {
@@ -125,6 +132,11 @@ export const ROLE_NAVIGATION = {
                     href: "/instructor/assignments/",
                     icon: AssignmentIcon,
                 },
+                {
+                    label: "Analytics",
+                    href: "/instructor/analytics/",
+                    icon: InsightsOutlinedIcon,
+                },
             ],
         },
         {
@@ -138,7 +150,7 @@ export const ROLE_NAVIGATION = {
                 {
                     label: "Messages",
                     href: "/messages/",
-                    icon: MailOutlineIcon,
+                    icon: MailOutlinedIcon,
                 },
             ],
         },
@@ -198,6 +210,11 @@ export const ROLE_NAVIGATION = {
                     icon: CategoryIcon,
                 },
                 {
+                    label: "Question Banks",
+                    href: "/admin/question-banks/",
+                    icon: LibraryBooksIcon,
+                },
+                {
                     label: "Rubrics",
                     href: "/rubrics/",
                     icon: GradingIcon,
@@ -252,7 +269,7 @@ export const ROLE_NAVIGATION = {
                 {
                     label: "Messages",
                     href: "/messages/",
-                    icon: MailOutlineIcon,
+                    icon: MailOutlinedIcon,
                 },
             ],
         },

@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { Link, router } from "@inertiajs/react";
 import {
     Alert,
@@ -9,11 +10,13 @@ import {
     Typography,
 } from "@mui/material";
 import { IconArrowRight, IconEye, IconRefresh } from "@tabler/icons-react";
+import { EmojiEventsOutlined } from "@mui/icons-material";
 
 import {
     AssessmentResultHero,
     AttemptHistory,
 } from "@/features/learning-experience/components";
+import QuestionExplanation from "@/features/quizzes/components/QuestionExplanation";
 import { formatPoints } from "@/lib/formatPoints";
 
 const formatReviewValue = (value, fallback) => {
@@ -47,7 +50,11 @@ const withAttemptId = (url, attemptId) => {
 const submittedLabel = (value) =>
     value ? new Date(value).toLocaleString() : "Not recorded";
 
-const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
+const QuizResultsRenderer = ({
+    quizResults,
+    nextNode = null,
+    courseCompleteUrl = null,
+}) => {
     const {
         quiz,
         attempts = [],
@@ -116,7 +123,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                 <Typography component="h1" variant="h5">
                     Quiz results
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     {quiz.title}
                     {quiz.nodeTitle ? ` · ${quiz.nodeTitle}` : ""}
                 </Typography>
@@ -125,6 +132,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
             {activeAttempt && (
                 <Box sx={{ mb: 3 }}>
                     <AssessmentResultHero
+                        cornerRadius={PLAYER_RADII.surface}
                         title={
                             hasPassedQuiz
                                 ? "Activity completed"
@@ -159,13 +167,28 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                             direction={{ xs: "column", sm: "row" }}
                             spacing={1}
                             useFlexGap
-                            flexWrap="wrap"
+                            sx={{ flexWrap: "wrap" }}
                         >
+                            {courseCompleteUrl && (
+                                <Button
+                                    component={Link}
+                                    href={courseCompleteUrl}
+                                    variant="contained"
+                                    color="success"
+                                    startIcon={<EmojiEventsOutlined />}
+                                >
+                                    View course summary
+                                </Button>
+                            )}
                             {hasPassedQuiz && nextNode?.url && (
                                 <Button
                                     component={Link}
                                     href={nextNode.url}
-                                    variant="contained"
+                                    variant={
+                                        courseCompleteUrl
+                                            ? "outlined"
+                                            : "contained"
+                                    }
                                     endIcon={<IconArrowRight size={18} />}
                                 >
                                     Continue learning
@@ -195,7 +218,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                         {retryMessage() && (
                             <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                color="textSecondary"
                                 sx={{ mt: 1.5 }}
                             >
                                 {retryMessage()}
@@ -209,15 +232,17 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                 <Stack
                     direction={{ xs: "column", sm: "row" }}
                     spacing={0.5}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
-                    sx={{ mb: 1.5 }}
+                    sx={{
+                        justifyContent: "space-between",
+                        alignItems: { xs: "flex-start", sm: "center" },
+                        mb: 1.5,
+                    }}
                 >
                     <Typography component="h2" variant="h6">
                         Answer review
                     </Typography>
                     {activeAttempt && (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Reviewing attempt #{activeAttempt.attemptNumber}
                         </Typography>
                     )}
@@ -231,7 +256,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
 
                 {questionReview.length === 0 ? (
                     <Paper variant="outlined" sx={{ p: 2.5 }}>
-                        <Typography color="text.secondary">
+                        <Typography color="textSecondary">
                             Question-level review is not available for this
                             attempt.
                         </Typography>
@@ -255,26 +280,28 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                     variant="outlined"
                                     sx={{
                                         p: { xs: 2, sm: 2.5 },
-                                        borderRadius: 2,
+                                        borderRadius: PLAYER_RADII.surface,
                                     }}
                                 >
                                     <Stack
                                         direction={{ xs: "column", sm: "row" }}
                                         spacing={1}
-                                        justifyContent="space-between"
-                                        alignItems={{ sm: "flex-start" }}
-                                        sx={{ mb: 1.25 }}
+                                        sx={{
+                                            justifyContent: "space-between",
+                                            alignItems: { sm: "flex-start" },
+                                            mb: 1.25,
+                                        }}
                                     >
                                         <Box>
                                             <Typography
                                                 variant="overline"
-                                                color="text.secondary"
+                                                color="textSecondary"
                                             >
                                                 Question {index + 1}
                                             </Typography>
                                             <Typography
                                                 variant="subtitle1"
-                                                fontWeight={800}
+                                                sx={{ fontWeight: 800 }}
                                             >
                                                 {item.questionText}
                                             </Typography>
@@ -291,7 +318,7 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                         <Typography variant="body2">
                                             <Box
                                                 component="span"
-                                                color="text.secondary"
+                                                sx={{ color: "text.secondary" }}
                                             >
                                                 Your answer:{" "}
                                             </Box>
@@ -303,8 +330,10 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                         {correctAnswersReleased && (
                                             <Typography
                                                 variant="body2"
-                                                color="success.dark"
-                                                fontWeight={700}
+                                                sx={{
+                                                    color: "success.dark",
+                                                    fontWeight: 700,
+                                                }}
                                             >
                                                 Correct answer:{" "}
                                                 {formatReviewValue(
@@ -315,13 +344,20 @@ const QuizResultsRenderer = ({ quizResults, nextNode = null }) => {
                                         )}
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             Points:{" "}
                                             {formatPoints(item.pointsEarned)} /{" "}
                                             {formatPoints(item.pointsPossible)}
                                         </Typography>
                                     </Stack>
+                                    {/* Explanations follow the same release rule as correct answers. */}
+                                    {correctAnswersReleased && (
+                                        <QuestionExplanation
+                                            explanation={item.explanation}
+                                            ariaLabel={`Explanation for question ${index + 1}`}
+                                        />
+                                    )}
                                 </Paper>
                             );
                         })}

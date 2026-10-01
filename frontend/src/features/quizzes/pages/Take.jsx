@@ -28,6 +28,7 @@ import MatchingQuestion from "@/features/quizzes/components/MatchingQuestion";
 import OrderingQuestion from "@/features/quizzes/components/OrderingQuestion";
 import FillBlankQuestion from "@/features/quizzes/components/FillBlankQuestion";
 import ImageMatchingQuestion from "@/features/quizzes/components/ImageMatchingQuestion";
+import QuestionHint from "@/features/quizzes/components/QuestionHint";
 import { getCsrfHeaders } from "@/utils/csrf";
 import {
     AnswerOptionCard,
@@ -440,8 +441,10 @@ export default function Take({
                     <Paper sx={{ p: 2, mb: 3 }}>
                         <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
+                            sx={{
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                            }}
                         >
                             <Box>
                                 <Typography variant="h5">
@@ -449,7 +452,7 @@ export default function Take({
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                 >
                                     {quiz.nodeTitle}
                                 </Typography>
@@ -472,8 +475,10 @@ export default function Take({
                         <Box sx={{ mt: 2 }}>
                             <Stack
                                 direction="row"
-                                justifyContent="space-between"
-                                sx={{ mb: 0.5 }}
+                                sx={{
+                                    justifyContent: "space-between",
+                                    mb: 0.5,
+                                }}
                             >
                                 <Typography variant="caption">
                                     {answeredCount} of {questions.length}{" "}
@@ -511,9 +516,8 @@ export default function Take({
                                     <CardContent>
                                         <Stack
                                             direction="row"
-                                            alignItems="center"
                                             spacing={2}
-                                            sx={{ mb: 2 }}
+                                            sx={{ alignItems: "center", mb: 2 }}
                                         >
                                             <Chip
                                                 label={`Question ${idx + 1}`}
@@ -525,14 +529,21 @@ export default function Take({
                                                 size="small"
                                             />
                                         </Stack>
-                                        <Typography variant="h6" sx={{ mb: 3 }}>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{ mb: question.hint ? 1.5 : 3 }}
+                                        >
                                             {question.text}
                                         </Typography>
+                                        <QuestionHint hint={question.hint} />
                                         {renderQuestionContent(question)}
                                     </CardContent>
                                 </Card>
                             ))}
-                            <Stack direction="row" justifyContent="flex-end">
+                            <Stack
+                                direction="row"
+                                sx={{ justifyContent: "flex-end" }}
+                            >
                                 <Button
                                     variant="contained"
                                     color="primary"
@@ -553,9 +564,8 @@ export default function Take({
                                 <CardContent>
                                     <Stack
                                         direction="row"
-                                        alignItems="center"
                                         spacing={2}
-                                        sx={{ mb: 2 }}
+                                        sx={{ alignItems: "center", mb: 2 }}
                                     >
                                         <Chip
                                             label={`Question ${currentIdx + 1}`}
@@ -567,9 +577,18 @@ export default function Take({
                                             size="small"
                                         />
                                     </Stack>
-                                    <Typography variant="h6" sx={{ mb: 3 }}>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{
+                                            mb: currentQuestion.hint ? 1.5 : 3,
+                                        }}
+                                    >
                                         {currentQuestion.text}
                                     </Typography>
+                                    <QuestionHint
+                                        key={currentQuestion.id}
+                                        hint={currentQuestion.hint}
+                                    />
                                     {renderQuestionContent(currentQuestion)}
                                 </CardContent>
                             </Card>
@@ -578,7 +597,7 @@ export default function Take({
                             <Stack
                                 direction={{ xs: "column-reverse", sm: "row" }}
                                 spacing={1}
-                                justifyContent="space-between"
+                                sx={{ justifyContent: "space-between" }}
                             >
                                 <Button
                                     startIcon={<IconChevronLeft />}

@@ -111,13 +111,13 @@ export default function ProgramCategoriesIndex({
                     }}
                 >
                     <Box>
-                        <Stack direction="row" spacing={1.25} alignItems="center">
+                        <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
                             <CategoryIcon color="primary" />
-                            <Typography variant="h4" fontWeight="bold">
+                            <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                                 Program Categories
                             </Typography>
                         </Stack>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             Manage the academic categories available on program forms.
                         </Typography>
                     </Box>
@@ -248,10 +248,10 @@ export default function ProgramCategoriesIndex({
                     <Card>
                         <CardContent>
                             <Stack spacing={2}>
-                                <Typography variant="h6" fontWeight={700}>
+                                <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                     Summary
                                 </Typography>
-                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
                                     <Chip
                                         label={`${data.programCategories.length} categories`}
                                         color="primary"

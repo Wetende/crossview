@@ -106,13 +106,11 @@ export default function InstructorProgramsIndex({
       {/* Header */}
       <Stack
         direction={{ xs: "column", sm: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", sm: "center" }}
         spacing={2}
-        sx={{ mb: 3 }}
+        sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" }, mb: 3 }}
       >
         <Box>
-          <Typography variant="h4" fontWeight={700}>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Courses
           </Typography>
           <Box
@@ -145,9 +143,7 @@ export default function InstructorProgramsIndex({
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={2}
-        alignItems={{ xs: "stretch", sm: "center" }}
-        justifyContent="space-between"
-        sx={{ borderBottom: 1, borderColor: "divider", mb: 4, pb: 1 }}
+        sx={{ alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between", borderBottom: 1, borderColor: "divider", mb: 4, pb: 1 }}
       >
         <Tabs
           value={tab}
@@ -185,7 +181,7 @@ export default function InstructorProgramsIndex({
           {filteredGroups.map((group) => (
             <Fragment key={group.value || group.label}>
               <Box>
-                <Typography variant="subtitle2" fontWeight={700}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                   {group.label}
                 </Typography>
               </Box>
@@ -262,7 +258,7 @@ function EmptyState({ tab }) {
       <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
         {title}
       </Typography>
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         {body}
       </Typography>
       <Button

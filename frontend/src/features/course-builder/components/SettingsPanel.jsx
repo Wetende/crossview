@@ -52,6 +52,8 @@ import { SETTINGS_SECTIONS } from "../utils/builderTabs";
 import { hasEditConflict } from "../utils/editConflict";
 import EngagementEditor from "./EngagementEditor";
 import CertificateTemplateSelector from "@/features/certifications/components/CertificateTemplateSelector";
+import { getIntroVideoUrlError } from "@/utils/introVideoUrl";
+import IntroVideoUrlField from "./IntroVideoUrlField";
 
 const SETTINGS_SECTION_ICONS = {
     main: MainIcon,
@@ -131,6 +133,9 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         video_hours: program.videoHours ?? 0,
         description: program.description || "",
         whatYouLearn: program.whatYouLearnHtml || "",
+        intro_video_url: program.introVideoUrl || "",
+        requirements_html: program.requirementsHtml || "",
+        audience_html: program.audienceHtml || "",
         preview_description: program.previewDescription || "",
         is_featured: Boolean(program.isFeatured),
         lock_lessons_in_order: program.lockLessonsInOrder !== false,
@@ -279,6 +284,8 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     video_hours: currentData.video_hours,
                     description: currentData.description,
                     whatYouLearn: currentData.whatYouLearn,
+                    requirements_html: currentData.requirements_html,
+                    audience_html: currentData.audience_html,
                     preview_description: currentData.preview_description,
                     lock_lessons_in_order: currentData.lock_lessons_in_order,
                     delivery_mode: currentData.delivery_mode,
@@ -286,6 +293,11 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                 };
                 if (!hasExamBodies) {
                     payload.level = currentData.level;
+                }
+                // Leave the saved intro video alone while the field shows an
+                // error, so autosave keeps saving the rest of the section.
+                if (!getIntroVideoUrlError(currentData.intro_video_url)) {
+                    payload.intro_video_url = currentData.intro_video_url;
                 }
                 if (canManageFeatured) {
                     payload.is_featured = currentData.is_featured;
@@ -312,13 +324,15 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                 return payload;
             }
             if (settingsSection === "access") {
-                return {
-                    tab: "settings",
-                    section: "access",
-                    access_duration_days: currentData.access_time_limit_enabled
-                        ? currentData.access_duration_days || ""
-                        : "",
-                };
+                const payload = { tab: "settings", section: "access" };
+                // A switched-on limit without days is incomplete: keep the
+                // saved value until the user enters a number of days.
+                if (!currentData.access_time_limit_enabled) {
+                    payload.access_duration_days = "";
+                } else if (currentData.access_duration_days) {
+                    payload.access_duration_days = currentData.access_duration_days;
+                }
+                return payload;
             }
             if (settingsSection === "prerequisites") {
                 return {
@@ -522,13 +536,13 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         <Box>
             {renderFieldLabel("Owner")}
             {program.owner ? (
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                     <Avatar>{program.owner.name?.charAt(0) || "I"}</Avatar>
                     <Box>
-                        <Typography variant="body2" fontWeight={600}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                             {program.owner.name}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                             {program.owner.email}
                         </Typography>
                     </Box>
@@ -553,7 +567,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     renderValue={(selected) => {
                         if (selected.length === 0) {
                             return (
-                                <Typography color="text.secondary">
+                                <Typography color="textSecondary">
                                     Choose instructor
                                 </Typography>
                             );
@@ -592,7 +606,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
             <TextField
                 fullWidth
                 value={value || "Not set"}
-                InputProps={{ readOnly: true }}
+                slotProps={{ input: { readOnly: true } }}
                 sx={{
                     "& .MuiInputBase-input": {
                         color: value ? "text.primary" : "text.secondary",
@@ -673,7 +687,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             <MenuItem value="in_person">In person</MenuItem>
                         </Select>
                     </FormControl>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="textSecondary">
                         {program.deliveryModeLocked
                             ? "Delivery mode is controlled by platform policy."
                             : "Used for online learning, engagement, pricing, and integrations."}
@@ -702,7 +716,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             }}
                         />
                     )}
-                    <Stack direction="row" spacing={1} alignItems="center">
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <Button
                             variant="outlined"
                             component="label"
@@ -727,6 +741,11 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     </Stack>
                 </Box>
 
+                <IntroVideoUrlField
+                    value={formData.intro_video_url}
+                    onChange={(value) => setData("intro_video_url", value)}
+                />
+
                 <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                     <Box sx={{ flex: 1 }}>
                         {renderFieldLabel("Course duration")}
@@ -737,7 +756,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("duration_hours", event.target.value)
                             }
-                            inputProps={{ min: 0 }}
+                            slotProps={{ htmlInput: { min: 0 } }}
                             helperText="Total course duration in hours."
                         />
                     </Box>
@@ -750,7 +769,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("video_hours", event.target.value)
                             }
-                            inputProps={{ min: 0 }}
+                            slotProps={{ htmlInput: { min: 0 } }}
                             helperText="Video content duration in hours."
                         />
                     </Box>
@@ -773,6 +792,26 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                         onChange={(value) => setData("whatYouLearn", value)}
                         minHeight={180}
                         placeholder="List the outcomes students should be able to achieve."
+                    />
+                </Box>
+
+                <Box>
+                    {renderFieldLabel("Requirements")}
+                    <RichTextEditor
+                        value={formData.requirements_html}
+                        onChange={(value) => setData("requirements_html", value)}
+                        minHeight={160}
+                        placeholder="List any knowledge, tools, or equipment students need before starting."
+                    />
+                </Box>
+
+                <Box>
+                    {renderFieldLabel("Who this course is for")}
+                    <RichTextEditor
+                        value={formData.audience_html}
+                        onChange={(value) => setData("audience_html", value)}
+                        minHeight={160}
+                        placeholder="Describe the learners this course is designed for."
                     />
                 </Box>
 
@@ -976,7 +1015,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                                             : "",
                                     )
                                 }
-                                inputProps={{ min: 1 }}
+                                slotProps={{ htmlInput: { min: 1 } }}
                                 error={!formData.access_duration_days}
                                 helperText={
                                     !formData.access_duration_days
@@ -1008,7 +1047,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                         onChange={(event) =>
                             setData("prerequisite_passing_percent", event.target.value)
                         }
-                        inputProps={{ min: 0, max: 100 }}
+                        slotProps={{ htmlInput: { min: 0, max: 100 } }}
                         helperText="Use 0 when completion alone is enough."
                     />
                 </Box>
@@ -1028,7 +1067,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             renderValue={(selected) => {
                                 if (selected.length === 0) {
                                     return (
-                                        <Typography color="text.secondary">
+                                        <Typography color="textSecondary">
                                             Select prerequisite courses
                                         </Typography>
                                     );
@@ -1086,7 +1125,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     >
                         <Typography
                             variant="body1"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ maxWidth: 500, lineHeight: 1.5 }}
                         >
                             Upload syllabus, reading lists, or other downloadable
@@ -1110,7 +1149,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                     onChange={handleResourceUpload}
                 />
                 {formData.materials.length > 0 && (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="textSecondary">
                         {formData.materials.length} file
                         {formData.materials.length === 1 ? "" : "s"} ready to upload.
                     </Typography>
@@ -1141,7 +1180,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                                         secondary={
                                             resource.ext ? `.${resource.ext}` : ""
                                         }
-                                        primaryTypographyProps={{ variant: "body2" }}
+                                        slotProps={{ primary: { variant: "body2" } }}
                                     />
                                 </ListItem>
                             ))}
@@ -1210,7 +1249,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("rating_average", event.target.value)
                             }
-                            inputProps={{ min: 0, max: 5, step: 0.1 }}
+                            slotProps={{ htmlInput: { min: 0, max: 5, step: 0.1 } }}
                             error={Boolean(errors.rating_average)}
                             helperText={
                                 errors.rating_average ||
@@ -1227,7 +1266,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                             onChange={(event) =>
                                 setData("rating_count", event.target.value)
                             }
-                            inputProps={{ min: 0, step: 1 }}
+                            slotProps={{ htmlInput: { min: 0, step: 1 } }}
                             error={Boolean(errors.rating_count)}
                             helperText={
                                 errors.rating_count ||
@@ -1244,6 +1283,10 @@ const SettingsPanel = forwardRef(function SettingsPanel(
         settingsSection === "access" &&
         formData.access_time_limit_enabled &&
         !formData.access_duration_days;
+    const isIntroVideoUrlInvalid =
+        activeTab === "settings" &&
+        settingsSection === "main" &&
+        Boolean(getIntroVideoUrlError(formData.intro_video_url));
 
     const autosaveValue = useMemo(
         () => ({
@@ -1271,8 +1314,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
     const settingsAutosaveEnabled =
         Boolean(program.id) &&
         autosaveSectionAllowed &&
-        !hasPendingFileWork &&
-        !isAccessTimeLimitIncomplete;
+        !hasPendingFileWork;
 
     const saveSettingsPayload = useCallback(
         (payload, callbacks = {}) => {
@@ -1347,7 +1389,11 @@ const SettingsPanel = forwardRef(function SettingsPanel(
                 <Button
                     variant="contained"
                     onClick={handleSubmit}
-                    disabled={processing || isAccessTimeLimitIncomplete}
+                    disabled={
+                        processing ||
+                        isAccessTimeLimitIncomplete ||
+                        isIntroVideoUrlInvalid
+                    }
                     size="large"
                 >
                     Save changes
@@ -1474,7 +1520,7 @@ const SettingsPanel = forwardRef(function SettingsPanel(
             case "practicum":
                 return (
                     <Stack spacing={3}>
-                        <Typography variant="h5" fontWeight="bold">
+                        <Typography variant="h5" sx={{ fontWeight: "bold" }}>
                             Practicum Settings
                         </Typography>
                         <Alert severity="info">

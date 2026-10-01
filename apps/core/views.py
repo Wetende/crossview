@@ -25,20 +25,22 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.dateparse import parse_date, parse_datetime
 from django.utils import timezone
+from django.template.defaultfilters import linebreaks
 from django.utils.encoding import force_bytes, force_str
-from django.utils.html import strip_tags
+from django.utils.html import escape, strip_tags
 from django.utils.http import (
     url_has_allowed_host_and_scheme,
     urlsafe_base64_decode,
     urlsafe_base64_encode,
 )
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe
 from inertia import render
 
 logger = logging.getLogger(__name__)
 
 from apps.assessments.text_normalization import (
+    normalize_assessment_rich_text,
     normalize_assessment_text,
     normalize_assessment_text_list,
     normalize_assessment_text_mapping,
@@ -59,6 +61,8 @@ from apps.certifications.services import (
     VerificationService,
     serialize_verification_result,
 )
+from apps.core.inertia_errors import flash_inertia_errors
+from apps.core.intro_video import validate_intro_video_url
 from apps.core.learning_outcomes import (
     extract_learning_outcome_items_from_html,
     resolve_learning_outcomes_html,
@@ -81,6 +85,12 @@ from apps.core.utils import (
     get_post_data,
     is_instructor,
     should_render_inertia_prop,
+)
+from apps.curriculum.preview import (
+    ancestors_published,
+    coerce_preview_flag,
+    is_public_preview_lesson,
+    public_preview_url,
 )
 
 COURSE_ASSESSMENT_TYPES = {"quiz", "assignment", "practicum", "peer_review"}
@@ -157,6 +167,36 @@ def _get_platform_pricing_context() -> dict:
         "platform_features": platform_features,
         "currency_code": platform_settings.currency_code,
     }
+
+
+def _program_enrollment_offer(
+    program,
+    pricing_context: dict | None = None,
+    *,
+    course_delivery_mode: str | None = None,
+):
+    """Return ``(pricing, price_display, enrollment_mode)`` for public enrollment CTAs."""
+    context = pricing_context or _get_platform_pricing_context()
+    pricing = get_program_pricing(
+        program,
+        deployment_mode=context["deployment_mode"],
+        platform_features=context["platform_features"],
+        currency_code=context["currency_code"],
+        course_delivery_mode=course_delivery_mode,
+    )
+    price_display = serialize_price_display(pricing)
+    if price_display["allowsOnlineCheckout"] or price_display["allowsOfflinePayment"]:
+        enrollment_mode = "paid"
+    elif pricing.get("requires_approval", False):
+        enrollment_mode = "approval"
+    else:
+        enrollment_mode = "free"
+    return pricing, price_display, enrollment_mode
+
+
+def _preview_flag_from_properties(properties) -> bool:
+    props = properties if isinstance(properties, dict) else {}
+    return coerce_preview_flag(props.get("is_preview"))
 
 
 def _program_pricing_fields(program, pricing_context: dict | None = None) -> dict:
@@ -570,6 +610,64 @@ def public_programs_list(request):
     )
 
 
+def _public_instructor_name(user) -> str:
+    """Public display name; never falls back to the email address."""
+    return user.get_full_name().strip() or "Instructor"
+
+
+def _public_program_instructor(assignment) -> dict | None:
+    """Present the course's primary instructor on the public course page.
+
+    Only reviewed profile details are public: the legacy instructor profile is
+    application data, so draft, pending and rejected profiles stay private.
+    """
+    from apps.core.models import InstructorProfile
+
+    if assignment is None:
+        return None
+
+    user = assignment.instructor
+    profile = (
+        InstructorProfile.objects.filter(user=user, status="approved")
+        .only("job_title", "bio", "linkedin_url")
+        .first()
+    )
+    return {
+        "name": _public_instructor_name(user),
+        "jobTitle": profile.job_title if profile else "",
+        "bio": profile.bio if profile else "",
+        "linkedinUrl": profile.linkedin_url if profile else "",
+        "avatar": None,
+    }
+
+
+def _public_program_facts(
+    program,
+    *,
+    delivery_profile,
+    enrollment_mode: str,
+    lesson_count: int,
+    duration_hours,
+) -> dict:
+    """Key facts shown in the public course details panel."""
+    from apps.certifications.services import program_offers_certificate
+
+    return {
+        "certificateOnCompletion": program_offers_certificate(program),
+        "examBody": program.exam_body or "",
+        "awardType": program.award_type or "",
+        "deliveryMode": delivery_profile.delivery_mode,
+        "deliveryModeLabel": delivery_profile.get_delivery_mode_display(),
+        # Access expiry is only applied to paid access grants.
+        "accessDurationDays": (
+            program.access_duration_days if enrollment_mode == "paid" else None
+        ),
+        "level": program.level or "",
+        "durationHours": duration_hours,
+        "lessonCount": lesson_count,
+    }
+
+
 def public_program_detail(
     request,
     slug: str | None = None,
@@ -604,6 +702,8 @@ def public_program_detail(
                 children = node.children.all().order_by("position")
             else:
                 children = node.children.filter(is_published=True).order_by("position")
+            children = list(children)
+            lesson_is_preview = not children and is_public_preview_lesson(node)
 
             result.append(
                 {
@@ -611,8 +711,15 @@ def public_program_detail(
                     "title": node.title,
                     "type": node.node_type,
                     "duration": _node_duration_minutes(node.properties),
-                    "isPreview": node.properties.get("is_preview", False),
-                    "children": build_tree(children) if children.exists() else [],
+                    "isPreview": lesson_is_preview,
+                    # Instructor draft previews list unpublished nodes, whose
+                    # public preview URL would 404, so only link on the live page.
+                    "previewUrl": (
+                        public_preview_url(program, node.id)
+                        if lesson_is_preview and not is_preview
+                        else None
+                    ),
+                    "children": build_tree(children) if children else [],
                 }
             )
         return result
@@ -652,21 +759,21 @@ def public_program_detail(
         total_nodes_filter["is_published"] = True
     total_nodes = CurriculumNode.objects.filter(**total_nodes_filter).count()
 
-    # Get instructor info
+    # Get instructor info, primary instructor first
     instructors_data = []
     # Use InstructorAssignment model to get correctly assigned instructors
     from apps.progression.models import InstructorAssignment
 
-    assignments = InstructorAssignment.objects.filter(program=program).select_related(
-        "instructor"
+    assignments = list(
+        InstructorAssignment.objects.filter(program=program)
+        .select_related("instructor")
+        .order_by("-is_primary", "assigned_at", "id")
     )
 
     for assignment in assignments:
-        instructor = assignment.instructor
         instructors_data.append(
             {
-                "id": instructor.id,
-                "name": instructor.get_full_name() or instructor.email,
+                "name": _public_instructor_name(assignment.instructor),
                 "avatar": None,  # TODO: Add avatar field
                 "role": assignment.role,  # Include role (e.g. "Primary Instructor")
             }
@@ -714,7 +821,7 @@ def public_program_detail(
                 "id": review.user_id,
                 "name": review.user.get_full_name()
                 or review.user.username
-                or review.user.email,
+                or "Learner",
             },
             "updatedAt": review.updated_at.isoformat() if review.updated_at else None,
         }
@@ -765,22 +872,15 @@ def public_program_detail(
         ).exists()
 
     # Calculate price display and enrollment mode
-    pricing = get_program_pricing(
-        program,
-        deployment_mode=pricing_context["deployment_mode"],
-        platform_features=pricing_context["platform_features"],
-        currency_code=pricing_context["currency_code"],
-    )
-    price_display = serialize_price_display(pricing)
-    price = pricing.get("effective_price", pricing.get("price", 0))
+    from apps.learning_operations.services import get_course_delivery_profile
 
-    # Determine enrollment mode based on pricing
-    if price_display["allowsOnlineCheckout"] or price_display["allowsOfflinePayment"]:
-        enrollment_mode = "paid"
-    elif pricing.get("requires_approval", False):
-        enrollment_mode = "approval"
-    else:
-        enrollment_mode = "free"
+    delivery_profile = get_course_delivery_profile(program)
+    pricing, price_display, enrollment_mode = _program_enrollment_offer(
+        program,
+        pricing_context,
+        course_delivery_mode=delivery_profile.delivery_mode,
+    )
+    price = pricing.get("effective_price", pricing.get("price", 0))
 
     from apps.core.services.course_prerequisites import CoursePrerequisiteService
 
@@ -838,6 +938,19 @@ def public_program_detail(
         "notices": program.notices or [],
         "what_you_learn": program.what_you_learn_items or [],
         "what_you_learn_html": program.what_you_learn_html or "",
+        "introVideoUrl": program.intro_video_url or "",
+        "requirementsHtml": program.requirements_html or "",
+        "audienceHtml": program.audience_html or "",
+        "instructor": _public_program_instructor(
+            assignments[0] if assignments else None
+        ),
+        "facts": _public_program_facts(
+            program,
+            delivery_profile=delivery_profile,
+            enrollment_mode=enrollment_mode,
+            lesson_count=lesson_count,
+            duration_hours=duration_hours,
+        ),
         "resources": [
             {
                 "id": r.id,
@@ -879,6 +992,109 @@ def public_program_detail(
     )
 
 
+@require_safe
+def public_preview_lesson(request, slug: str, node_id: int):
+    """Read-only course player for a free preview lesson; no login required.
+
+    Only published preview lessons (see ``apps.curriculum.preview``) under
+    published ancestors of a published program open here; anything else is a
+    404, decided with a few bounded queries before the curriculum is built.
+    Enrolled learners who can open the lesson are sent to their real session.
+    """
+    from django.shortcuts import get_object_or_404
+
+    from apps.curriculum.models import CurriculumNode
+    from apps.progression.models import Enrollment
+    from apps.progression.views import (
+        _build_player_node_payload,
+        _build_preview_curriculum,
+        _build_program_player_payload,
+        _check_unlock_status,
+    )
+
+    program = get_object_or_404(Program, slug=slug, is_published=True)
+    node = (
+        CurriculumNode.objects.select_related("parent")
+        .filter(pk=node_id, program=program, is_published=True, is_preview=True)
+        .first()
+    )
+    if (
+        node is None
+        or not is_public_preview_lesson(node)
+        or not ancestors_published(node)
+    ):
+        raise Http404("This lesson is not available as a free preview.")
+
+    if request.user.is_authenticated:
+        enrollment = (
+            Enrollment.objects.select_related("program")
+            .filter(
+                user=request.user,
+                program=program,
+                status__in=["active", "completed"],
+            )
+            .order_by("-id")
+            .first()
+        )
+        # A learner whose lesson is still locked (drip, expiry, ...) keeps the
+        # free preview instead of bouncing off the session view.
+        if enrollment and _check_unlock_status(enrollment, node)["is_unlocked"]:
+            return redirect(
+                "progression:student.session", pk=enrollment.id, node_id=node.id
+            )
+
+    curriculum, preview_lessons = _build_preview_curriculum(program)
+    preview_ids = [lesson["id"] for lesson in preview_lessons]
+    if node.id not in preview_ids:
+        raise Http404("This lesson is not available as a free preview.")
+    index = preview_ids.index(node.id)
+    program_url = _program_public_url(program)
+    _, price_display, enrollment_mode = _program_enrollment_offer(program)
+
+    return render(
+        request,
+        "Student/CoursePlayer",
+        {
+            "activeView": "preview",
+            "node": _build_player_node_payload(request, node, None),
+            "program": _build_program_player_payload(program),
+            "instructor": None,
+            "enrollment": None,
+            "curriculum": curriculum,
+            "prevNode": preview_lessons[index - 1] if index > 0 else None,
+            "nextNode": (
+                preview_lessons[index + 1]
+                if index + 1 < len(preview_lessons)
+                else None
+            ),
+            "progress": 0,
+            "isCompleted": False,
+            "isLocked": False,
+            "status": "preview",
+            "lockReason": None,
+            "lockReasonText": None,
+            "unlocksAt": None,
+            "discussions": [],
+            "notes": [],
+            "preview": {
+                "programUrl": program_url,
+                # Same inputs as the public page CTA; the label is composed by
+                # the shared frontend helper (getEnrollCtaLabel).
+                "enrollCta": {
+                    "href": program_url,
+                    "ctaState": (
+                        "not_enrolled_paid"
+                        if enrollment_mode == "paid"
+                        else "not_enrolled"
+                    ),
+                    "enrollmentMode": enrollment_mode,
+                    "priceDisplay": price_display,
+                },
+            },
+        },
+    )
+
+
 def _recompute_program_rating(program_id: int):
     # Public aggregate review stats are controlled from Course Builder settings.
     # Individual submitted reviews can still be moderated and displayed.
@@ -898,10 +1114,11 @@ def program_review_submit(request, pk: int):
         messages.error(request, "Program not found.")
         return redirect("core:programs")
 
+    return_url = _safe_next_url(request, fallback=_program_public_url(program))
     enrollment = Enrollment.objects.filter(user=request.user, program=program).first()
     if not enrollment or enrollment.status != "completed":
         messages.error(request, "You can only review courses after completing them.")
-        return redirect(_program_public_url(program))
+        return redirect(return_url)
 
     data = get_post_data(request)
     try:
@@ -911,15 +1128,20 @@ def program_review_submit(request, pk: int):
 
     if rating < 1 or rating > 5:
         messages.error(request, "Rating must be between 1 and 5.")
-        return redirect(_program_public_url(program))
+        return redirect(return_url)
 
-    raw_review = str(data.get("review_html") or data.get("review") or "").strip()
-    review_text = strip_tags(raw_review).strip()
-    review_html = raw_review
+    rich_review = str(data.get("review_html") or "").strip()
+    if rich_review:
+        review_html = rich_review
+        review_text = strip_tags(rich_review).strip()
+    else:
+        # Plain-text reviews are escaped and paragraph-wrapped for display.
+        review_text = str(data.get("review") or "").strip()
+        review_html = linebreaks(escape(review_text)) if review_text else ""
 
     if review_text and len(review_text) > 5000:
         messages.error(request, "Review is too long (max 5000 characters).")
-        return redirect(_program_public_url(program))
+        return redirect(return_url)
 
     review, created = ProgramReview.objects.get_or_create(
         program=program,
@@ -943,7 +1165,7 @@ def program_review_submit(request, pk: int):
         review.save()
 
     messages.success(request, "Review submitted and awaiting moderation.")
-    return redirect(_program_public_url(program))
+    return redirect(return_url)
 
 
 @login_required
@@ -1573,6 +1795,7 @@ def _get_student_dashboard_data(user) -> dict:
     )
     from apps.curriculum.models import CurriculumNode
     from apps.progression.models import Enrollment, NodeCompletion
+    from apps.progression.services import mark_enrollment_completed
     from apps.learning_operations.selectors import (
         get_student_operations,
         serialize_enrollment_operations,
@@ -1633,8 +1856,14 @@ def _get_student_dashboard_data(user) -> dict:
         .values_list("program_id", "cnt")
     )
 
+    # Published leaves only, matching leaf_counts, so completions of
+    # unpublished lessons cannot mark a course complete.
     completion_counts = dict(
-        NodeCompletion.objects.filter(enrollment_id__in=enrollment_ids)
+        NodeCompletion.objects.filter(
+            enrollment_id__in=enrollment_ids,
+            node__is_published=True,
+            node__children__isnull=True,
+        )
         .values("enrollment_id")
         .annotate(cnt=Count("id"))
         .values_list("enrollment_id", "cnt")
@@ -1649,11 +1878,14 @@ def _get_student_dashboard_data(user) -> dict:
         if enrollment.status in {"active", "completed"}:
             target_status = "completed" if progress >= 100 else "active"
             if enrollment.status != target_status:
-                enrollment.status = target_status
-                enrollment.completed_at = (
-                    timezone.now() if target_status == "completed" else None
-                )
-                enrollment.save(update_fields=["status", "completed_at", "updated_at"])
+                if target_status == "completed":
+                    mark_enrollment_completed(enrollment)
+                else:
+                    enrollment.status = target_status
+                    enrollment.completed_at = None
+                    enrollment.save(
+                        update_fields=["status", "completed_at", "updated_at"]
+                    )
 
         program = enrollment.program
         enrollment_data.append(
@@ -3385,6 +3617,70 @@ def instructor_program_detail(request, pk: int):
 
 
 @login_required
+def instructor_analytics_index(request):
+    """List the instructor's courses, each linking to its analytics page."""
+    if not is_instructor(request.user):
+        return redirect("/dashboard/")
+
+    programs = (
+        Program.objects.filter(id__in=get_instructor_program_ids(request.user))
+        .annotate(learner_count=Count("enrollments"))
+        .order_by("name", "id")
+    )
+    return render(
+        request,
+        "Instructor/Analytics/Index",
+        {
+            "programs": [
+                {
+                    "id": program.id,
+                    "title": program.name,
+                    "code": program.code or "",
+                    "isPublished": program.is_published,
+                    "learnerCount": program.learner_count,
+                    "analyticsUrl": f"/instructor/programs/{program.id}/analytics/",
+                }
+                for program in programs
+            ]
+        },
+    )
+
+
+@login_required
+def instructor_program_analytics(request, pk: int):
+    """Course analytics for an assigned instructor (or staff)."""
+    from django.shortcuts import get_object_or_404
+
+    from apps.learning_operations.analytics import (
+        ANALYTICS_RANGES,
+        get_course_analytics,
+        parse_analytics_range,
+    )
+
+    program = get_object_or_404(
+        Program, pk=pk, id__in=get_instructor_program_ids(request.user)
+    )
+    range_key = parse_analytics_range(request.GET.get("range"))
+    base_url = f"/instructor/programs/{program.id}/"
+    return render(
+        request,
+        "Instructor/Programs/Analytics",
+        {
+            "program": {"id": program.id, "title": program.name, "url": base_url},
+            "range": range_key,
+            "ranges": list(ANALYTICS_RANGES),
+            **get_course_analytics(program, range_key),
+            "links": {
+                "overview": base_url,
+                "roster": f"{base_url}students/",
+                "gradebook": f"{base_url}gradebook/",
+                "builder": f"{base_url}manage/",
+            },
+        },
+    )
+
+
+@login_required
 def instructor_students(request):
     """List all students enrolled in instructor's programs."""
     if not is_instructor(request.user):
@@ -3433,6 +3729,9 @@ def instructor_student_detail(request, pk: int):
 
     from django.shortcuts import get_object_or_404
 
+    from apps.learning_operations.learner_management import (
+        ALLOWED_ENROLLMENT_STATUS_TRANSITIONS,
+    )
     from apps.progression.models import Enrollment, NodeCompletion
 
     program_ids = get_instructor_program_ids(request.user)
@@ -3452,6 +3751,10 @@ def instructor_student_detail(request, pk: int):
                 "programId": e.program.id,
                 "programName": e.program.name,
                 "status": e.status,
+                # The server owns legal transitions; the dialog only offers these.
+                "allowedStatuses": sorted(
+                    ALLOWED_ENROLLMENT_STATUS_TRANSITIONS.get(e.status, set())
+                ),
                 "completions": completions,
                 "enrolledAt": e.enrolled_at.isoformat(),
             }
@@ -3473,7 +3776,12 @@ def instructor_student_detail(request, pk: int):
 
 @login_required
 def instructor_enrollment_status(request, enrollment_id: int):
-    """Update enrollment status (active, suspended, withdrawn, completed)."""
+    """
+    Change an enrollment's status and return to the student's page.
+
+    Only transitions in ALLOWED_ENROLLMENT_STATUS_TRANSITIONS are accepted;
+    anything else is reported back as ``errors.status``.
+    """
     if not is_instructor(request.user):
         return redirect("/dashboard/")
 
@@ -3492,22 +3800,29 @@ def instructor_enrollment_status(request, enrollment_id: int):
     )
 
     data = get_post_data(request)
-    new_status = data.get("status", "")
+    new_status = str(data.get("status") or "")
 
-    valid_statuses = ["active", "suspended", "withdrawn", "completed"]
-    if new_status in valid_statuses:
+    try:
+        # change_enrollment_status owns validity and legal transitions.
         change_enrollment_status(
             enrollment=enrollment,
             status=new_status,
             actor=request.user,
             reason=str(data.get("reason") or ""),
         )
-        NotificationService.notify_enrollment_status_changed(enrollment, new_status)
-        messages.success(request, f"Enrollment status updated to {new_status}")
+    except ValidationError as exc:
+        error_message = exc.messages[0]
+        messages.error(request, error_message)
+        flash_inertia_errors(request, {"status": error_message})
     else:
-        messages.error(request, "Invalid status")
+        transaction.on_commit(
+            lambda: NotificationService.notify_enrollment_status_changed(
+                enrollment, new_status
+            )
+        )
+        messages.success(request, f"Enrollment status updated to {new_status}")
 
-    return redirect("core:instructor.students")
+    return redirect("core:instructor.student", pk=enrollment.user_id)
 
 
 def _get_students_for_program(program_id: int, user) -> list:
@@ -4765,13 +5080,18 @@ def student_quiz_submit(request, quiz_id: int):
                 node=quiz.node,
             ).delete()
 
+        finished_course = False
         if should_mark_complete:
             from apps.progression.services import ProgressionEngine
 
+            was_completed = enrollment.status == "completed"
             ProgressionEngine().mark_complete(
                 enrollment=enrollment,
                 node=quiz.node,
                 completion_type=completion_type,
+            )
+            finished_course = (
+                not was_completed and enrollment.status == "completed"
             )
 
         redirect_url = (
@@ -4779,6 +5099,9 @@ def student_quiz_submit(request, quiz_id: int):
             f"?enrollment_id={enrollment.id}&node_id={quiz.node_id}"
             f"&attempt_id={attempt.id}"
         )
+        if finished_course:
+            # Keep the results screen; the player then offers the summary.
+            redirect_url += "&course_complete=1"
         try:
             from apps.progression.views import _get_sibling_navigation
 
@@ -4969,6 +5292,8 @@ def student_quiz_results(request, quiz_id: int):
         query = {"show_results": 1}
         if selected_attempt_id:
             query["attempt_id"] = selected_attempt_id
+        if request.GET.get("course_complete") == "1":
+            query["course_complete"] = 1
         session_url = (
             f"/student/programs/{enrollment.id}/session/{quiz.node_id}/"
             f"?{urlencode(query)}"
@@ -5851,11 +6176,16 @@ def student_assignment_submit(request, assignment_id: int):
         if completion_state["is_complete"]:
             from apps.progression.services import ProgressionEngine
 
+            was_completed = enrollment.status == "completed"
             ProgressionEngine().mark_complete(
                 enrollment=enrollment,
                 node=context_node,
                 completion_type="manual",
             )
+            if not was_completed and enrollment.status == "completed":
+                return redirect(
+                    "progression:student.course.complete", pk=enrollment.id
+                )
         else:
             NodeCompletion.objects.filter(
                 enrollment=enrollment,
@@ -6186,6 +6516,9 @@ def serialize_program_data(program):
                 program.what_you_learn_html,
                 program.what_you_learn_items,
             ),
+            "introVideoUrl": program.intro_video_url or "",
+            "requirementsHtml": program.requirements_html or "",
+            "audienceHtml": program.audience_html or "",
             "resources": [
                 {
                     "id": r.id,
@@ -6338,7 +6671,8 @@ def build_curriculum_tree(program):
             "position": node["position"],
             # Sent back on save so edits made elsewhere are not overwritten.
             "version": node["updated_at"].isoformat() if node["updated_at"] else None,
-            "unlockDate": node["unlock_date"].isoformat()
+            # Keep the builder calendar date in the site timezone.
+            "unlockDate": timezone.localtime(node["unlock_date"]).date().isoformat()
             if node["unlock_date"]
             else None,
             "unlockAfterDays": node["unlock_after_days"],
@@ -6385,39 +6719,43 @@ def instructor_program_manage(request, pk: int):
     response_data = serialize_program_data(program)
     response_data["curriculum"] = curriculum
 
-    # Add question library data as Inertia props (no REST API needed)
-    from apps.assessments.models import QuestionBank, QuestionBankEntry
-    from apps.assessments.serializers import (
-        QuestionBankEntrySerializer,
-        QuestionBankSerializer,
-    )
-
-    library_entries = (
-        QuestionBankEntry.objects.filter(bank__program=program)
-        .select_related("bank", "question")
-        .prefetch_related(
-            "question__options",
-            "question__matching_pairs",
-            "question__gap_answers",
-        )
-        .order_by("-created_at")[:100]
-    )
-
-    response_data["questionLibrary"] = QuestionBankEntrySerializer(
-        library_entries,
-        many=True,
-    ).data
-    response_data["questionBanks"] = QuestionBankSerializer(
-        QuestionBank.objects.filter(program=program).order_by("name"),
-        many=True,
-    ).data
-
-    # Get unique categories (must query before slicing)
-    all_entries_qs = QuestionBankEntry.objects.filter(bank__program=program)
-    categories = list(all_entries_qs.values_list("category", flat=True).distinct())
-    response_data["questionCategories"] = [c for c in categories if c]
+    response_data.update(_builder_question_bank_props(request, program))
 
     return render(request, "Instructor/Program/Manage", response_data)
+
+
+def _builder_question_bank_props(request, program) -> dict:
+    """Question bank data the quiz editor needs on every builder response.
+
+    Library entries are searched through the question-library API; only banks,
+    categories and copied-entry versions load with the page.
+    """
+    from apps.assessments.models import QuestionBankEntry
+    from apps.assessments.question_bank_service import QuestionBankService
+    from apps.assessments.serializers import QuestionBankSerializer
+
+    bank_service = QuestionBankService()
+    linked_entries = (
+        QuestionBankEntry.objects.filter(quiz_copies__quiz__node__program=program)
+        .select_related("bank")
+        .distinct()
+    )
+    return {
+        "questionBanks": QuestionBankSerializer(
+            bank_service.list_banks(request.user, program=program),
+            many=True,
+            context={"request": request},
+        ).data,
+        "questionCategories": bank_service.list_categories(request.user, program=program),
+        "questionLibraryVersions": {
+            str(entry.id): {
+                "snapshotVersion": entry.snapshot_version,
+                "bankName": entry.bank.name if entry.bank_id else "",
+                "bankScope": entry.bank.scope if entry.bank_id else "",
+            }
+            for entry in linked_entries
+        },
+    }
 
 
 @login_required
@@ -6530,6 +6868,7 @@ def instructor_node_create(request, program_id: int):
             position=position,
             properties=node_properties,
             is_published=auto_publish,
+            is_preview=_preview_flag_from_properties(node_properties),
         )
 
         # Sync quiz payload immediately on creation so quiz_id exists for student flow.
@@ -6545,12 +6884,12 @@ def instructor_node_create(request, program_id: int):
                 if isinstance(node.properties, dict)
                 else []
             )
-            _sync_quiz_questions(node, questions_data)
+            _sync_quiz_questions(node, questions_data, actor=request.user)
         if (
             node_type_normalized == "assignment"
             or lesson_type_normalized == "assignment"
         ):
-            _sync_assignment(node)
+            _sync_assignment(node, actor=request.user)
 
         # Use semantic labels in toasts to avoid blueprint label leakage
         # (e.g. container label "Course" for section creation).
@@ -6566,15 +6905,6 @@ def instructor_node_create(request, program_id: int):
         messages.success(
             request, f"{success_label} '{node.title}' created successfully"
         )
-
-        # Build updated curriculum tree and return as Inertia response
-        curriculum = build_curriculum_tree(program)
-
-        # Serialize program data using shared helper
-        response_data = serialize_program_data(program)
-        response_data["curriculum"] = curriculum
-
-        return render(request, "Instructor/Program/Manage", response_data)
     except Exception as e:
         import traceback
         import logging
@@ -6588,8 +6918,48 @@ def instructor_node_create(request, program_id: int):
         )
         return redirect("core:instructor.program_manage", pk=program_id)
 
+    # POST never renders a page: redirect to the builder GET so the URL,
+    # refreshes and the full prop set (question library etc.) stay correct.
+    # Sections are edited inline in the tree, so only lessons open by ?node=.
+    manage_url = reverse("core:instructor.program_manage", kwargs={"pk": program_id})
+    if parent is not None:
+        manage_url = f"{manage_url}?node={node.id}"
+    return redirect(manage_url)
 
-def _sync_quiz_questions(node, questions_data: list):
+
+def _resolve_library_link(node, q_data, *, actor=None, existing_link=None):
+    """Return the bank entry a builder question was copied from and its version.
+
+    A link the question already has is kept even when the current editor
+    cannot see that bank. New links must point at an entry the editor can use
+    in this course; without an editor (system jobs) only course banks qualify.
+    """
+    from apps.assessments.models import QuestionBankEntry
+    from apps.assessments.question_bank_access import visible_entries
+
+    entry_id = _safe_int(q_data.get("libraryEntryId", q_data.get("source_bank_entry_id")))
+    if not entry_id:
+        return None, None
+    existing_link = existing_link or {}
+    if entry_id == existing_link.get("source_bank_entry_id"):
+        entry = QuestionBankEntry.objects.filter(pk=entry_id).first()
+        previous_version = existing_link.get("source_bank_entry_version")
+    else:
+        if actor is None:
+            candidates = QuestionBankEntry.objects.filter(bank__program=node.program)
+        else:
+            candidates = visible_entries(actor, program=node.program, include_archived=True)
+        entry = candidates.filter(pk=entry_id).first()
+        previous_version = None
+    if entry is None:
+        return None, None
+    requested_version = _safe_int(q_data.get("libraryEntryVersion"))
+    if requested_version and requested_version > 0:
+        return entry, min(requested_version, entry.snapshot_version)
+    return entry, previous_version or entry.snapshot_version
+
+
+def _sync_quiz_questions(node, questions_data: list, *, actor=None):
     """
     Sync quiz questions from frontend JSON to proper database tables.
 
@@ -6717,22 +7087,23 @@ def _sync_quiz_questions(node, questions_data: list):
         quiz.save(update_fields=["title", *quiz_settings.keys()])
 
     # Track existing question IDs
-    existing_ids = set(quiz.questions.values_list("id", flat=True))
+    existing_links = {
+        row["id"]: row
+        for row in quiz.questions.values(
+            "id", "source_bank_entry_id", "source_bank_entry_version"
+        )
+    }
+    existing_ids = set(existing_links)
     processed_ids = set()
     updated_questions = []
 
     for idx, q_data in enumerate(questions_data):
         db_id = q_data.get("db_id")
-        source_entry_id = _safe_int(
-            q_data.get("libraryEntryId", q_data.get("source_bank_entry_id"))
-        )
-        source_entry = (
-            QuestionBankEntry.objects.filter(
-                pk=source_entry_id,
-                bank__program=node.program,
-            ).first()
-            if source_entry_id
-            else None
+        source_entry, source_entry_version = _resolve_library_link(
+            node,
+            q_data,
+            actor=actor,
+            existing_link=existing_links.get(db_id),
         )
         question_type = q_data.get("type", "mcq")
 
@@ -6751,6 +7122,10 @@ def _sync_quiz_questions(node, questions_data: list):
         backend_type = type_mapping.get(question_type, question_type)
 
         question_text = _normalize_question_text(q_data.get("text", ""))
+        question_explanation = normalize_assessment_rich_text(
+            q_data.get("explanation", "")
+        )
+        question_hint = normalize_assessment_rich_text(q_data.get("hint", ""))
 
         def normalize_gaps(raw_gaps):
             if not isinstance(raw_gaps, list):
@@ -6890,7 +7265,10 @@ def _sync_quiz_questions(node, questions_data: list):
                 points=q_data.get("points", 1),
                 position=idx,
                 answer_data=answer_data,
+                explanation=question_explanation,
+                hint=question_hint,
                 source_bank_entry=source_entry,
+                source_bank_entry_version=source_entry_version,
             )
             processed_ids.add(db_id)
 
@@ -6965,7 +7343,10 @@ def _sync_quiz_questions(node, questions_data: list):
                 points=q_data.get("points", 1),
                 position=idx,
                 answer_data=answer_data,
+                explanation=question_explanation,
+                hint=question_hint,
                 source_bank_entry=source_entry,
+                source_bank_entry_version=source_entry_version,
             )
             processed_ids.add(new_question.id)
 
@@ -7068,9 +7449,12 @@ def _sync_quiz_questions(node, questions_data: list):
             "type": q.question_type,
             "text": q.text,  # Already normalized via _normalize_question_text
             "points": q.points,
+            "explanation": q.explanation,
+            "hint": q.hint,
         }
         if q.source_bank_entry_id:
             q_entry["libraryEntryId"] = q.source_bank_entry_id
+            q_entry["libraryEntryVersion"] = q.source_bank_entry_version
             q_entry["fromLibrary"] = True
         q_entry.update(question_metadata_by_id.get(q.id, {}))
 
@@ -7148,11 +7532,12 @@ def _sync_quiz_questions(node, questions_data: list):
     node.properties["question_banks"] = sync_quiz_pools_from_properties(
         quiz,
         node_props.get("question_banks", []),
+        actor=actor,
     )
     node.save(update_fields=["properties"])
 
 
-def _sync_assignment(node):
+def _sync_assignment(node, *, actor=None):
     """
     Sync assignment data from node properties to the Assignment table.
 
@@ -7324,7 +7709,17 @@ def _sync_assignment(node):
     questions_data = props.get("questions", [])
     has_questions = isinstance(questions_data, list) and len(questions_data) > 0
     if _assignment_requires_questions(props) and has_questions:
-        _sync_quiz_questions(node, questions_data)
+        _sync_quiz_questions(node, questions_data, actor=actor)
+
+
+def _reject_node_update(request, node, message: str):
+    """Reject a lesson save: flash the error and reopen that lesson's editor."""
+    messages.error(request, message)
+    flash_inertia_errors(request, {"properties": message})
+    manage_url = reverse(
+        "core:instructor.program_manage", kwargs={"pk": node.program_id}
+    )
+    return redirect(f"{manage_url}?node={node.id}")
 
 
 @login_required
@@ -7353,6 +7748,8 @@ def instructor_node_update(request, node_id: int):
             node.properties = incoming_props
 
     node_props = node.properties if isinstance(node.properties, dict) else {}
+    # The column is what access checks read; the builder keeps the property.
+    node.is_preview = _preview_flag_from_properties(node_props)
     updated_lesson_type = str(node_props.get("lesson_type") or "").lower()
     if updated_lesson_type == "document":
         document = node_props.get("document")
@@ -7360,11 +7757,11 @@ def instructor_node_update(request, node_id: int):
             document = {}
 
         if not str(document.get("original_url") or "").strip():
-            messages.error(
+            return _reject_node_update(
                 request,
+                node,
                 "Document lesson requires a primary document upload before saving.",
             )
-            return redirect("core:instructor.program_manage", pk=node.program_id)
 
         strict_completion = _coerce_bool(document.get("strict_completion"), True)
         if strict_completion:
@@ -7377,11 +7774,11 @@ def instructor_node_update(request, node_id: int):
                 page_count = 0
 
             if status != "ready" or not viewer_pdf_url or page_count <= 0:
-                messages.error(
+                return _reject_node_update(
                     request,
+                    node,
                     "Document lesson strict mode requires a converted document before saving.",
                 )
-                return redirect("core:instructor.program_manage", pk=node.program_id)
 
     if updated_lesson_type in {
         "live_class",
@@ -7395,8 +7792,7 @@ def instructor_node_update(request, node_id: int):
         try:
             validate_session_properties(node_props)
         except ValidationError as exc:
-            messages.error(request, exc.messages[0])
-            return redirect("core:instructor.program_manage", pk=node.program_id)
+            return _reject_node_update(request, node, exc.messages[0])
 
     from apps.ai_connector.conflicts import (
         EDIT_CONFLICT_MESSAGE,
@@ -7422,7 +7818,7 @@ def instructor_node_update(request, node_id: int):
         # synchronisation under the same node lock as the stale-edit check so
         # an AI question cannot be added between the check and this write.
         if is_quiz:
-            _sync_quiz_questions(node, node.properties.get("questions", []))
+            _sync_quiz_questions(node, node.properties.get("questions", []), actor=request.user)
 
     if updated_lesson_type in {
         "live_class",
@@ -7478,8 +7874,9 @@ def instructor_node_update(request, node_id: int):
     # Sync assignment data to Assignment table
     node_type = (node.node_type or "").lower()
     lesson_type = (node.properties.get("lesson_type") or "").lower()
+
     if node_type == "assignment" or lesson_type == "assignment":
-        _sync_assignment(node)
+        _sync_assignment(node, actor=request.user)
 
     return redirect("core:instructor.program_manage", pk=node.program_id)
 
@@ -7715,6 +8112,22 @@ def instructor_program_update_settings(request, pk: int):
         )
 
     # --- Settings tab: main public course content ---
+    # Validate the intro video first: the delivery mode below is saved as soon
+    # as it is read, so a rejected link must stop the request before that.
+    if (
+        active_tab == "settings"
+        and settings_section == "main"
+        and "intro_video_url" in data
+    ):
+        try:
+            program.intro_video_url = validate_intro_video_url(
+                data.get("intro_video_url")
+            )
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            flash_inertia_errors(request, {"intro_video_url": exc.messages[0]})
+            return _redirect_to_builder()
+
     if active_tab == "settings" and settings_section == "main" and "name" in data:
         name_val = str(data.get("name", "")).strip()
         if not name_val:
@@ -7814,6 +8227,12 @@ def instructor_program_update_settings(request, pk: int):
         program.what_you_learn_items = extract_learning_outcome_items_from_html(
             what_you_learn_raw
         )
+
+    if active_tab == "settings" and settings_section == "main" and "requirements_html" in data:
+        program.requirements_html = str(data.get("requirements_html") or "").strip()
+
+    if active_tab == "settings" and settings_section == "main" and "audience_html" in data:
+        program.audience_html = str(data.get("audience_html") or "").strip()
 
     # --- Settings tab: academic blueprint and instructor metadata ---
     if active_tab == "settings" and settings_section == "academic" and "code" in data:
@@ -8121,33 +8540,52 @@ def instructor_program_update_settings(request, pk: int):
 
         if "drip_schedule" in data:
             updates = []
+            rows_by_node_id = {}
             for row in drip_schedule:
                 if not isinstance(row, dict):
                     continue
                 node_id = _to_int(row.get("node_id") or row.get("nodeId"))
                 if not node_id:
                     continue
-                unlock_after_days = _to_int(
-                    row.get("unlock_after_days")
-                    if "unlock_after_days" in row
-                    else row.get("unlockAfterDays")
-                )
-                unlock_date = _parse_unlock_date(
-                    row.get("unlock_date")
-                    if "unlock_date" in row
-                    else row.get("unlockDate")
-                )
+                # The drip editor sends only the active schedule mode's field.
+                # A field missing from the row keeps its saved value.
+                if not any(
+                    key in row
+                    for key in (
+                        "unlock_after_days",
+                        "unlockAfterDays",
+                        "unlock_date",
+                        "unlockDate",
+                    )
+                ):
+                    continue
+                rows_by_node_id[node_id] = row
 
-                node = CurriculumNode.objects.filter(pk=node_id, program_id=pk).first()
+            nodes_by_id = CurriculumNode.objects.filter(program_id=pk).in_bulk(
+                list(rows_by_node_id)
+            )
+            for node_id, row in rows_by_node_id.items():
+                node = nodes_by_id.get(node_id)
                 if not node:
                     continue
 
-                node.unlock_after_days = (
-                    unlock_after_days
-                    if unlock_after_days and unlock_after_days > 0
-                    else None
-                )
-                node.unlock_date = unlock_date
+                if "unlock_after_days" in row or "unlockAfterDays" in row:
+                    unlock_after_days = _to_int(
+                        row.get("unlock_after_days")
+                        if "unlock_after_days" in row
+                        else row.get("unlockAfterDays")
+                    )
+                    node.unlock_after_days = (
+                        unlock_after_days
+                        if unlock_after_days and unlock_after_days > 0
+                        else None
+                    )
+                if "unlock_date" in row or "unlockDate" in row:
+                    node.unlock_date = _parse_unlock_date(
+                        row.get("unlock_date")
+                        if "unlock_date" in row
+                        else row.get("unlockDate")
+                    )
                 node.updated_at = timezone.now()
                 updates.append(node)
 
@@ -8824,6 +9262,8 @@ def _clone_quiz(source_quiz, new_node):
             points=q.points,
             position=q.position,
             answer_data=copy.deepcopy(q.answer_data),
+            explanation=q.explanation,
+            hint=q.hint,
         )
 
         # Clone options for MCQ
@@ -8892,6 +9332,7 @@ def _clone_node(source_node, target_parent, target_program):
         properties=cloned_properties,
         position=target_parent.children.count() if target_parent else 0,
         is_published=False,  # Cloned content starts unpublished
+        is_preview=_preview_flag_from_properties(cloned_properties),
     )
 
     # Clone Quiz if exists

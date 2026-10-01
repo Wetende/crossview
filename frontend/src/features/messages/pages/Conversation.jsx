@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
 import {
     Alert,
@@ -21,10 +22,24 @@ function formatTimestamp(dateString) {
     return date.toLocaleString();
 }
 
-export default function Conversation({ conversation, messages = [], errorMessage = null }) {
+export default function Conversation({
+    conversation,
+    messages = [],
+    errorMessage = null,
+    draftContent = "",
+}) {
     const { data, setData, post, processing, reset } = useForm({
-        content: "",
+        content: draftContent || "",
     });
+
+    useEffect(() => {
+        // A draft (e.g. from the course player) only fills an empty reply box.
+        if (draftContent && !data.content) {
+            setData("content", draftContent);
+        }
+        // Only a new draft prop should seed the field; typing must not.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftContent]);
 
     const handleSubmit = (event) => {
         event.preventDefault();
@@ -46,7 +61,7 @@ export default function Conversation({ conversation, messages = [], errorMessage
             <Stack spacing={2}>
                 {!!errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
                     <Box>
                         <Button
                             component={Link}
@@ -57,10 +72,10 @@ export default function Conversation({ conversation, messages = [], errorMessage
                         >
                             Back to Inbox
                         </Button>
-                        <Typography variant="h5" fontWeight={700}>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
                             {conversation.otherUser?.name}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="textSecondary">
                             {conversation.otherUser?.email}
                         </Typography>
                     </Box>
@@ -69,7 +84,7 @@ export default function Conversation({ conversation, messages = [], errorMessage
                 <Paper variant="outlined" sx={{ p: 2, minHeight: 360, maxHeight: 520, overflowY: "auto" }}>
                     <Stack spacing={1.5}>
                         {messages.length === 0 ? (
-                            <Typography color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+                            <Typography color="textSecondary" sx={{ textAlign: "center", py: 4 }}>
                                 No messages yet.
                             </Typography>
                         ) : (

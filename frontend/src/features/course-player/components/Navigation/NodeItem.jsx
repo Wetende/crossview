@@ -8,6 +8,7 @@ import {
     Box,
     Typography,
     LinearProgress,
+    Tooltip,
 } from "@mui/material";
 import {
     PlayCircle as VideoIcon,
@@ -25,13 +26,34 @@ import {
     CheckCircle as CheckIcon,
     FlagOutlined as FlagIcon,
     Lock as LockIcon,
+    RadioButtonUnchecked,
 } from "@mui/icons-material";
 import { Link } from "@inertiajs/react";
 import {
     ACTIVITY_TYPES,
-    formatActivityDuration,
+    getActivitySummary,
     normalizeActivityType,
 } from "@/lib/activityTypes";
+import { getLockText } from "./lockStatus";
+
+// Lesson rows: 3px left accent, then a fixed icon column, then the title.
+const ACCENT_WIDTH = 3;
+const LOCKED_OPACITY = 0.7;
+const ICON_COLUMN_WIDTH = 36;
+const titleInset = (theme) =>
+    `calc(${theme.spacing(2)} + ${ACCENT_WIDTH + ICON_COLUMN_WIDTH}px)`;
+const iconInset = (theme) => `calc(${theme.spacing(2)} + ${ACCENT_WIDTH}px)`;
+
+// The LMS palette inverts the grey ramp in dark mode (grey.50 is the darkest
+// step there), so pick the step that renders as a dark slate in both modes.
+const pickGrey = (lightStep, darkStep) => (theme) =>
+    theme.palette.grey[theme.palette.mode === "dark" ? darkStep : lightStep];
+const sectionHeaderBg = pickGrey(800, 50);
+const sectionHeaderHoverBg = pickGrey(700, 100);
+const sectionHeaderMutedText = pickGrey(300, 600);
+
+const activeRowBg = (theme) =>
+    theme.palette.primary.lighter || theme.palette.action.selected;
 
 const NodeItem = ({
     node,
@@ -41,6 +63,7 @@ const NodeItem = ({
     isExpanded,
     activeNodeId,
     enrollmentId,
+    previewMode = false, // Visitors: no progress, no unit summaries
 }) => {
     const isSection =
         node.nodeType === "section" ||
@@ -124,12 +147,6 @@ const NodeItem = ({
         }
     };
 
-    // Get duration label
-    const getDuration = () => {
-        const duration = node.properties?.duration || node.duration;
-        return formatActivityDuration(duration) || null;
-    };
-
     // Get last attempt info for quizzes
     const getLastAttempt = () => {
         return node.lastAttempt || node.properties?.lastAttempt;
@@ -159,19 +176,21 @@ const NodeItem = ({
                 <ListItem disablePadding>
                     <ListItemButton
                         onClick={() => onToggle(node.id)}
+                        aria-expanded={Boolean(isExpanded)}
                         sx={{
-                            bgcolor: "grey.100",
-                            py: 1.5,
+                            bgcolor: sectionHeaderBg,
+                            py: 1.25,
                             px: 2,
-                            "&:hover": { bgcolor: "grey.200" },
+                            "&:hover": { bgcolor: sectionHeaderHoverBg },
                         }}
                     >
                         <ListItemText
                             primary={node.title}
-                            primaryTypographyProps={{
-                                variant: "subtitle2",
-                                fontWeight: 600,
-                                color: "text.primary",
+                            slotProps={{
+                                primary: {
+                                    variant: "subtitle2",
+                                    sx: { fontWeight: 600, color: "common.white" },
+                                },
                             }}
                         />
 
@@ -181,19 +200,18 @@ const NodeItem = ({
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 1,
+                                color: sectionHeaderMutedText,
                             }}
                         >
-                            <Typography variant="body2" color="text.secondary">
-                                {getChildCount()}
-                            </Typography>
+                            {!previewMode && (
+                                <Typography variant="caption" color="inherit">
+                                    {getChildCount()}
+                                </Typography>
+                            )}
                             {isExpanded ? (
-                                <KeyboardArrowUp
-                                    sx={{ color: "text.secondary" }}
-                                />
+                                <KeyboardArrowUp fontSize="small" />
                             ) : (
-                                <KeyboardArrowDown
-                                    sx={{ color: "text.secondary" }}
-                                />
+                                <KeyboardArrowDown fontSize="small" />
                             )}
                         </Box>
                     </ListItemButton>
@@ -213,47 +231,57 @@ const NodeItem = ({
                                     isExpanded={true}
                                     onToggle={onToggle}
                                     enrollmentId={enrollmentId}
+                                    previewMode={previewMode}
                                 />
                             ))}
-                            <ListItem disablePadding>
-                                <ListItemButton
-                                    component={Link}
-                                    href={`/student/programs/${enrollmentId}/unit/${node.id}/`}
-                                    sx={{
-                                        mx: 1,
-                                        my: 0.75,
-                                        borderRadius: 1.5,
-                                        bgcolor: unitComplete
-                                            ? "success.lighter"
-                                            : "action.hover",
-                                    }}
-                                >
-                                    <ListItemIcon sx={{ minWidth: 36 }}>
-                                        {unitComplete ? (
-                                            <CheckIcon
-                                                color="success"
-                                                fontSize="small"
-                                            />
-                                        ) : (
-                                            <FlagIcon
-                                                color="action"
-                                                fontSize="small"
-                                            />
-                                        )}
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary="End of unit"
-                                        secondary={`${leafCompletion.completed}/${leafCompletion.total} completed`}
-                                        primaryTypographyProps={{
-                                            variant: "body2",
-                                            fontWeight: 700,
+                            {!previewMode && (
+                                <ListItem disablePadding>
+                                    <ListItemButton
+                                        component={Link}
+                                        href={`/student/programs/${enrollmentId}/unit/${node.id}/`}
+                                        sx={{
+                                            py: 0.75,
+                                            pr: 2,
+                                            pl: iconInset,
+                                            gap: 1,
+                                            "&:hover": { bgcolor: "action.hover" },
                                         }}
-                                        secondaryTypographyProps={{
-                                            variant: "caption",
-                                        }}
-                                    />
-                                </ListItemButton>
-                            </ListItem>
+                                    >
+                                        <ListItemIcon
+                                            sx={{ minWidth: ICON_COLUMN_WIDTH - 8 }}
+                                        >
+                                            {unitComplete ? (
+                                                <CheckIcon
+                                                    sx={{
+                                                        fontSize: 16,
+                                                        color: "success.main",
+                                                    }}
+                                                />
+                                            ) : (
+                                                <FlagIcon
+                                                    sx={{
+                                                        fontSize: 16,
+                                                        color: "text.secondary",
+                                                    }}
+                                                />
+                                            )}
+                                        </ListItemIcon>
+                                        <Typography
+                                            variant="caption"
+                                            color="textSecondary"
+                                            sx={{ flexGrow: 1, fontWeight: 600 }}
+                                        >
+                                            End of unit
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="textSecondary"
+                                        >
+                                            {`${leafCompletion.completed}/${leafCompletion.total} completed`}
+                                        </Typography>
+                                    </ListItemButton>
+                                </ListItem>
+                            )}
                         </List>
                     </Collapse>
                 )}
@@ -263,6 +291,73 @@ const NodeItem = ({
 
     const lastAttempt = getLastAttempt();
     const bestAttempt = getBestAttempt();
+    const lockText = node.isLocked ? getLockText(node) : null;
+
+    const lessonRow = (
+        <ListItemButton
+            component={node.isLocked ? "div" : Link}
+            href={node.isLocked ? undefined : getHref()}
+            aria-disabled={node.isLocked ? "true" : undefined}
+            disableRipple={node.isLocked}
+            sx={{
+                py: 1.25,
+                px: 2,
+                borderLeft: `${ACCENT_WIDTH}px solid`,
+                borderLeftColor: isNodeActive ? "primary.main" : "transparent",
+                bgcolor: isNodeActive ? activeRowBg : "transparent",
+                "&:hover": {
+                    bgcolor: isNodeActive ? activeRowBg : "action.hover",
+                },
+                cursor: node.isLocked ? "default" : "pointer",
+            }}
+        >
+            {/* Left: Icon (dimmed when locked; the reason stays readable) */}
+            <ListItemIcon
+                sx={{
+                    minWidth: ICON_COLUMN_WIDTH,
+                    opacity: node.isLocked ? LOCKED_OPACITY : 1,
+                }}
+            >
+                {getIcon()}
+            </ListItemIcon>
+
+            {/* Center: Title + type line (or lock reason) */}
+            <ListItemText
+                primary={node.title}
+                secondary={lockText || getActivitySummary(node)}
+                slotProps={{
+                    primary: {
+                        variant: "body2",
+                        color: isNodeActive ? "primary" : "textPrimary",
+                        sx: {
+                            fontWeight: isNodeActive ? 600 : 400,
+                            opacity: node.isLocked ? LOCKED_OPACITY : 1,
+                        },
+                    },
+                    secondary: {
+                        variant: "caption",
+                        color: "textSecondary",
+                    },
+                }}
+            />
+
+            {/* Right: completion status (locked rows show the lock instead;
+                visitors in a free preview have no progress to show) */}
+            {!node.isLocked &&
+                !previewMode &&
+                (node.isCompleted ? (
+                    <CheckIcon
+                        data-testid="lesson-status-complete"
+                        sx={{ color: "primary.main", fontSize: 20, ml: 1 }}
+                    />
+                ) : (
+                    <RadioButtonUnchecked
+                        data-testid="lesson-status-incomplete"
+                        sx={{ color: "text.disabled", fontSize: 20, ml: 1 }}
+                    />
+                ))}
+        </ListItemButton>
+    );
 
     // Lesson item styling
     return (
@@ -270,51 +365,17 @@ const NodeItem = ({
             disablePadding
             sx={{ flexDirection: "column", alignItems: "stretch" }}
         >
-            <ListItemButton
-                component={Link}
-                href={!node.isLocked ? getHref() : undefined}
-                disabled={node.isLocked}
-                sx={{
-                    py: 1.5,
-                    px: 2,
-                    borderLeft: isNodeActive
-                        ? "4px solid"
-                        : "4px solid transparent",
-                    borderColor: isNodeActive ? "primary.main" : "transparent",
-                    bgcolor: isNodeActive ? "primary.50" : "background.paper",
-                    "&:hover": {
-                        bgcolor: isNodeActive ? "primary.50" : "grey.50",
-                    },
-                    opacity: node.isLocked ? 0.5 : 1,
-                }}
-            >
-                {/* Left: Icon */}
-                <ListItemIcon sx={{ minWidth: 36 }}>{getIcon()}</ListItemIcon>
-
-                {/* Center: Title + Duration stacked */}
-                <ListItemText
-                    primary={node.title}
-                    secondary={getDuration()}
-                    primaryTypographyProps={{
-                        variant: "body2",
-                        fontWeight: isNodeActive ? 600 : 400,
-                        color: isNodeActive ? "primary.main" : "text.primary",
-                    }}
-                    secondaryTypographyProps={{
-                        variant: "caption",
-                        color: "text.secondary",
-                    }}
-                />
-
-                {/* Right: Checkmark */}
-                {node.isCompleted && (
-                    <CheckIcon sx={{ color: "primary.main", fontSize: 22 }} />
-                )}
-            </ListItemButton>
+            {node.isLocked ? (
+                <Tooltip title={lockText} placement="right" describeChild>
+                    {lessonRow}
+                </Tooltip>
+            ) : (
+                lessonRow
+            )}
 
             {/* Quiz Attempt History - show under quiz nodes */}
             {isQuiz && lastAttempt && (
-                <Box sx={{ pl: 7, pr: 2, pb: 1.5 }}>
+                <Box sx={{ pl: titleInset, pr: 2, pb: 1.5 }}>
                     <LinearProgress
                         variant="determinate"
                         value={lastAttempt.score || 0}
@@ -331,22 +392,23 @@ const NodeItem = ({
                     />
                     <Typography
                         variant="caption"
-                        color="text.secondary"
+                        color="textSecondary"
                         sx={{ mt: 0.5, display: "block" }}
                     >
                         Last attempt #
                         {lastAttempt.number || lastAttempt.attemptNumber}:{" "}
                         {Math.round(lastAttempt.score || 0)}%
                         {lastAttempt.passed !== undefined && (
-                            <span
-                                style={{
-                                    marginLeft: 8,
+                            <Box
+                                component="span"
+                                sx={{
+                                    ml: 1,
                                     color:
                                         lastAttempt.passed === true
-                                            ? "var(--mui-palette-success-main)"
+                                            ? "success.main"
                                             : lastAttempt.passed === false
-                                              ? "var(--mui-palette-warning-main)"
-                                              : "var(--mui-palette-text-secondary)",
+                                              ? "warning.main"
+                                              : "text.secondary",
                                 }}
                             >
                                 {lastAttempt.passed === true
@@ -354,13 +416,13 @@ const NodeItem = ({
                                     : lastAttempt.passed === false
                                       ? "Failed"
                                       : "Pending review"}
-                            </span>
+                            </Box>
                         )}
                     </Typography>
                     {bestAttempt && (
                         <Typography
                             variant="caption"
-                            color="text.secondary"
+                            color="textSecondary"
                             sx={{ mt: 0.25, display: "block", fontWeight: 600 }}
                         >
                             Best: {Math.round(bestAttempt.score || 0)}%

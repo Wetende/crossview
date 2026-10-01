@@ -180,8 +180,8 @@ export default function PublicProgramCard({
                     component={Link}
                     href={program.publicUrl}
                     variant="subtitle1"
-                    fontWeight={600}
                     sx={{
+                        fontWeight: 600,
                         mb: 0.5,
                         textDecoration: "none",
                         color: "#1F2937",
@@ -214,6 +214,8 @@ export default function PublicProgramCard({
 
                 <CourseMetricStrip
                     source={program}
+                    level={program.level}
+                    hideMissing
                     sx={{
                         mb: 1.5,
                         borderColor: "#E5E7EB",
@@ -247,9 +249,8 @@ export default function PublicProgramCard({
                             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                                 <Typography
                                     variant="body1"
-                                    fontWeight={700}
-                                    color="primary.main"
-                                    sx={{ whiteSpace: "nowrap" }}
+                                    color="primary"
+                                    sx={{ fontWeight: 700, whiteSpace: "nowrap" }}
                                 >
                                     {formatCurrency(priceDisplay.price)}
                                 </Typography>
@@ -269,8 +270,8 @@ export default function PublicProgramCard({
                         ) : priceDisplay.showFree ? (
                             <Typography
                                 variant="body1"
-                                fontWeight={700}
-                                color="success.main"
+                                sx={{ fontWeight: 700 }}
+                                color="success"
                             >
                                 Free
                             </Typography>

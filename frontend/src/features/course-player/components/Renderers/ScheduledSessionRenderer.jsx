@@ -1,3 +1,4 @@
+import { PLAYER_RADII } from "../../playerRadii";
 import { useEffect, useMemo, useState } from "react";
 import {
     Alert,
@@ -66,7 +67,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
         sx={{
             overflow: "hidden",
             border: "1px solid #d9e0ea",
-            borderRadius: 3,
+            borderRadius: PLAYER_RADII.surface,
             bgcolor: "#fff",
             color: "#202124",
         }}
@@ -87,7 +88,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                     height: 38,
                     display: "grid",
                     placeItems: "center",
-                    borderRadius: 2,
+                    borderRadius: PLAYER_RADII.control,
                     bgcolor: "#1a73e8",
                     color: "#fff",
                     boxShadow: "inset 0 -3px 0 #34a853, inset 3px 0 0 #fbbc04",
@@ -129,7 +130,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                     display: "grid",
                     placeItems: "center",
                     overflow: "hidden",
-                    borderRadius: 3,
+                    borderRadius: PLAYER_RADII.surface,
                     bgcolor: "#202124",
                     color: "#fff",
                     boxShadow: "0 12px 30px rgba(32, 33, 36, 0.2)",
@@ -166,7 +167,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                     >
                         <MeetingIcon sx={{ fontSize: 38 }} />
                     </Box>
-                    <Typography variant="h6" fontWeight={600}>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
                         {session.isJoinable
                             ? "Ready to join your class"
                             : ended
@@ -236,7 +237,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                 <Divider />
 
                 <Stack spacing={0.75}>
-                    <Typography fontWeight={700}>
+                    <Typography sx={{ fontWeight: 700 }}>
                         {start?.toLocaleString(undefined, {
                             weekday: "long",
                             month: "long",
@@ -275,7 +276,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                             endIcon={<OpenIcon />}
                             sx={{
                                 bgcolor: "#1a73e8",
-                                borderRadius: 2,
+                                borderRadius: PLAYER_RADII.control,
                                 px: 2.5,
                                 textTransform: "none",
                                 fontWeight: 700,
@@ -303,7 +304,7 @@ const GoogleMeetPanel = ({ session, start, end, stateLabel, ended }) => (
                             target="_blank"
                             rel="noopener noreferrer"
                             startIcon={<CalendarIcon />}
-                            sx={{ borderRadius: 2, textTransform: "none" }}
+                            sx={{ borderRadius: PLAYER_RADII.control, textTransform: "none" }}
                         >
                             Add to calendar
                         </Button>
@@ -394,7 +395,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
             ) : (
                 <Paper
                     variant="outlined"
-                    sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}
+                    sx={{ p: { xs: 2, md: 3 }, borderRadius: PLAYER_RADII.surface }}
                 >
                     <Stack spacing={2}>
                         <Stack
@@ -416,12 +417,15 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
                                     <MeetingIcon color="primary" />
                                 )}
                                 <Box>
-                                    <Typography variant="h6" fontWeight={700}>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{ fontWeight: 700 }}
+                                    >
                                         {session.title}
                                     </Typography>
                                     <Typography
                                         variant="body2"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         {PROVIDER_LABELS[session.provider] ||
                                             session.provider}
@@ -450,10 +454,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
                                     timeZoneName: "short",
                                 })}
                             </Typography>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                            >
+                            <Typography variant="caption" color="textSecondary">
                                 Scheduled in {session.timezone}; displayed in
                                 your local time.
                             </Typography>
@@ -461,7 +462,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
 
                         {isInPerson && (
                             <Stack spacing={0.5}>
-                                <Typography fontWeight={700}>
+                                <Typography sx={{ fontWeight: 700 }}>
                                     {session.venue}
                                 </Typography>
                                 {session.room && (
@@ -469,7 +470,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
                                 )}
                                 <Typography>{session.address}</Typography>
                                 {session.directions && (
-                                    <Typography color="text.secondary">
+                                    <Typography color="textSecondary">
                                         {session.directions}
                                     </Typography>
                                 )}
@@ -544,7 +545,7 @@ export default function ScheduledSessionRenderer({ session, content = "" }) {
                         position: "relative",
                         pt: "56.25%",
                         bgcolor: "black",
-                        borderRadius: 2,
+                        borderRadius: PLAYER_RADII.surface,
                         overflow: "hidden",
                     }}
                 >

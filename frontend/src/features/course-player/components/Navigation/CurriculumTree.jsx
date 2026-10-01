@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { List, Typography, Box } from '@mui/material';
 import NodeItem from './NodeItem';
 
-const CurriculumTree = ({ nodes, activeNodeId, enrollmentId }) => {
+const CurriculumTree = ({ nodes, activeNodeId, enrollmentId, previewMode = false }) => {
     // Initialize expanded state - auto-expand sections containing active node
     const [expandedSections, setExpandedSections] = useState(() => {
         const initial = {};
@@ -29,7 +29,7 @@ const CurriculumTree = ({ nodes, activeNodeId, enrollmentId }) => {
     if (!nodes || nodes.length === 0) {
         return (
             <Box sx={{ p: 3, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="textSecondary">
                     No curriculum content available.
                 </Typography>
             </Box>
@@ -47,6 +47,7 @@ const CurriculumTree = ({ nodes, activeNodeId, enrollmentId }) => {
                     onToggle={handleToggle}
                     activeNodeId={activeNodeId}
                     enrollmentId={enrollmentId}
+                    previewMode={previewMode}
                 />
             ))}
         </List>

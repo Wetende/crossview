@@ -42,7 +42,7 @@ import { ReportToolbar } from '@/features/reports';
 function StatCard({ title, value, icon: Icon, color = 'primary' }) {
   return (
     <Paper sx={{ p: 3, height: '100%' }}>
-      <Stack direction="row" spacing={2} alignItems="center">
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
         <Box
           sx={{
             p: 1.5,
@@ -54,10 +54,10 @@ function StatCard({ title, value, icon: Icon, color = 'primary' }) {
           <Icon />
         </Box>
         <Box>
-          <Typography variant="h4" fontWeight="bold">
+          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
             {value}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="textSecondary">
             {title}
           </Typography>
         </Box>
@@ -127,13 +127,13 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
           <Typography variant="h4" component="h1" gutterBottom>
             Certificates
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="textSecondary">
             Review automatically issued certificates and retry anything awaiting
             recovery.
           </Typography>
         </Box>
 
-        <Stack direction="row" justifyContent="flex-end" spacing={1}>
+        <Stack direction="row" sx={{ justifyContent: 'flex-end' }} spacing={1}>
           <ReportToolbar
             scope="admin"
             reportId="admin.certificates"
@@ -217,12 +217,14 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
             placeholder="Search by student name, program, or serial number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              },
             }}
           />
         </Paper>
@@ -250,7 +252,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                 {filteredCertificates.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
+                      <Typography color="textSecondary">
                         {certificates.length === 0 
                           ? 'No certificates have been issued yet.'
                           : 'No certificates match your search.'}
@@ -261,13 +263,13 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                   filteredCertificates.map((cert) => (
                     <TableRow key={cert.id} hover>
                       <TableCell>
-                        <Typography variant="body2" fontFamily="monospace">
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                           {cert.serialNumber}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">{cert.studentName}</Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="textSecondary">
                           {cert.studentEmail}
                         </Typography>
                       </TableCell>
@@ -308,7 +310,7 @@ export default function CertificatesIndex({ certificates = [], stats = {} }) {
                         )}
                       </TableCell>
                       <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                           {cert.canRelease && (
                             <Tooltip title="Retry Certificate Issuance">
                               <span>

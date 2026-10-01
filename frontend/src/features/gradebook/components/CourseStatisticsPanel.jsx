@@ -7,10 +7,10 @@ import { Box, Typography, Link } from '@mui/material';
 
 const StatItem = ({ label, value, isPercentage = false }) => (
   <Box>
-    <Typography component="span" variant="body2" color="text.secondary">
+    <Typography component="span" variant="body2" color="textSecondary">
       {label}:{' '}
     </Typography>
-    <Typography component="span" variant="body2" fontWeight="bold" color="primary.main">
+    <Typography component="span" variant="body2" sx={{ fontWeight: 'bold' }} color="primary">
       {isPercentage ? `${value}%` : value}
     </Typography>
   </Box>

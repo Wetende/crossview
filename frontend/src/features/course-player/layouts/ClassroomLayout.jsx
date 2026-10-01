@@ -9,6 +9,7 @@ import {
     Toolbar,
     Drawer,
     SwipeableDrawer,
+    Tooltip,
 } from "@mui/material";
 import { Link } from "@inertiajs/react";
 import {
@@ -17,20 +18,60 @@ import {
     Close as CloseIcon,
     DarkMode,
     LightMode,
-    ChatBubbleOutline,
+    ChatBubbleOutlined,
+    MailOutlined,
 } from "@mui/icons-material";
 import ThemeProvider, { useThemeMode } from "@/theme";
+import { FONT_FIGTREE } from "@/config";
+import { SESSION_CONTROL_HEIGHT } from "../components/Stage/SessionControl";
+import { PLAYER_RADII } from "../playerRadii";
+
+// The player uses one sans-serif family for headings and body text.
+const PLAYER_HEADING_VARIANTS = ["h1", "h2", "h3", "h4", "h5", "h6"];
+const extendPlayerTheme = () => ({
+    shape: { borderRadius: 2 },
+    typography: Object.fromEntries(
+        PLAYER_HEADING_VARIANTS.map((variant) => [
+            variant,
+            { fontFamily: FONT_FIGTREE },
+        ]),
+    ),
+    components: {
+        MuiPaper: { styleOverrides: { root: { borderRadius: PLAYER_RADII.surface } } },
+        MuiCard: { styleOverrides: { root: { borderRadius: PLAYER_RADII.surface } } },
+        MuiAlert: { styleOverrides: { root: { borderRadius: PLAYER_RADII.surface } } },
+        MuiDialog: { styleOverrides: { paper: { borderRadius: PLAYER_RADII.surface } } },
+        MuiTooltip: { styleOverrides: { tooltip: { borderRadius: PLAYER_RADII.surface } } },
+        MuiButton: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiOutlinedInput: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiTextField: {
+            styleOverrides: {
+                root: { "& .MuiOutlinedInput-root": { borderRadius: PLAYER_RADII.control } },
+            },
+        },
+        MuiChip: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiTab: { styleOverrides: { root: { borderRadius: PLAYER_RADII.control } } },
+        MuiListItemButton: {
+            styleOverrides: { root: { borderRadius: PLAYER_RADII.control } },
+        },
+        MuiAppBar: { styleOverrides: { root: { borderRadius: 0 } } },
+        MuiDrawer: { styleOverrides: { paper: { borderRadius: 0 } } },
+    },
+});
 
 const ClassroomLayoutInner = ({
     children,
     programTitle,
     backLink,
+    backLabel = "Back to dashboard",
+    Banner = null,
     RightPanel,
     LeftPanel,
     isSidebarOpen,
     onToggleSidebar,
     isDiscussionsOpen,
     onToggleDiscussions,
+    messageInstructorHref = null,
 }) => {
     const theme = useTheme();
     const { isDark, toggleMode } = useThemeMode();
@@ -79,6 +120,7 @@ const ClassroomLayoutInner = ({
                             size="small"
                             component={Link}
                             href={backLink}
+                            aria-label={backLabel}
                             sx={{ color: "text.secondary" }}
                         >
                             <ArrowBack fontSize="small" />
@@ -93,14 +135,14 @@ const ClassroomLayoutInner = ({
                                 color: "primary.contrastText",
                                 px: 1.5,
                                 py: 0.5,
-                                borderRadius: 1,
+                                borderRadius: PLAYER_RADII.control,
                                 cursor: "pointer",
                             }}
                             onClick={onToggleSidebar}
                         >
                             <MenuIcon fontSize="small" />
                             {!isMobile && (
-                                <Typography variant="body2" fontWeight={500}>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                     Curriculum
                                 </Typography>
                             )}
@@ -119,16 +161,15 @@ const ClassroomLayoutInner = ({
                             >
                                 <Typography
                                     variant="caption"
-                                    color="text.secondary"
+                                    color="textSecondary"
                                     sx={{ lineHeight: 1 }}
                                 >
                                     Course
                                 </Typography>
                                 <Typography
                                     variant="body2"
-                                    fontWeight={600}
                                     noWrap
-                                    sx={{ maxWidth: 300, color: "text.primary" }}
+                                    sx={{ fontWeight: 600, maxWidth: 300, color: "text.primary" }}
                                 >
                                     {programTitle}
                                 </Typography>
@@ -141,6 +182,7 @@ const ClassroomLayoutInner = ({
                         <IconButton
                             size="small"
                             onClick={toggleMode}
+                            aria-label={isDark ? "Switch player to light mode" : "Switch player to dark mode"}
                             sx={{ color: "text.secondary" }}
                         >
                             {isDark ? (
@@ -150,10 +192,24 @@ const ClassroomLayoutInner = ({
                             )}
                         </IconButton>
 
+                        {messageInstructorHref && (
+                            <Tooltip title="Message instructor">
+                                <IconButton
+                                    size="small"
+                                    component={Link}
+                                    href={messageInstructorHref}
+                                    aria-label="Message instructor"
+                                    sx={{ color: "text.secondary" }}
+                                >
+                                    <MailOutlined fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+
                         {hasRightPanel && (
                             <Button
                                 size="small"
-                                startIcon={!isMobile && <ChatBubbleOutline fontSize="small" />}
+                                startIcon={!isMobile && <ChatBubbleOutlined fontSize="small" />}
                                 onClick={onToggleDiscussions}
                                 sx={{
                                     textTransform: "none",
@@ -164,12 +220,15 @@ const ClassroomLayoutInner = ({
                                     px: isMobile ? 1 : 2,
                                 }}
                             >
-                                {isMobile ? <ChatBubbleOutline fontSize="small" /> : 'Discussions'}
+                                {isMobile ? <ChatBubbleOutlined fontSize="small" /> : 'Discussions'}
                             </Button>
                         )}
                     </Box>
                 </Toolbar>
             </AppBar>
+
+            {/* Persistent notice under the header (e.g. free preview) */}
+            {Banner}
 
             {/* Main Content Area */}
             <Box
@@ -253,6 +312,8 @@ const ClassroomLayoutInner = ({
                             maxWidth: 900,
                             mx: "auto",
                             width: "100%",
+                            // Keep content clear of the sticky lesson footer.
+                            scrollPaddingBottom: `${SESSION_CONTROL_HEIGHT}px`,
                             // Hide scrollbar
                             "&::-webkit-scrollbar": { display: "none" },
                             scrollbarWidth: "none",
@@ -309,7 +370,11 @@ const ClassroomLayoutInner = ({
 };
 
 const ClassroomLayout = (props) => (
-    <ThemeProvider storageKey="lms_theme_classroom">
+    <ThemeProvider
+        initialMode="light"
+        persistMode={false}
+        extendTheme={extendPlayerTheme}
+    >
         <ClassroomLayoutInner {...props} />
     </ThemeProvider>
 );

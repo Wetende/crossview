@@ -16,7 +16,7 @@ import {
 
 import CourseProgressSummary from "./CourseProgressSummary";
 
-const CourseUnitCard = ({ unit, index = 0 }) => {
+const CourseUnitCard = ({ unit, index = 0, cornerRadius = null }) => {
     const completed =
         unit.totalCount > 0 && unit.completedCount >= unit.totalCount;
     const locked = !unit.url;
@@ -27,7 +27,7 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
             variant="outlined"
             sx={{
                 height: "100%",
-                borderRadius: 2.5,
+                borderRadius: cornerRadius ?? 2.5,
                 borderColor: "divider",
                 boxShadow: "none",
                 transition: "border-color 180ms ease, box-shadow 180ms ease",
@@ -69,7 +69,7 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
                     <Box
                         sx={{
                             minHeight: 112,
-                            borderRadius: 2,
+                            borderRadius: cornerRadius ?? 2,
                             bgcolor: `${accent}.lighter`,
                             color: `${accent}.dark`,
                             display: "grid",
@@ -95,7 +95,7 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
                         <Typography
                             variant="h2"
                             component="span"
-                            fontWeight={800}
+                            sx={{ fontWeight: 800 }}
                         >
                             {index + 1}
                         </Typography>
@@ -111,7 +111,7 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
                         </Typography>
                         <Stack
                             direction="row"
-                            alignItems="center"
+                            sx={{ alignItems: "center" }}
                             spacing={0.75}
                         >
                             {locked ? (
@@ -132,8 +132,8 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
                             )}
                             <Typography
                                 variant="caption"
-                                color="text.secondary"
-                                fontWeight={600}
+                                color="textSecondary"
+                                sx={{ fontWeight: 600 }}
                             >
                                 {locked
                                     ? "Locked"
@@ -154,11 +154,17 @@ const CourseUnitCard = ({ unit, index = 0 }) => {
                         {!locked && (
                             <Stack
                                 direction="row"
-                                alignItems="center"
                                 spacing={0.5}
-                                sx={{ mt: 1.5, color: "primary.main" }}
+                                sx={{
+                                    alignItems: "center",
+                                    mt: 1.5,
+                                    color: "primary.main",
+                                }}
                             >
-                                <Typography variant="body2" fontWeight={800}>
+                                <Typography
+                                    variant="body2"
+                                    sx={{ fontWeight: 800 }}
+                                >
                                     {completed
                                         ? "Review unit"
                                         : unit.completedCount > 0

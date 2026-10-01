@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { formatActivityDuration, normalizeActivityType } from "./activityTypes";
+import {
+    formatActivityDuration,
+    getActivitySummary,
+    getActivityTypeLabel,
+    normalizeActivityType,
+} from "./activityTypes";
 
 describe("activity types", () => {
     test.each([
@@ -19,5 +24,28 @@ describe("activity types", () => {
         expect(formatActivityDuration(45)).toBe("45 min");
         expect(formatActivityDuration("45")).toBe("45 min");
         expect(formatActivityDuration("2h 45m")).toBe("2h 45m");
+    });
+
+    test.each([
+        [{ activityType: "text" }, "Text lesson"],
+        [{ properties: { lesson_type: "video_lesson" } }, "Video lesson"],
+        [{ nodeType: "quiz" }, "Quiz"],
+        [{ properties: { lesson_type: "live_class" } }, "Live class"],
+        [{ nodeType: "Session" }, "Text lesson"],
+    ])("labels %o as %s", (node, expected) => {
+        expect(getActivityTypeLabel(node)).toBe(expected);
+    });
+
+    test("summarises the type with its duration or question count", () => {
+        expect(
+            getActivitySummary({ activityType: "video", properties: { duration: 9 } }),
+        ).toBe("Video lesson · 9 min");
+        expect(
+            getActivitySummary({
+                nodeType: "quiz",
+                properties: { questions: [{}, {}, {}, {}, {}] },
+            }),
+        ).toBe("Quiz · 5 questions");
+        expect(getActivitySummary({ activityType: "text" })).toBe("Text lesson");
     });
 });

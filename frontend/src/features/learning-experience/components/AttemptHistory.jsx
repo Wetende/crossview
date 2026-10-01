@@ -61,16 +61,16 @@ const AttemptHistory = ({ attempts = [], selectedId, onReview }) => {
                         >
                             <Stack
                                 direction="row"
-                                justifyContent="space-between"
+                                sx={{ justifyContent: "space-between" }}
                                 spacing={1}
                             >
                                 <Box>
-                                    <Typography fontWeight={800}>
+                                    <Typography sx={{ fontWeight: 800 }}>
                                         {attempt.title}
                                     </Typography>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         {attempt.submittedAt}
                                     </Typography>
@@ -89,22 +89,22 @@ const AttemptHistory = ({ attempts = [], selectedId, onReview }) => {
                                 <Box>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Score
                                     </Typography>
-                                    <Typography fontWeight={800}>
+                                    <Typography sx={{ fontWeight: 800 }}>
                                         {attempt.score}
                                     </Typography>
                                 </Box>
                                 <Box>
                                     <Typography
                                         variant="caption"
-                                        color="text.secondary"
+                                        color="textSecondary"
                                     >
                                         Points
                                     </Typography>
-                                    <Typography fontWeight={800}>
+                                    <Typography sx={{ fontWeight: 800 }}>
                                         {attempt.points}
                                     </Typography>
                                 </Box>

@@ -2,9 +2,20 @@
 Notification service - Helper methods for creating notifications.
 """
 
+from django.conf import settings
 from django.utils import timezone
 from .models import Notification, NotificationPreference
 from .outbox import enqueue_email, process_notification_outbox
+
+
+def _public_url(path):
+    """Absolute link for emails when a public base URL is configured."""
+    base_url = str(
+        getattr(settings, "PLATFORM_PUBLIC_BASE_URL", "")
+        or getattr(settings, "SITE_URL", "")
+        or ""
+    ).rstrip("/")
+    return f"{base_url}{path}" if base_url else path
 
 
 class NotificationService:
@@ -695,6 +706,88 @@ class NotificationService:
                 f"Hello {enrollment.user.get_full_name() or enrollment.user.email},\n\n"
                 f'Your grades for "{enrollment.program.name}" are now available.'
             ),
+        )
+        return notification
+
+    @staticmethod
+    def notify_course_completed(enrollment):
+        """Congratulate a learner once when an enrollment is completed."""
+        user = enrollment.user
+        program = enrollment.program
+        action_url = f"/student/programs/{enrollment.id}/complete/"
+        idempotency_key = f"course-completed:{enrollment.id}"
+
+        notification = NotificationService.create(
+            recipient=user,
+            notification_type="course_completed",
+            title="Course completed",
+            message=f'Congratulations, you completed "{program.name}".',
+            action_url=action_url,
+            related_program_id=program.id,
+            related_enrollment_id=enrollment.id,
+            idempotency_key=f"notification:{idempotency_key}",
+        )
+        email_url = _public_url(action_url)
+        NotificationService.send_email_notification(
+            recipient=user,
+            notification_type="course_completed",
+            subject=f"Course completed: {program.name}",
+            message=(
+                f"Hello {user.get_full_name() or user.email},\n\n"
+                f'Congratulations on completing "{program.name}".\n'
+                + (
+                    f"View your course summary: {email_url}"
+                    if email_url != action_url
+                    else "Open the course from your student dashboard to see your "
+                    "summary, certificate status and suggested next courses."
+                )
+            ),
+            notification=notification,
+            idempotency_key=f"email:{idempotency_key}",
+            metadata={"action_url": email_url, "action_label": "View summary"},
+        )
+        return notification
+
+    @staticmethod
+    def notify_certificate_issued(certificate):
+        """Tell a learner once that their certificate is ready."""
+        enrollment = certificate.enrollment
+        user = enrollment.user
+        action_url = "/student/certificates/"
+        idempotency_key = f"certificate-issued:{certificate.id}"
+
+        notification = NotificationService.create(
+            recipient=user,
+            notification_type="certificate_issued",
+            title="Certificate issued",
+            message=(
+                f'Your certificate for "{certificate.program_title}" is ready '
+                "to download."
+            ),
+            action_url=action_url,
+            related_program_id=enrollment.program_id,
+            related_enrollment_id=enrollment.id,
+            idempotency_key=f"notification:{idempotency_key}",
+        )
+        email_url = _public_url(action_url)
+        NotificationService.send_email_notification(
+            recipient=user,
+            notification_type="certificate_issued",
+            subject=f"Certificate issued: {certificate.program_title}",
+            message=(
+                f"Hello {user.get_full_name() or user.email},\n\n"
+                f'Your certificate for "{certificate.program_title}" has been issued.\n'
+                f"Serial number: {certificate.serial_number}\n"
+                + (
+                    f"Download it from your certificates page: {email_url}"
+                    if email_url != action_url
+                    else "You can download it from the Certificates page in your "
+                    "student dashboard."
+                )
+            ),
+            notification=notification,
+            idempotency_key=f"email:{idempotency_key}",
+            metadata={"action_url": email_url, "action_label": "View certificate"},
         )
         return notification
 

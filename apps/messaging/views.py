@@ -19,6 +19,17 @@ from .services import MessagingService
 
 User = get_user_model()
 
+NEW_CONVERSATION_DRAFT_MAX_LENGTH = 300
+
+
+def _read_draft(request) -> str:
+    """Optional starter text, e.g. the course player's "Question about ..." prompt.
+
+    Only leading whitespace is dropped so a trailing blank line survives.
+    """
+    draft = (request.GET.get('draft') or '').lstrip()
+    return draft[:NEW_CONVERSATION_DRAFT_MAX_LENGTH]
+
 
 def _serialize_user(user_obj):
     return {
@@ -123,6 +134,7 @@ def conversation_detail(request, conversation_id: int):
             },
             'messages': [_serialize_message(row, request.user) for row in message_rows],
             'errorMessage': request.GET.get('error') or None,
+            'draftContent': _read_draft(request),
         },
     )
 
@@ -133,6 +145,7 @@ def new_conversation(request):
     query = request.GET.get('q', '')
     recipient_id = request.GET.get('recipient_id')
     recipient_email = (request.GET.get('recipient_email') or '').strip()
+    draft_content = _read_draft(request)
     form_errors = {}
     submitted_content = ''
 
@@ -163,7 +176,10 @@ def new_conversation(request):
                 participant_two=participant_two,
             ).first()
             if existing_conversation and request.method == 'GET':
-                return redirect(f'/messages/{existing_conversation.id}/')
+                target = f'/messages/{existing_conversation.id}/'
+                if draft_content:
+                    target += f'?draft={quote_plus(draft_content)}'
+                return redirect(target)
         except (TypeError, ValueError, User.DoesNotExist):
             preselected_recipient_id = None
 
@@ -220,6 +236,7 @@ def new_conversation(request):
             'recipients': recipients_data,
             'preselectedRecipientId': preselected_recipient_id,
             'submittedContent': submitted_content,
+            'draftContent': draft_content,
             'formErrors': form_errors,
             'query': query,
         },

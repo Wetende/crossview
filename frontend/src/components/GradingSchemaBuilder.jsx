@@ -107,7 +107,7 @@ function WeightedBuilder({ components = [], passMark, onChange }) {
 
     return (
         <Stack spacing={2}>
-            <Typography variant="subtitle2" color="text.secondary">
+            <Typography variant="subtitle2" color="textSecondary">
                 Add grade components with percentage weights (must total 100%)
             </Typography>
 
@@ -182,7 +182,7 @@ function WeightedBuilder({ components = [], passMark, onChange }) {
             )}
 
             {/* Add New Component */}
-            <Grid container spacing={2} alignItems="flex-end">
+            <Grid container spacing={2} sx={{ alignItems: "flex-end" }}>
                 <Grid size={{ xs: 5 }}>
                     <TextField
                         label="Component Name"
@@ -209,7 +209,7 @@ function WeightedBuilder({ components = [], passMark, onChange }) {
                                 weight: e.target.value,
                             })
                         }
-                        inputProps={{ min: 1, max: 100 }}
+                        slotProps={{ htmlInput: { min: 1, max: 100 } }}
                         size="small"
                         fullWidth
                     />
@@ -236,7 +236,7 @@ function WeightedBuilder({ components = [], passMark, onChange }) {
                 type="number"
                 value={passMark || 50}
                 onChange={(e) => updatePassMark(e.target.value)}
-                inputProps={{ min: 0, max: 100 }}
+                slotProps={{ htmlInput: { min: 0, max: 100 } }}
                 size="small"
                 sx={{ maxWidth: 150 }}
             />
@@ -326,8 +326,7 @@ function CompetencyBuilder({ levels = [], components = [], onChange }) {
                 <Stack
                     direction="row"
                     spacing={1}
-                    flexWrap="wrap"
-                    sx={{ mb: 2 }}
+                    sx={{ flexWrap: "wrap", mb: 2 }}
                 >
                     {components.map((comp, index) => (
                         <Chip
@@ -439,8 +438,7 @@ function RubricBuilder({ levels = [], criteria = [], onChange }) {
                 <Stack
                     direction="row"
                     spacing={1}
-                    flexWrap="wrap"
-                    sx={{ mb: 2 }}
+                    sx={{ flexWrap: "wrap", mb: 2 }}
                 >
                     {criteria.map((c, index) => (
                         <Chip
@@ -496,7 +494,7 @@ function ChecklistBuilder({ items = [], onChange }) {
 
     return (
         <Stack spacing={2}>
-            <Typography variant="subtitle2" color="text.secondary">
+            <Typography variant="subtitle2" color="textSecondary">
                 Add items that students must pass (all items required for
                 overall pass)
             </Typography>
@@ -570,7 +568,7 @@ function PercentageBuilder({ passMark, onChange }) {
         <Box>
             <Typography
                 variant="subtitle2"
-                color="text.secondary"
+                color="textSecondary"
                 sx={{ mb: 2 }}
             >
                 Students will receive a single percentage score (0-100)
@@ -582,7 +580,7 @@ function PercentageBuilder({ passMark, onChange }) {
                 onChange={(e) =>
                     onChange({ pass_mark: parseInt(e.target.value) || 0 })
                 }
-                inputProps={{ min: 0, max: 100 }}
+                slotProps={{ htmlInput: { min: 0, max: 100 } }}
                 size="small"
             />
         </Box>
@@ -672,7 +670,7 @@ export default function GradingSchemaBuilder({ value = {}, onChange }) {
                                         <Typography>{type.label}</Typography>
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {type.description}
                                         </Typography>

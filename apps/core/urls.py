@@ -18,6 +18,11 @@ urlpatterns = [
     path("contact/", views.contact_page, name="contact"),
     path("programs/", views.public_programs_list, name="programs"),
     path("programs/<slug:slug>/", views.public_program_detail, name="program_detail"),
+    path(
+        "programs/<slug:slug>/preview/<int:node_id>/",
+        views.public_preview_lesson,
+        name="program_preview_lesson",
+    ),
     path("programs/<int:pk>/review/", views.program_review_submit, name="program_review_submit"),
     # Authentication
     path("login/", views.login_page, name="login"),
@@ -101,6 +106,8 @@ urlpatterns = [
     ),
     path("instructor/programs/<int:pk>/", views.instructor_program_detail, name="instructor.program"),
     path("instructor/programs/<int:pk>/preview/", views.instructor_program_preview, name="instructor.program_preview"),
+    path("instructor/programs/<int:pk>/analytics/", views.instructor_program_analytics, name="instructor.program_analytics"),
+    path("instructor/analytics/", views.instructor_analytics_index, name="instructor.analytics"),
     # Course Manager (Builder)
     path("instructor/programs/<int:pk>/manage/", views.instructor_program_manage, name="instructor.program_manage"),
     path("instructor/programs/<int:pk>/manage/settings/", views.instructor_program_update_settings, name="instructor.program_update_settings"),

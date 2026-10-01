@@ -4,9 +4,11 @@ Handles sequential locking, prerequisite checking, and progress calculation.
 """
 from dataclasses import dataclass
 from typing import Optional, List, Set, Dict, Any
+from django.db import transaction
 from django.utils import timezone
 
 from apps.curriculum.models import CurriculumNode
+from apps.curriculum.preview import is_public_preview_lesson
 from apps.progression.models import NodeCompletion, Enrollment
 from apps.assessments.official_results import (
     assignment_attempt_passed,
@@ -16,6 +18,34 @@ from apps.assessments.official_results import (
 
 
 ASSIGNMENT_MODES = {"submission_only", "question_only", "mixed"}
+
+
+def mark_enrollment_completed(enrollment: Enrollment) -> bool:
+    """
+    Move an enrollment to ``completed`` and schedule the learner notification.
+
+    Shared by every path that detects 100% progress. The notification is
+    registered before the save so it is sent ahead of the certificate notice
+    that the save's certificate signal may queue; both run only after commit.
+    Re-completions (for example after new lessons were added) schedule it
+    again, and the per-enrollment idempotency key keeps it to one send.
+
+    Returns True when this call changed the status to ``completed``.
+    """
+    if enrollment.status == "completed":
+        return False
+
+    def _notify():
+        from apps.notifications.services import NotificationService
+
+        NotificationService.notify_course_completed(enrollment)
+
+    with transaction.atomic():
+        transaction.on_commit(_notify, robust=True)
+        enrollment.status = "completed"
+        enrollment.completed_at = timezone.now()
+        enrollment.save(update_fields=["status", "completed_at", "updated_at"])
+    return True
 
 
 def _safe_int(value):
@@ -166,9 +196,8 @@ class ScheduleLockChecker:
         """
         from datetime import timedelta
 
-        # Preview access (Phase 2)
-        if hasattr(node, 'is_preview') and node.is_preview and not enrollment:
-             # Logic for preview access - simplified for now as service expects enrollment usually
+        # Free preview lessons are open to visitors (apps.curriculum.preview)
+        if not enrollment and is_public_preview_lesson(node):
              return AccessResult(can_access=True, status='preview')
 
         if not enrollment:
@@ -179,9 +208,20 @@ class ScheduleLockChecker:
         scheduled_nodes = [*node.get_ancestors(), node]
         active_locks = []
 
+        # The builder keeps the other mode's saved value when an instructor
+        # switches drip mode, so only the active mode's field may lock
+        # content. Legacy "none"/"mixed" courses keep applying both.
+        drip_mode = getattr(enrollment.program, "drip_mode", "none")
+        apply_unlock_date = drip_mode != "relative"
+        apply_unlock_after_days = drip_mode != "absolute"
+
         for scheduled_node in scheduled_nodes:
             # 1. Absolute unlock date
-            if scheduled_node.unlock_date and scheduled_node.unlock_date > now:
+            if (
+                apply_unlock_date
+                and scheduled_node.unlock_date
+                and scheduled_node.unlock_date > now
+            ):
                 active_locks.append(
                     (
                         scheduled_node.unlock_date,
@@ -191,7 +231,7 @@ class ScheduleLockChecker:
                 )
 
             # 2. Relative unlock days
-            if scheduled_node.unlock_after_days:
+            if apply_unlock_after_days and scheduled_node.unlock_after_days:
                 unlock_at = enrollment.created_at + timedelta(
                     days=scheduled_node.unlock_after_days
                 )
@@ -529,7 +569,7 @@ class ProgressionEngine:
             AccessResult indicating if access is allowed
         """
         if not enrollment:
-            if node.is_preview:
+            if is_public_preview_lesson(node):
                 return AccessResult(can_access=True, status='preview')
             return AccessResult(can_access=False, status='locked', lock_reason='enrollment_required')
 
@@ -609,9 +649,7 @@ class ProgressionEngine:
 
         # Check for program completion
         if self.check_program_completion(enrollment) and enrollment.status != 'completed':
-            enrollment.status = 'completed'
-            enrollment.completed_at = timezone.now()
-            enrollment.save(update_fields=['status', 'completed_at', 'updated_at'])
+            mark_enrollment_completed(enrollment)
 
         return completion
 

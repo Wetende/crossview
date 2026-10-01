@@ -23,6 +23,10 @@ const Whiteboard = ({
     isCompleted = false,
     discussions = [],
     onVideoProgress,
+    seekRef = null,
+    courseCompleteUrl = null,
+    courseSummaryUrl = null,
+    readOnly = false, // Free preview: content only, no learner state is written
 }) => {
     const nodeId = node?.id;
     const [videoRequirementMet, setVideoRequirementMet] = useState(false);
@@ -31,12 +35,17 @@ const Whiteboard = ({
 
     const handleNavigate = (destination) => {
         router.visit(
-            `/student/programs/${courseId}/session/${destination.id}/`,
+            destination.url ||
+                `/student/programs/${courseId}/session/${destination.id}/`,
         );
     };
 
-    const handleComplete = () => {
-        if (isCompleted || completionInFlightRef.current) return;
+    // `destination` is passed by "Complete & Next"; activity renderers call
+    // this without arguments and stay on the lesson. The learner moves on even
+    // if the server refuses completion: its access checks still gate the
+    // destination.
+    const handleComplete = (destination = null) => {
+        if (readOnly || isCompleted || completionInFlightRef.current) return;
         completionInFlightRef.current = true;
 
         // POST to mark complete
@@ -47,7 +56,25 @@ const Whiteboard = ({
             },
             {
                 preserveScroll: true,
-                only: ["isCompleted", "curriculum"],
+                only: [
+                    "isCompleted",
+                    "curriculum",
+                    "enrollment",
+                    "nextNode",
+                    "prevNode",
+                    "courseCompleteUrl",
+                ],
+                onSuccess: (page) => {
+                    // Present only when this completion finished the course;
+                    // the summary takes priority over the next lesson.
+                    const courseCompleteUrl = page?.props?.courseCompleteUrl;
+                    if (courseCompleteUrl) {
+                        router.visit(courseCompleteUrl);
+                        return;
+                    }
+                    if (!destination?.id) return;
+                    handleNavigate(page?.props?.nextNode || destination);
+                },
                 onFinish: () => {
                     completionInFlightRef.current = false;
                 },
@@ -141,6 +168,8 @@ const Whiteboard = ({
                 onVideoProgress={onVideoProgress}
                 onVideoRequirementMet={handleVideoRequirementMet}
                 activityProgress={node.activityProgress}
+                seekRef={seekRef}
+                readOnly={readOnly}
             />
         ));
     };
@@ -158,6 +187,7 @@ const Whiteboard = ({
                     <QuizResultsRenderer
                         quizResults={node.properties.quizResults}
                         nextNode={nextNode}
+                        courseCompleteUrl={courseCompleteUrl}
                     />
                 );
             }
@@ -190,14 +220,17 @@ const Whiteboard = ({
                     url={node.properties?.video_url}
                     onProgress={onVideoProgress}
                     requiredProgress={
-                        node.completionPolicy?.requiredPercent ||
-                        node.properties?.required_progress ||
-                        0
+                        readOnly
+                            ? 0
+                            : node.completionPolicy?.requiredPercent ||
+                              node.properties?.required_progress ||
+                              0
                     }
                     onRequirementMet={handleVideoRequirementMet}
                     enrollmentId={courseId}
                     nodeId={nodeId}
                     activityProgress={node.activityProgress}
+                    seekRef={seekRef}
                 />
             );
         }
@@ -299,8 +332,8 @@ const Whiteboard = ({
         <Box
             sx={{ display: "flex", flexDirection: "column", minHeight: "100%" }}
         >
-            {/* Header: Lesson title */}
-            <LessonHeader title={node.title} />
+            {/* Header: activity eyebrow + lesson title */}
+            <LessonHeader node={node} />
 
             {/* Content Area */}
             <Box sx={{ flexGrow: 1 }}>
@@ -318,11 +351,17 @@ const Whiteboard = ({
                 onComplete={handleComplete}
                 onNavigate={handleNavigate}
                 canComplete={canComplete}
+                showCompletion={!readOnly}
                 completionTooltip={completionTooltip}
                 completionLabel={
                     node.completionPolicy?.learnerCanComplete === false
                         ? "Attendance pending"
-                        : "Mark Complete"
+                        : null
+                }
+                onViewSummary={
+                    courseSummaryUrl
+                        ? () => router.visit(courseSummaryUrl)
+                        : null
                 }
             />
         </Box>

@@ -298,3 +298,117 @@ def test_signed_download_is_restricted_to_certificate_owner(
     with override_settings(MEDIA_ROOT=tmp_path):
         response = client.get(certificate.get_signed_download_url(), secure=True)
     assert response.status_code == 404
+
+
+def _stored_certificate(enrollment, serial="LMS-2026-RSV001", **overrides):
+    template = CertificateTemplate.objects.get(name="Classic Formal", is_starter=True)
+    values = {
+        "enrollment": enrollment,
+        "template": template,
+        "serial_number": serial,
+        "student_name": "Alex Morgan",
+        "program_title": enrollment.program.name,
+        "completion_date": "2026-09-26",
+        "issue_date": "2026-09-26",
+        "pdf_path": f"certificates/{serial}.pdf",
+    }
+    values.update(overrides)
+    return Certificate.objects.create(**values)
+
+
+def test_new_certificate_notifies_learner_once_after_commit(
+    django_capture_on_commit_callbacks,
+    learner,
+    program,
+):
+    from apps.notifications.models import Notification
+
+    enrollment = Enrollment.objects.create(user=learner, program=program)
+
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        certificate = _stored_certificate(enrollment)
+    assert len(callbacks) == 1
+
+    with django_capture_on_commit_callbacks(execute=True) as update_callbacks:
+        certificate.student_name = "Alex J. Morgan"
+        certificate.save(update_fields=["student_name", "updated_at"])
+    assert update_callbacks == []
+
+    notifications = Notification.objects.filter(
+        recipient=learner,
+        notification_type="certificate_issued",
+    )
+    assert notifications.count() == 1
+    assert notifications.get().related_enrollment_id == enrollment.id
+
+
+def test_learner_certificate_issued_state_links_download_and_verification(
+    learner,
+    program,
+):
+    from apps.certifications.services import resolve_learner_certificate
+
+    enrollment = Enrollment.objects.create(user=learner, program=program)
+    certificate = _stored_certificate(enrollment)
+
+    state = resolve_learner_certificate(enrollment)
+
+    assert state["status"] == "issued"
+    assert state["downloadUrl"].startswith("/certificates/download/")
+    assert state["verifyUrl"] == f"/verify/{certificate.serial_number}/"
+    assert state["message"]
+
+
+def test_learner_certificate_revoked_state_is_ineligible(learner, program):
+    from apps.certifications.services import resolve_learner_certificate
+
+    enrollment = Enrollment.objects.create(user=learner, program=program)
+    _stored_certificate(enrollment, is_revoked=True)
+
+    state = resolve_learner_certificate(enrollment)
+
+    assert state["status"] == "ineligible"
+    assert state["downloadUrl"] is None
+    assert state["verifyUrl"] is None
+
+
+def test_learner_certificate_pending_queue_state(learner, program):
+    from apps.certifications.models import CertificateEligibility
+    from apps.certifications.services import resolve_learner_certificate
+
+    enrollment = Enrollment.objects.create(user=learner, program=program)
+    CertificateEligibility.objects.update_or_create(
+        enrollment=enrollment,
+        defaults={"status": "pending"},
+    )
+
+    assert resolve_learner_certificate(enrollment)["status"] == "pending"
+
+
+def test_learner_certificate_not_offered_without_certificate_blueprint(learner):
+    from apps.certifications.services import resolve_learner_certificate
+
+    course = Program.objects.create(name="No certificate", code="CERT-NONE")
+    enrollment = Enrollment.objects.create(user=learner, program=course)
+
+    assert resolve_learner_certificate(enrollment)["status"] == "not_offered"
+
+
+def test_learner_certificate_ineligible_when_requirements_unmet(
+    monkeypatch,
+    learner,
+    program,
+):
+    from apps.certifications.services import (
+        CertificateEligibilityService,
+        resolve_learner_certificate,
+    )
+
+    monkeypatch.setattr(
+        CertificateEligibilityService,
+        "compute_eligibility",
+        lambda self, enrollment: {"certificateEnabled": True, "eligible": False},
+    )
+    enrollment = Enrollment.objects.create(user=learner, program=program)
+
+    assert resolve_learner_certificate(enrollment)["status"] == "ineligible"

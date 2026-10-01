@@ -78,13 +78,13 @@ function StudentDirectory({ students }) {
                                     <TableCell>
                                         <Typography
                                             variant="body2"
-                                            fontWeight={700}
+                                            sx={{ fontWeight: 700 }}
                                         >
                                             {student.name}
                                         </Typography>
                                         <Typography
                                             variant="caption"
-                                            color="text.secondary"
+                                            color="textSecondary"
                                         >
                                             {student.email}
                                         </Typography>
@@ -300,11 +300,11 @@ export default function InstructorStudentsIndex({
                     }}
                 >
                     <Box>
-                        <Typography variant="h4" fontWeight={700}>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
                             {pageTitle}
                         </Typography>
                         {isProgramView && (
-                            <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                            <Typography color="textSecondary" sx={{ mt: 0.5 }}>
                                 Review progress, support learners, and manage
                                 course access.
                             </Typography>
@@ -363,12 +363,14 @@ export default function InstructorStudentsIndex({
                                     onChange={(event) =>
                                         setSearch(event.target.value)
                                     }
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <SearchIcon />
-                                            </InputAdornment>
-                                        ),
+                                    slotProps={{
+                                        input: {
+                                            startAdornment: (
+                                                <InputAdornment position="start">
+                                                    <SearchIcon />
+                                                </InputAdornment>
+                                            ),
+                                        },
                                     }}
                                 />
                             </Box>
