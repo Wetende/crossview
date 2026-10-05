@@ -10,7 +10,7 @@ export function useCurrency() {
     const { platform } = usePage().props;
 
     const currencyCode = platform?.currencyCode || "KES";
-    const currencySymbol = platform?.currencySymbol || "KSh ";
+    const currencySymbol = platform?.currencySymbol || "KSh\u00A0";
 
     const formatCurrency = (amount) => {
         if (amount == null) return `${currencySymbol}0`;

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { EnrolledCourseCard } from "@/components/cards";
+import { ReportToolbar } from "@/features/reports";
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -19,6 +20,12 @@ const fadeInUp = {
  */
 export default function ProgramList({ enrollments = [] }) {
     const [courseFilter, setCourseFilter] = useState("all");
+    const progressReportStatus =
+        courseFilter === "completed"
+            ? "completed"
+            : courseFilter === "in_progress"
+              ? "active"
+              : "";
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -84,6 +91,12 @@ export default function ProgramList({ enrollments = [] }) {
                     spacing={3}
                     sx={{ minWidth: "max-content" }}
                 >
+                    <ReportToolbar
+                        scope="student"
+                        reportId="student.progress"
+                        queryParams={{ status: progressReportStatus }}
+                        printLabel="Progress"
+                    />
                     {[
                         { id: "all", label: "All", count: enrollments.length },
                         {

@@ -2,10 +2,12 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
 from django.shortcuts import redirect
 from inertia import render
 
 from apps.core.utils import get_post_data, is_admin
+from apps.core.models import Program
 from apps.platform.models import PlatformSettings
 
 
@@ -64,6 +66,68 @@ def admin_settings(request):
                     "self_registration", True
                 ),
             },
+        },
+    )
+
+
+def _normalize_program_categories(raw_categories) -> list:
+    if raw_categories is None:
+        return []
+    if isinstance(raw_categories, str):
+        raw_categories = [raw_categories]
+    if not isinstance(raw_categories, list):
+        return []
+
+    normalized = []
+    seen = set()
+    for category in raw_categories:
+        label = " ".join(str(category).split())
+        if label and label not in seen:
+            normalized.append(label)
+            seen.add(label)
+    return normalized
+
+
+@login_required
+def admin_program_categories(request):
+    """Admin-managed program category list for course setup."""
+    if not is_admin(request.user):
+        return redirect("/dashboard/")
+
+    from apps.platform.services import PlatformSettingsService
+
+    if request.method == "POST":
+        data = get_post_data(request)
+        categories = _normalize_program_categories(data.get("programCategories", []))
+        PlatformSettingsService.update_program_categories(categories)
+        messages.success(request, "Program categories updated successfully")
+        return redirect("tenants:admin.program_categories")
+
+    settings = PlatformSettings.get_settings()
+    categories = settings.get_program_categories()
+    usage_counts = dict(
+        Program.objects.exclude(category__isnull=True)
+        .exclude(category="")
+        .values("category")
+        .annotate(count=Count("id"))
+        .values_list("category", "count")
+    )
+
+    return render(
+        request,
+        "Admin/ProgramCategories/Index",
+        {
+            "categories": [
+                {
+                    "name": category,
+                    "programCount": usage_counts.get(category, 0),
+                }
+                for category in categories
+            ],
+            "uncategorizedProgramCount": Program.objects.filter(
+                category__isnull=True
+            ).count()
+            + Program.objects.filter(category="").count(),
         },
     )
 

@@ -319,3 +319,15 @@ class PlatformSettings(TimeStampedModel):
     def get_course_levels(self) -> list:
         """Return explicitly configured course level options."""
         return self.course_levels or []
+
+    def get_program_categories(self) -> list:
+        """Return normalized admin-configured program categories."""
+        categories = self.program_categories if isinstance(self.program_categories, list) else []
+        normalized = []
+        seen = set()
+        for category in categories:
+            label = str(category).strip()
+            if label and label not in seen:
+                normalized.append(label)
+                seen.add(label)
+        return normalized

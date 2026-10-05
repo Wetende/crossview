@@ -9,6 +9,11 @@ app_name = "tenants"
 urlpatterns = [
     # Admin Settings
     path("admin/settings/", views.admin_settings, name="admin.settings"),
+    path(
+        "admin/program-categories/",
+        views.admin_program_categories,
+        name="admin.program_categories",
+    ),
     # path("admin/settings/branding/", views.admin_branding, name="admin.branding"),
     
     # Super Admin Dashboard

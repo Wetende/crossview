@@ -1,0 +1,1 @@
+function a(n){const e=String(n||"");if(!e)return"";const t=e.replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();if(typeof document>"u")return t;const r=document.createElement("textarea");return r.innerHTML=t,r.value.replace(/\s+/g," ").trim()}function i(n,e=200){const t=a(n);return t.length<=e?t:`${t.slice(0,e).trim()}...`}export{a as h,i as t};

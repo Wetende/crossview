@@ -69,6 +69,45 @@ class QuestionCheckAnswerTest(TestCase):
         self.assertTrue(by_option_id)
         self.assertEqual(id_points, 1)
 
+    def test_mcq_accepts_any_correct_option_when_multiple_are_marked(self):
+        question = Question.objects.create(
+            quiz=self.quiz,
+            question_type="mcq",
+            text="Pick one acceptable answer",
+            points=5,
+            position=1,
+            answer_data={},
+        )
+        QuestionOption.objects.create(
+            question=question,
+            text="A",
+            is_correct=True,
+            position=0,
+        )
+        QuestionOption.objects.create(
+            question=question,
+            text="B",
+            is_correct=False,
+            position=1,
+        )
+        second_correct_option = QuestionOption.objects.create(
+            question=question,
+            text="C",
+            is_correct=True,
+            position=2,
+        )
+
+        by_position, position_points = question.check_answer(2)
+        by_option_id, id_points = question.check_answer(str(second_correct_option.id))
+        wrong_answer, wrong_points = question.check_answer(1)
+
+        self.assertTrue(by_position)
+        self.assertEqual(position_points, 5)
+        self.assertTrue(by_option_id)
+        self.assertEqual(id_points, 5)
+        self.assertFalse(wrong_answer)
+        self.assertEqual(wrong_points, 0)
+
     def test_mcq_multi_accepts_option_positions_or_ids(self):
         question = Question.objects.create(
             quiz=self.quiz,

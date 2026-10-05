@@ -22,6 +22,7 @@ urlpatterns = [
     # Authentication
     path("login/", views.login_page, name="login"),
     path("register/", views.register_page, name="register"),
+    path("auth/google/onetap/", views.google_one_tap_login, name="google_onetap_login"),
     path("logout/", views.logout_view, name="logout"),
     path("forgot-password/", views.forgot_password_page, name="forgot_password"),
     path(
@@ -58,6 +59,11 @@ urlpatterns = [
         "admin/programs/<int:pk>/publish/",
         views.admin_program_publish,
         name="admin.program.publish",
+    ),
+    path(
+        "admin/programs/<int:pk>/featured/",
+        views.admin_program_toggle_featured,
+        name="admin.program.featured",
     ),
     # Admin User Management
     path("admin/users/", views.admin_users, name="admin.users"),

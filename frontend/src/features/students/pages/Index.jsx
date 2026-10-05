@@ -35,6 +35,7 @@ import {
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import InstructorLayout from '@/layouts/InstructorLayout';
+import { ReportToolbar } from '@/features/reports';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -109,9 +110,20 @@ export default function InstructorStudentsIndex({ program, students, filters }) 
       <Head title={pageTitle} />
       
       <Stack spacing={3}>
-        <Typography variant="h4" fontWeight="bold">
-          {pageTitle}
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h4" fontWeight="bold">
+            {pageTitle}
+          </Typography>
+          <ReportToolbar
+            scope="instructor"
+            reportId="instructor.roster"
+            queryParams={{
+              program: program?.id,
+              search: filters?.search,
+              status: filters?.status,
+            }}
+          />
+        </Box>
         
         {/* Filters */}
         <motion.div {...fadeInUp}>

@@ -12,6 +12,7 @@ from apps.progression.tests.factories import ProgramFactory
 from apps.curriculum.models import CurriculumNode
 from apps.progression.models import InstructorAssignment
 from apps.core.views import serialize_program_data
+from apps.assessments.models import QuestionOption, Quiz
 
 @pytest.fixture
 def instructor():
@@ -240,6 +241,30 @@ class TestInstructorCourseBuilder:
         response = client.get(url)
         assert response.status_code == 302 # Redirects to dashboard
 
+    def test_instructor_cannot_mark_course_featured(
+        self,
+        client,
+        instructor,
+        program,
+        assignment,
+    ):
+        program.is_featured = False
+        program.save(update_fields=["is_featured"])
+        client.force_login(instructor)
+
+        response = client.post(
+            reverse("core:instructor.program_update_settings", args=[program.id]),
+            data={
+                "tab": "settings",
+                "section": "main",
+                "is_featured": "true",
+            },
+        )
+
+        assert response.status_code == 302
+        program.refresh_from_db()
+        assert program.is_featured is False
+
     def test_invalid_course_cannot_bypass_publish_validation(
         self,
         client,
@@ -378,6 +403,61 @@ class TestInstructorCourseBuilder:
         node.refresh_from_db()
         assert node.title == 'New Title'
         assert node.description == 'Updated desc'
+
+    def test_update_quiz_node_preserves_multi_select_correct_answers(
+        self, client, instructor, program, assignment
+    ):
+        node = CurriculumNode.objects.create(
+            program=program,
+            title="Knowledge Check",
+            node_type="Session",
+            properties={"lesson_type": "quiz", "questions": []},
+        )
+
+        client.force_login(instructor)
+        url = reverse("core:instructor.node_update", kwargs={"node_id": node.id})
+        response = client.post(
+            url,
+            data={
+                "title": "Knowledge Check",
+                "properties": {
+                    "lesson_type": "quiz",
+                    "questions": [
+                        {
+                            "id": "temp_1",
+                            "db_id": None,
+                            "type": "mcq_multi",
+                            "text": "Pick all fraud examples",
+                            "points": 1,
+                            "options": [
+                                "Fraud or not fraud",
+                                "Cat or dog",
+                                "Predicting exam score as a percentage",
+                                "Spam or not spam",
+                            ],
+                            "correct_indices": [0, 1, 3],
+                        }
+                    ],
+                },
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 302
+        quiz = Quiz.objects.get(node=node)
+        question = quiz.questions.get()
+        assert question.answer_data["correct_indices"] == [0, 1, 3]
+        assert set(
+            QuestionOption.objects.filter(
+                question=question,
+                is_correct=True,
+            ).values_list("position", flat=True)
+        ) == {0, 1, 3}
+
+        node.refresh_from_db()
+        saved_question = node.properties["questions"][0]
+        assert saved_question["correct_indices"] == [0, 1, 3]
+        assert "correctAnswers" not in saved_question
 
     def test_delete_node(self, client, instructor, program, assignment):
         node = CurriculumNode.objects.create(program=program, title="To Delete", node_type="Unit")

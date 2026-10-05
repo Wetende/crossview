@@ -430,8 +430,8 @@ class Question(TimeStampedModel):
             if not options:
                 return False, 0
 
-            correct_option = next((opt for opt in options if opt.is_correct), None)
-            if correct_option is None:
+            correct_positions = {opt.position for opt in options if opt.is_correct}
+            if not correct_positions:
                 return False, 0
 
             submitted_position = None
@@ -466,7 +466,7 @@ class Question(TimeStampedModel):
                 if matched_option is not None:
                     submitted_position = matched_option.position
 
-            is_correct = submitted_position == correct_option.position
+            is_correct = submitted_position in correct_positions
             return is_correct, Decimal(self.points) if is_correct else Decimal(0)
 
         # 7. True/False

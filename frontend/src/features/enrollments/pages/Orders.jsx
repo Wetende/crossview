@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { IconReceipt, IconRefresh } from "@tabler/icons-react";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { ReportToolbar } from "@/features/reports";
 import {
     getOrders,
     formatAmount,
@@ -66,9 +67,16 @@ export default function Orders() {
                         <IconReceipt size={24} />
                         <Typography variant="h5" fontWeight={700}>My Orders</Typography>
                     </Stack>
-                    <Button component={Link} href="/programs/" variant="outlined">
-                        Browse Programs
-                    </Button>
+                    <Stack direction="row" spacing={1}>
+                        <ReportToolbar
+                            scope="student"
+                            reportId="student.orders"
+                            printLabel="Print"
+                        />
+                        <Button component={Link} href="/programs/" variant="outlined">
+                            Browse Programs
+                        </Button>
+                    </Stack>
                 </Stack>
 
                 {/* Error state */}

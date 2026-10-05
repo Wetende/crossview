@@ -12,10 +12,12 @@ import {
     Alert,
     InputAdornment,
     IconButton,
+    Divider,
 } from "@mui/material";
 import { IconEye, IconEyeOff, IconMail, IconLock } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import PlatformLogo from "@/components/common/PlatformLogo";
+import { GoogleSignInButton } from "@/features/auth/components/GoogleIdentityScript";
 
 const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -27,15 +29,24 @@ const fadeInUp = {
  * Login Page - Authentication form
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
  */
-export default function Login({ registrationEnabled = true, errors = {} }) {
+export default function Login({
+    registrationEnabled = true,
+    errors = {},
+    socialAuth = {},
+    nextUrl = "",
+}) {
     const { platform } = usePage().props;
     const institutionName = platform?.institutionName || "LMS";
     const [showPassword, setShowPassword] = useState(false);
+    const registerUrl = nextUrl
+        ? `/register/?${new URLSearchParams({ next: nextUrl }).toString()}`
+        : "/register/";
 
     const { data, setData, post, processing } = useForm({
         email: "",
         password: "",
         remember: false,
+        next: nextUrl,
     });
 
     const handleSubmit = (e) => {
@@ -93,6 +104,26 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                                 <Alert severity="error" sx={{ mb: 3 }}>
                                     {errors.auth || "Invalid email or password"}
                                 </Alert>
+                            )}
+
+                            {socialAuth.google?.enabled && (
+                                <>
+                                    <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+                                        <GoogleSignInButton
+                                            clientId={socialAuth.google.clientId}
+                                            loginUri={socialAuth.google.loginUrl}
+                                            nextUrl={nextUrl}
+                                            context="signin"
+                                            text="continue_with"
+                                            autoPrompt={!nextUrl}
+                                        />
+                                    </Box>
+                                    <Divider sx={{ mb: 2 }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            or sign in with email
+                                        </Typography>
+                                    </Divider>
+                                </>
                             )}
 
                             {/* Login Form */}
@@ -219,7 +250,7 @@ export default function Login({ registrationEnabled = true, errors = {} }) {
                                 >
                                     Don&apos;t have an account?{" "}
                                     <Link
-                                        href="/register/"
+                                        href={registerUrl}
                                         style={{ color: "inherit", fontWeight: 600 }}
                                     >
                                         Create one

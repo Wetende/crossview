@@ -57,6 +57,14 @@ const normalizeFillBlankText = (text, type) => {
         .replace(/\{\{\s*blank\s*\}\}/gi, "{{blank}}");
 };
 
+const getCorrectIndices = (question) => {
+    if (Array.isArray(question.correct_indices)) return question.correct_indices;
+    if (Array.isArray(question.answer_data?.correct_indices)) {
+        return question.answer_data.correct_indices;
+    }
+    return [];
+};
+
 /**
  * QuestionEditorCard - Inline editor for quiz questions
  * Matches STM LMS Quiz Builder design with rich text, media, categories
@@ -76,7 +84,7 @@ export default function QuestionEditorCard({
         points: question.points || 1,
         options: question.options || ["", "", "", ""],
         correct: question.correct ?? 0,
-        correctAnswers: question.correctAnswers || [],
+        correct_indices: getCorrectIndices(question),
         categories: question.categories || [],
         required: question.required ?? true,
         pairs: question.pairs || [],
@@ -95,7 +103,7 @@ export default function QuestionEditorCard({
             points: question.points || 1,
             options: question.options || ["", "", "", ""],
             correct: question.correct ?? 0,
-            correctAnswers: question.correctAnswers || [],
+            correct_indices: getCorrectIndices(question),
             categories: question.categories || [],
             required: question.required ?? true,
             pairs: question.pairs || [],
@@ -109,29 +117,6 @@ export default function QuestionEditorCard({
         // would overwrite in-progress edits in the debounced local editor.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [question.id]);
-
-    // Keep correct selections consistent when switching types
-    useEffect(() => {
-        if (localData.type === "mcq" || localData.type === "true_false") {
-            if (
-                Array.isArray(localData.correctAnswers) &&
-                localData.correctAnswers.length > 0
-            ) {
-                updateField("correct", localData.correctAnswers[0]);
-                updateField("correctAnswers", []);
-            }
-        }
-
-        if (localData.type === "mcq_multi") {
-            const current = Array.isArray(localData.correctAnswers)
-                ? localData.correctAnswers
-                : [];
-            if (current.length === 0 && typeof localData.correct === "number") {
-                updateField("correctAnswers", [localData.correct]);
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [localData.type]);
 
     useEffect(() => {
         if (localData.type === "fill_blank") {
@@ -171,8 +156,37 @@ export default function QuestionEditorCard({
         setLocalData((prev) => ({ ...prev, [field]: value }));
     };
 
+    const commitLocalData = (nextData) => {
+        setLocalData(nextData);
+        onChange({ ...question, ...nextData });
+    };
+
     const handleAddAnswer = () => {
         updateField("options", [...localData.options, ""]);
+    };
+
+    const handleQuestionTypeChange = (nextType) => {
+        const nextData = { ...localData, type: nextType };
+
+        if (nextType === "mcq" || nextType === "true_false") {
+            const current = Array.isArray(localData.correct_indices)
+                ? localData.correct_indices
+                : [];
+            nextData.correct = current.length > 0 ? current[0] : localData.correct ?? 0;
+            nextData.correct_indices = [];
+        }
+
+        if (nextType === "mcq_multi") {
+            nextData.correct_indices =
+                localData.type === "mcq_multi"
+                    ? localData.correct_indices || []
+                    : typeof localData.correct === "number"
+                      ? [localData.correct]
+                      : [];
+            nextData.correct = null;
+        }
+
+        commitLocalData(nextData);
     };
 
     const handleRemoveAnswer = (index) => {
@@ -184,16 +198,16 @@ export default function QuestionEditorCard({
             else if (index < localData.correct)
                 newCorrect = Math.max(0, localData.correct - 1);
         }
-        let newCorrectAnswers = localData.correctAnswers
+        const newCorrectIndices = (localData.correct_indices || [])
             .filter((i) => i !== index)
             .map((i) => (i > index ? i - 1 : i));
 
-        setLocalData((prev) => ({
-            ...prev,
+        commitLocalData({
+            ...localData,
             options: newOptions,
             correct: newCorrect,
-            correctAnswers: newCorrectAnswers,
-        }));
+            correct_indices: newCorrectIndices,
+        });
     };
 
     const handleUpdateAnswer = (index, value) => {
@@ -205,17 +219,20 @@ export default function QuestionEditorCard({
     const handleToggleCorrect = (index) => {
         if (localData.type === "mcq" || localData.type === "true_false") {
             // Single choice - only one correct
-            updateField("correct", index);
+            commitLocalData({ ...localData, correct: index });
         } else if (localData.type === "mcq_multi") {
             // Multiple choice - toggle in array
-            const current = localData.correctAnswers || [];
+            const current = localData.correct_indices || [];
             if (current.includes(index)) {
-                updateField(
-                    "correctAnswers",
-                    current.filter((i) => i !== index),
-                );
+                commitLocalData({
+                    ...localData,
+                    correct_indices: current.filter((i) => i !== index),
+                });
             } else {
-                updateField("correctAnswers", [...current, index]);
+                commitLocalData({
+                    ...localData,
+                    correct_indices: [...current, index],
+                });
             }
         }
     };
@@ -224,7 +241,7 @@ export default function QuestionEditorCard({
         if (localData.type === "mcq" || localData.type === "true_false") {
             return localData.correct === index;
         }
-        return (localData.correctAnswers || []).includes(index);
+        return (localData.correct_indices || []).includes(index);
     };
 
     const getTypeInfo = (typeValue) => {
@@ -395,7 +412,7 @@ export default function QuestionEditorCard({
                                 value={localData.type}
                                 label="Question Type"
                                 onChange={(e) =>
-                                    updateField("type", e.target.value)
+                                    handleQuestionTypeChange(e.target.value)
                                 }
                             >
                                 {QUESTION_TYPES.map((type) => (

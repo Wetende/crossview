@@ -45,6 +45,7 @@ import {
     ORDER_STATUS_LABELS,
     ORDER_STATUS_COLORS,
 } from "@/services/commerceApi";
+import { ReportToolbar } from "@/features/reports";
 
 export default function AdminOrders() {
     const [orders, setOrders] = useState([]);
@@ -294,6 +295,14 @@ export default function AdminOrders() {
                         </Typography>
                     </Stack>
                     <Stack direction="row" spacing={1}>
+                        <ReportToolbar
+                            scope="admin"
+                            reportId="admin.orders"
+                            queryParams={{
+                                status: statusFilter,
+                                provider: providerFilter,
+                            }}
+                        />
                         <Button
                             variant="contained"
                             onClick={() => openDialog("payout", null)}

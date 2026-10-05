@@ -99,7 +99,7 @@ export default function PublicProgramCard({
             {/* Thumbnail with badge + wishlist heart */}
             <Box sx={{ position: "relative" }}>
                 <CardMedia
-                    component="img"
+                    component="img" loading="lazy"
                     image={
                         program.thumbnail ||
                         "/static/images/course-placeholder.svg"
@@ -211,11 +211,11 @@ export default function PublicProgramCard({
                 )}
 
                 {/* Lectures and Hours Pill */}
-                <Stack
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
+                <Box
                     sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                         width: "100%",
                         border: 1,
                         borderColor: "#E5E7EB",
@@ -239,7 +239,7 @@ export default function PublicProgramCard({
                             {program.duration_hours || program.durationHours || 0} Hours
                         </Typography>
                     </Stack>
-                </Stack>
+                </Box>
 
                 {/* Rating & Price Row */}
                 <Box sx={{ mt: "auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -268,6 +268,7 @@ export default function PublicProgramCard({
                                     variant="body1"
                                     fontWeight={700}
                                     color="primary.main"
+                                    sx={{ whiteSpace: "nowrap" }}
                                 >
                                     {formatCurrency(priceDisplay.price)}
                                 </Typography>
@@ -277,6 +278,7 @@ export default function PublicProgramCard({
                                         sx={{
                                             textDecoration: "line-through",
                                             color: "#9CA3AF",
+                                            whiteSpace: "nowrap",
                                         }}
                                     >
                                         {formatCurrency(priceDisplay.originalPrice)}

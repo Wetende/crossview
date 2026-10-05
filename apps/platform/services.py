@@ -573,6 +573,15 @@ class PlatformSettingsService:
         settings.save(update_fields=["course_levels"])
 
     @staticmethod
+    def update_program_categories(program_categories: list) -> None:
+        """Update admin-managed program categories."""
+        from apps.platform.models import PlatformSettings
+
+        settings = PlatformSettings.get_settings()
+        settings.program_categories = program_categories or []
+        settings.save(update_fields=["program_categories", "updated_at"])
+
+    @staticmethod
     def complete_setup() -> None:
         """Mark setup as complete."""
         from apps.platform.models import PlatformSettings

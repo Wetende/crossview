@@ -34,6 +34,7 @@ import {
 
 import InstructorLayout from "@/layouts/InstructorLayout";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { ReportToolbar } from "@/features/reports";
 
 export default function Gradebook({
     program,
@@ -171,6 +172,11 @@ export default function Gradebook({
                         </Box>
 
                         <Stack direction="row" spacing={2}>
+                            <ReportToolbar
+                                scope="instructor"
+                                reportId="instructor.gradebook"
+                                queryParams={{ program: program.id }}
+                            />
                             <Button
                                 variant="outlined"
                                 startIcon={<SaveIcon />}

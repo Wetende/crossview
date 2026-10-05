@@ -68,6 +68,14 @@ const getPlainTextLength = (value) => {
     return String(value || "").replace(/<[^>]*>/g, "").trim().length;
 };
 
+const getCorrectIndices = (question) => {
+    if (Array.isArray(question?.correct_indices)) return question.correct_indices;
+    if (Array.isArray(question?.answer_data?.correct_indices)) {
+        return question.answer_data.correct_indices;
+    }
+    return [];
+};
+
 // Pill-style tab component
 function PillTabs({ value, onChange, tabs, questionCount }) {
     return (
@@ -138,11 +146,9 @@ export default function AssessmentEditor({
         normalized.required = normalized.required ?? true;
 
         if (normalized.type === "mcq_multi") {
-            normalized.correctAnswers = Array.isArray(normalized.correctAnswers)
-                ? normalized.correctAnswers
-                : Array.isArray(normalized.correct_indices)
-                  ? normalized.correct_indices
-                  : [];
+            normalized.correct_indices = getCorrectIndices(normalized);
+            delete normalized.correctAnswers;
+            delete normalized.correct_answers;
             normalized.correct = normalized.correct ?? null;
         }
 
@@ -172,11 +178,12 @@ export default function AssessmentEditor({
         const serialized = { ...question };
 
         if (serialized.type === "mcq_multi") {
-            serialized.correct_indices = Array.isArray(serialized.correctAnswers)
-                ? serialized.correctAnswers
-                      .map((value) => Number(value))
-                      .filter((value) => Number.isInteger(value) && value >= 0)
-                : [];
+            const correct_indices = getCorrectIndices(serialized)
+                .map((value) => Number(value))
+                .filter((value) => Number.isInteger(value) && value >= 0);
+            delete serialized.correctAnswers;
+            delete serialized.correct_answers;
+            serialized.correct_indices = correct_indices;
         }
 
         return serialized;
@@ -415,7 +422,7 @@ export default function AssessmentEditor({
             points: 1,
             options: ["", "", "", ""],
             correct: type === "mcq_multi" ? null : 0,
-            correctAnswers: [],
+            correct_indices: [],
             categories: [],
             required: true,
             keywords: [],
@@ -521,7 +528,7 @@ export default function AssessmentEditor({
                         .map((o) => (typeof o === "string" ? o : o?.text))
                         .filter(Boolean),
                     correct: entry.question_data?.answer_data?.correct ?? 0,
-                    correctAnswers:
+                    correct_indices:
                         entry.question_data?.answer_data?.correct_indices || [],
                     pairs: entry.question_data?.matching_pairs || [],
                     gaps: entry.question_data?.gap_answers || [],

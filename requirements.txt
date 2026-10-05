@@ -5,6 +5,7 @@ djangorestframework>=3.14.0
 django-filter>=23.0
 django-cors-headers>=4.3.0
 django-unfold>=0.78.0
+google-auth>=2.55.0
 
 # Inertia.js for Django
 inertia-django @ git+https://github.com/inertiajs/inertia-django.git@main
