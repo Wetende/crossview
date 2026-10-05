@@ -229,8 +229,7 @@ describe('QuizRenderer', () => {
             multi: [
                 byId.multi.correctOptionIds[0],
                 byId.multi.correctOptionIds[1],
-                byId.multi.options.find((option) => !byId.multi.correctOptionIds.includes(option.id))
-                    .id,
+                byId.multi.options.find((option) => !byId.multi.correctOptionIds.includes(option.id)).id,
             ],
             order: ['Third', 'Second', 'First'],
         };

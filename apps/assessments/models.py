@@ -338,11 +338,9 @@ class Question(TimeStampedModel):
             if is_correct:
                 points_earned = Decimal(self.points)
             else:
-                points_earned = (
-                    _round2(Decimal(self.points) * correct_count / len(expected_order))
-                    if len(expected_order) > 0
-                    else Decimal(0)
-                )
+                points_earned = _round2(
+                    Decimal(self.points) * correct_count / len(expected_order)
+                ) if len(expected_order) > 0 else Decimal(0)
             return is_correct, points_earned
 
         # 5. Multi-Select MCQ
@@ -398,10 +396,7 @@ class Question(TimeStampedModel):
                 return False, Decimal(0)
             correct_selected = len(submitted_set & correct_positions)
             incorrect_selected = len(submitted_set - correct_positions)
-            ratio = max(
-                Decimal(0),
-                Decimal(correct_selected - incorrect_selected) / total_correct,
-            )
+            ratio = max(Decimal(0), Decimal(correct_selected - incorrect_selected) / total_correct)
             ratio = min(ratio, Decimal(1))
             points_earned = _round2(Decimal(self.points) * ratio)
             return False, points_earned
