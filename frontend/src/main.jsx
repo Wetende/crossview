@@ -178,8 +178,14 @@ if (appElement && !appElement.dataset.page) {
     `;
     console.error("Inertia.js page data is missing. Please access the application through the Django backend.");
 } else {
+    // base.html renders <title inertia> with the institution name. Inertia's
+    // head manager removes it on pages without a <Head title>, so keep it as
+    // the fallback title.
+    const fallbackTitle = document.title;
+
     // Create Inertia app
     createInertiaApp({
+        title: (title) => title || fallbackTitle,
         resolve: async (name) => {
             const pageLoader = resolvePageLoader(name);
 
