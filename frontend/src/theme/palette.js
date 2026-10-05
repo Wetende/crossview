@@ -8,7 +8,10 @@
  * Warning: Amber (#F59E0B)
  */
 
-import { generatePaletteFromColor } from "./utils/colorUtils";
+import {
+    DARK_HIGHLIGHT_SURFACE,
+    generatePaletteFromColor,
+} from "./utils/colorUtils";
 
 const lightPalette = {
     mode: "light",
@@ -90,7 +93,7 @@ const lightPalette = {
 const darkPalette = {
     mode: "dark",
     primary: {
-        lighter: "#123B24",
+        lighter: DARK_HIGHLIGHT_SURFACE,
         light: "#4ADE80",
         main: "#86EFAC",
         dark: "#BBF7D0",
@@ -98,7 +101,7 @@ const darkPalette = {
         contrastText: "#052E16",
     },
     secondary: {
-        lighter: "#10311F",
+        lighter: DARK_HIGHLIGHT_SURFACE,
         light: "#34D399",
         main: "#6EE7B7",
         dark: "#A7F3D0",
@@ -137,26 +140,27 @@ const darkPalette = {
         darker: "#FEE2E2",
         contrastText: "#0F172A",
     },
+    // Neutral charcoal scale, darkest first, so brand colours read as accents.
     grey: {
-        50: "#0F172A",
-        100: "#1E293B",
-        200: "#334155",
-        300: "#475569",
-        400: "#64748B",
-        500: "#94A3B8",
-        600: "#CBD5E1",
-        700: "#E2E8F0",
-        800: "#F1F5F9",
-        900: "#F8FAFC",
+        50: "#101828",
+        100: "#1E2939",
+        200: "#364153",
+        300: "#4A5565",
+        400: "#6A7282",
+        500: "#99A1AF",
+        600: "#D1D5DC",
+        700: "#E5E7EB",
+        800: "#F3F4F6",
+        900: "#F9FAFB",
     },
     text: {
-        primary: "#F4FBF6",
-        secondary: "#B6D4BF",
+        primary: "#E5E7EB",
+        secondary: "#99A1AF",
     },
-    divider: "#284A34",
+    divider: "#364153",
     background: {
-        default: "#071B10",
-        paper: "#102A1A",
+        default: "#101828",
+        paper: "#1E2939",
     },
     action: {
         hover: "rgba(255, 255, 255, 0.08)",

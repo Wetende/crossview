@@ -224,7 +224,10 @@ const StudyPanel = ({
                 display: "flex",
                 flexDirection: "column",
                 height: "100%",
-                bgcolor: "#f8f9fb",
+                bgcolor: (theme) =>
+                    theme.palette.mode === "dark"
+                        ? theme.palette.background.default
+                        : "#f8f9fb",
             }}
         >
             {/* Header */}

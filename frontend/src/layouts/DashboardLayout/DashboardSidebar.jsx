@@ -9,6 +9,10 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { Link } from "@inertiajs/react";
 
+// Dark mode keeps the sidebar on the neutral charcoal surfaces; the brand
+// colour stays in light mode and on the selected item's accent border.
+const isDark = (theme) => theme.palette.mode === "dark";
+
 const isCurrentRoute = (currentPath, href) =>
     currentPath === href ||
     (href !== "/dashboard/" && Boolean(href) && currentPath.startsWith(href));
@@ -27,7 +31,10 @@ const DashboardSidebar = ({
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            bgcolor: "#166534",
+            bgcolor: (theme) =>
+                isDark(theme) ? theme.palette.background.default : "#166534",
+            borderRight: (theme) =>
+                isDark(theme) ? `1px solid ${theme.palette.divider}` : "none",
             color: "#FFFFFF",
         }}
     >
@@ -101,13 +108,26 @@ const DashboardSidebar = ({
                                         transition:
                                             "background-color 160ms ease, border-color 160ms ease",
                                         "&:hover": {
-                                            bgcolor: "rgba(9, 30, 88, 0.34)",
+                                            bgcolor: (theme) =>
+                                                isDark(theme)
+                                                    ? theme.palette.action.hover
+                                                    : "rgba(9, 30, 88, 0.34)",
                                         },
                                         "&.Mui-selected": {
-                                            bgcolor: "#14532D",
+                                            bgcolor: (theme) =>
+                                                isDark(theme)
+                                                    ? theme.palette.background
+                                                          .paper
+                                                    : "#14532D",
                                             borderLeftColor: "#22C55E",
                                             color: "#FFFFFF",
-                                            "&:hover": { bgcolor: "#104527" },
+                                            "&:hover": {
+                                                bgcolor: (theme) =>
+                                                    isDark(theme)
+                                                        ? theme.palette
+                                                              .grey[200]
+                                                        : "#104527",
+                                            },
                                         },
                                     }}
                                 >

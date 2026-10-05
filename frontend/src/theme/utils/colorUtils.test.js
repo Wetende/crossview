@@ -15,4 +15,13 @@ describe("brand color palette generation", () => {
         expect(palette.contrastText).toBe("#0F172A");
         expect(palette.lighter).not.toBe(palette.main);
     });
+
+    test("uses a neutral highlight surface in dark mode for any brand", () => {
+        expect(generatePaletteFromColor("#3B82F6", "dark").lighter).toBe(
+            "#364153",
+        );
+        expect(generatePaletteFromColor("#166534", "dark").lighter).toBe(
+            "#364153",
+        );
+    });
 });
