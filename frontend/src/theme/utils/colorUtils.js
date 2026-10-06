@@ -113,6 +113,12 @@ export function getContrastText(hex) {
 }
 
 /**
+ * Selected/highlight surface for dark mode. It stays neutral for every brand
+ * so saturated brand colours appear only as accents on charcoal surfaces.
+ */
+export const DARK_HIGHLIGHT_SURFACE = "#364153";
+
+/**
  * Generate full MUI palette object from single color
  * @param {string} hexColor - Checkbox provided hex color
  * @param {string} mode - 'light' or 'dark'
@@ -126,7 +132,7 @@ export function generatePaletteFromColor(hexColor, mode = "light") {
     if (isDark) {
         const mainColor = lighten(hexColor, 0.55);
         return {
-            lighter: darken(hexColor, 0.15),
+            lighter: DARK_HIGHLIGHT_SURFACE,
             light: lighten(hexColor, 0.7),
             main: mainColor,
             dark: lighten(hexColor, 0.42),
