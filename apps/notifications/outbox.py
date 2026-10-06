@@ -5,12 +5,12 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
 from .models import NotificationEmailOutbox, NotificationPreference
+from .email_delivery import send_branded_email
 
 
 def _preferences_for(user):
@@ -112,6 +112,14 @@ def _digest_content(rows):
     return subject, "\n".join(lines).strip()
 
 
+def _row_action(row):
+    metadata = row.metadata or {}
+    action_url = metadata.get("action_url", "")
+    if not action_url and row.notification:
+        action_url = row.notification.action_url or ""
+    return action_url, metadata.get("action_label", "View details")
+
+
 def _deliver_group(rows, now):
     first = rows[0]
     subject, message = (
@@ -119,15 +127,31 @@ def _deliver_group(rows, now):
         if first.digest_mode in {"daily", "weekly"}
         else (first.subject, first.message)
     )
-    html_message = first.html_message if len(rows) == 1 else None
+    action_url, action_label = _row_action(first)
+    digest_items = None
+    if first.digest_mode in {"daily", "weekly"}:
+        digest_items = []
+        for row in rows:
+            row_action_url, row_action_label = _row_action(row)
+            digest_items.append(
+                {
+                    "subject": row.subject,
+                    "message": row.message,
+                    "action_url": row_action_url,
+                    "action_label": row_action_label,
+                }
+            )
     try:
-        sent = send_mail(
+        sent = send_branded_email(
             subject=subject,
             message=message,
             from_email=first.from_email or None,
             recipient_list=[first.recipient.email],
             fail_silently=False,
-            html_message=html_message,
+            html_message=first.html_message if len(rows) == 1 else None,
+            action_url=action_url if len(rows) == 1 else "",
+            action_label=action_label,
+            digest_items=digest_items,
         )
         if sent <= 0:
             raise RuntimeError("The email backend did not accept the message.")

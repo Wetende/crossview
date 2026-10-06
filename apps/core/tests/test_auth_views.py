@@ -598,7 +598,7 @@ class TestEmailEnumerationPrevention:
     """
 
     @pytest.mark.django_db
-    def test_existing_email_response(self, client):
+    def test_existing_email_response(self, client, mailoutbox):
         """Existing email should show success message."""
         user = UserFactory()
 
@@ -610,6 +610,8 @@ class TestEmailEnumerationPrevention:
         )
 
         assert response.status_code == 200
+        assert mailoutbox[0].alternatives
+        assert "Reset password" in mailoutbox[0].alternatives[0][0]
 
     @pytest.mark.django_db
     @given(email=st.emails())

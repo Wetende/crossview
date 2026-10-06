@@ -152,3 +152,4 @@ Do not maintain three independent implementations of the same LMS behavior.
 | [`docs/inertia-architecture.md`](docs/inertia-architecture.md)         | Django and React integration                  |
 | [`docs/dashboard-architecture.md`](docs/dashboard-architecture.md)     | Shared dashboard structure                    |
 | [`docs/paystack-webhook-runbook.md`](docs/paystack-webhook-runbook.md) | Payment webhook operations                    |
+| [`docs/transactional-email.md`](docs/transactional-email.md)           | Brevo, branding, and outbox operations        |

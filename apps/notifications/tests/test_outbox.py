@@ -55,6 +55,10 @@ def test_daily_digest_groups_due_rows():
     assert len(mail.outbox) == 1
     assert "First body" in mail.outbox[0].body
     assert "Second body" in mail.outbox[0].body
+    assert mail.outbox[0].alternatives
+    html = mail.outbox[0].alternatives[0][0]
+    assert "First body" in html
+    assert "Second body" in html
 
 
 @pytest.mark.django_db
@@ -96,7 +100,7 @@ def test_transient_delivery_failure_remains_retryable(monkeypatch):
         idempotency_key="retry",
     )
     monkeypatch.setattr(
-        "apps.notifications.outbox.send_mail",
+        "apps.notifications.outbox.send_branded_email",
         lambda **kwargs: (_ for _ in ()).throw(RuntimeError("temporary")),
     )
 

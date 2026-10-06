@@ -160,6 +160,8 @@ def test_unknown_account_invitation_stores_only_hash(client, mailoutbox, instruc
     assert "rawToken" not in payload
     assert invitation.email == "newlearner@example.com"
     assert invitation.expires_at > timezone.now()
+    assert mailoutbox[0].alternatives
+    assert "Accept invitation" in mailoutbox[0].alternatives[0][0]
 
 
 @pytest.mark.django_db

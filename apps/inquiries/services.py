@@ -2,11 +2,11 @@ import logging
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMessage
 from django.core.validators import validate_email
 from django.utils import timezone
 
 from apps.platform.models import PlatformSettings
+from apps.notifications.email_delivery import send_branded_email
 
 from .models import Inquiry
 
@@ -62,17 +62,18 @@ def send_inquiry_notification(inquiry: Inquiry) -> bool:
         if not recipient:
             raise ValueError("No valid inquiry notification recipient is configured.")
 
-        message = EmailMessage(
+        sent = send_branded_email(
             subject=(
                 f"[{institution_name}] New "
                 f"{inquiry.get_kind_display().lower()} inquiry"
             ),
-            body=_notification_body(inquiry),
+            message=_notification_body(inquiry),
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            to=[recipient],
+            recipient_list=[recipient],
             reply_to=[inquiry.email],
+            fail_silently=False,
         )
-        if message.send(fail_silently=False) != 1:
+        if sent != 1:
             raise RuntimeError("The email backend did not accept the notification.")
     except Exception as exc:  # The inquiry must remain available to staff.
         error = str(exc).strip()[:500] or exc.__class__.__name__
