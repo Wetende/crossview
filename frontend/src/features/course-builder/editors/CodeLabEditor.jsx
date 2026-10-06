@@ -79,6 +79,24 @@ const LANGUAGE_CONFIG = {
         extensions: [javascript()],
         defaultCode: `// Write your JavaScript code here\nfunction greet(name) {\n    return "Hello, " + name + "!";\n}\n\nconsole.log(greet("World"));\n`,
     },
+    react: {
+        label: "React",
+        extensions: [javascript({ jsx: true })],
+        defaultCode: `// React and its hooks (useState, useEffect, ...) are already in scope.
+// Define a component called App and it will be rendered automatically.
+function App() {
+    const [count, setCount] = useState(0);
+
+    return (
+        <div style={{ fontFamily: "sans-serif", padding: "2rem" }}>
+            <h1>Hello, React!</h1>
+            <p>You clicked {count} times.</p>
+            <button onClick={() => setCount(count + 1)}>Click me</button>
+        </div>
+    );
+}
+`,
+    },
     python: {
         label: "Python",
         extensions: [python()],
@@ -96,7 +114,19 @@ const LANGUAGE_CONFIG = {
     },
 };
 
-const AUTHORABLE_LANGUAGES = new Set(["html_css_js", "javascript"]);
+/** Languages that run in the learner's browser; the rest stay submission-only. */
+const AUTHORABLE_LANGUAGES = new Set([
+    "html_css_js",
+    "javascript",
+    "react",
+    "python",
+]);
+
+const RUNTIME_HINTS = {
+    react: "Runs in the learner's browser. React and its hooks are in scope without imports, and a component named App renders automatically.",
+    python:
+        "Runs in the learner's browser with Pyodide. The first run downloads the interpreter (about 10 MB), later runs use the cache. input() and the standard library work.",
+};
 
 /** Layout options for the student-facing editor */
 const LAYOUT_OPTIONS = [
@@ -533,9 +563,14 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                     </Stack>
 
                     {/* ── Supported languages info ── */}
-                    {(language === "python" ||
-                        language === "java" ||
-                        language === "c_cpp") && (
+                    {RUNTIME_HINTS[language] && (
+                        <Alert severity="info" variant="outlined">
+                            <Typography variant="body2">
+                                {RUNTIME_HINTS[language]}
+                            </Typography>
+                        </Alert>
+                    )}
+                    {(language === "java" || language === "c_cpp") && (
                         <Alert severity="info" variant="outlined">
                             <Typography variant="body2">
                                 <strong>
@@ -543,8 +578,9 @@ const CodeLabEditor = forwardRef(function CodeLabEditor(
                                 </strong>{" "}
                                 is retained for an existing lesson in
                                 submission-only compatibility mode. New code
-                                labs support HTML/CSS/JavaScript only, and this
-                                language will not execute in the browser.
+                                labs support HTML/CSS/JavaScript, React and
+                                Python, and this language will not execute in
+                                the browser.
                             </Typography>
                         </Alert>
                     )}
