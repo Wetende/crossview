@@ -22,6 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # DEBUG mode - controls development vs production behavior
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+VITE_DEV_SERVER_URL = os.getenv("VITE_DEV_SERVER_URL", "").strip().rstrip("/")
 
 # Security
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
