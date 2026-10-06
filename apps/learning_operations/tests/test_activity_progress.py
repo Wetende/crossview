@@ -125,6 +125,29 @@ class LearnerActivityProgressApiTests(TestCase):
         response = self.client.get(self._progress_url(node))
         self.assertEqual(response.status_code, 404)
 
+    def test_code_lab_reports_which_languages_run_in_the_browser(self):
+        for language, runnable in [
+            ("html_css_js", True),
+            ("javascript", True),
+            ("react", True),
+            ("python", True),
+            ("java", False),
+            ("c_cpp", False),
+        ]:
+            with self.subTest(language=language):
+                node = self._node("code", language=language, starter_code="x")
+                response = self.client.get(
+                    reverse(
+                        "learning_operations:code-lab-work",
+                        args=[self.enrollment.id, node.id],
+                    )
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["language"], language)
+                self.assertIs(response.json()["browserRunnable"], runnable)
+                # Remove the lesson so sequential progression does not lock the next one.
+                node.delete()
+
     def test_code_draft_is_cross_device_and_submission_completes(self):
         node = self._node(
             "code",

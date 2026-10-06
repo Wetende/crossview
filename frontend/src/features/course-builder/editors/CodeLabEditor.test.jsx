@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import CodeLabEditor from "./CodeLabEditor";
@@ -37,6 +37,30 @@ const codeLab = {
 };
 
 describe("CodeLabEditor free preview", () => {
+    it.each(["React", "Python"])(
+        "allows instructors to select and save %s labs",
+        async (label) => {
+            const onSave = vi.fn((_id, _payload, callbacks) =>
+                callbacks?.onSuccess?.(),
+            );
+            const ref = createRef();
+            render(<CodeLabEditor ref={ref} node={codeLab} onSave={onSave} />);
+
+            fireEvent.mouseDown(screen.getAllByRole("combobox")[0]);
+            fireEvent.click(
+                screen.getByRole("option", { name: label, exact: true }),
+            );
+            await act(async () => {
+                await ref.current.flushAutosave({ force: true });
+            });
+
+            expect(onSave).toHaveBeenCalled();
+            const payload = onSave.mock.calls.at(-1)[1];
+            expect(payload.properties.language).toBe(label.toLowerCase());
+            expect(payload.properties.is_preview).toBe(false);
+        },
+    );
+
     it("never offers the preview toggle and saves code labs as non-preview", async () => {
         const onSave = vi.fn((_id, _payload, callbacks) =>
             callbacks?.onSuccess?.(),

@@ -37,6 +37,12 @@ import {
     saveCodeLabWork,
     submitCodeLabWork,
 } from "../../api/activityProgressApi";
+import {
+    IFRAME_SANDBOX,
+    LANG_LABELS,
+    buildIframeSrcdoc,
+    isBrowserRunnable as isLanguageBrowserRunnable,
+} from "./codeLabRuntimes";
 
 /**
  * Language → CodeMirror extension mapping.
@@ -45,113 +51,10 @@ import {
 const LANG_EXTENSIONS = {
     html_css_js: [html()],
     javascript: [javascript()],
+    react: [javascript({ jsx: true })],
     python: [python()],
     java: [java()],
     c_cpp: [cpp()],
-};
-
-const LANG_LABELS = {
-    html_css_js: "HTML / CSS / JS",
-    javascript: "JavaScript",
-    python: "Python",
-    java: "Java",
-    c_cpp: "C / C++",
-};
-
-/**
- * Build the srcdoc string for the sandboxed iframe.
- * Captures console.log/warn/error into a postMessage to the parent.
- */
-const buildIframeSrcdoc = (code, language) => {
-    if (language === "html_css_js") {
-        // Inject console capture script into the HTML
-        const consoleCapture = `
-<script>
-(function() {
-    var _origLog = console.log;
-    var _origWarn = console.warn;
-    var _origError = console.error;
-    function send(level, args) {
-        try {
-            window.parent.postMessage({
-                type: 'console',
-                level: level,
-                data: Array.from(args).map(function(a) {
-                    if (typeof a === 'object') return JSON.stringify(a, null, 2);
-                    return String(a);
-                }).join(' ')
-            }, '*');
-        } catch(e) {}
-    }
-    console.log = function() { send('log', arguments); _origLog.apply(console, arguments); };
-    console.warn = function() { send('warn', arguments); _origWarn.apply(console, arguments); };
-    console.error = function() { send('error', arguments); _origError.apply(console, arguments); };
-    window.addEventListener('error', function(e) {
-        send('error', [e.message + ' (line ' + e.lineno + ')']);
-    });
-})();
-</script>`;
-        // Insert console capture at the top of <head> (or before anything else)
-        if (code.includes("<head>")) {
-            return code.replace("<head>", "<head>" + consoleCapture);
-        }
-        // No <head> tag — wrap the whole code
-        return consoleCapture + code;
-    }
-
-    if (language === "javascript") {
-        // Wrap standalone JS in an HTML shell with console capture
-        return `<!DOCTYPE html>
-<html>
-<head>
-<style>
-    body { font-family: monospace; padding: 1rem; background: #1e1e1e; color: #d4d4d4; white-space: pre-wrap; }
-</style>
-<script>
-(function() {
-    var output = [];
-    var _origLog = console.log;
-    function send(level, args) {
-        var text = Array.from(args).map(function(a) {
-            if (typeof a === 'object') return JSON.stringify(a, null, 2);
-            return String(a);
-        }).join(' ');
-        output.push(text);
-        document.getElementById('output').textContent = output.join('\\n');
-        try {
-            window.parent.postMessage({ type: 'console', level: level, data: text }, '*');
-        } catch(e) {}
-    }
-    console.log = function() { send('log', arguments); _origLog.apply(console, arguments); };
-    console.warn = function() { send('warn', arguments); };
-    console.error = function() { send('error', arguments); };
-    window.addEventListener('error', function(e) {
-        send('error', [e.message + ' (line ' + e.lineno + ')']);
-    });
-})();
-</script>
-</head>
-<body>
-<div id="output"></div>
-<script>
-${code}
-</script>
-</body>
-</html>`;
-    }
-
-    // For server-side languages (python, java, c_cpp) — show a placeholder message
-    return `<!DOCTYPE html>
-<html>
-<head><style>
-body { font-family: sans-serif; padding: 2rem; text-align: center; color: #888; background: #1e1e1e; }
-h2 { color: #ccc; }
-</style></head>
-<body>
-<h2>⚙️ Server execution required</h2>
-<p>${LANG_LABELS[language] || language} code execution is coming soon.<br/>For now, review your code in the editor.</p>
-</body>
-</html>`;
 };
 
 /**
@@ -329,8 +232,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
     );
 
     // Decide if preview is browser-runnable
-    const isBrowserRunnable =
-        language === "html_css_js" || language === "javascript";
+    const isBrowserRunnable = isLanguageBrowserRunnable(language);
 
     // ── Layout rendering ──
     const isHorizontal = layoutPref === "split_horizontal";
@@ -463,7 +365,7 @@ const CodeLabRenderer = ({ node, enrollmentId, onComplete }) => {
                         ref={iframeRef}
                         srcDoc={srcdoc}
                         title="Code output"
-                        sandbox="allow-scripts"
+                        sandbox={IFRAME_SANDBOX}
                         style={{
                             width: "100%",
                             height: "100%",
