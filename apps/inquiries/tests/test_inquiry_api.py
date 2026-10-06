@@ -56,6 +56,8 @@ def test_submit_inquiry_saves_normalized_record_and_sends_notification(client):
     assert mail.outbox[0].to == ["inquiries@example.com"]
     assert mail.outbox[0].reply_to == ["mary@example.com"]
     assert "Course options" in mail.outbox[0].body
+    assert mail.outbox[0].alternatives
+    assert "Course options" in mail.outbox[0].alternatives[0][0]
 
 
 @override_settings(
@@ -176,7 +178,7 @@ def test_honeypot_submission_is_silently_ignored(client):
 @override_settings(**EMAIL_SETTINGS)
 def test_email_failure_does_not_discard_inquiry(client):
     with patch(
-        "apps.inquiries.services.EmailMessage.send",
+        "apps.inquiries.services.send_branded_email",
         side_effect=RuntimeError("mail service unavailable"),
     ):
         response = _submit(

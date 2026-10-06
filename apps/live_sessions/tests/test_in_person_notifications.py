@@ -198,7 +198,7 @@ class InPersonSessionNotificationTests(TestCase):
         self.assertEqual(Notification.objects.count(), 1)
         self.assertEqual(Notification.objects.first().recipient, self.learner)
 
-    @patch("apps.notifications.outbox.send_mail", side_effect=RuntimeError("SMTP down"))
+    @patch("apps.notifications.outbox.send_branded_email", side_effect=RuntimeError("Email provider down"))
     def test_email_failure_uses_outbox_retry_without_losing_lesson(self, _send):
         self._enable()
 
@@ -210,7 +210,7 @@ class InPersonSessionNotificationTests(TestCase):
 
         row.available_at = timezone.now()
         row.save(update_fields=["available_at", "updated_at"])
-        with patch("apps.notifications.outbox.send_mail", return_value=1):
+        with patch("apps.notifications.outbox.send_branded_email", return_value=1):
             process_notification_outbox(row_ids=[row.id])
         row.refresh_from_db()
         self.assertEqual(row.status, "sent")

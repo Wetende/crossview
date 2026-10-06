@@ -11,7 +11,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core import signing
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models.functions import Lower
@@ -20,6 +19,7 @@ from django.utils.text import slugify
 
 from apps.assessments.models import AssignmentSubmission, Quiz
 from apps.certifications.models import Certificate
+from apps.notifications.email_delivery import send_branded_email
 from apps.platform.models import PlatformSettings
 from apps.progression.models import Enrollment, NodeCompletion
 
@@ -123,15 +123,16 @@ def send_course_invitation(*, invitation, raw_token, request=None) -> bool:
     relative_url = f"/course-invitations/{raw_token}/"
     invitation_url = request.build_absolute_uri(relative_url) if request else relative_url
     institution_name = PlatformSettings.get_settings().institution_name
-    sent = send_mail(
+    sent = send_branded_email(
         subject=f"Invitation to {invitation.program.name}",
         message=(
             f"You have been invited to join {invitation.program.name} on "
             f"{institution_name}. This invitation expires in seven days.\n\n"
             f"Accept invitation: {invitation_url}"
         ),
-        from_email=None,
         recipient_list=[invitation.email],
+        action_url=invitation_url,
+        action_label="Accept invitation",
         fail_silently=True,
     )
     return sent > 0

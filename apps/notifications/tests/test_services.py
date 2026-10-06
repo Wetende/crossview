@@ -73,6 +73,8 @@ class NotificationServiceTests(TestCase):
         self.assertEqual(mail.outbox[0].subject, "Welcome to Example Academy")
         self.assertIn("signing in with Google", mail.outbox[0].body)
         self.assertIn("help@example.test", mail.outbox[0].body)
+        self.assertTrue(mail.outbox[0].alternatives)
+        self.assertIn("Example Academy", mail.outbox[0].alternatives[0][0])
 
     def test_bulk_create_notifications(self):
         """Test bulk creating notifications for multiple users."""

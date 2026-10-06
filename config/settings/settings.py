@@ -11,6 +11,8 @@ import importlib.util
 from pathlib import Path
 from dotenv import load_dotenv
 
+from config.email import build_email_settings
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -23,6 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # DEBUG mode - controls development vs production behavior
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 VITE_DEV_SERVER_URL = os.getenv("VITE_DEV_SERVER_URL", "").strip().rstrip("/")
+globals().update(build_email_settings(debug=DEBUG, environment=os.environ))
 
 # Security
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
