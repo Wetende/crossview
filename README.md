@@ -94,18 +94,25 @@ python manage.py createsuperuser
 
 ## Development
 
-Run Django and Vite in separate terminals:
+Django serves the built frontend assets by default:
 
 ```bash
 source .venv/bin/activate
 python manage.py runserver
 ```
 
+Open `http://localhost:8000`.
+
+For hot reload, set `DEBUG=True` and
+`VITE_DEV_SERVER_URL=http://localhost:5173`, then start Vite separately:
+
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:8000`.
+Leave `VITE_DEV_SERVER_URL` empty when Vite is stopped. Run `npm run build`
+after frontend changes to refresh the built assets. An unrelated server on
+port 5173 or 5174 no longer changes which frontend Django serves.
 
 ## Verification
 

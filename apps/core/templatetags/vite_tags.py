@@ -12,8 +12,6 @@ from django.utils.safestring import mark_safe
 register = template.Library()
 
 MANIFEST_PATH = Path(settings.BASE_DIR) / "static" / "dist" / ".vite" / "manifest.json"
-VITE_DEV_PORTS = [5173, 5174]  # Check multiple ports
-VITE_DEV_HOSTS = ["127.0.0.1", "localhost"]  # Vite may bind to either host locally.
 
 
 def get_manifest():
@@ -36,44 +34,23 @@ def get_manifest():
     return get_manifest._cache or {}
 
 
-def is_vite_dev_running():
-    """Check if Vite dev server is running (only in DEBUG mode)."""
-    if not settings.DEBUG:
-        return False
-
-    import socket
-
-    for host in VITE_DEV_HOSTS:
-        for port in VITE_DEV_PORTS:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(0.5)
-                result = sock.connect_ex((host, port))
-                sock.close()
-                if result == 0:
-                    return host, port
-            except OSError:
-                pass
-    return False
-
-
 def get_vite_dev_server():
-    """Get the Vite dev server URL."""
-    port = is_vite_dev_running()
-    if port:
-        host, port_number = port
-        return f"http://{host}:{port_number}"
-    return None
+    """Return the explicitly configured Vite URL in debug mode."""
+    if not settings.DEBUG:
+        return None
+
+    dev_server = getattr(settings, "VITE_DEV_SERVER_URL", "")
+    return dev_server.strip().rstrip("/") or None
 
 
 @register.simple_tag
 def vite_assets(entry: str):
     """
-    Load Vite assets - automatically detects dev vs production.
+    Load built assets unless a Vite dev server is explicitly configured.
 
     Usage: {% vite_assets 'src/main.jsx' %}
     """
-    # Check if Vite dev server is running (development mode)
+    # Hot reload is opt-in so unrelated services cannot hijack asset loading.
     dev_server = get_vite_dev_server()
     if dev_server:
         return mark_safe(
