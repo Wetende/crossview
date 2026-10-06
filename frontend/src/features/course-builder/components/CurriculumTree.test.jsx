@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import CurriculumTree from "./CurriculumTree";
 
@@ -69,6 +69,7 @@ vi.mock("@mui/material", () => {
         "preserveScroll",
         "primaryTypographyProps",
         "size",
+        "slotProps",
         "spacing",
         "startIcon",
         "sx",
@@ -144,8 +145,19 @@ vi.mock("@mui/icons-material", () => {
 });
 
 describe("CurriculumTree", () => {
+    let consoleError;
+
     beforeEach(() => {
         mockRouterPost.mockReset();
+        consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    });
+
+    // React reports unknown DOM props, such as a slotProps object leaking
+    // through a mocked MUI component, with console.error.
+    afterEach(() => {
+        const errors = [...consoleError.mock.calls];
+        consoleError.mockRestore();
+        expect(errors).toEqual([]);
     });
 
     const program = {
